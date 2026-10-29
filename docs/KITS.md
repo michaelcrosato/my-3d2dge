@@ -130,7 +130,8 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
 - **The manuals.** Out of room: move detail to the index first, then ask for a budget with a decision.
 - **Timing checks on a slow machine.** The phone suite's timing checks fail in a slow container, `main` alike: run one on
   `main` in the same container before reading it as a change's, and run browser work beside `npm test` only when its
-  timing checks don't matter.
+  timing checks don't matter. A check that excuses the machine's hiccups one cause at a time fails on the next cause:
+  have it measure the promise itself, as the audio suite's clock check does (D67: past 10 ms only in short stretches).
 - **A 3D circuit's drivers.** E.Race's drivers steer at the racing line, walls or not: a kart that leaves the course must
   be set back on the road (the 3D RACING kit's Lakitu), and a bank or a crest that rises within a few units throws karts
   over the wall (`world.track` eases its banking over about 40).

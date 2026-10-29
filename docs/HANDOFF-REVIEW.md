@@ -1,7 +1,7 @@
 # Handoff: the owner's review pass after the genre plan
 
-> **Status: waiting on the owner (2026-10-29).** Nothing here is to be built until the owner says which parts to take up.
-> Each part is independent.
+> **Status: waiting on the owner (2026-10-29, at v0.81.5).** Nothing here is to be built until the owner says which parts
+> to take up. Each part is independent.
 
 What the genre plan (`docs/HANDOFF-GENRES.md`, folded in at v0.81.2 and, after a last version with M16's row, at
 v0.81.5; its rules now in `docs/KITS.md`, its full text in `git show 24aee29:docs/HANDOFF-GENRES.md`) left for the
@@ -9,34 +9,47 @@ owner. The plan built what each milestone needed and deferred the trimming to a 
 kits (the owner's word, 2026-10-28). It is temporary: when a part lands, its line goes; when none is left, this file
 goes.
 
-## 1. Play the kits (the owner's checks)
+**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Parts 2 to 5 are
+work an agent can do once the owner says go: part 3 spends money, and part 4 adds two kits.
 
-The Labs page's **To check** section holds a card for each kit and system that only a person can judge (feel, sound, a
-real phone): 23 cards at v0.81.2, each saying what to do and what to look for, and the Vehicle Lab (Temporary) to settle
-D62 by driving. A card goes once checked; what the owner wants changed becomes a plan or a fix.
+## 1. Play the kits (only the owner)
+
+The Labs page's **To check** section holds 23 cards, each saying what to do and what to look for. Most want a phone or
+a second player. A card goes once checked; what the owner wants changed becomes a plan or a fix.
+- **2D kits:** Roguelike on your phone; Puzzle (how the blocks handle, and versus); Arcade (the three classics);
+  Shooter (the horizontal stage); Brawler with a friend; Fighting (Street Fighter); Metroidvania (Super Metroid); Kart
+  (Super Mario Kart); Road (OutRun); RPG (Dragon Quest, Final Fantasy); Tactics (Final Fantasy Tactics, Fire Emblem);
+  RTS (Warcraft II, StarCraft); Sim (Theme Park); Point-and-click (Monkey Island); Pinball (Pinball Fantasies); Artillery
+  (Worms); Rhythm (Dance Dance Revolution, PaRappa); Stealth's music (the chase's layers).
+- **3D kits:** Horror (Resident Evil, Alone in the Dark); 3D Action's lock-on (Zelda); Racing (Mario Kart 64); Flight
+  (Star Fox 64).
+- **The Vehicle Lab** (Labs, Temporary, `/vehicle-lab`): drive both karts (Tab switches) to settle D62. B is what
+  `world.vehicle` does (a rolling body, arcade handling); A is Rapier's ray-cast vehicle on springs. If B, the lab goes;
+  if A's weight is worth having, that becomes a plan.
 
 ## 2. Trim to the budgets
 
 The budgets suspended or raised along the way, each a decision in `docs/DECISIONS.md`:
 
-| Budget | Where it stands at v0.81.2 | Decision |
+| Budget | Where it stands at v0.81.5 (cl100k) | Decision |
 | --- | --- | --- |
-| a 2D kit, 200,000 cl100k tokens | thirteen kits past it (the RPG kit the largest, about 243,000) | D52 (suspended) |
-| the compact edition kept whole past 500,000 | about 681,000 | D55 |
-| the API index, 60,000 | about 57,500 | D57 |
-| the API card, 21,000 | about 20,500 | D59 |
-| the 3D kits | 239,000 to 315,000 each | D51, D61, D63, D64 |
+| a 2D kit, 200,000 | thirteen past it: rpg 243,455, shooter 226,406, metroidvania 216,564, adventure 212,558, sim 212,033, rts 210,349, brawler 209,766, arcade 208,320, tactics 207,341, roguelike 203,522, pointclick 201,219, artillery 200,715, platformer 200,528 | D52 (suspended) |
+| the compact edition kept whole past 500,000 | 681,410 | D55 |
+| the API index, 60,000 | 57,512 | D57 |
+| the API card, 21,000 | 20,506 | D59 |
+| the 3D kits | 239,894 (platformer) to 314,871 (shooter) | D51, D61, D63, D64 |
 
 The ways in, cheapest first: move the API card's detail to the index; put more of the core on the kit diet (a section
 of its own and a line in `DIET`); a **3D diet**, the 3D engine's section 8b (vehicles and flight) left out of the 3D kits
 that never call it, about 10,000 tokens each off ACTION, PLATFORMER, SHOOTER and HORROR (D63); then the kits' own code.
+The diet must change no pixel (`kits-test --compare`), and each budget brought back is a decision.
 
-## 3. The benchmark's era briefs
+## 3. The benchmark's era briefs (spends money)
 
-`tools/agent-bench/briefs/` holds five briefs for era games (v0.81.2): Pac-Man, Street Fighter II, Super Mario Kart,
-Final Fantasy Tactics and Resident Evil, each an adaptation on the engine by a fresh agent with the handoff package. Their
-runs spend money, so they wait on the owner: `node tools/agent-bench.mjs --brief <name>` for each, and what they find
-goes into `docs/FEEDBACK-LOG.md` as a source.
+`tools/agent-bench/briefs/` holds five briefs for era games (since v0.81.2): Pac-Man, Street Fighter II, Super Mario
+Kart, Final Fantasy Tactics and Resident Evil, each an adaptation on the engine by a fresh agent with the handoff
+package. Their runs spend money (a coding agent and a vision judge each), so they wait on the owner's yes (D66):
+`node tools/agent-bench.mjs --brief <name>` for each, and what they find goes into `docs/FEEDBACK-LOG.md` as a source.
 
 ## 4. Optional: a first-person dungeon and sports (the plan's M15)
 
@@ -57,3 +70,19 @@ A body drawn from its kept image (`r.actor(..., { every: n })`) picks 1 pixel wi
 is redrawn, so where two bodies' boxes meet, `r.pick` can answer differently from one frame to the next (the phone
 test's army tap failed on it now and then until v0.79.1 made the test tap a unit with room to spare). The fix:
 `_composite`'s kept-image pick box 1 pixel in on each side, matching the redrawn one.
+
+## 6. Calls made without the owner, to read (each reversible: a revert undoes it)
+
+Logged in `docs/DECISIONS.md` and flagged in their pull requests while the plan's last milestones ran (v0.79.0 to
+v0.81.5):
+- **D60:** the 3D engine's manual allowed 8,000 tokens (it is at 6,807). **D61:** the 3D horror kit's budget, 256,000.
+- **D62:** the 3D engine's vehicles are a rolling body with arcade handling, not Rapier's ray-cast vehicle. Settle it in
+  the Vehicle Lab (part 1).
+- **D63, D64:** the 3D kits' budgets raised, because every 3D kit carries the whole 3D engine (part 2).
+- **D65, D68:** the genre plan folded into `docs/KITS.md` and this file, and back for one version to carry its M16 row.
+- **D66:** the era briefs' runs skipped, with no answer in fifteen minutes (part 3).
+- **D67 (v0.81.3, #191):** the music clock now meets the sound at once when it is more than 10 ms off for two frames
+  running (it smoothed anything under 100 ms, so a slip took 9 to 14 frames to meet). The audio suite's clock check now
+  allows the sound past 10 ms only in stretches of at most 6 frames, in under 1% of the frames, whatever began them. It
+  had excused only the frames after the sound device's slips, and failed in a slow container. This is an engine change
+  and a change to what a check measures, so it is the one to read first.
