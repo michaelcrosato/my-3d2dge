@@ -58,6 +58,24 @@ screen, sound. The 3D engine adds `E.World3D` (and `E.THREE`, `E.TSL`, `E.RAPIER
   the camera cuts to the door, it swings open as the camera goes through, the hero comes out beyond it, while the rest
   of the world holds still (`world.passing`). `world.reach(hero)` is the thing in front within reach: what a check
   button acts on. `trunk` (an item box) and `typewriter` (a save point, with the 2D engine's `game.saves`) are things.
+- **Vehicles and tracks** (v0.80.0): `world.vehicle({ kind: 'kart' | 'car' | 'hover' })` is a ball Rapier rolls (walls,
+  bumps, ramps and jumps come from the physics) steered by the drive module's arcade handling, E.Car's: speed along
+  the heading, a slide that grip takes away, a kart's hop into a drift that charges a boost, the ground's surface under
+  it (a track's road, its boost pads, the grass beside it, the level's ground) slowing or boosting it; it is drawn by
+  code with the pen on its tilt (the ground's slope under it), its driver seated. E.Race races it as it races an E.Car
+  (`race.update(dt, null)`: Rapier does the bumps). Rapier's ray-cast vehicle controller (a chassis on four sprung
+  wheels) was the other way; the Vehicle Lab (Temporary, on the Labs page) drives both on one track, and D62 says why
+  the engine took the ball. `world.track({ path, width, bank, walls, pads, off })` builds the road along an `E.Path`
+  with heights: one mesh (asphalt, a dashed line, striped kerbs), banked at its bends, low walls, solid as a triangle
+  mesh and wall boxes; `track.where(x, y)` says how far along, how far across and the road's height there.
+- **Flight** (v0.80.0): `world.flyer(o)` is arcade flight worked out in the steps, not a body: yaw, pitch, a bank into
+  turns, boost and brake, barrel rolls and loops, free within bounds (it turns back at their edge and keeps above the
+  ground) or on rails (Star Fox: the rail's point rides along a path and the ship moves about a window across it, the
+  camera following the rail's point); `f.seek(list)` finds what a charged shot locks on, in a cone, in range and in
+  sight. The camera's `'behind'` mode swings after a heading and a pitch: a kart's camera and a ship's.
+- **Split screen** (v0.80.0): with the 2D engine's `game.splitScreen(n)`, viewport i draws through `world.cameras[i]`
+  (`world.addCamera(o)`) in its own part of the one 3D canvas (a scissor each; the first clears), the HUD drawn per
+  viewport as in 2D; filters are off while split.
 - **The picture**: torches that light the nearest action (one casting shadows), a sun with shadows, a flashlight that
   follows an actor's facing and flickers like a failing bulb (`world.flashlight`, a spot light made with the world), a sky, fog,
   the game's particles in 3D, ground arcs (telegraphs), glows, weapon trails, and the 3D Prototype's filters (Comic cel,
@@ -131,7 +149,10 @@ materials only, no compute or storage buffers, nothing read back from the GPU, v
 run as the manual hosts it; every 3D page on WebGL 2 and WebGPU (SwiftShader, through the stand-in canvas the 3D labs'
 tests use): the title draws, each slice starts, its proof gives the same hash twice and on both backends, a few seconds
 of scripted play move the hero and build no GPU pipeline mid-game; the camera's contracts (lock-on, zones and their
-cuts, the stick across a cut, tank steering, the door between rooms) at four refresh rates' steps; every core shape built and drawn on both backends,
+cuts, the stick across a cut, tank steering, the door between rooms) at four refresh rates' steps; vehicles, tracks,
+flight and split screen on both backends (top speed, a boost pad, a wall, the grass, a drift's boost, a hovercraft's
+cushion, a banked bend, E.Race racing two AI vehicles a lap, rails, a barrel roll, bounds, `seek`; twice the same and
+the same on each; two viewports drawn); every core shape built and drawn on both backends,
 solid where it stands (a hero stops at a crate, lands on a table), and a sheet of each beside its 2D picture; every kit on an upright phone (the 3D picture lies exactly under
 the game's, the touch buttons are there). `tools/kits-test.mjs` plays each 3D slice's bot (the horror wing to its end). Pictures in `check-output/kit3d/`. `tools/doctrine-check.mjs` holds the manual
 to its budget; `tools/version.mjs` keeps its version line with the rest.
@@ -163,6 +184,11 @@ to its budget; `tools/version.mjs` keeps its version line with the rest.
   (`game.alpha`), and a pause or a hit-stop shows the last step as it is; a camera pose the game sets itself in `onDraw`
   is the game's to place, and what a game draws with the pen is drawn where its own numbers say: the shooter draws its
   soldiers and camera part way itself (`keepPrev`, `between`, the frame's clock `drawT`).
+- **A track's triangles face up in engine axes, not three's** (z is up in the engine, y in three): wound the other way,
+  Rapier pushed a vehicle down through the road and three culled the road from above. A road laid flat on a flat floor
+  fought it for the same pixels, so a track sits 1 unit up (`lift`).
+- **Rapier's ray-cast vehicle controller felt its own chassis** until its query left out dynamic bodies and the vehicle's
+  own group (the Vehicle Lab's kart A sank and would not move).
 - The 3D Prototype (`/stress-world`, once Stress test: 3D world) stayed on the Labs page as the record of what the
   engine was built from (the owner's call, 2026-10-14) until v0.51.4, when it was deleted with the 3D Proof (D44): its
   code is in git, its record in `docs/LAB-3D.md`, and its addresses lead to `/3d`. New 3D work goes into the engine and

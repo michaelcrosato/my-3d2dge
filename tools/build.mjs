@@ -93,6 +93,8 @@ const builds = [
   { template: 'src/mocap.template.html', out: 'examples/mocap-lab.html', vars: {} },
   // every entry of the asset store (src/assets/sets/, inlined) and the core library, to browse, search and copy
   { template: 'src/asset-lab.template.html', out: 'examples/asset-lab.html', vars: {} },
+  // a Temporary prototype (src/labs.json): the 3D engine's vehicles two ways, side by side on one track
+  { template: 'src/vehicle-lab.template.html', out: 'examples/vehicle-lab.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)

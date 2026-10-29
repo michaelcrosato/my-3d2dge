@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.79.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.80.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -164,7 +164,7 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
 ## Drawing for one frame (in draw, before world.draw(r))
   world.arc(x, y, z, r0, r1, a0, a1, color, alpha): a flat arc on the ground (a telegraph)
   world.glow(x, y, z, r, color, { core, light: true }): a glowing ball (a bolt); the first four asked for light the scene
-  world.pen.at(x, y, z, yaw, size).box(x, y, z, w, d, h, color).ball(x, y, z, rx, ry, rz, color).tube(x0, y0, z0, x1,
+  world.pen.at(x, y, z, yaw, size, pitch, roll).box(x, y, z, w, d, h, color).ball(x, y, z, rx, ry, rz, color).tube(x0, y0, z0, x1,
       y1, z1, r, color).cone(...base to tip).bar(x0, y0, z0, x1, y1, z1, w, t, color).glow(x, y, z, r, color)
       .slab(x0, y0, z0, x1, y1, z1, ax, ay, az, w, t, color) (a box from one point to the other, w wide along a: any lean)
   world.light({ color, reach, power, flicker }) (made once, with the world): a light; set its x, y, z and on each frame
@@ -203,6 +203,28 @@ s1] } (strata where it steepens), speckle, mottle, bottom }. Streamed: a chunk i
 collider made near actors (world.step), its meshes near the camera (world.draw: finer near). world.ground, floorAt, topH
 and world.terrain.normal(x, y) read the triangles Rapier collides with; flow() goes straight. sky: { top, horizon, ground,
 sun, haze } is a dome; fog: { color, near, far }. Keep height() fast: it runs per sample.
+
+## Vehicles, tracks, flight (the RACING and FLIGHT slices show them)
+world.vehicle({ kind: 'kart' | 'car' | 'hover', x, y, z, angle, rig (its driver, seated), color, and the drive module's
+E.Car options over the kind's (top, accel, brake, turn, grip, drift, hop...), surfaces, ground: (x, y) => tag }): a ball
+Rapier rolls (walls, bumps, ramps, jumps) steered by E.Car's arcade handling; an actor. Each step v.update(dt, null,
+{ steer, gas, brake, drift }) (or an input), then world.step; it reads speed, slide, angle, drifting, charge (a kart's
+drift boost), boostT, onGround, surface ('road', 'boost', a track's off, the level's ground: grass, sand... slow it),
+bumped; v.boost(sec, power), v.spinOut(sec). E.Race (the drive module) races vehicles as it races E.Cars.
+world.track({ path: new E.Path(points [x, y, z], { closed: true, smooth: 'catmull' }), width: 96, bank: .25 (radians at
+the tightest bends), walls: true, kerb: 8, pads: [[d, across]] (boost pads), gaps: [[d0, d1, side]] (no wall: a
+shortcut's way off), off: 'grass', surface: 'road' (a shortcut's 'dirt'), color, line }): the road and its walls, drawn
+and solid (heights in the path: hills, a hump to jump; banked about the low edge); track.at(d) -> { x, y, z, angle, bank
+}, track.where(x, y) -> { d, across, z }, track.surface(x, y). A terrain under it keeps below it (your height function).
+world.flyer({ x, y, z, yaw, speed: 300, min, max (brake, boost), turn, climb, bank, invert, low (least height), bounds:
+[x0, y0, z0, x1, y1, z1] | rail: { path, speed, w, h } (Star Fox: the rail's point rides on, the ship moves about a w x h
+window across it) }): each step f.update(dt, { steer: [x, y], boost, brake, roll: -1 | 1 (a barrel roll: f.rolling),
+loop }); f.x, y, z, yaw, pitch, roll, speed, frame (the rail's point), hitGround; f.seek(list, { cone, range }): what a
+charged shot locks on; f.at(): where to draw it this frame. world.pen.at(x, y, z, yaw, size, pitch, roll) tips the pen.
+camera 'behind': behind the target's heading (yaw, angle or facing) and pitch, swinging after it (camera.behind = { dist,
+height, ahead, lag, fov, roll }): a kart's camera, a ship's (follow f.frame on a rail).
+Split screen: game.splitScreen(2) and world.addCamera(o): viewport i draws through world.cameras[i]; world.project
+answers in the viewport drawn last; no filter while split.
 
 ## First person and third: a shooter (the starter's SHOOTER slice shows it all)
 camera 'fixed' with capture: each step turn by camera.takeMouse(), set camera.fixed (the eyes, or over the shoulder pulled
@@ -1150,6 +1172,14 @@ function makeBatches(world, sc = world.scene) {
   };
 }
 const _pa = [0, 0, 0], _pb = [0, 0, 0];
+/** a frame's turn as a 3 x 3 matrix in engine axes (rows x, y, z): yaw about z, then pitch (the nose up), then roll (the
+ *  right side down): its columns are the frame's forward, right and up */
+function frameOf(yaw, pitch, roll) {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), cr = Math.cos(roll), sr = Math.sin(roll);
+  const f = [cy * cp, sy * cp, sp], r0 = [-sy, cy, 0], u0 = [-cy * sp, -sy * sp, cp];   // forward; right and up before the roll
+  const r = [r0[0] * cr - u0[0] * sr, r0[1] * cr - u0[1] * sr, r0[2] * cr - u0[2] * sr], u = [u0[0] * cr + r0[0] * sr, u0[1] * cr + r0[1] * sr, u0[2] * cr + r0[2] * sr];
+  return [f[0], r[0], u[0], f[1], r[1], u[1], f[2], r[2], u[2]];
+}
 /**
  * the pen: draws shapes in engine units, in a frame you set with at(x, y, z, yaw, size) (yaw turns it about z, from +x
  * toward +y). Colors are '#rrggbb'. world.pen in a draw (before world.draw(r)), and every thing's drawing, use it:
@@ -1162,13 +1192,27 @@ const _pa = [0, 0, 0], _pb = [0, 0, 0];
  */
 class Pen {
   constructor(world) { this.world = world; this.B = null; this.at(0, 0, 0); this.flash = false; }
-  /** set the frame: origin (x, y, z) in engine units, turned by yaw (radians) about z, scaled by k; returns the pen */
-  at(x = 0, y = 0, z = 0, yaw = 0, k = 1) { this.ox = x; this.oy = y; this.oz = z; this.ca = Math.cos(yaw); this.sa = Math.sin(yaw); this.k = k; return this; }
-  _p(x, y, z, out) { const k = this.k; out[0] = (this.ox + (x * this.ca - y * this.sa) * k) / U; out[1] = (this.oz + z * k) / U; out[2] = (this.oy + (x * this.sa + y * this.ca) * k) / U; return out; }
+  /** set the frame: origin (x, y, z) in engine units, turned by yaw (radians) about z, scaled by k, and tipped by pitch
+   *  (the nose up, about its y) and roll (its right side down, about its x): a car on a slope, a ship in a turn; returns
+   *  the pen */
+  at(x = 0, y = 0, z = 0, yaw = 0, k = 1, pitch = 0, roll = 0) {
+    this.ox = x; this.oy = y; this.oz = z; this.ca = Math.cos(yaw); this.sa = Math.sin(yaw); this.k = k;
+    this.M = pitch || roll ? frameOf(yaw, pitch, roll) : null; return this;
+  }
+  _p(x, y, z, out) {
+    const k = this.k, M = this.M;
+    if (M) { out[0] = (this.ox + (M[0] * x + M[1] * y + M[2] * z) * k) / U; out[1] = (this.oz + (M[6] * x + M[7] * y + M[8] * z) * k) / U; out[2] = (this.oy + (M[3] * x + M[4] * y + M[5] * z) * k) / U; return out; }
+    out[0] = (this.ox + (x * this.ca - y * this.sa) * k) / U; out[1] = (this.oz + z * k) / U; out[2] = (this.oy + (x * this.sa + y * this.ca) * k) / U; return out;
+  }
   _c(color) { const c = typeof color === 'string' ? lin(color) : color; return this.flash ? [lerp(c[0], FLASH[0], .4), lerp(c[1], FLASH[1], .4), lerp(c[2], FLASH[2], .4)] : c; }
   _rot(B, rx, ry, rz, yaw, x, y, z, color) {
-    const ca = Math.cos(yaw) * this.ca - Math.sin(yaw) * this.sa, sa = Math.sin(yaw) * this.ca + Math.cos(yaw) * this.sa, k = this.k / U;
+    const k = this.k / U, M = this.M;
     this._p(x, y, z, _pa);
+    if (M) {   // (tipped: the part's axes through the frame's turn, in three's axes)
+      const c = Math.cos(yaw), s = Math.sin(yaw), ax = [c * rx, s * rx, 0], ay = [-s * ry, c * ry, 0], T = v => [(M[0] * v[0] + M[1] * v[1] + M[2] * v[2]) * k, (M[6] * v[0] + M[7] * v[1] + M[8] * v[2]) * k, (M[3] * v[0] + M[4] * v[1] + M[5] * v[2]) * k];
+      const X = T(ax), Y = T(ay), Z = T([0, 0, rz]); B.put(X[0], X[1], X[2], Z[0], Z[1], Z[2], Y[0], Y[1], Y[2], _pa[0], _pa[1], _pa[2], this._c(color)); return;
+    }
+    const ca = Math.cos(yaw) * this.ca - Math.sin(yaw) * this.sa, sa = Math.sin(yaw) * this.ca + Math.cos(yaw) * this.sa;
     B.put(ca * rx * k, 0, sa * rx * k, 0, rz * k, 0, -sa * ry * k, 0, ca * ry * k, _pa[0], _pa[1], _pa[2], this._c(color));
   }
   ball(x, y, z, rx, ry = rx, rz = rx, color = '#ffffff') { this._rot(this.B.ball, rx, ry, rz, 0, x, y, z, color); return this; }
@@ -1182,7 +1226,7 @@ class Pen {
   /** a box from (x0, y0, z0) to (x1, y1, z1) (its length), w wide along the direction (ax, ay, az) (in the pen's frame;
    *  only its part square to the length counts) and t thick: a torso leaning any way, a gun's receiver along its aim */
   slab(x0, y0, z0, x1, y1, z1, ax, ay, az, w, t, color = '#ffffff') {
-    const a = this._p(x0, y0, z0, _pa), b = this._p(x1, y1, z1, _pb), across = [ax * this.ca - ay * this.sa, az, ax * this.sa + ay * this.ca];
+    const a = this._p(x0, y0, z0, _pa), b = this._p(x1, y1, z1, _pb), M = this.M, across = M ? [M[0] * ax + M[1] * ay + M[2] * az, M[6] * ax + M[7] * ay + M[8] * az, M[3] * ax + M[4] * ay + M[5] * az] : [ax * this.ca - ay * this.sa, az, ax * this.sa + ay * this.ca];
     this.B.box.box(a, b, across, w * this.k / U, t * this.k / U, this._c(color)); return this;
   }
   glow(x, y, z, r, color = '#ffffff') { const k = r * this.k / U; this.B.glow.ball(this._p(x, y, z, _pa), k, k, k, typeof color === 'string' ? lin(color) : color); return this; }
@@ -1596,6 +1640,9 @@ class Camera3D {
      *  round behind the target as it moves) }; first: { pitch, fov }; fly: { x, y, z, yaw, pitch, fov }; fixed: a pose */
     this.chase = Object.assign({ pitch: -.36, dist: 88, fov: 60, height: 24, auto: true }, o.chase);
     this.first = Object.assign({ pitch: -.08, fov: 75 }, o.first);
+    /** behind: the 'behind' camera's { dist (70), height (24), ahead (40: where it looks past the target), lag (5: how
+     *  fast it swings after the target's heading), fov (64), roll (0: the share of a flyer's roll it takes) } */
+    this.behind = Object.assign({ dist: 70, height: 24, ahead: 40, lag: 5, fov: 64, roll: 0 }, o.behind);
     this.fly = { x: 0, y: 0, z: 90, yaw: -Math.PI / 2, pitch: -.32, fov: 70 }; this.fixed = o.fixed || null;
     /** yaw: the heading of the chase, first and fly cameras (radians, the ground angle they look along); locked: the
      *  mouse is captured (pointer lock) and turns them; mouseLook: false never captures it */
@@ -1621,7 +1668,7 @@ class Camera3D {
   }
   /** switch mode, keeping the way it looks where it can ('view' -> 'chase' looks the same way) */
   set(mode) {
-    if (!['view', 'chase', 'first', 'fly', 'fixed', 'zones'].includes(mode) || mode === this.mode) return this;
+    if (!['view', 'chase', 'first', 'fly', 'fixed', 'zones', 'behind'].includes(mode) || mode === this.mode) return this;
     if (mode === 'zones') this.zone = null;
     const p = this.pose, was = this.mode;
     if (p && mode !== 'view') this.yaw = p.yaw;
@@ -1649,7 +1696,7 @@ class Camera3D {
     // the lock lets go of a target that died, left the world or got too far away
     const L = this.lockOn, F = this.lockFrom; if (L && (L.alive === false || !this.world.actors.includes(L) || !F || Math.hypot(L.x - F.x, L.y - F.y) > this.lockRange * 1.25)) this.unlock();
     const m = this.mode, P = this.world.passing;
-    this.pose = P ? this._passPose(P) : m === 'view' ? this._viewPose(dt, t) : m === 'chase' ? this._chasePose(dt, t) : m === 'first' ? this._firstPose(dt, t) : m === 'fly' ? this._flyPose(dt) : m === 'zones' ? this._zonePose(dt, t) : Object.assign({ ortho: false }, this.fixed || this._viewPose(dt, t));
+    this.pose = P ? this._passPose(P) : m === 'view' ? this._viewPose(dt, t) : m === 'chase' ? this._chasePose(dt, t) : m === 'first' ? this._firstPose(dt, t) : m === 'fly' ? this._flyPose(dt) : m === 'zones' ? this._zonePose(dt, t) : m === 'behind' ? this._behindPose(dt, t) : Object.assign({ ortho: false }, this.fixed || this._viewPose(dt, t));
     if (this._cutting) { this._cutting = false; this._was = null; }   // (a cut: the frames after it don't slide in from the old pose)
     return this.pose;
   }
@@ -1681,6 +1728,20 @@ class Camera3D {
     }
     const dx = look[0] - at[0], dy = look[1] - at[1];
     return { x: at[0], y: at[1], z: at[2], yaw: Math.atan2(dy, dx), pitch: Math.atan2(look[2] - at[2], Math.hypot(dx, dy)), fov: Z.fov || 50, ortho: false, wide: true };   // (wide: framed for 4:3, a taller screen sees as much across)
+  }
+  /** behind the target along its heading (t.yaw, t.angle or t.facing) and its pitch, swinging after it (a kart's drift
+   *  swings the kart, not the view), in front of walls */
+  _behindPose(dt, t) {
+    const B = this.behind, k = dt > 0 ? 1 - Math.exp(-dt * B.lag) : 1, kp = dt > 0 ? 1 - Math.exp(-dt * 20) : 1, yaw = t.yaw ?? t.angle ?? t.facing ?? 0, pitch = t.pitch || 0;
+    const s = this.smooth || (this.smooth = [t.x, t.y, t.z || 0, yaw, pitch, 0]);
+    s[0] += (t.x - s[0]) * kp; s[1] += (t.y - s[1]) * kp; s[2] += ((t.z || 0) - s[2]) * kp;
+    s[3] += E.angDiff(s[3], yaw) * k; s[4] += E.angDiff(s[4], pitch) * k; s[5] += ((t.roll || 0) * B.roll - s[5]) * k;
+    const cy = Math.cos(s[3]), sy = Math.sin(s[3]), cp = Math.cos(s[4]), sp = Math.sin(s[4]), f = [cy * cp, sy * cp, sp], u = [-cy * sp, -sy * sp, cp];
+    const look = [s[0] + f[0] * B.ahead + u[0] * B.height * .4, s[1] + f[1] * B.ahead + u[1] * B.height * .4, s[2] + f[2] * B.ahead + u[2] * B.height * .4];
+    let d = B.dist; const zoom = clamp(this.world.game.zoom || 1, .5, 3); d /= zoom;
+    for (let r = 8; r <= d; r += 4) { const x = s[0] - f[0] * r + u[0] * B.height, y = s[1] - f[1] * r + u[1] * B.height, z = s[2] - f[2] * r + u[2] * B.height; if (z < this.world.topH(x, y) + 4) { d = Math.max(8, r - 5); break; } }   // (in front of a wall)
+    const x = s[0] - f[0] * d + u[0] * B.height, y = s[1] - f[1] * d + u[1] * B.height, z = s[2] - f[2] * d + u[2] * B.height, dx = look[0] - x, dy = look[1] - y;
+    return { x, y, z, yaw: Math.atan2(dy, dx), pitch: Math.atan2(look[2] - z, Math.hypot(dx, dy)), roll: s[5], fov: B.fov, ortho: false };
   }
   /** the door opening between rooms (world.through): from the actor's side to the far one, through the doorway */
   _passPose(P) {
@@ -1886,6 +1947,264 @@ class Actor {
 }
 
 /* =============================================================================
+ * 8b. VEHICLES AND FLYERS  world.vehicle(o): a kart, a car or a hovercraft, a ball that Rapier rolls (walls, bumps,
+ *     ramps, jumps, falls) steered by the drive module's arcade handling (E.Car's: speed along the heading, a slide that
+ *     grip takes away, a kart's hop into a drift that charges a boost, the ground's surface), so E.Race drives it as it
+ *     drives an E.Car. world.flyer(o): a ship's arcade flight (yaw, pitch, a bank, barrel rolls and loops, boost and
+ *     brake), free within bounds or on rails along a path, worked out in the steps
+ * ============================================================================= */
+const VEHICLES = {
+  kart: { top: 300, accel: 260, brake: 420, reverse: 90, turn: 2.6, grip: 9, drift: 3.2, drag: .5, hop: 95, kart: true, r: 6.5, mass: 1, seat: 4 },
+  car: { top: 420, accel: 300, brake: 520, reverse: 110, turn: 2.1, grip: 11, drift: 2.6, drag: .35, hop: 0, r: 7.5, mass: 1.6, seat: 5 },
+  hover: { top: 380, accel: 240, brake: 260, reverse: 100, turn: 2.3, grip: 2.4, drift: 1.2, drag: .25, hop: 0, r: 7, mass: .8, seat: 6, float: 7 }
+};
+/** the ground's surfaces as a vehicle feels them (a vehicle's o.surfaces adds or changes them) */
+const SURFACES = { road: {}, grass: { top: .55, grip: .9 }, dirt: { top: .7, grip: .8 }, sand: { top: .45, grip: .6 }, snow: { top: .6, grip: .5 }, ice: { grip: .15 }, water: { top: .35, grip: .5 }, lava: { top: .3 }, boost: { boost: .8 } };
+class Vehicle extends Actor {
+  /** made by world.vehicle(o): see the manual */
+  constructor(world, o) {
+    super(world, 'mob', Object.assign({}, o, { half: 0 }));
+    /** o: its handling (the kind's, with yours over it: top, accel, brake, reverse, turn, grip, drift, drag, hop, kart,
+     *  seat, float, surfaces, ground, color); angle: its heading; speed: along it; slide: across it; drifting (-1, 0, 1);
+     *  charge (a kart's drift: 1 blue, 2 orange); boostT, spinT (seconds); surface: the ground's tag under it; offroad;
+     *  onGround; airT; bumped (it hit something this step); tilt: [pitch, roll] it is drawn at (the ground's slope) */
+    this.o = o; this.isVehicle = true; this.vehicle = o.kind; this.angle = o.angle ?? o.facing ?? 0; this.facing = this.angle;
+    Object.assign(this, { speed: 0, slide: 0, drifting: 0, charge: 0, boostT: 0, spinT: 0, surface: null, offroad: false, onGround: false, airT: 0, bumped: false, tilt: [0, 0], steer: 0, _boostK: 0, _hopDir: 0, _held: false, _want: 0 });
+    this.o.surfaces = Object.assign({}, SURFACES, o.surfaces);
+  }
+  /** a boost: seconds of it, power (.4: its top speed up by that share) */
+  boost(sec = .8, power = .4) { this._boostK = this.boostT > 0 ? Math.max(this._boostK, power) : power; this.boostT = Math.max(this.boostT, sec); return this; }
+  /** a spin-out (a shot, a hazard): seconds without control, most of its speed lost */
+  spinOut(sec = 1) { if (this.spinT > 0) return this; this.spinT = sec; this.vx *= .3; this.vy *= .3; this.drifting = 0; this.charge = 0; return this; }
+  /** one step's driving (before world.step): an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor) }
+   *  or an input (its move()'s x steers; gas, brake, drift: actions). E.Race calls it as it does an E.Car's (map: not
+   *  read). Sets the velocity world.step gives Rapier */
+  update(dt, map, c = {}) {
+    const o = this.o, inp = typeof c.move === 'function';
+    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0;
+    const drift = inp ? c.down('drift') : !!c.drift, hop = inp ? c.pressed('drift') : drift && !this._held; this._held = drift;
+    const S = o.surfaces[this.surface] || {}, air = !this.onGround;
+    if (S.boost && !air) this.boost(S.boost);
+    if (this.spinT > 0) { this.spinT -= dt; this.angle += 11 * dt; steer = 0; gas = 0; brake = .5; }
+    if (this.boostT > 0) { this.boostT -= dt; gas = 1; }
+    if (o.kart) {   // a hop on the drift button; landing still steering, it drifts that way while held, charging a boost
+      if (hop && !air && this.spinT <= 0) { this.vz = o.hop; this._hopDir = Math.sign(steer); }
+      if (!air && !this.drifting && drift && this._hopDir && this.speed > o.top * .4) this.drifting = this._hopDir;
+      if (this.drifting) {
+        if (!drift || this.speed < o.top * .2) { if (this.charge >= 1) this.boost(this.charge >= 2 ? 1 : .55, .35); this.drifting = 0; this.charge = 0; this._hopDir = 0; }
+        else this.charge += dt * (steer * this.drifting > 0 ? 1.5 : .8);
+      }
+      if (!drift) this._hopDir = 0;
+    } else this.drifting = drift && Math.abs(this.speed) > o.top * .3 ? Math.sign(steer) || this.drifting : 0;   // a car's handbrake
+    const k = clamp(Math.abs(this.speed) / (o.top * .25), 0, 1) * Math.sign(this.speed || 1), turn = this.drifting ? this.drifting * .6 + steer * .4 : steer;
+    this.angle += turn * o.turn * k * dt * (air ? .5 : 1); this.steer = steer;
+    const fx = Math.cos(this.angle), fy = Math.sin(this.angle);
+    let v = this.vx * fx + this.vy * fy, s = this.vy * fx - this.vx * fy;
+    const top = o.top * (S.top || 1) * (c.top || 1) * (this.boostT > 0 ? 1 + this._boostK : 1);
+    if (gas > 0 && v < top) v = Math.min(top, v + o.accel * gas * (this.boostT > 0 ? 2.5 : 1) * dt);
+    else if (v > top && !air) v = Math.max(top, v - o.accel * 1.6 * dt);
+    if (brake > 0) v = v > 1 ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);
+    if (!gas && !brake) v *= Math.exp(-o.drag * dt);
+    if (!air || o.float) s *= Math.exp(-(this.drifting ? o.drift : o.grip) * (S.grip || 1) * dt);
+    this.vx = fx * v - fy * s; this.vy = fy * v + fx * s; this._want = Math.hypot(this.vx, this.vy);
+    if (o.float) this.vz = this._gz !== null && this._gz !== undefined ? (this._gz + o.float - this.z) * 6 : this.vz - this.world.gravity * dt;   // (a hovercraft rides its cushion; past an edge it falls)
+    this.facing = this.angle; this.anim = { vx: 0, vy: 0, down: .4, hurt: this.spinT > 0 };   // (the driver, seated)
+    return this;
+  }
+}
+/** a vehicle's ground after a step: a ray under it (tracks, the level, the terrain): on the ground or not, its slope (the
+ *  tilt it is drawn at), the surface's tag, a bump (it lost speed it wanted) */
+function vehicleGround(w, a, dt) {
+  const o = a.o, h = w.ray(a.x, a.y, a.z + a.r, 0, 0, -1, a.r + (o.float ? o.float + 10 : 3.5), { level: true });
+  a.onGround = a.grounded = !!h; a._gz = h ? h.z : null; a.airT = h ? 0 : a.airT + dt;
+  const fx = Math.cos(a.angle), fy = Math.sin(a.angle), n = h ? [h.nx, h.ny, h.nz] : [0, 0, 1];
+  const tp = h ? Math.atan2(-(n[0] * fx + n[1] * fy), n[2]) : clamp(a.vz / 400, -.5, .5), tr = h ? Math.atan2(-fy * n[0] + fx * n[1], n[2]) : 0, k = Math.min(1, dt * 12);
+  a.tilt[0] += (tp - a.tilt[0]) * k; a.tilt[1] += (tr + clamp(a.steer * a.speed / a.o.top, -1, 1) * .08 - a.tilt[1]) * k;
+  a.surface = o.ground ? o.ground(a.x, a.y) : w._surfaceAt(a.x, a.y, a.z);
+  a.offroad = ((o.surfaces[a.surface] || {}).top || 1) < 1;
+  a.speed = a.vx * fx + a.vy * fy; a.slide = a.vy * fx - a.vx * fy;
+  a.bumped = a._want - Math.hypot(a.vx, a.vy) > Math.max(30, a._want * .2);
+}
+/** a vehicle drawn by code with the pen, on its tilt: a kart (a low chassis, fat wheels, a seat, pipes), a car (a body
+ *  and a cabin) or a hovercraft (a hull on pods over a glowing cushion); the front wheels turn with its steering */
+function vehicleParts(pen, a, t) {
+  const o = a.o, c = o.color || '#d83a2a', dk = E.shade(c, -.32), lt = E.shade(c, .25), tyre = '#1c1a20', st = (a.steer || 0) * .45, [p, r] = a.tilt;
+  pen.at(a.x, a.y, a.z, a.rig ? a.rig.facing : a.facing, 1, p, r); pen.flash = a.flash > 0;   // (its facing as drawn: part way between steps)
+  const wheel = (x, y, R, w, turn) => { const c2 = Math.cos(turn), s2 = Math.sin(turn); pen.tube(x - s2 * w, y - c2 * w, R, x + s2 * w, y + c2 * w, R, R, tyre).tube(x - s2 * (w + .2), y - c2 * (w + .2), R, x + s2 * (w + .2), y + c2 * (w + .2), R, R * .45, '#9a98a8'); };
+  if (a.vehicle === 'kart') {
+    pen.box(0, 0, 3.2, 16, 9, 2.4, c).box(7.6, 0, 3.6, 2.6, 11, 2.2, dk).box(-6.8, 0, 4.6, 3.6, 8, 4, '#3a3a44').box(-2.2, 0, 5.6, 4, 6, 1.4, '#2a2a30');
+    pen.tube(-8.6, -2, 5.6, -10.4, -2.6, 7, .8, '#8a8a94').tube(-8.6, 2, 5.6, -10.4, 2.6, 7, .8, '#8a8a94').tube(3.4, 0, 5, 5.4, 0, 8, .5, '#3a3a44').tube(5.4, -1.6, 8, 5.4, 1.6, 8, .5, '#3a3a44');
+    wheel(5.6, -5.4, 2.8, 1.6, st); wheel(5.6, 5.4, 2.8, 1.6, st); wheel(-5.6, -5.8, 3.2, 2, 0); wheel(-5.6, 5.8, 3.2, 2, 0);
+  } else if (a.vehicle === 'car') {
+    pen.box(0, 0, 5.4, 26, 13, 5.4, c).box(12.4, 0, 4.4, 2, 13.4, 3, dk).box(-2, 0, 10, 12, 11.4, 4.6, lt).box(3.4, 0, 10, 1.4, 10.6, 3.8, '#2a3a4a').box(-7.6, 0, 10, 1.4, 10.6, 3.8, '#2a3a4a');
+    pen.ball(13.2, -4.6, 6, .9, 1.4, 1, '#fff6d0').ball(13.2, 4.6, 6, .9, 1.4, 1, '#fff6d0').ball(-13, -4.6, 6, .6, 1.4, 1, '#ff3a2a').ball(-13, 4.6, 6, .6, 1.4, 1, '#ff3a2a');
+    wheel(8, -6.6, 3.4, 1.4, st); wheel(8, 6.6, 3.4, 1.4, st); wheel(-8, -6.6, 3.4, 1.4, 0); wheel(-8, 6.6, 3.4, 1.4, 0);
+  } else {
+    const b = Math.sin(t * 7 + a.x * .01) * .6;
+    pen.ball(0, 0, 4 + b, 12, 7, 3, c).box(-8, 0, 5 + b, 5, 12, 2.4, dk).ball(-9, -6.8, 4.6 + b, 4, 2.2, 2, lt).ball(-9, 6.8, 4.6 + b, 4, 2.2, 2, lt).box(2, 0, 7 + b, 6, 6, 2, '#2a3a4a');
+    pen.glow(-11, -6.8, 4.6 + b, 1.4, '#7af0ff').glow(-11, 6.8, 4.6 + b, 1.4, '#7af0ff').halo(0, 0, 1, 8, [.1, .3, .4]);
+  }
+  pen.at(); pen.flash = false;
+}
+class Flyer {
+  /** made by world.flyer(o): see the manual */
+  constructor(world, o) {
+    /** o: { speed (300), min, max (the brake's and boost's speeds), turn (1.5: yaw radians a second), climb (1.1: pitch),
+     *  bank (.8: the roll into a turn), invert (up dives), low (14: its least height over the ground), bounds: [x0, y0,
+     *  z0, x1, y1, z1] (free flight turns back inside them), rail: { path, speed, w, h, slide } (it rides the path, moved
+     *  about a window w x h across it) }; x, y, z, yaw, pitch, roll: where it is and its turn; speed; rolling (seconds
+     *  of a barrel roll left: turn shots aside with it), looping; frame: the rail's point ({ x, y, z, yaw, pitch }: the
+     *  camera follows it), d: how far along the rail; hitGround: it touched the ground this step; data: yours */
+    this.o = Object.assign({ speed: 300, min: 170, max: 560, turn: 1.5, climb: 1.1, bank: .8, low: 14, invert: false }, o);
+    Object.assign(this, { world, x: o.x || 0, y: o.y || 0, z: o.z ?? 120, yaw: o.yaw || 0, pitch: 0, roll: 0, speed: this.o.speed, rolling: 0, rollDir: 1, looping: 0, frame: null, d: 0, ox: 0, oy: 0, vox: 0, voy: 0, hitGround: false, alive: true, data: o.data || {}, _bank: 0, _ip: null });
+    if (this.o.rail) { this.d = this.o.rail.start || 0; this._frame(); this.x = this.frame.x; this.y = this.frame.y; this.z = this.frame.z; this.yaw = this.frame.yaw; }
+  }
+  _frame() {
+    const R = this.o.rail, P = R.path, a = P.at(this.d), b = P.at(this.d + 8);
+    this.frame = { x: a.x, y: a.y, z: a.z, yaw: a.angle, pitch: Math.atan2(b.z - a.z, 8), angle: a.angle };
+  }
+  /** one step (before world.step): an intent { steer: [x, y] (the stick: x right, y down), boost, brake, roll (-1 | 1:
+   *  a barrel roll that way), loop (a loop: free flight) } */
+  update(dt, c = {}) {
+    (this._ip || (this._ip = [0, 0, 0, 0, 0, 0])).splice(0, 6, this.x, this.y, this.z, this.yaw, this.pitch, this.roll);   // (where it was: a frame between steps draws it part way)
+    const o = this.o, st = c.steer || [0, 0], sx = clamp(st[0], -1, 1), sy = clamp(st[1], -1, 1) * (o.invert ? -1 : 1);
+    this.speed += ((c.boost ? o.max : c.brake ? o.min : o.speed) - this.speed) * Math.min(1, dt * 3);
+    if (c.roll && this.rolling <= 0) { this.rolling = .6; this.rollDir = Math.sign(c.roll) || 1; }
+    if (this.rolling > 0) this.rolling = Math.max(0, this.rolling - dt);
+    this._bank += (sx * o.bank - this._bank) * Math.min(1, dt * 6);
+    this.roll = this._bank + (this.rolling > 0 ? (1 - this.rolling / .6) * TAU * 2 * this.rollDir : 0);
+    if (o.rail) {   // the rail's point goes on; the ship moves about a window across it
+      const R = o.rail, k = this.speed / o.speed; this.d += (R.speed || 300) * k * dt; this._frame();
+      const S = R.slide || 220, a = Math.min(1, dt * 7); this.vox += (sx * S - this.vox) * a; this.voy += (-sy * S - this.voy) * a;
+      const W = (R.w || 260) / 2, Hh = (R.h || 150) / 2; this.ox = clamp(this.ox + this.vox * dt, -W, W); this.oy = clamp(this.oy + this.voy * dt, -Hh, Hh);
+      const F = this.frame, rx = -Math.sin(F.yaw), ry = Math.cos(F.yaw);
+      this.x = F.x + rx * this.ox; this.y = F.y + ry * this.ox; this.z = F.z + this.oy;
+      this.yaw = F.yaw + this.vox / S * .35; this.pitch = F.pitch + this.voy / S * .3;
+    } else {
+      if (c.loop && this.looping <= 0) this.looping = 1.5;
+      if (this.looping > 0) { const was = this.looping; this.looping = Math.max(0, this.looping - dt); this.pitch += TAU * (was - this.looping) / 1.5; if (!this.looping) this.pitch = 0; }
+      else {
+        this.yaw += sx * o.turn * dt; this.pitch += (-sy * .9 - this.pitch) * Math.min(1, dt * o.climb * 2);
+        const B = o.bounds; if (B && (this.x < B[0] || this.x > B[3] || this.y < B[1] || this.y > B[4])) this.yaw = E.approachAng(this.yaw, Math.atan2((B[1] + B[4]) / 2 - this.y, (B[0] + B[3]) / 2 - this.x), o.turn * 1.4 * dt);   // (outside its bounds: it turns back in)
+        if (B) this.pitch = clamp(this.pitch, this.z < B[2] ? .2 : -.9, this.z > B[5] ? -.05 : .9);   // (and between its floor and ceiling)
+      }
+      const cp = Math.cos(this.pitch); this.x += Math.cos(this.yaw) * cp * this.speed * dt; this.y += Math.sin(this.yaw) * cp * this.speed * dt; this.z += Math.sin(this.pitch) * this.speed * dt;
+    }
+    const g = this.world.topH(this.x, this.y) + o.low; this.hitGround = this.z < g;
+    if (this.hitGround) { this.z = g; if (o.rail) this.oy = Math.max(this.oy, g - this.frame.z); else this.pitch = Math.max(this.pitch, .25); }
+    return this;
+  }
+  /** the nearest of a list ({ x, y, z } each, alive unless false) inside a cone round its nose (half-angle cone, .25
+   *  radians) within range (900) and in sight (a clear line): what a charged shot locks on */
+  seek(list, o = {}) {
+    const cone = o.cone ?? .25, range = o.range ?? 900, cp = Math.cos(this.pitch), f = [Math.cos(this.yaw) * cp, Math.sin(this.yaw) * cp, Math.sin(this.pitch)];
+    let best = null, bd = 1e9;
+    for (const t of list) {
+      if (!t || t.alive === false) continue; const dx = t.x - this.x, dy = t.y - this.y, dz = (t.z || 0) - this.z, d = Math.hypot(dx, dy, dz);
+      if (d > range || d < 1) continue; const a = Math.acos(clamp((dx * f[0] + dy * f[1] + dz * f[2]) / d, -1, 1));
+      if (a < cone && a * 400 + d < bd && this.world.clear(this.x, this.y, this.z, t.x, t.y, t.z || 0)) { bd = a * 400 + d; best = t; }
+    }
+    return best;
+  }
+  /** where to draw it this frame: { x, y, z, yaw, pitch, roll } part way from the step before (game.alpha) */
+  at(k = this.world.game.alpha) {
+    const w = this._ip, m = w && this.world._stepAt === this.world.game.real ? 1 - clamp(k, 0, 1) : 0;
+    if (!m || Math.abs(w[0] - this.x) + Math.abs(w[1] - this.y) > 200) return { x: this.x, y: this.y, z: this.z, yaw: this.yaw, pitch: this.pitch, roll: this.roll };
+    return { x: lerp(this.x, w[0], m), y: lerp(this.y, w[1], m), z: lerp(this.z, w[2], m), yaw: this.yaw + E.angDiff(this.yaw, w[3]) * m, pitch: lerp(this.pitch, w[4], m), roll: lerp(this.roll, w[5], m) };
+  }
+}
+
+/* ---- tracks: a road built along a path (world.track): its surface and walls are colliders, its looks one mesh ---- */
+class Track {
+  /** made by world.track(o): see the manual */
+  constructor(world, o) {
+    if (!o.path || typeof o.path.at !== 'function') throw new Error('my-3D2dge 3D: world.track({ path }) needs a path: new E.Path(points, { closed: true, smooth: \'catmull\' }), points [x, y, z]');
+    /** o: { path, width (96), bank (.25: radians at the tightest bends), walls (true), wallH (10), kerb (8: the striped
+     *  edge), pads ([[d, across], ...]: boost pads), gaps ([[d0, d1, side (-1 left, 1 right, 0 both)], ...]: no wall
+     *  there, a shortcut's way off and back on), off (the surface beside it: 'grass'), surface ('road': its own tag, a dirt shortcut's 'dirt'), color, line (null: no middle line), kerbs, wall };
+     *  path, length; samples [{ d, x, y, z, angle, bank, rx, ry }] every step (8) units */
+    this.world = world; this.o = Object.assign({ width: 96, bank: .25, walls: true, wallH: 10, kerb: 8, step: 8, lift: 1, pads: [], gaps: [], off: null, surface: 'road', color: '#4a4a54', line: '#e8e4d0', kerbs: ['#ece8e0', '#c8302a'], wall: '#b8b8c4' }, o);
+    const P = this.path = o.path, L = this.length = P.length, n = Math.max(8, Math.round(L / this.o.step)), S = this.samples = [];
+    for (let i = 0; i <= n; i++) {
+      const d = L * i / n, p = P.at(d), a = P.at(d - 16), b = P.at(d + 16), k = E.angDiff(a.angle, b.angle) / 32;   // (its bend: radians a unit)
+      S.push({ d, x: p.x, y: p.y, z: p.z, angle: p.angle, bank: clamp(k * 140, -1, 1) * this.o.bank, rx: -Math.sin(p.angle), ry: Math.cos(p.angle) });
+    }
+    // the banking eased in and out over about five samples either way (40 units): banked in a few units, its outer edge
+    // rising like a ramp, it threw karts over the wall
+    for (let pass = 0; pass < 50; pass++) { const B = S.map(s => s.bank); for (let i = 0; i <= n; i++) S[i].bank = (B[i ? i - 1 : P.closed ? n - 1 : 0] + B[i] * 2 + B[i < n ? i + 1 : P.closed ? 1 : n]) / 4; }
+    this._build();
+  }
+  /** a point across it at sample s: lateral l (units, + right), its height on the bank (banked about its low edge, so the
+   *  outside of a bend rises and no part of the road sinks below the path's height) */
+  _pt(s, l, up = 0) { const t = Math.tan(s.bank), hw = this.o.width / 2 + this.o.kerb; return [s.x + s.rx * l, s.y + s.ry * l, s.z + hw * Math.abs(t) - l * t + this.o.lift + up]; }
+  _build() {
+    const w = this.world, o = this.o, S = this.samples, hw = o.width / 2 + o.kerb, pos = [], uv = [], idx = [], cpos = [], cidx = [];
+    S.forEach((s, i) => { for (const l of [-hw, hw]) { const p = this._pt(s, l); pos.push(p[0] / U, p[2] / U, p[1] / U); cpos.push(p[0], p[1], p[2]); uv.push(l < 0 ? 0 : 1, s.d / 64); } if (i) { const a = (i - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); cidx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } });   // (faces up: three's axes, and the engine's)
+    // the road's texture: 32 pixels across its width and kerbs, 64 a length of 64 units: asphalt, a dashed middle line, striped kerbs
+    const kp = Math.round(o.kerb / (o.width + o.kerb * 2) * 32), A = H(o.color), Ad = H(E.shade(o.color, -.12)), Al = H(E.shade(o.color, .1)), Ln = o.line ? H(o.line) : null, K = o.kerbs.map(H);
+    const tex = w._own(bake((x, y) => (x < kp || x >= 32 - kp) ? K[Math.floor(y / 8) & 1] : Ln && (x === 15 || x === 16) && (y % 32) < 16 ? Ln : E.hash2(x, y) < .1 ? Ad : E.hash2(x + 7, y) < .05 ? Al : A, 32, 64));
+    const geo = w._own(new THREE.BufferGeometry()); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    this.mesh = new THREE.Mesh(geo, w._own(lambert(tex))); this.mesh.receiveShadow = true; w.scene.add(this.mesh);
+    const flags = RAPIER.TriMeshFlags ? RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES : undefined, fixed = () => w.pw.createRigidBody(RAPIER.RigidBodyDesc.fixed());
+    this._cols = () => {   // (made again with each reset: a fresh physics world)
+      w.pw.createCollider(RAPIER.ColliderDesc.trimesh(new Float32Array(cpos), new Uint32Array(cidx), flags).setFriction(.2).setCollisionGroups(GROUPS.level), fixed());
+      if (o.walls) { const body = fixed(); for (const [x, y, z, len, yaw, h] of wb) w.pw.createCollider(RAPIER.ColliderDesc.cuboid(len / 2, 1.5, h).setTranslation(x, y, z).setRotation({ x: 0, y: 0, z: Math.sin(yaw / 2), w: Math.cos(yaw / 2) }).setFriction(0).setRestitution(.3).setCollisionGroups(GROUPS.level), body); }
+    };
+    // the walls: a low barrier along each edge (a box section: its face, its top, its outer face down to the ground under
+    // a raised or banked road), striped by the length; without walls, only that outer face (a skirt)
+    const wp = [], wi = [], vp = [], vu = [], vi = [], wb = [], wh = o.walls ? o.wallH : 0, th = o.walls ? 3 : 0;   // (wb: each wall's segments as thin boxes, its colliders)
+    const L = this.length, gap = (d, side) => o.walls && o.gaps.some(([a, b, sd]) => (!sd || sd === side) && (a <= b ? d >= a && d <= b : d >= a || d <= b));
+    for (const side of [-1, 1]) {
+      const base = wp.length / 3, vb = vp.length / 3;
+      S.forEach((s, i) => {
+        const open = i && (gap(s.d % L, side) || gap(S[i - 1].d % L, side));   // (a gap: no wall on this segment)
+        const a = this._pt(s, side * hw), b = this._pt(s, side * (hw + th)), up = [a[0], a[1], a[2] + wh], up2 = [b[0], b[1], b[2] + wh];
+        b[2] = Math.min(b[2], w.floorAt(b[0], b[1])) - 2;
+        wp.push(...a, ...up, ...up2, ...b); for (const q of [a, up, up2, b]) vp.push(q[0] / U, q[2] / U, q[1] / U);
+        vu.push(0, s.d / 64, .4, s.d / 64, .6, s.d / 64, 1, s.d / 64);
+        if (i && o.walls && !open) {   // (its box: from the ground under it to the wall's top)
+          const q = this._pt(S[i - 1], side * (hw + 1.5)), e = this._pt(s, side * (hw + 1.5)), x = (q[0] + e[0]) / 2, y = (q[1] + e[1]) / 2, top = Math.max(q[2], e[2]) + wh + 2, lo = Math.min(q[2], e[2], w.floorAt(x, y)) - 2;
+          wb.push([x, y, (top + lo) / 2, Math.hypot(e[0] - q[0], e[1] - q[1]) + .6, Math.atan2(e[1] - q[1], e[0] - q[0]), (top - lo) / 2]);
+        }
+        if (i && !open) for (const [j, k] of [[0, 1], [1, 2], [2, 3]]) { const p0 = base + (i - 1) * 4, q0 = vb + (i - 1) * 4; const f = side < 0 ? [p0 + j, p0 + 4 + j, p0 + k, p0 + k, p0 + 4 + j, p0 + 4 + k] : [p0 + j, p0 + k, p0 + 4 + j, p0 + k, p0 + 4 + k, p0 + 4 + j]; wi.push(...f); vi.push(...f.map(x => x - base + vb)); }
+      });
+    }
+    if (vp.length) {
+      const W1 = H(o.wall), W2 = H(E.shade(o.wall, -.3)), wt = w._own(bake((x, y) => (y >> 3) & 1 ? W1 : W2, 4, 16));
+      const g2 = w._own(new THREE.BufferGeometry()); g2.setAttribute('position', new THREE.Float32BufferAttribute(vp, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(vu, 2)); g2.setIndex(vi); g2.computeVertexNormals();
+      this.walls = new THREE.Mesh(g2, w._own(lambert(wt))); this.walls.material.side = THREE.DoubleSide; this.walls.castShadow = this.walls.receiveShadow = true; w.scene.add(this.walls);
+    }
+    this._cols();
+  }
+  /** draw its boost pads with the pen: chevrons that pulse along the road */
+  _pads(pen, t) {
+    for (const [d, l] of this.o.pads) {
+      const s = this._s(d), p = this._pt(s, l || 0, .5), c = (Math.floor(t * 6) & 1) ? '#ffb43a' : '#ff7a2a';
+      pen.at(p[0], p[1], p[2], s.angle, 1, 0, -s.bank);
+      for (let k = 0; k < 3; k++) pen.bar(-9 + k * 7, -7, 0, -3 + k * 7, 0, 0, 2, .4, c).bar(-3 + k * 7, 0, 0, -9 + k * 7, 7, 0, 2, .4, c);
+    }
+    pen.at();
+  }
+  /** the sample nearest d along it */
+  _s(d) { const L = this.length, S = this.samples, n = S.length - 1; d = this.path.closed ? ((d % L) + L) % L : clamp(d, 0, L); return S[Math.min(n, Math.round(d / L * n))]; }
+  /** the point d along it: { x, y, z, angle, bank, d, rx, ry (its right) } */
+  at(d) { const s = this._s(d), p = this.path.at(d); return { x: p.x, y: p.y, z: p.z, angle: p.angle, bank: s.bank, d: p.d, rx: s.rx, ry: s.ry }; }
+  /** where (x, y) is across it: { d (along), across (units, + right), z (the road's height there) } */
+  where(x, y, z) {
+    const d = this.path.nearest(x, y, z), s = this._s(d), p = this.path.at(d), l = (x - p.x) * s.rx + (y - p.y) * s.ry;
+    return { d, across: l, z: this._pt(s, l)[2] - s.z + p.z };
+  }
+  /** the surface at (x, y) (and height z): o.surface ('road') on it, 'boost' on a pad, o.off beside it (within three
+   *  widths), else null (the ground's own) */
+  surface(x, y, z) {
+    const o = this.o, q = this.where(x, y, z); if (z !== undefined && Math.abs(z - q.z) > 24) return null;
+    if (Math.abs(q.across) > o.width / 2 + o.kerb) return Math.abs(q.across) < o.width * 3 ? o.off : null;
+    const L = this.length; for (const [d, l] of o.pads) if (Math.abs(((d - q.d) % L + L * 1.5) % L - L / 2) < 18 && Math.abs(q.across - (l || 0)) < 16) return 'boost';
+    return o.surface;
+  }
+}
+
+/* =============================================================================
  * 9. THE WORLD  new E.World3D(game, o) (after await E.World3D.init(game)): a level, its physics, its actors, props,
  *    platforms and things, its lights, sky and camera. world.step(dt) in the game's update, world.draw(r) in its draw
  * ============================================================================= */
@@ -1913,6 +2232,8 @@ class World3D {
     Object.assign(this, { width: L.width, depth: L.depth, mw: L.mw, mh: L.mh, bottom: L.bottom, marks: L.marks, torches: L.torches });
     /** actors, props, platforms, things: what is in the world now (read them; add and remove with the methods below) */
     this.actors = []; this.props = []; this.platforms = []; this.things = []; this.shapes = [];
+    /** tracks (world.track), flyers (world.flyer): yours to read */
+    this.tracks = []; this.flyers = [];
     this.B = makeBatches(this); this.capes = makeCapes(this); this.atlas = makeAtlas(this);
     /** pen: draw your own 3D shapes for this frame (in draw, before world.draw(r)): world.pen.at(x, y, z, yaw).box(...) */
     this.pen = new Pen(this); this.pen.B = this.B;
@@ -1928,6 +2249,9 @@ class World3D {
     this._sky(o);
     /** camera: see section 7 */
     this.camera = new Camera3D(this, Object.assign({ far: this.terrain ? this.terrain.far * 1.1 : 9600 }, o.camera));
+    /** cameras: the world's cameras, [0] its camera; world.addCamera(o) adds one (a split screen's viewport i draws
+     *  through cameras[i]) */
+    this.cameras = [this.camera];
     /** overlay: a scene of your own drawn over the world after it (its depth cleared first), from its own camera at the
      *  origin: a first-person view model (the arms and the gun) that never sinks into a wall. { scene, camera (fov: set
      *  it), pen (the world's pen, in this scene: engine units round the eye, x ahead, y right, z up), on }; lit by the
@@ -1955,7 +2279,7 @@ class World3D {
     for (const p of this.platforms) if (p.mesh) this.scene.remove(p.mesh);
     for (const p of this.props) if (p.mesh) this.scene.remove(p.mesh);
     this.actors.length = 0; this.props.length = 0; this.platforms.length = 0; this.things.length = 0; this.blocks.length = 0; this._owners.clear();
-    this.level.colliders(pw);
+    this.level.colliders(pw); for (const t of this.tracks) t._cols(); this.flyers.length = 0;
     // the level's own shapes (a legend's { shape }) stand again; a game's are gone with the rest
     this.shapes.length = 0; this._shapeKit.clear(); for (const [id, x, y, z, sp] of this.level.shapes) this.shape(id, x, y, z, sp);
     this.time = 0; this.n = 0; this.passing = null; if (this.camera) Object.assign(this.camera.unlock(), { focus: null, smooth: null, pose: null, zone: null, cuts: 0, _hold: null, _mv: [0, 0] });   // (the camera starts afresh where the hero is)
@@ -2046,6 +2370,32 @@ class World3D {
     a.col = pw.createCollider(shape.setFriction(0).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(0).setDensity(a.mass).setCollisionGroups(a.fly ? GROUPS.flyer : GROUPS.mob), a.body);
     a.z = z; this.actors.push(a); this._owners.set(a.col.handle, a);
     return a;
+  }
+  /** a vehicle (section 8b): { kind: 'kart' | 'car' | 'hover', x, y, z, angle, rig (its driver, seated), color, the
+   *  kind's handling with yours over it (top, accel, brake, reverse, turn, grip, drift, drag, hop, seat, float),
+   *  surfaces, ground: (x, y) => tag (else a track's, the level's ground under it) } -> a vehicle (an actor: world.actors) */
+  vehicle(o = {}) {
+    const K = VEHICLES[o.kind] ? o.kind : 'kart', v = new Vehicle(this, Object.assign({}, VEHICLES[K], o, { kind: K })), pw = this.pw;
+    let z = o.z ?? this.floorAt(v.x, v.y); if (o.z === undefined) for (const t of this.tracks) { const q = t.where(v.x, v.y); if (Math.abs(q.across) <= t.o.width / 2 + t.o.kerb) z = Math.max(z, q.z); }   // (on a track: on its road)
+    const desc = RAPIER.RigidBodyDesc.dynamic().setTranslation(v.x, v.y, z + v.r + .2).lockRotations().setCcdEnabled(true).setCanSleep(false);
+    if (v.o.float) desc.setGravityScale(0);
+    v.z = z; v.body = pw.createRigidBody(desc);
+    v.col = pw.createCollider(RAPIER.ColliderDesc.ball(v.r).setFriction(0).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(.2).setDensity(v.o.mass).setCollisionGroups(GROUPS.mob), v.body);
+    v.sink = -v.o.seat; this.actors.push(v); this._owners.set(v.col.handle, v);
+    return v;
+  }
+  /** a flyer (section 8b): { x, y, z, yaw, speed, min, max, turn, climb, bank, invert, low, bounds | rail: { path, speed,
+   *  w, h, slide } } -> a flyer (world.flyers; gone with a reset) */
+  flyer(o = {}) { const f = new Flyer(this, o); this.flyers.push(f); return f; }
+  /** a track: a road along a path, with its walls (section 8c) */
+  track(o) { const t = new Track(this, o); this.tracks.push(t); return t; }
+  /** another camera (a split screen's: viewport i draws through world.cameras[i]); o as the world's camera option */
+  addCamera(o = {}) { const c = new Camera3D(this, Object.assign({ far: this.camera.far }, o)); this.cameras.push(c); return c; }
+  /** the ground's surface tag at (x, y): a track's, else the level's ground under it (a terrain: null) */
+  _surfaceAt(x, y, z) {
+    for (const t of this.tracks) { const s = t.surface(x, y, z); if (s) return s; }
+    if (this.terrain) return null;
+    const sp = this.level.spec(Math.floor(x / T), Math.floor(y / T)); return sp ? sp.ground || this.level.def.ground || null : null;
   }
   /** take an actor, prop, platform or thing out of the world */
   remove(x) {
@@ -2212,13 +2562,13 @@ class World3D {
   /* ---- a step of the game: platforms, the heroes' controllers, the mobs' wishes, Rapier, then where all is ---- */
   /** advance the world by dt (the game's fixed step): call it once in your scene's update, after your rules */
   step(dt) {
-    if (!(dt > 0)) { this._stepAt = -1; this.camera.update(0); return; }   // (time stopped: frames show the last step as it is)
+    if (!(dt > 0)) { this._stepAt = -1; for (const c of this.cameras) c.update(0); return; }   // (time stopped: frames show the last step as it is)
     const t0 = performance.now(), pw = this.pw;
     this.time += dt; this.n++;
     for (const a of this.actors) (a._ip || (a._ip = [0, 0, 0, 0])).splice(0, 4, a.x, a.y, a.z || 0, a.rig ? a.rig.facing : a.facing || 0);   // (where each was, and its facing, before the step: a frame between steps draws them part way)
     for (const q of this.platforms) (q._ip || (q._ip = [0, 0, 0])).splice(0, 3, q.x, q.y, q.z);
-    this.camera._was = this.camera.pose; this._stepAt = this.game.real;
-    if (this.passing) { this._pass(dt); this.camera.update(dt); this.camera._stepPose = this.camera.pose; return; }   // (a door between rooms: the rest holds still)
+    for (const c of this.cameras) c._was = c.pose; this._stepAt = this.game.real;
+    if (this.passing) { this._pass(dt); for (const c of this.cameras) { c.update(dt); c._stepPose = c.pose; } return; }   // (a door between rooms: the rest holds still)
     if (this.level.stream) this.level.stream(this);   // (a terrain: the heightfields near the actors)
     // where the platforms go this step (worked out first, given to Rapier after the heroes' controllers have looked:
     // a controller that saw a platform's next place would carry its rider some steps and not others)
@@ -2231,7 +2581,7 @@ class World3D {
     for (const p of this.platforms) p.body.setNextKinematicTranslation({ x: p.x, y: p.y, z: p.z - p.h / 2 });
     pw.timestep = dt; pw.step();
     this._readBack(dt);
-    this.camera.update(dt); this.camera._stepPose = this.camera.pose;
+    for (const c of this.cameras) { c.update(dt); c._stepPose = c.pose; }
     this.stats.physicsMs = performance.now() - t0;
   }
   _moveHero(a, dt) {
@@ -2265,6 +2615,7 @@ class World3D {
         const pvz = a.vz; a.vx = v.x; a.vy = v.y; a.vz = v.z;
         const was = a.grounded; a.grounded = a.fly || (Math.abs(a.vz) < 6 && (a.z - this.floorAt(a.x, a.y, a.z + 1) < 2 || Math.abs(a.vz - pvz) < 1)); a.landed = a.grounded && !was;
         a._rv[0] = a.vx; a._rv[1] = a.vy; a._rv[2] = a.vz;
+        if (a.isVehicle) vehicleGround(this, a, dt);
       }
       a.fell = a.z < L.bottom + 8;
       // standing on a moving platform (it carries a hero: world.step adds its motion)
@@ -2294,6 +2645,7 @@ class World3D {
     for (const a of this.actors) list.push(a.x, a.y, a.z, a.vx, a.vy);
     for (const p of this.props) list.push(p.x, p.y, p.z);
     for (const p of this.platforms) list.push(p.x, p.y, p.z);
+    for (const f of this.flyers) list.push(f.x, f.y, f.z, f.yaw, f.pitch);
     return hashNumbers(list);
   }
 }
@@ -2518,8 +2870,8 @@ Object.assign(World3D.prototype, {
   glow(x, y, z, r, color = '#ffb347', o = {}) { this._queue.glows.push([x, y, z, r, color, o.core || '#fff3c4', !!o.light]); },
   /** where a point (engine units) is on the game's screen, in game pixels [x, y] (for the HUD), or null behind the camera */
   project(x, y, z) {
-    const c = this.camera.cam; _pv.set(x / U, z / U, y / U).project(c); if (_pv.z > 1 || _pv.z < -1) return null;
-    const g = this.game; return [(_pv.x + 1) / 2 * g.W, (1 - _pv.y) / 2 * g.H];
+    const P = this._proj, c = P ? P.cam : this.camera.cam; _pv.set(x / U, z / U, y / U).project(c); if (_pv.z > 1 || _pv.z < -1) return null;
+    const g = this.game, v = P && P.vp || { x: 0, y: 0, w: g.W, h: g.H }; return [v.x + (_pv.x + 1) / 2 * v.w, v.y + (1 - _pv.y) / 2 * v.h];   // (in the viewport the world drew last)
   },
   /** where a point of the page (client pixels: a mouse) lands on the plane at height z, in engine units [x, y], or null */
   screenToFloor(cx, cy, z = 0) {
@@ -2535,6 +2887,10 @@ Object.assign(World3D.prototype, {
    *  and notes go on the HUD) */
   draw(r) {
     const R = PAGE.renderer; if (!R) { this._queue.arcs.length = this._queue.glows.length = 0; for (const b of Object.values(this.B)) b.begin(); if (this.overlay) for (const b of Object.values(this.overlay.pen.B)) b.begin(); return; }
+    // a split screen's viewport (r.viewport, the 2D engine's game.splitScreen) draws through its own camera
+    const vp = r && r.viewport, vc = vp ? this.cameras[vp.i] || this.camera : this.camera;
+    if (vc !== this.camera) { const main = this.camera; this.camera = vc; try { return this.draw(r); } finally { this.camera = main; } }
+    this._vp = vp || null;
     PAGE.active = this; if (this.camera.locked && this.game.paused) document.exitPointerLock();   // a pause frees the mouse
     const t0 = performance.now(), g = this.game;
     g.particles.ground = (x, y, z) => this.level.floorAt(x, y, z);
@@ -2548,7 +2904,7 @@ Object.assign(World3D.prototype, {
       if (this._sk !== undefined) { if (st.look3d) this.look = st.look3d; if (RES.includes(st.picture3d)) this.res = st.picture3d; if (st.shadows3d !== undefined) this.shadows = !!st.shadows3d; if (st.filter3d) this.filter.look = st.filter3d; }
       this._sk = sk;
     }
-    const rw = this._fit(), cam = this.camera;
+    const full = this._fit(), sw = full[0] / g.W, rw = vp ? [Math.max(1, Math.round(vp.w * sw)), Math.max(1, Math.round(vp.h * sw))] : full, cam = this.camera;
     if (!cam.pose) cam.update(0);
     const p0 = cam.pose, pk = p0 && [p0.x, p0.y, p0.z, p0.yaw, p0.pitch, p0.fov, p0.roll].join();   // (a pose onDraw changes, replaced or in place, is the game's)
     if (this.onDraw) this.onDraw(this, r);   // (the game's own drawing for every frame, whichever scene draws the world)
@@ -2574,6 +2930,7 @@ Object.assign(World3D.prototype, {
     this.capes.begin();
     const look = this.look;
     if (look === 'card' || this.actors.some(a => a.look === 'card')) this.atlas.begin(view);
+    for (const t of this.tracks) t._pads(this.pen, g.real || 0);
     const drawn = this._drawActors(view, first ? tg : null);
     this._drawThings(); this._reticle();
     this._drawProps();
@@ -2588,7 +2945,9 @@ Object.assign(World3D.prototype, {
     if (!this._warm) this._warmUp(c3, view);
     R.info.reset();
     const t1 = performance.now();
-    this._render(c3);
+    if (vp) { const x = Math.round(vp.x * sw), y = full[1] - Math.round(vp.y * sw) - rw[1]; R.setViewport(x, y, rw[0], rw[1]); R.setScissor(x, y, rw[0], rw[1]); R.setScissorTest(true); R.autoClear = vp.i === 0; }   // (the first viewport clears the picture; the others draw beside it)
+    this._render(c3); this._proj = { cam: c3, vp };
+    if (vp) { R.setViewport(0, 0, full[0], full[1]); R.setScissorTest(false); R.autoClear = true; }
     for (const b of Object.values(this.B)) b.begin(); if (OB) for (const b of Object.values(OB)) b.begin();
     const info = R.info.render, t2 = performance.now();
     Object.assign(this.stats, { calls: info.drawCalls, tris: info.triangles, drawn, bodies: this.pw.bodies.len(), drawMs: t2 - t0, renderMs: t2 - t1 });
@@ -2633,6 +2992,7 @@ Object.assign(World3D.prototype, {
       if (firstOf && (a === firstOf || Math.hypot(a.x - firstOf.x, a.y - firstOf.y) < 12)) return;   // (first person: its own body, and one pressed against the camera, would fill the picture)
       const flash = a.flash > 0, sink = -a.sink, alpha = clamp(a.fade, 0, 1);
       if (a.orb) { orbParts(B, a, t); drawn++; return; }
+      if (a.isVehicle) { vehicleParts(this.pen, a, t); if (!a.rig) { shadowAt(this, a.x, a.y, a.z, 10, alpha); drawn++; return; } }
       if (a.shadow) shadowAt(this, a.x, a.y, a.z, a.blob ? a.blob.o.R || 6 : a.r + 1, alpha);
       drawn++;
       const look = a.look || this.look;
@@ -2879,11 +3239,11 @@ function makeFX(world) {
 Object.assign(World3D.prototype, {
   /** draw the picture: straight to the screen, or through the filter */
   _render(cam) {
-    const on = fxOn(this.filter);
+    const on = !this._vp && fxOn(this.filter);   // (no filter in a split screen's viewports)
     if (on || this._fx) { this._fx = this._fx || makeFX(this); this._fx.tag(on); }
     if (on) this._fx.render(cam); else PAGE.renderer.render(this.scene, cam);
     const ov = this.overlay;
-    if (ov && ov.on) { const R = PAGE.renderer; R.autoClear = false; R.clearDepth(); R.render(ov.scene, ov.camera); R.autoClear = true; }
+    if (ov && ov.on && !this._vp) { const R = PAGE.renderer; R.autoClear = false; R.clearDepth(); R.render(ov.scene, ov.camera); R.autoClear = true; }
   }
 });
 
