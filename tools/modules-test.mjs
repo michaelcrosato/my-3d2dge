@@ -1,4 +1,4 @@
-// The modules suite: proves the whole path a module takes (engine/modules/, docs/HANDOFF-GENRES.md section 3.2) with a
+// The modules suite: proves the whole path a module takes (engine/modules/, docs/KITS.md, Modules) with a
 // fixture that lives here and is never shipped (tools/fixtures/modules/fixture.js, a counter). In a copy of the repository
 // (check-output/modules-test/repo: the sources, and node_modules linked), the fixture goes in engine/modules/ and a slice
 // that names it (tools/fixtures/starter/85-fixture.js, "@modules fixture") in src/starter/, registered as a new kit is

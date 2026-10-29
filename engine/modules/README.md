@@ -2,7 +2,8 @@
 
 A module is one general system in a small file of its own, `engine/modules/<name>.js`, loaded after the core
 (`engine/my-3d2dge.js`) and attached to `My3D2dge`. The core stays as it is; a game carries only the modules it uses.
-The plan that adds them, and which system goes where, is `docs/HANDOFF-GENRES.md` (sections 3.1 and 3.2).
+Which system goes where, and the rules a kit and a module follow, are in `docs/KITS.md` (the genre plan's design rules,
+folded in at v0.81.2).
 
 ## How one is written
 

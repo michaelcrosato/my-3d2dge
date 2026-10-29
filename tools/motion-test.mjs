@@ -1,4 +1,4 @@
-// The motion suite (docs/HANDOFF-GENRES.md, M1): what the presentation sections draw, filmed on tools/fixtures/motion.html
+// The motion suite (the genre plan's M1, v0.62.0): what the presentation sections draw, filmed on tools/fixtures/motion.html
 // (two scenes, the full engine from dist/my-3d2dge.js) into check-output/motion/:
 //   transitions  each of game.go's fades (wipe, iris, mosaic, swirl, dissolve, white) filmed going from one scene to the
 //                other beside the plain fade through black: frames differ; with reduce motion each is that plain fade,

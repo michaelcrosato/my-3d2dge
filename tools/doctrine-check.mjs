@@ -63,7 +63,7 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   let tok = null;
   try { const { encode } = await import('gpt-tokenizer/encoding/cl100k_base'); tok = s => encode(s).length; } catch (e) { /* optional */ }
   const agent = read('engine/my-3d2dge-agent.js');
-  // a module's manual: 1,500 tokens, or its line here (the modules docs/HANDOFF-GENRES.md gives 2,500; D50)
+  // a module's manual: 1,500 tokens, or its line here (the modules the genre plan gave 2,500; D50)
   const MODULE_BUDGET = 1500, MODULE_BUDGETS = { grid: 2500, fight: 2500, strategy: 2500, physics: 2500 };
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],

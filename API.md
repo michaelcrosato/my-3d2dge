@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.81.1)
+# my-3D2dge API card (v0.81.2)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -250,6 +250,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Rail shooters (Star Fox 64, Panzer Dragoon) | the 3D engine's `'behind'` camera | `world.flyer` on rails or free in bounds, rolls (`f.rolling`) turn shots aside, `f.seek` for a charged lock, `Dialog`'s radio | 3D FLIGHT |
 | Road racing (OutRun, Pole Position, Road Rash) | the pseudo-3D road (the road module) | `E.Road` segments (curves, hills, tunnels), scenery and traffic placed on it, `curveAt` throwing the car outward, a clock and checkpoints | ROAD |
 | Top-down racing and driving (Micro Machines, RC Pro-Am, GTA) | `topdown` / `iso` | `E.Car` on a TileMap (its floor tags slow it, its walls bounce it), `E.Race` for laps and drivers, cars drawn with `px.poly` on `r.w()` corner points | KART |
+| Bomberman, Frogger, Sokoban, Gauntlet, Robotron; Sonic, Prince of Persia; light guns; Doom, GoldenEye | as the recipe says | `AI_GUIDE.md`'s Genre recipes: each on the kit closest to it | (a recipe) |
 
 **Sizes:** at 320x240, heroes should be 40-60 px tall: `new E.Humanoid({ size: 1.2-1.4 })` in the default views. Bosses 1.8-2.4. Small things (coins, bullets, ships, pickups) are string sprites designed at 8-16 px, drawn at scale 2 if they are the player's ship. Keep hitboxes smaller than the art.
 

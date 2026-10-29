@@ -442,7 +442,7 @@ function seesAndMaps(E, ed) {
   built.fill(1, 1, 2, 2, 0); check(`${ed}: fill() with 0 clears`, built.cell(1, 1) === 0 && built.cell(2, 2) === 0);
 }
 
-// motion and presentation (docs/HANDOFF-GENRES.md, M1): tweens, scripts, paths, frames, turns, swaps, wrap-around, input
+// motion and presentation (the genre plan's M1, v0.62.0): tweens, scripts, paths, frames, turns, swaps, wrap-around, input
 // sequences, the camera's window and framing, the weather and the transitions' names, headless
 function motion(E, ed) {
   const scenes = { a: { update() {}, draw() {} }, b: { update() {}, draw() {} } };

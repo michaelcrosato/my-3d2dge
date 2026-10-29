@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.81.2 (2026-10-29)
+
+The genre plan folded in: its Milestone 16, the last.
+
+- **Docs**: `docs/KITS.md` (new): how the engine grows by genre, the genre plan's design rules kept: what converts well and what is out of scope, which system goes where (the core, a module, the 3D engine), modules, the kit diet and the budgets, what every new kit has, the rules of every addition, the traps.
+- **Docs**: `docs/HANDOFF-REVIEW.md` (new): what the plan left for the owner: the To check cards and the Vehicle Lab, the budgets to trim (a 3D diet among the ways), the benchmark's era briefs, the optional M15 (a first-person dungeon and sports), a proposed fix to `r.pick`.
+- **Docs**: README's genre table has a kit or a recipe on every row; `AI_GUIDE.md` gains recipes for survival horror, 3D kart racing and rail shooters (the new 3D kits) and for each genre with no kit: twin-stick shooters, Bomberman, Gauntlet, Frogger, Sokoban, Sonic without the loops, the cinematic platformer, light guns, the corridor shooter on the 3D engine; the API card's playbook a row for them.
+- **Docs**: `docs/HANDOFF-GENRES.md` deleted; every reference to it repointed (the tools' comments, the modules' README, the guide, the co-op plan). Decisions: D65 (the plan folded in), D66 (the era briefs' benchmark runs skipped: no answer in fifteen minutes).
+- **Tools**: the benchmark's era briefs (`tools/agent-bench/briefs/`): Pac-Man, Street Fighter II, Super Mario Kart, Final Fantasy Tactics, Resident Evil; their runs wait on the owner (D66).
+
 ## 0.81.1 (2026-10-29)
 
 - **Docs**: `docs/HANDOFF-GENRES.md`: section 9's M14 row (14a `3a9527a`, #187; 14b `786f57c`, #188): what each brought, the sizes at v0.81.0, the proofs on both backends, the bots, `test:changed` and the full `npm test` on `main` after each merge, and what is left (the owner's RACING and FLIGHT checks, the Vehicle Lab, a 3D diet); the status line (M0 to M14 done, M16 next) and "Picking it up".

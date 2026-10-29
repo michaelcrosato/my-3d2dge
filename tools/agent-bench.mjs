@@ -25,7 +25,8 @@
 //                                                         --no-judge keeps the judge's earlier score)
 //        node tools/agent-bench.mjs --selftest               (the stream reader and the scoring on fixtures)
 //        node tools/agent-bench.mjs --list                   (the briefs)
-// Briefs: tools/agent-bench/briefs/<name>.md (assassins-creed: Vesper's brief, the baseline; botw-village; arkham-predator).
+// Briefs: tools/agent-bench/briefs/<name>.md (assassins-creed: Vesper's brief, the baseline; botw-village; arkham-predator;
+// the era's games, v0.81.2: pac-man, street-fighter-2, super-mario-kart, final-fantasy-tactics, resident-evil).
 import { spawnSync, spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, cpSync, createWriteStream } from 'node:fs';
 import { join, dirname, resolve, basename } from 'node:path';
