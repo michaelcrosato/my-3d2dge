@@ -49,7 +49,8 @@ const BOTS = {
   rts: { say: 'the Vale\'s own AI plays a match against the Ash Clan\'s to its end and burns their camp, twice, the same', ok: r => r.won && r.over && r.repeat && !r.errors },
   tactics: { say: 'the heroes\' own AI takes the fort by charge time, twice, the same (the AI\'s turns repeat), then by phases', ok: r => r.won && r.repeat && r.phases.won && r.heroes >= 1 && !r.errors },
   rpg: { say: 'plays the journey by the keys: the elder\'s quest and key, the shop, a sword and a vest worn from the menu, the chest, a save at the crystal; the road north (each battle on AUTO, training to level 3), the cave, the knight\'s scene and fight, home; then loads the save: the town, the quest taken and not done, its gold and gear',
-    ok: r => r.quest && r.key && r.bought && r.equipped && r.chest && r.saved && r.world && r.cave && r.boss && r.home && r.battles >= 3 && r.loaded.at === 'town' && r.loaded.quest && !r.loaded.done && r.loaded.gold === r.savedGold && r.loaded.key && r.loaded.bronze && !r.errors }
+    ok: r => r.quest && r.key && r.bought && r.equipped && r.chest && r.saved && r.world && r.cave && r.boss && r.home && r.battles >= 3 && r.loaded.at === 'town' && r.loaded.quest && !r.loaded.done && r.loaded.gold === r.savedGold && r.loaded.key && r.loaded.bronze && !r.errors },
+  sports: { say: 'player 1 plays a match to its final whistle (passes, lobs, shots), and four players then each run a footballer', ok: r => r.full && r.goals >= 1 && r.passes >= 5 && r.lobs >= 1 && r.shots >= 3 && r.four && r.four.held === 4 && r.four.moved >= 3 && !r.errors }
 };
 // what each 3D slice's bot() must reach
 const BOTS3D = {

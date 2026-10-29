@@ -38,6 +38,8 @@
 //  20. pointclick: a tap walks the hero; a tap on a hotspot shows its verbs (the coin), each a thumb's size; TAKE picks
 //      the rope up; its inventory slot a thumb's size, a tap puts it on the cursor and a tap takes it off; a long press
 //      looks (at the tavern's door); a tap on a person, TALK, and a tap on a choice picks it
+//  21. sports: PASS, SHOOT and LOB a thumb's size; the stick runs the player (with the ball at its feet); PASS passes to
+//      the teammate; SHOOT held and let go shoots
 //  21. pinball: a tap starts a game; a swipe up fires the plunger (the ball leaves the lane); a finger on the left half
 //      raises the left flipper and lifting it lowers it, the right half the right, two fingers both
 //  22. artillery: ONE PLAYER a thumb's height, a tap on it starts a match; on the player's turn a tap beside the grub
@@ -98,7 +100,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -527,6 +529,28 @@ if (want('road')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `road-${label.replace(/ /g, '-')}.png`) });
     check(`road ${label}: BRAKE and GEAR, each a thumb's size`, acts === 'brake,gear' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`road ${label}: it accelerates by itself; the stick held right moves it right; GEAR changes gear`, s0.speed > 30 && s1.x > s0.x + .2 && s2.gear !== s1.gear && !errors.length, `speed ${s0.speed}, x ${s0.x} -> ${s1.x}, gear ${s1.gear} -> ${s2.gear}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 21. sports: its buttons; the stick runs the player; PASS passes; SHOOT held and let go shoots */
+if (want('sports')) {
+  console.log('sports: PASS, SHOOT and LOB, thumb-sized; the stick runs the player; PASS passes; SHOOT held and let go shoots');
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, cdp, errors } = await open('sports', vp, 'sports/match'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1800);   // (past the kickoff's whistle)
+    const st = () => ev(page, () => window.__game.scenes.sports.state());
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+    const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
+    const hold = async (b, ms) => { if (!b) return; await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x, y: b.y }] }); await wait(ms); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); };
+    const kickoff = async () => { await ev(page, () => window.__game.game.go('sports', { part: 'match' }, { fade: 0 })); await wait(1800); };   // (the ball at player 1's feet)
+    // each from a kickoff of its own (the CPU presses once the kickoff's rule ends): a shot, a run, a pass
+    const s0 = await st(); await hold(btns.find(b => b.act === 'shoot'), 500); await wait(300); const s1 = await st();
+    await kickoff(); const sx = vp.width * .2, sy = vp.height * .75, s2 = await st(); await drag(cdp, line([sx, sy], [sx + 50, sy], 20), 30); const s3 = await st();
+    await kickoff(); await hold(btns.find(b => b.act === 'pass'), 120); await wait(300); const s4 = await st();
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `sports-${label.replace(/ /g, '-')}.png`) });
+    check(`sports ${label}: PASS, SHOOT and LOB, each a thumb's size`, acts === 'lob,pass,shoot' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
+    check(`sports ${label}: SHOOT held and let go shoots; the stick held right runs the player right with the ball; PASS passes`, s0.mode === 'play' && s1.shots >= 1 && s3.you.x > s2.you.x + 20 && s4.passes >= 1 && !errors.length,
+      `mode ${s0.mode}, shots ${s1.shots}, x ${s2.you && s2.you.x} -> ${s3.you && s3.you.x}, passes ${s4.passes}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }

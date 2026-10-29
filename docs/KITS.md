@@ -32,6 +32,7 @@ in the core.
 
 | System | Where | The genres it serves |
 | --- | --- | --- |
+| a throw's arc (`E.arc`) | core | sports' lobs, grenades, leaps to a ledge |
 | tweens, scripted sequences, paths | core | cutscenes, waves and dives, moving platforms, racing lines, rails, menus |
 | animated, rotated and scaled sprites; wrap-around | core | arcade, shooters, racing's billboards, space |
 | transitions, weather, a screen filter | core | every genre |
@@ -40,7 +41,7 @@ in the core.
 | grids: paths, ranges, fields of view, fog, turns | module `grid` | roguelikes, tactics, puzzles, mazes, board games, strategy's fog |
 | generated maps | module `gen` | roguelikes, action RPG dungeons, strategy maps |
 | scores, tables, lives, attract mode | module `arcade` | arcade, shooters, puzzles, pinball, brawlers |
-| two to four players, split screen | core | fighting, co-op, versus puzzles, racing, artillery |
+| two to four players, split screen | core | fighting, co-op, versus puzzles, racing, artillery, sports |
 | fighters and matches | module `fight` | fighting, brawlers' bosses |
 | side-view traversal; worlds of rooms | the core's Platformer, module `rooms` | platformers, Metroidvanias, cinematic platformers |
 | Mode 7, the road | modules `mode7`, `road` | racing, rail shooters, world maps, flying |
