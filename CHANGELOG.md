@@ -5,6 +5,11 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.79.1 (2026-10-29)
+
+- **Docs**: `docs/HANDOFF-GENRES.md`: section 9's M13 row (`a4d00be`, #185): what it brought, the sizes at v0.79.0, the proofs, the camera's contracts, the horror bot, `test:changed`, the full `npm test` on `main` after the merge, and what is left (the owner's HORROR and lock-on checks on the Labs page); the status line (M0 to M13 done, M14 next) and "Picking it up".
+- **Tools**: the phone test's army case waits a moment after holding the battle still before it picks the unit to tap, so every body is redrawn as it now stands (an image kept from before the freeze, mid-swing, could be wider, and failed it once more in the full `npm test` on `main`).
+
 ## 0.79.0 (2026-10-28)
 
 3D action and survival horror: the genre plan's Milestone 13, camera zones, lock-on, tank controls, doors between rooms and a flashlight in the 3D engine, the 3D HORROR kit, and lock-on in 3D ACTION.
