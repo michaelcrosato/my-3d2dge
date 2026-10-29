@@ -1246,3 +1246,25 @@ An entry:
 - **Answered:** no question asked: a reversible call, flagged in its pull request (the owner's goal: each milestone's
   section 9 row)
 - **Landed in:** v0.81.4
+
+## D69 · 2026-10-29 · The 2D kits' budget back at 200,000; six keep budgets of their own
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D51 (every 2D kit at most 200,000 cl100k
+  tokens), suspended by D52 until the owner's review pass
+- **Call:** the 200,000-token budget of a 2D kit holds again (`doctrine-check` fails a kit past it), but for six kits that
+  keep budgets of their own (`KIT2D`): RPG 241,000, SHOOTER 224,000, ADVENTURE 210,000, SIM 210,000, RTS 208,000 and
+  BRAWLER 207,000. At v0.82.0 they are 239,488, 222,476, 208,638, 208,174, 206,448 and 205,685; the other fifteen are under
+  200,000 (the largest, METROIDVANIA, 197,273). The ways in, cheapest first, went first (v0.82.0): the card in a
+  kit (D71), more of the core on the kit diet (the platform map, the shapes and the core library, the solid shapes; the
+  diet's `via`, `proto: false` and `with`, so a name another system shares no longer keeps a part), and a 3D diet (D70).
+- **Why:** the owner's goal (2026-10-29): every 2D kit back under 200,000, and "a kit that can't get there without
+  losing what it plays keeps a budget of its own by a logged decision". These six call every part they keep (the diet's
+  reasons, read part by part: the tile map, the shapes and their asset set, the bodies, the bullets, the flow fields,
+  the transitions, GPU lighting...), and every 2D kit carries what the shell's title draws (six HD heroes on a platform
+  map's ledge before a backdrop). What is left past 200,000 is their own game: the RPG is 39,488 over with a slice of 47,031
+  tokens (a town, a world map of 256 x 256 cells, a cave and its boss, the ATB battle, menus and saves), the SHOOTER
+  22,476 with one of 39,153 (two stages), and the others 5,685 to 8,638, a fifth to three fifths of their slices (SIM and
+  RTS carry the strategy and grid modules too, 15,019). What would change it: a lighter
+  title for every kit (its look changes, so it is the owner's call), or the slices' code thinned.
+- **Answered:** yes: the owner, in the goal of 2026-10-29 (a budget of its own by a logged decision)
+- **Landed in:** v0.82.0
