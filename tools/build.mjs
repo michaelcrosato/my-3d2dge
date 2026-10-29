@@ -50,8 +50,11 @@ const DIET = [
   { part: 'tilemap', sections: ['13'] },                      // E.TileMap, and what extends it (wall faces, shapes as solids)
   { part: 'flow', sections: ['14'] },                         // E.FlowField
   { part: 'tex', sections: ['15'] },                          // E.tex
+  { part: 'platformmap', sections: ['16'] },                  // E.PlatformMap (side-scroller levels), E.TILES
   { part: 'platformer', sections: ['16b', '16c'] },           // E.Platformer, and its further moves and their poses
   { part: 'body', sections: ['17'] },                         // E.Body
+  { part: 'shapes', sections: ['21e'], via: ['r'] },          // E.SHAPES, r.shape (on the renderer: the grid's grid.shape is not it); the core library's shapes go with it, its materials stay (a roof: 'cobble')
+  { part: 'solids', sections: ['21g'], entries: ['solid', 'solids'], with: 'tilemap', proto: false },   // map.solid; its collide, groundAt and heightAt wrap the map's own
   { part: 'thirdperson', sections: ['17b', '17c', '17d'] },   // E.ACTIONS, E.Action, E.Mover, E.sees, E.hears, E.Suspicion
   { part: 'bullets', sections: ['18'] },                      // E.Bullets, E.pattern
   { part: 'hash', sections: ['19'] },                         // E.SpatialHash
@@ -66,6 +69,11 @@ const DIET = [
   { part: 'camera', sections: ['10i'], entries: ['window', 'snapY', 'frame'] },   // game.cam.window, cam.snapY, cam.frame
   { part: 'players', sections: ['10j'], entries: ['allowJoin', 'addPlayer', 'removePlayer', 'splitScreen', 'viewport', 'halfKeys'] },   // game.allowJoin, game.splitScreen, Input.halfKeys (game.players and game.viewports are the core's)
   { part: 'saves', sections: ['10k'], entries: ['saves'], names: ['saves'] }   // game.saves, and menu: { saves }
+];
+// THE 3D DIET: the 3D engine's sections a 3D kit's game never calls, left out as the kit diet leaves out the core's
+// (tools/diet.mjs, reading the 3D engine as the ES module it is): what the kit calls is its shell, slice and modules
+const DIET3D = [
+  { part: 'vehicles', sections: ['8b'], entries: ['vehicle', 'track', 'flyer'] }   // world.vehicle, world.track, world.flyer
 ];
 // the parts a slice's deep link can jump into (#arcade/maze), named in its kit's header
 const PARTS = { arcade: ['maze', 'formation', 'rocks'], shooter: ['horizontal'], fighting: ['versus', 'arcade', 'training'], metroidvania: ['miniboss', 'boss', 'map'], kart: ['race', 'vs'], road: ['drive'], rpg: ['battle'], tactics: ['battle', 'phases'] };
@@ -106,14 +114,14 @@ const builds = [
   ...readdirSync(join(root, STARTER)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
     if (!SLICES[id]) throw new Error(STARTER + '/' + f + ': name the slice in SLICES (tools/build.mjs)');
-    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id, sliceMods(join(STARTER, f))), compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER, f)) };
+    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id, sliceMods(join(STARTER, f))), label: SLICES[id].split(' (')[0], compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER, f)) };
   }),
   // the 3D starter (src/starter3d/: the shell, every 3D slice, the start) and a 3D genre kit for each slice
   { template: 'src/starter3d.template.html', out: 'dist/my-3d2dge-3d.html', vars: ALL3D, compact: true, modules: dirMods(STARTER3D) },
   ...readdirSync(join(root, STARTER3D)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
     if (!SLICES3D[id]) throw new Error(STARTER3D + '/' + f + ': name the slice in SLICES3D (tools/build.mjs)');
-    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id, sliceMods(join(STARTER3D, f))), compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER3D, f)) };
+    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id, sliceMods(join(STARTER3D, f))), label: '3D ' + SLICES3D[id].split(' (')[0], compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER3D, f)) };
   })
 ];
 
@@ -141,12 +149,45 @@ async function kitEngine(b) {
   if (!dieted.has(d.src)) { let code = false; try { const { minify } = await import('terser'); code = (await minify(d.src, { compress: true, mangle: true, format: { comments: /^!/ } })).code; } catch (e) { /* no terser */ } dieted.set(d.src, code); }
   return { diet: d, min: dieted.get(d.src) };
 }
+const dieted3d = new Map();
+/** a 3D kit's 3D engine on the 3D diet, minified as a module (its manual kept): { diet, min }; null without acorn or terser */
+async function kitEngine3d(b) {
+  let D; try { D = await import('./diet.mjs'); } catch (e) { return null; }
+  const src = readFileSync(join(root, ENGINE3D), 'utf8'), codes = kitCodes(b).filter(c => c.text !== src);
+  const d = D.diet(src, DIET3D, D.uses(codes), {}, { module: true, warn: 'E.warn', full: 'dist/my-3d2dge-3d.js; dist/my-3d2dge-3d.html for every 3D slice' });
+  if (!dieted3d.has(d.src)) { let code = false; try { const { minify } = await import('terser'); code = (await minify(d.src, { module: true, compress: true, mangle: true, format: { comments: /^!/ } })).code; } catch (e) { /* no terser */ } dieted3d.set(d.src, code); }
+  return { diet: d, min: dieted3d.get(d.src) };
+}
+/** a kit's API card: the whole card, but its genre playbook keeps the rows of the kit's own slice and its list of modules
+ *  the kit's own (the card diet: every row and every module are in API.md, in the repo and in the reference editions) */
+const cardFor = (b, card) => {
+  const label = b.label, mods = new Set(resolveModules(b.modules || [], MODS).map(m => m.name)), lines = card.split('\n'), out = [];
+  const mine = row => { const cols = row.split('|'), copy = (cols[cols.length - 2] || '').toUpperCase(); return new RegExp('(^|[^0-9A-Z-])' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^A-Z-])').test(label.startsWith('3D ') ? copy : copy.replace(/3D [A-Z-]+/g, '')); };
+  let sec = '', cut = 0, modsCut = 0;
+  for (const l of lines) {
+    if (l.startsWith('## ')) {
+      if (cut) { out.push(`(This kit's ${label} rows; API.md, in the repo and in dist/my-3d2dge.html, has the playbook's every genre.)`, ''); cut = 0; }
+      sec = l;
+    }
+    if (sec.startsWith('## Genre playbook') && /^\| /.test(l) && !/^\| Genre/.test(l)) { if (mine(l)) out.push(l); else cut++; continue; }
+    const m = /^  - `([a-z0-9]+)`/.exec(l);
+    if (sec.startsWith('## More') && m) { if (mods.has(m[1])) out.push(l); else { if (!modsCut) out.push(`  - (the modules this kit carries; API.md lists every one)`); modsCut++; } continue; }
+    out.push(l);
+  }
+  return out.join('\n');
+};
 /** a kit's header line on what its engine leaves out */
 const dietLine = d => {
   if (!d.left.length) return '';
   const items = d.left.flatMap(l => l.sections.map(([id, t]) => id + ' ' + t)), lines = ['Its engine leaves out what its game never calls (the kit diet):'];
   items.forEach((w, i) => { w += i < items.length - 1 ? ',' : '.'; if ((lines[lines.length - 1] + ' ' + w).length > 104) lines.push(w); else lines[lines.length - 1] += ' ' + w; });
   return '\n       ' + lines.join('\n       ') + '\n       Calling one of them warns, naming its section. A game of several genres starts from the full engine:\n       dist/my-3d2dge.html (every slice and section, readable) or dist/my-3d2dge-compact.html.';
+};
+/** a 3D kit's header line on what its 3D engine leaves out (the 3D diet) */
+const dietLine3d = d => {
+  if (!d.left.length) return '';
+  const items = d.left.flatMap(l => l.sections.map(([id, t]) => id + ' ' + t));
+  return '\n       Its 3D engine leaves out what its game never calls (the 3D diet): ' + items.join(', ') + '.\n       Calling one warns, naming its section; dist/my-3d2dge-3d.html has the whole 3D engine.';
 };
 const minMods = new Map();
 /** a module minified, its manual (the /*! header) kept; false without terser */
@@ -196,22 +237,24 @@ for (const b of builds) {
   const ke = b.kit ? await kitEngine(b) : null, min = b.compact ? (ke ? ke.min : b.kit ? null : await engineMin()) : null;
   if (b.compact && !min) continue;
   let html = readFileSync(join(root, b.template), 'utf8');
-  const vars = Object.assign({}, GLOBAL, b.vars); if (ke) vars.CONTENTS += dietLine(ke.diet);
+  const ke3 = b.kit && /@inline-esm engine\/my-3d2dge-3d\.js/.test(html) ? await kitEngine3d(b) : null;
+  const vars = Object.assign({}, GLOBAL, b.vars); if (ke) vars.CONTENTS += dietLine(ke.diet); if (ke3) vars.CONTENTS += dietLine3d(ke3.diet);
   for (const [k, v] of Object.entries(vars)) html = html.replaceAll(`{{${k}}}`, v);
   html = boot(html);
   // a file one part needs, only where that part is (a kit of one slice leaves out the others' sets)
   html = html.replace(/<!-- @inline-with (\S+) (\S+) -->/g, (_, part, file) => !b.parts || b.parts(part) ? `<!-- @inline ${file} -->` : '');
-  html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => read(file));
+  html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => file === 'API.md' && b.kit ? cardFor(b, read(file)) : read(file));
   // a folder of script parts joined in name order into one <script> (the starter game: shell + one file per slice)
   html = html.replace(/<!-- @inline-parts (\S+) -->/g, (_, dir) => {
     const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort();
     return `<script>\n/* ---- inlined from ${dir} (${parts.join(', ')}) ---- */\n${parts.map(f => read(join(dir, f))).join('\n')}\n</script>`;
   });
   // one ES module file as a <script type="module"> (the 3D engine; minified, its manual kept, in a compact build)
-  const min3d = b.compact ? await engine3dMin() : null;
+  const min3d = b.compact ? (ke3 && ke3.min ? ke3.min : await engine3dMin()) : null;
   html = html.replace(/<!-- @inline-esm (\S+) -->/g, (_, file) => {
     const src = file === ENGINE3D && min3d ? min3d.replaceAll('</script', '<\\/script') : read(file);
-    return `<script type="module">\n/* ---- inlined from ${file}${file === ENGINE3D && min3d ? ' (minified; the readable engine is in the repo)' : ''} ---- */\n${src}\n</script>`;
+    const how = file !== ENGINE3D || !min3d ? '' : ke3 && ke3.diet.left.length ? ' (minified, less the sections its game never calls: the header above lists them; the readable engine is in the repo)' : ' (minified; the readable engine is in the repo)';
+    return `<script type="module">\n/* ---- inlined from ${file}${how} ---- */\n${src}\n</script>`;
   });
   // a folder of module parts joined in name order into one <script type="module"> (they share one scope; imports go first)
   html = html.replace(/<!-- @inline-module (\S+) -->/g, (_, dir) => {

@@ -6,8 +6,8 @@
 //   3. its bot, where its slice has one (bot(): it plays to the end through the game's own rules, as a player would, from
 //      a seed): the end it must reach (BOTS below: the roguelike's ten floors, the puzzle's lines; BOTS3D: the horror
 //      wing to its boss), with no errors
-//   4. its size in cl100k tokens, beside its budget (doctrine-check holds them: every 2D kit at most 200,000; D52 suspends
-//      that until the owner's review pass, so a 2D kit over it is reported, not failed)
+//   4. its size in cl100k tokens (tools/doctrine-check.mjs holds the budgets: a 2D kit at most 200,000, six of their own,
+//      D69; each 3D kit its own, D70)
 //   5. the reference editions' title (dist/my-3d2dge.html, and dist/my-3d2dge-3d.html served): every slice under its
 //      family's heading, two columns on a wide screen, each reached by the keys and picked by a tap; on a short screen
 //      one column that scrolls to the last
@@ -74,8 +74,8 @@ const SITE = 'http://127.0.0.1:' + server.address().port;
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-vulkan=swiftshader', '--use-webgpu-adapter=swiftshader', '--disable-vulkan-surface'] });
 
 for (const k of kits) {
-  const html = readFileSync(join(K, k.file), 'utf8'), n = tok(html), budget = k.is3d ? null : 200000;
-  console.log(`\n${k.file} (${n.toLocaleString('en')} tokens${budget ? ', of ' + budget.toLocaleString('en') : ''})`);
+  const html = readFileSync(join(K, k.file), 'utf8'), n = tok(html);
+  console.log(`\n${k.file} (${n.toLocaleString('en')} tokens)`);
   const page = await browser.newPage({ viewport: { width: 960, height: 640 } }), errors = [], left = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); if (/left out of this kit/.test(m.text())) left.push(m.text()); });
@@ -98,7 +98,6 @@ for (const k of kits) {
     check(`${k.file}: its bot ${B ? B.say : 'plays'}, with no errors`, !!B && !r.thrown && !r.errors && B.ok(r) && !errors.length, (B ? '' : 'no expectation in BOTS or BOTS3D (tools/kits-test.mjs) ') + JSON.stringify(r) + ' ' + errors.slice(0, 2).join(' | '));
   }
   check(`${k.file}: nothing the kit diet left out was called`, !left.length, left.slice(0, 3).join(' | '));
-  if (budget) check(`${k.file}: within its budget${n > budget ? ' (suspended: D52)' : ''}`, true, n + ' tokens' + (n > budget ? `, ${n - budget} over it` : ''));
   await page.close();
 }
 // the reference editions' title menu: families, keys, a tap, and scrolling on a short screen

@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.82.0 (2026-10-29)
+
+The kits back under their budgets: `docs/HANDOFF-REVIEW.md`'s part 2.
+
+- **Tools**: the kit diet's next parts: the platform map (section 16: no 3D kit, and no 2D slice but the side views', draws one past the title), the shapes (21e, and with them the core library's shapes; its materials stay, a tile's `roof: 'cobble'`) and the solid shapes (21g, out of 21e: `map.solid` and the tile map reading its solids, gone with the tile map). A part's new options: `via` (the names its methods count on: `r.shape`, not the grid module's `grid.shape` or a physics body's `.shape`), `proto: false` (methods that wrap a class's own, which keeps its own when they go) and `with` (a part that extends another goes with it).
+- **Tools**: the 3D diet (`DIET3D`): a 3D kit that never calls `world.vehicle`, `world.track` or `world.flyer` leaves out the 3D engine's section 8b, its header saying so (`tools/diet.mjs` reads the 3D engine as the ES module it is).
+- **Tools**: a kit's API card keeps its genre playbook's rows and its list of modules for the kit's own slice; `API.md`, the reference editions and the handoff package carry the whole card (D71).
+- **Tools**: `doctrine-check` holds the 2D kits to 200,000 again, six with budgets of their own (D69), and the 3D kits to their budgets from before D63 (D70); `kits-test` reports each kit's size.
+- **Engine**: the solid shapes in a section of their own (21g), so a kit that draws shapes on no tile map leaves both out. No code changed.
+- **Docs**: `docs/KITS.md` (the diet's parts and options, the 3D diet, the card in a kit, the budgets, what the 2D title costs every kit), README's kit sizes, `docs/HANDOFF-REVIEW.md` without its part 2.
+
 ## 0.81.7 (2026-10-29)
 
 - **Rendering**: `r.pick` gives a body drawn from its kept image (`r.actor`'s `every`) the same box as on the frames it is redrawn. It was a pixel wider on each side (the kept image's margin for the outline), so where two bodies' boxes met, a tap could pick one on one frame and the other on the next (`docs/HANDOFF-REVIEW.md`'s part 5).
