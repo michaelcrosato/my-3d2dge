@@ -199,6 +199,11 @@ The first runs (D19; one run per brief, so read them as signals):
 | 2026-10-11 | Breath of the Wild village | Claude Code (Opus 5.5) | ~27.9k (+4.3k tests) | 209k | 38 min | yes, and its own test | yes, 11 times; no patch (F3) | not recorded | 6/10 |
 | 2026-10-11 | Arkham predator room | Claude Code (Opus 5.5) | ~26.2k (+4.1k tests) | 278.8k (its subagents included) | 77 min (41 working; the rest waiting on a reviewing subagent that never reported) | yes, and its own test | yes, 29 times; no patch (F4) | not recorded | 6/10 |
 | 2026-10-15 | Breath of the Wild village, again (v0.43.1: the asset store; D36) | Claude Code (Opus 5.5) | ~14k (+2.5k tests) | 66.1k | 13 min | yes, and its own test | yes, 3 times, each right after a search of the index; no patch (F6) | 8 / 1 / 0 (4.8k / 866 / 0): 3 of the 8 searches then read the source | 5/10 |
+| 2026-10-29 | Pac-Man (an era brief, v0.84.0; F7) | Claude Code (its default model) | ~14.1k (+5k tests) | 64.5k | 9 min | no by the benchmark's count: its maze on black fills 5.9% of the screen, under the 10% it takes as drawn; the check and its own test pass (F7.5) | no | 2 / 0 / 0 (1k / 0 / 0) | 3/10 |
+| 2026-10-29 | Street Fighter II (an era brief) | Claude Code (its default model) | ~8.8k (+5.3k tests) | 69.8k | 15 min | yes, and its own test | yes, 4 times; no patch (F7.1) | 2 / 0 / 0 (207 / 0 / 0): 1 of the 2 searches then read the source (trips D43's rule) | 6/10 |
+| 2026-10-29 | Super Mario Kart (an era brief) | Claude Code (its default model) | ~12.7k (+2.7k tests) | 61.1k | 11 min | yes, and its own test | yes, 5 times, never searching the index; no patch (F7.1) | 0 / 0 / 0 | 5/10 |
+| 2026-10-29 | Final Fantasy Tactics (an era brief) | Claude Code (its default model) | ~16.1k (+4.7k tests) | 93.2k | 17 min | yes, and its own test | yes, 8 times (the grid module's code); no patch (F7.1) | 5 / 0 / 0 (5.8k / 0 / 0): 3 of the 5 searches then read the source (trips D43's rule) | 7/10 |
+| 2026-10-29 | Resident Evil (an era brief) | Claude Code (its default model) | ~21.1k (+4.1k tests) | 68.5k | 10 min | yes, and its own test | no | 9 / 1 / 0 (2.8k / 1.1k / 0) | 7/10 |
 
 What the three say together: every first build runs, none patched the engine, and each game is about half of Vesper's
 code. All three still read the source below the header, for the same things (F2.1, F3.1, F4.1); all three drew their
@@ -221,6 +226,17 @@ the source, more than D38's third, which tripped D38's rule for splitting the in
 of those searches missed facts the index held under other names (`E.px.disc` for the `px.disc` games write) or in prose
 (the third-person preset's actions), filled in v0.43.4, and the third, `map.bounds`, in v0.43.2; one run is a signal, so
 the split now reopens only when two runs in a row trip the rule.
+
+The era briefs (2026-10-29, v0.84.0, on the owner's yes after D66; one run each, signals; F7 in
+`docs/FEEDBACK-LOG.md`): every game plays from a title screen to an end and passes its own test and the check; four
+first builds pass by the benchmark's count, Pac-Man's maze on black falling under the 10% it takes as drawn (F7.5).
+Each wrote 8.8k to 21.1k tokens of game code (the 2026-10-11 runs about 27k) with a fifth to a half of their output
+tokens, in 9 to 17 minutes; the five cost $9.16. Four built on their genre's module (fight, Mode 7 and driving, the
+grid; Resident Evil on the 2D engine, as the package has no 3D engine), and Pac-Man wrote what `E.Arcade` does (F7.4).
+The judge gave 3, 6, 5, 7 and 7: Final Fantasy Tactics and Resident Evil are the first runs at the PS1/N64 bar. Three
+runs read the source, 17 times, mostly the doc comments the index and the modules' headers carry (F7.1); Street
+Fighter and Tactics tripped D43's rule, not in a row, so the index stays whole. The API card's playbook names a slice
+to copy for each genre, and the 3D engine for survival horror, and the package carries neither (F7.3).
 
 ### The checks here
 

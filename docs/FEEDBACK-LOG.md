@@ -24,8 +24,8 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Melee helpers (`E.Attack`, `E.Combo`) bypassed | watch | F1 | a game built after the height-aware queries and actions still bypasses them |
 | GPU lighting unused | taken up | F1, F6 | reached: two model families (F6.5: no lighting of any kind). The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up: rethink its space in the manuals. **Taken up in v0.54.0**: lighting is the Look target's step 9 and the hand-back checklist's; canvas lighting leads, GPU lighting falls back to it by itself; the template and the STEALTH slice are lit (D45, `docs/HANDOFF-NEXT.md`, phase 2) |
 | One fixed custom view, views never switched | watch | F1 | three sources: make one view the default for third-person kits and their checks |
-| Reading the engine's source (F1: its size) | taken up | F1, F2, F3, F4, F6 | reached: two model families. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack. `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up the asset names (props, textures, presets) and four garbled index lines; `docs/HANDOFF-API-INDEX.md` (folded into D38 to D42 in v0.43.3) takes up the index's part in v0.42.2: the facts F2.1, F3.1 and F4.1 went to the source for, the instance names, and a check that keeps 25 such lookups answered (D39); F6 read the source 3 times (F3: 11), each after a search of the index (F6.1), and `map.bounds`' return is taken up in v0.43.2 (lookup 26); the cards' part is still open. **Taken up in v0.53.0**: the card says where to look a name up and gains what the runs read the source for (the rig's traversal keys, THIRDPERSON's keys, `map.bounds`, the fade, `game.hitstop`, `Dialog`'s modality and constructor, the hood's colour), and the index heads its lettered sections (`docs/HANDOFF-NEXT.md`, phase 1) |
-| The look below the PS1/N64 bar | taken up | F2, F3, F4, F6 | reached: three games at 6/10. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up (F2.2, F3.2, F4.2). `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up objects, foliage, materials and contact shadows (done in v0.35.0 to v0.38.0, the plan folded into `docs/ASSETS.md` and `docs/ASSET-IMPORT.md`; the judge's re-run, F6: 5/10 with the core library's shapes, D36); the hero's x-ray dither and three-quarter walls stacking into flat planes are still open. **Taken up in v0.56.0**: the x-ray (F2.2, F3.2): in the smooth style a translucent tint with an outline, shown only when something taller than the knees hides the body; grass, crates and barrels don't hide by default (D46, `docs/HANDOFF-NEXT.md`, phase 4). **Taken up in v0.57.0**: wall faces take the shapes' light, with lit top edges and corner creases, so iso's two faces differ and a pillar stands off the wall behind it (F4.2); a ground view's floor runs past the map into one colour, so no view shows a void (F6.2) (D47, `docs/HANDOFF-NEXT.md`, phase 5) |
+| Reading the engine's source (F1: its size) | taken up | F1, F2, F3, F4, F6; since v0.53.0: F7 | reached: two model families. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack. `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up the asset names (props, textures, presets) and four garbled index lines; `docs/HANDOFF-API-INDEX.md` (folded into D38 to D42 in v0.43.3) takes up the index's part in v0.42.2: the facts F2.1, F3.1 and F4.1 went to the source for, the instance names, and a check that keeps 25 such lookups answered (D39); F6 read the source 3 times (F3: 11), each after a search of the index (F6.1), and `map.bounds`' return is taken up in v0.43.2 (lookup 26); the cards' part is still open. **Taken up in v0.53.0**: the card says where to look a name up and gains what the runs read the source for (the rig's traversal keys, THIRDPERSON's keys, `map.bounds`, the fade, `game.hitstop`, `Dialog`'s modality and constructor, the hood's colour), and the index heads its lettered sections (`docs/HANDOFF-NEXT.md`, phase 1). **Since v0.53.0:** F7, one source (F7.1): three of five runs read below the header, 17 reads, mostly the doc comments the index and the modules' headers carry; two tripped the split rule, not in a row, so the index stays whole (D43) |
+| The look below the PS1/N64 bar | taken up | F2, F3, F4, F6; since v0.59.0: F7 | reached: three games at 6/10. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up (F2.2, F3.2, F4.2). `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up objects, foliage, materials and contact shadows (done in v0.35.0 to v0.38.0, the plan folded into `docs/ASSETS.md` and `docs/ASSET-IMPORT.md`; the judge's re-run, F6: 5/10 with the core library's shapes, D36); the hero's x-ray dither and three-quarter walls stacking into flat planes are still open. **Taken up in v0.56.0**: the x-ray (F2.2, F3.2): in the smooth style a translucent tint with an outline, shown only when something taller than the knees hides the body; grass, crates and barrels don't hide by default (D46, `docs/HANDOFF-NEXT.md`, phase 4). **Taken up in v0.57.0**: wall faces take the shapes' light, with lit top edges and corner creases, so iso's two faces differ and a pillar stands off the wall behind it (F4.2); a ground view's floor runs past the map into one colour, so no view shows a void (F6.2) (D47, `docs/HANDOFF-NEXT.md`, phase 5). **Since v0.59.0:** F7, one source (F7.2): 3, 6, 5, 7 and 7, two era runs at the bar |
 | `E.Shell` unused, the interface drawn on the canvas | taken up | F2, F3, F4, F6 | reached: three games with modern interfaces skipped it. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up (F4.3). **Taken up in v0.55.0**: the STEALTH slice's and the template game's HUDs are `E.Shell`'s HTML (the objective with its distance, health, status, a takedown prompt, toasts, the results); `AI_GUIDE.md` says when a HUD is HTML (`docs/HANDOFF-NEXT.md`, phase 3) |
 | Climbing any wall and gliding written by the game (`E.Mover` climbs ledges) | taken up | F3, F4, F6 | reached: three games wrote their own (F6.4). The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up. **Taken up in v0.58.0**: `E.Mover` climbs any wall, opt-in (`climbAny`: take hold on the ground or in the air, climb up and along as the screen shows it, round corners, climb jumps, pull up, let go; `map.wall` finds the face); the STEALTH slice's hero climbs any wall and the template's hero is a Mover that climbs its roof (D48, `docs/HANDOFF-NEXT.md`, phase 6). **Taken up in v0.59.0**: `E.Mover` glides, opt-in (`glide`: sink, steer, updrafts with `lift`, no fall damage; a glider at a wall takes hold), and climbing, climb jumps, gliding and sprinting spend stamina (`staminaMax`); the template's hero glides off its roof under a sail, with a stamina bar (D48, `docs/HANDOFF-NEXT.md`, phase 7) |
 | Not verified on physical phones or native GPUs | no | F1 | a game heads to production (principle 10) |
@@ -38,7 +38,10 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | A turned three-quarter view (yaw 0: pillars lay their tops on the wall behind) | watch | F4 | a source after v0.57.0 still sees three-quarter walls and pillars as flat planes (F4.2): a small yaw is the owner's call |
 | Pitched roofs for `TileMap` types (the stealth starter's belfry draws one with `r.queue`) | deferred | none yet | a source asks for roofs |
 | GPU lighting in headless checks (WebGPU in `tools/check.mjs`'s browser) | deferred | F1 | a game leads with GPU lighting and its checks need to see it; canvas lighting shows in every check (D45) |
-| The look's remainder: small figures that merge when they overlap (F4.2), empty fields (F6.2) | watch | none yet (the parts of F4.2 and F6.2 the next plan left; they predate it, so they don't count afresh; F2.2's foliage and F3.2's pines and thin shadows predate the asset store's foliage and contact shadows, v0.35.0 to v0.38.0, and F6 didn't repeat them) | a source after v0.59.0 still sees them |
+| The look's remainder: small figures that merge when they overlap (F4.2), empty fields (F6.2) | watch | F7 (F7.2: the kart's empty fields, the tactics map's overlapping units; before it, none: the parts of F4.2 and F6.2 the next plan left; they predate it, so they don't count afresh; F2.2's foliage and F3.2's pines and thin shadows predate the asset store's foliage and contact shadows, v0.35.0 to v0.38.0, and F6 didn't repeat them) | reached (F7, after v0.59.0): the next plan takes it up |
+| What the cards point to, not in the handoff package (the genres' slices, the 3D engine) | deferred | F7 | the next change to the handoff package: it carries the slices and the 3D engine, or its cards say where the kits are (F7.3) |
+| A genre module the card names, unused (the game writes its own) | watch | F7 | a second source writes what its genre's module does (F7.4) |
+| The benchmark's own measures (what counts as drawn, the views the check shows, one bar for every brief) | deferred | F7 | the next change to the benchmark (F7.5) |
 
 ## Sources
 
@@ -224,3 +227,81 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     `E.Mover`. **Threshold** (the theme's: the third source). **Taken up in v0.58.0 and v0.59.0.**
   - **F6.5** · lighting unused · neither `game.lights` nor GPU lighting; the judge: "almost no lighting depth".
     **Threshold** (the theme's: F1 and F6, two model families). **Taken up in v0.54.0.**
+
+### F7 · 2026-10-29 · the benchmark's five era briefs (Pac-Man, Street Fighter II, Super Mario Kart, Final Fantasy Tactics, Resident Evil)
+
+- **Builder:** Claude Code (its default model) with `--safe-mode`, run by `tools/agent-bench.mjs` from a cloud session,
+  one run per brief, one after another: the era briefs of v0.81.2 (`tools/agent-bench/briefs/`), on the owner's yes of
+  2026-10-29 (D66 had skipped them). One run each: signals, not measures.
+- **Handed:** the handoff package v0.84.0 (the full engine with every module, `modules/`, the agent edition, the
+  cards, the asset store, the `game/` template) in an empty directory.
+- **Built:** each a game from a title screen to an end, its own headless test passing and the check reporting no
+  errors; $9.16 together (the agents $8.91, the judge $0.25), 61 minutes.
+  - **Pac-Man** ("PAC-MAZE"): the 28 by 31 maze, four ghosts that each pick their own target (one chases, one aims four
+    tiles ahead with the original's up-and-left quirk, one doubles a line, one retreats when near), scatter and chase,
+    blue ghosts whose eyes run home, fruit, levels that speed up, an initials table in `E.store`, an attract mode. About
+    14.1k tokens of game code and a 5k-token test, in 9 minutes, 64.5k output tokens and $1.27. The benchmark counts its
+    first build as failing: the maze is thin lines on black, 5.9% of the screen, under the 10% it takes as something
+    drawn (F7.5). It wrote its own score, lives, table, attract mode and maze movement (F7.4). The judge: 3/10, "a
+    faithful arcade Pac-Man clone ... 1980s arcade or NES rather than PS1/N64-era 2D".
+  - **Street Fighter II** ("STREET CLASH"): two fighters (a quarter-circle one and a charge one), six buttons, specials,
+    supers, throws, high and low blocks, best of three on a 99-second clock, a CPU at three levels, two players on one
+    keyboard, training. It rests on the fight module (`E.Fighter`, `E.Match`, `E.FightAI`, `E.FightSelect`), which it
+    read whole first: about 8.8k tokens of game code and a 5.3k-token test, in 15 minutes, 69.8k output tokens and
+    $2.11. The judge: 6/10, a sunset harbour and a styled interface "clearly beyond SNES", but stiff, sparsely shaded
+    fighters with flat faces, and a palette-swapped mirror match.
+  - **Super Mario Kart:** eight drivers on a Mode 7 circuit (`E.Mode7`, `E.Car`, `E.Race`, `E.Path`), five laps, a
+    rocket start, hops and drifts that charge two boosts, item boxes, wrong-way and final-lap calls, a minimap, results.
+    About 12.7k tokens of game code and a 2.7k-token test, in 11 minutes, 61.1k output tokens and $1.63. The judge:
+    5/10, a lit sky, mountains and a clean HUD, but blocky karts, empty fields, and "a huge black slab" across the iso
+    view: a view the game never uses, shown because it didn't set `views` (F7.5).
+  - **Final Fantasy Tactics** ("Ashen Lion Tactics"): a 12 by 12 iso map of five heights that turns in quarters, five
+    jobs a side, turns by charge time with the next turns listed, moves and jumps by height, side and back attacks,
+    spells with areas, an enemy that holds until provoked, a briefing, mouse and touch. On the grid module (`E.Grid`,
+    `E.Turns`): about 16.1k tokens of game code and a 4.7k-token test, in 17 minutes, 93.2k output tokens and $2.32.
+    The judge: 7/10, the first era run at the bar: textured grass and stone, a sunset sky, a cohesive panelled
+    interface with portraits; a small floating map and a plain title.
+  - **Resident Evil** ("The West Wing"): five rooms, each under its own fixed camera (the 2D engine's views, turned per
+    room: "the handoff has no 3D engine", F7.3), tank controls, an aimed pistol with few bullets, zombies that rise and
+    grab, a key, a crest puzzle from a diary page, herbs to mix, an item box and a typewriter (`game.saves`), a boss and
+    a lift to the end, candlelight (`game.lights`). About 21.1k tokens of game code and a 4.1k-token test, in 10
+    minutes, 68.5k output tokens and $1.58. The judge: 7/10, candle glows and a vignette giving the room mood and depth;
+    a sparse room, a blotchy marble floor and a small hero.
+- **Read:** every run read `README.md` and `API.md` whole and searched `AI_GUIDE.md`. The index: Pac-Man 2 searches,
+  Street Fighter 2, the kart none, Tactics 5, Resident Evil 9 and one range (1% of it); never whole. Below the
+  engine's header: Pac-Man and Resident Evil never; Street Fighter 4 reads, the kart 5, Tactics 8 (F7.1). None patched
+  the engine.
+- **Not acted on (yet):**
+  - **F7.1** · reading the source · three runs read below the header, 17 reads in all, mostly the doc comments over a
+    constructor or a method, which the index and the modules' headers carry too. Street Fighter: the players' section (two
+    players on one keyboard: `allowJoin`, `addPlayer`, `halfKeys`), `input.sequence` and `motion`, the keys every
+    preset shares, `E.Backdrop`'s options, the fight module's constructors (after reading its file whole). The kart: `E.Mode7`'s and `TileMap`'s constructors, `input.use` and the keys a player may
+    bind, `E.Path`, never once searching the index (it read the modules' headers and grepped the engine). Tactics: the
+    grid module's own code (`reach`, `side`, the shapes, the threat map), `E.tint`, the turn keys (Q and E). Street
+    Fighter tripped D43's split rule (1 of 2 searches, one command grepping the engine and the index together for
+    `addPlayer`, `allowJoin` and `halfKeys`, all three in the index) and Tactics did (3 of 5); the kart between them and
+    Resident Evil after did not, so no two runs in a row trip it and the index stays whole. **Watch** (the theme's
+    first source since v0.53.0).
+  - **F7.2** · the look · 3, 6, 5, 7 and 7. Two runs reach the bar (Tactics, Resident Evil: lit, textured, a cohesive
+    interface); the misses are thin dressing (the kart's empty fields, a sparse room, a floating map), stiff or blocky
+    figures (the fighters, the karts), units that overlap (Tactics), and Pac-Man drawing its 1980 source faithfully,
+    which the brief's "an adaptation" allows and the PS1/N64 bar scores as NES (F7.5). **Watch** (the theme's first
+    source since v0.59.0). The empty fields and the overlapping figures are the look's remainder (F4.2, F6.2), which
+    waited for a source after v0.59.0: **reached**, the next plan takes it up.
+  - **F7.3** · what the cards point to, not in the package · the API card's playbook names a slice to copy for each
+    genre ("Copy slice": ARCADE, FIGHTING, KART, TACTICS, 3D HORROR), the guide says "Start from the ARCADE slice"
+    and "Copy the closest starter slice" (in "the single file"), and the survival-horror row builds on the 3D engine
+    (`camera.zones`, `world.through`). The handoff package carries none of them: no kit, no slice, no 3D engine; its
+    README says to copy `game/` (a third-person template). No run found a slice; Resident Evil said so and built its
+    fixed cameras on the 2D views. **Deferred:** the next change to the handoff package takes it up: the package
+    carries the slices (`src/starter/`'s genre files) and the 3D engine, or its cards say the kits are on the site.
+  - **F7.4** · a genre module the card names, unused · Pac-Man read the card whole, whose playbook row builds the
+    golden age on `E.Arcade` (score, lives, extra lives, initials, tables, the attract mode) and `E.GridMover`, and wrote
+    all of it itself, though the full engine its page loads carries both. Resident Evil kept its own bag rather than `E.RPG`'s. The other three
+    built on their modules. **Watch:** a second source writes what its genre's module does.
+  - **F7.5** · the benchmark's own measures · "first build passes" counts a build as drawn when more than 10% of a
+    screenshot is filled, which Pac-Man's maze on black (5.9%) is not, though the check and its test pass; the check
+    shows every view of a game that doesn't set `views`, and the judge scored the kart's iso view, where its Mode 7
+    road isn't drawn; and the judge holds every brief to the PS1/N64 bar, a 1980 source too. **Deferred:** the next
+    change to the benchmark: a measure of drawn that a dark screen passes (its colours, its spread), the check saying
+    when a game sets no `views`, and the briefs saying the look they want.

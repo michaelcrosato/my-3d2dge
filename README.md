@@ -318,7 +318,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps (STEALTH kit) |
 | Everything else of the era, by recipe (`AI_GUIDE.md`, Genre recipes) | as each says | twin-stick shooters (Robotron, Smash TV), Bomberman, Gauntlet, Frogger, Breakout, Lemmings, Sokoban, Sonic without the loops, the cinematic platformer (Prince of Persia, Flashback), top-down racing and driving, visual novels, light guns, the indoor corridor shooter (Doom, GoldenEye) on the 3D engine: each a recipe on the kit closest to it |
 
-How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the To check cards and the Vehicle Lab, the budgets, the benchmark's era briefs and the calls made without the owner): `docs/HANDOFF-REVIEW.md`.
+How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the To check cards and the Vehicle Lab, and the calls made without the owner): `docs/HANDOFF-REVIEW.md`.
 
 ## Build and check
 
@@ -383,7 +383,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.84.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.84.1**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

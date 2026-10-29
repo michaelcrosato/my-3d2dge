@@ -1205,6 +1205,8 @@ An entry:
   <name>` for each, its findings a source in `docs/FEEDBACK-LOG.md` (`docs/HANDOFF-REVIEW.md`, section 3).
 - **Answered:** no answer in fifteen minutes; skipped as the goal said
 - **Landed in:** v0.81.2
+- **Later:** the owner's yes on 2026-10-29: the five runs are F7 in `docs/FEEDBACK-LOG.md` and five rows of the North
+  Star's measures (`DOCTRINE.md`), v0.84.1.
 
 ## D67 · 2026-10-29 · The audio clock check measures how fast the sound is met again, whatever moved it
 

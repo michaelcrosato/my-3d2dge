@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.84.1 (2026-10-29)
+
+The benchmark's five era briefs, run: `docs/HANDOFF-REVIEW.md`'s part 3.
+
+- **Docs**: `docs/FEEDBACK-LOG.md`'s source F7: the five runs (Pac-Man, Street Fighter II, Super Mario Kart, Final Fantasy Tactics, Resident Evil; one each, $9.16 with the judge, judged 3, 6, 5, 7 and 7) and the five points not acted on: reading the source (three runs, 17 reads; two tripped D43's split rule, not in a row, so the index stays whole), the look (two runs at the PS1/N64 bar; the look's remainder reached), the cards pointing to slices and a 3D engine the handoff package doesn't carry, `E.Arcade` unused, and the benchmark's own measures; three new themes.
+- **Docs**: `DOCTRINE.md`'s North Star measures: the five runs' rows and what they say together; D66 notes the runs; `docs/HANDOFF-REVIEW.md` without its part 3 (parts 1 and 6, the owner's, are left); README's pointer to it.
+
 ## 0.84.0 (2026-10-29)
 
 Sports: the SPORTS kit, `docs/HANDOFF-REVIEW.md`'s part 4 (the plan's M15), its second half.
