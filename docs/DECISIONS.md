@@ -1137,3 +1137,19 @@ An entry:
 - **Answered:** no: a reversible call, flagged in the pull request; the Vehicle Lab is on the Labs page to judge it
 - **Landed in:** v0.80.0
 
+## D63 · 2026-10-28 · The 3D kits' budgets raised for the 3D engine's vehicles, tracks, flight and split screen
+
+- **Principle:** 1 (agent-readable: a kit fits a chat model's context) and the genre plan's 3.3 (a 3D kit no larger than
+  at v0.59.3, D51; the horror kit's D61)
+- **Call:** the 3D kits' budgets are 249,000 cl100k tokens (ACTION, was 241,039), 244,000 (PLATFORMER, was 235,846),
+  319,000 (SHOOTER, was 310,823) and 265,000 (HORROR, was 256,000). At v0.80.0 they are 244,846, 239,416, 314,393 and
+  260,530, each about 10,500 more than at v0.79.0 (234,330, 228,900, 303,877 and 249,979): each carries the whole 3D
+  engine, minified, and Milestone 14a grew its source from 85,306 to 98,582 tokens (vehicles, tracks, flight, the behind
+  camera, split screen, and about 700 tokens of them in the manual). The rest is room for M14b's fixes to the engine.
+- **Why:** the plan's M14 puts vehicles and flight in the 3D engine, and the kit diet (`tools/diet.mjs`) leaves out
+  only the 2D core's sections, so every 3D kit carries what only racing and flight call; the owner's goal for
+  Milestones 13, 14 and 16 (2026-10-28) says budgets may be raised with a logged decision. What would change it: the
+  owner's review pass, or a 3D diet (the 3D engine's section 8b left out of a kit that never calls `world.vehicle`,
+  `world.track` or `world.flyer`), which would bring these back to about their old sizes.
+- **Answered:** yes: the owner, in the goal of 2026-10-28 (budgets may be raised with a logged decision)
+- **Landed in:** v0.80.0
