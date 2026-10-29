@@ -2,8 +2,9 @@
 
 How my-3D2dge covers the era's games (the early 80s to the late PS1), and the rules for adding to that: which system goes
 where, how a module is made, how a kit stays small, what every kit has, and the traps. These were the design rules of
-the genre plan (`docs/HANDOFF-GENRES.md`, 2026-10-27 to 2026-10-29: Milestones 0 to 14 and 16; folded in at v0.81.2, its
-full text with every milestone's as-built note and progress row in `git show b56505d:docs/HANDOFF-GENRES.md`).
+the genre plan (`docs/HANDOFF-GENRES.md`, 2026-10-27 to 2026-10-29: Milestones 0 to 14 and 16; folded in at v0.81.2,
+and again at v0.81.5 after a last version with M16's row, D65 and D68; its full text with every milestone's as-built
+note and progress row in `git show 24aee29:docs/HANDOFF-GENRES.md`).
 
 Where a genre stands today: README's **Genre coverage** (a kit or a recipe on every row), the API card's playbook (each
 genre, its view, its modules, the kit to copy) and `AI_GUIDE.md`'s **Genre recipes**.
