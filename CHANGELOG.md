@@ -9,6 +9,7 @@ One version number covers the engine, its agent edition, the docs and the games 
 
 - **Rendering**: `r.pick` gives a body drawn from its kept image (`r.actor`'s `every`) the same box as on the frames it is redrawn. It was a pixel wider on each side (the kept image's margin for the outline), so where two bodies' boxes met, a tap could pick one on one frame and the other on the next (`docs/HANDOFF-REVIEW.md`'s part 5).
 - **Tools**: the contract suite checks it in Chromium: a body's box scanned through `r.pick` on the frame it is drawn and on the two its image is kept.
+- **Tools**: the phone test's army tap (it failed on `main` at v0.81.6 in a loaded container: the tapped unit not the one selected, and the order an attack): the open ground for the second tap is found once the battle holds still (found before, a march could cross it first), and the test waits for six frames drawn after the freeze rather than 300 ms (the army fixture counts them: `__fx.drawn`).
 
 ## 0.81.6 (2026-10-29)
 

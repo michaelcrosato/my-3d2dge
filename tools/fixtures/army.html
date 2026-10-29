@@ -10,7 +10,7 @@
 // strategy module, two armies of 100 that attack-move across a field into each other, drawn as rigs with { pick } (so
 // r.pick and a tap select them), the fog, rings and health bars, the free camera. ?view= iso (the default) |
 // threequarter | topdown; ?n= units a side (100); ?every= frames a body's image is kept (3; 1: drawn every frame).
-// window.__fx: { game, rts, map }
+// window.__fx: { game, rts, map, drawn: frames drawn }
 (() => {
 const E = My3D2dge, Q = new URLSearchParams(location.search), N = +Q.get('n') || 100;
 const game = new E.Game({ canvas: 'screen', res: [320, 180], view: Q.get('view') || 'iso', menu: false, fullscreen: false, corner: false });
@@ -40,10 +40,11 @@ game.start({
       else r.queue(u.x, u.y, 0, g => r.box(g, u.x - u.r, u.y - u.r, 0, u.x + u.r, u.y + u.r, 22, '#c8b088', '#8a7050'), { pick: u, occluder: true });
     }
     rts.draw(r);
+    window.__fx.drawn++;   // (frames drawn: a test waits on these, not on the clock)
   },
 });
 game.focus(28 * 16, 20 * 16); game.cam.snap = true;
-window.__fx = { game, rts, map };
+window.__fx = { game, rts, map, drawn: 0 };
 })();
 </script>
 </body></html>
