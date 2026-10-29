@@ -964,6 +964,16 @@ Needs M1 (paths), M4 (split screen) and M6 (`drive`'s intent, `E.Race`).
     radio (`Dialog`'s radio). A light-gun rail shooter is a recipe: the same rails, aimed with the pointer.
 - **Done when:** both kits' proofs hash the same on WebGL 2 and WebGPU; the AI karts finish their laps; a split-screen
   race plays; the flight's bot finishes the stage; the phone test passes.
+- **As built, 14a (v0.80.0):** the 3D engine's manual at 6,807 of 8,000 tokens (D60). The Vehicle Lab (Temporary) drove
+  both ways on one track, and the rolling body won (D62): `world.vehicle` is a ball Rapier rolls with its rotation
+  locked, steered by E.Car's handling (the drive module's numbers and words: `top`, `grip`, `drift`, `kart`, a hop into a
+  drift that charges a boost, surfaces), drawn with the pen on the ground's slope. E.Race needed one change: it leaves
+  Rapier's bodies out of `E.Car.collide`. `world.track` banks about the low edge (the outside rises) and eases the
+  banking over about 40 units (banked within a few, the outer edge threw karts over the wall); its walls run down to the
+  ground under a raised road and open where `gaps` say (a shortcut's way off), and a track takes its own `surface`
+  tag. Split screen is the 2D engine's `game.splitScreen` drawn through `world.cameras`; flight is `world.flyer`, worked
+  out in the steps (not a body), on rails or free, with `f.seek` for a charged shot's lock and the camera's new
+  `'behind'` mode. Every 3D kit carries the 3D engine whole, about 10,500 tokens more (D63).
 
 ### M15 (optional, on the owner's word): a first-person dungeon and sports
 

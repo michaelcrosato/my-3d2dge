@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module DRIVE v0.79.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.80.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -20,7 +20,8 @@ takes away, the floor's tag under it slowing it, walls and other cars it bounces
 - Each step race.update(dt, map): the countdown (race.go once it says GO), every car driven (players by their input,
   the rest by race.drive(racer): look ahead along the line, brake for bends, overtake, unstick, rubber band), bumps,
   laps through the checkpoints in order (a shortcut counts nothing), wrong way, places, the finish (race.results, then
-  race.over); race.box(x, y) an item box; race.use(racer) fires a racer's item; race.shots, race.hazards to draw.
+  race.over); race.box(x, y) an item box; race.use(racer) fires a racer's item; race.shots, race.hazards to draw. The
+  3D engine's vehicles (world.vehicle) race as cars do: pass race.update a null map; Rapier bumps them.
 - race.hud(r, racer, { color, right }): the place, the lap, the time, the item, the countdown, WRONG WAY and FINISH (in its
   viewport; right: the x its right-hand text ends before).
 
@@ -175,7 +176,7 @@ class Race {
       const ctl = !this.go ? { gas: 0, brake: 1 } : R.finished ? { gas: .4, steer: R.ai ? this.drive(R, dt).steer : 0 } : R.ai ? this.drive(R, dt) : R.input;
       R.car.update(dt, map, ctl);
     }
-    Car.collide(cars);
+    Car.collide(cars.filter(c => !c.isVehicle));   // (the 3D engine's vehicles bump in Rapier)
     for (const b of this.boxes) { b.t -= dt; if (b.t > 0) continue; for (const R of this.racers) if (!R.item && Math.hypot(R.car.x - b.x, R.car.y - b.y) < R.car.r + 8) { const I = this.o.items; R.item = I[Math.floor(Math.random() * I.length)]; b.t = 2; break; } }
     for (const s of this.shots) {
       s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;

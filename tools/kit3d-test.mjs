@@ -21,6 +21,13 @@
 //      is margin units in (and not back on the border), the stick held across a cut keeps its way until it is let go;
 //      tank steering turns and walks along the facing; world.reach finds the door in front, world.unlock takes the key,
 //      world.through puts the actor beyond the door while nothing else moves; the same at 60, 90, 120 and 144 frames
+//   3d. vehicles, tracks, flight and split screen, on a page of their own, on WebGL 2 and on WebGPU: a kart takes to its
+//      top speed along the road, a boost pad boosts it, a wall stops it, the grass beside the road slows it, a hop held
+//      into a bend drifts and charges a boost, a hovercraft rides its cushion, a kart on a banked bend sits on the bank;
+//      E.Race (the drive module) races two AI vehicles a lap over the hump (in the air) to the finish; a flyer on rails
+//      keeps the rail's pace and moves within its window, a barrel roll ends, one in free flight turns back into its
+//      bounds, seek picks the one in its cone and in sight; all of it twice the same and the same on both backends; a
+//      split screen draws two views through world.cameras (check-output/kit3d/split-<backend>.png: read it)
 //   4. on an emulated phone held upright (390 x 844 at 3x, touch): every kit starts, the 3D picture lies exactly under the
 //      game's, the touch buttons are there
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
@@ -132,12 +139,80 @@ window.__cam = { game, get world() { return world; }, run(hz) {
   return out;
 } };
 </script></body></html>`;
+// vehicles, tracks, flight and split screen: a field with a closed track (a hump on its bottom straight, a boost pad)
+// and a wall in the sky's way (window.__veh runs the checks)
+const VEHICLE_PAGE = QUICK.split('<script type="module">')[0].replace('<script type="module" src="/dist/my-3d2dge-3d.js">', '<script src="/engine/modules/drive.js"></script><script type="module" src="/dist/my-3d2dge-3d.js">') + `<script type="module">
+const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: [320, 240], bg: null, menu: false });
+const rows = Array.from({ length: 44 }, (_, y) => y === 0 || y === 43 ? '#'.repeat(64) : y === 30 ? '#' + '.'.repeat(40) + '###' + '.'.repeat(19) + '#' : '#' + '.'.repeat(62) + '#');
+const path = new E.Path([[200, 200, 0], [420, 170, 0], [630, 170, 0], [760, 200, 0], [840, 330, 0], [760, 520, 0], [620, 566, 0], [540, 574, 14], [480, 576, 22], [420, 574, 0], [280, 560, 0], [150, 420, 0]], { closed: true, smooth: 'catmull' });
+let world, track;
+game.start({ scenes: { s: { update(dt) { world.step(dt); }, draw(r) { world.draw(r); } } }, scene: 's', boot: { steps: [['3D', () => E.World3D.init(game)], ['level', () => {
+  world = new E.World3D(game, { level: { rows, legend: {}, ground: 'grass' }, fog: false, torchLights: 0, camera: { mode: 'behind' } });
+  track = world.track({ path, width: 80, bank: .3, pads: [[120, 0]], off: 'grass' }); world.prepare(); }]] } });
+const r1 = v => Math.round(v * 10) / 10;
+window.__veh = { game, get world() { return world; }, get track() { return track; }, path, run(hz) {
+  const w = world, out = {}, dt = 1 / hz, steps = (s, f) => { for (let k = 0; k < Math.round(s * hz); k++) { if (f) f(); w.step(dt); } };
+  const follow = (v, c = {}) => () => { const p = path.at(path.nearest(v.x, v.y) + 60); v.update(dt, null, Object.assign({ steer: E.clamp(E.angDiff(v.angle, Math.atan2(p.y - v.y, p.x - v.x)) * 2.4, -1, 1), gas: 1 }, c)); };
+  const kart = (d, across = 0, turn = 0, o = {}) => { const p = track.at(d); return w.vehicle(Object.assign({ kind: 'kart', x: p.x + p.rx * across, y: p.y + p.ry * across, angle: p.angle + turn }, o)); };
+  w.reset();
+  // top speed along the road; a boost pad (at 120) on the way
+  let v = kart(20), boosted = 0; steps(1.6, () => { follow(v)(); boosted = Math.max(boosted, v.boostT); });
+  out.top = { speed: r1(v.speed), road: v.surface, boosted: boosted > 0 }; w.remove(v);
+  // a wall: driven straight across the road, it stops at the wall
+  v = kart(760, 0, Math.PI / 2); let bumped = false, worst = 0; steps(2, () => { v.update(dt, null, { gas: 1 }); bumped = bumped || v.bumped; worst = Math.max(worst, Math.abs(track.where(v.x, v.y).across)); });
+  out.wall = { bumped, across: r1(worst), stopped: Math.abs(v.speed) < 60 }; w.remove(v);
+  // the grass beside the road slows it
+  v = w.vehicle({ kind: 'kart', x: 480, y: 360, angle: 0 }); steps(2, () => v.update(dt, null, { gas: 1 }));
+  out.grass = { surface: v.surface, offroad: v.offroad, speed: r1(v.speed) }; w.remove(v);
+  // a hop held into a bend drifts and charges a boost; let go, it boosts
+  v = kart(700); steps(1.2, follow(v)); let drifted = 0, charge = 0;
+  v.update(dt, null, { steer: 1, gas: 1, drift: true }); w.step(dt);
+  steps(1.4, () => { v.update(dt, null, { steer: 1, gas: 1, drift: true }); drifted = drifted || v.drifting; charge = Math.max(charge, v.charge); });
+  v.update(dt, null, { steer: 0, gas: 1, drift: false }); w.step(dt);
+  out.drift = { drifted, charge: r1(charge), boost: v.boostT > 0 }; w.remove(v);
+  // a hovercraft rides its cushion over the grass
+  v = w.vehicle({ kind: 'hover', x: 480, y: 330, angle: 0 }); steps(1.5, () => v.update(dt, null, { gas: .5 }));
+  out.hover = { height: r1(v.z - w.floorAt(v.x, v.y)) }; w.remove(v);
+  // on a banked bend it sits on the bank (the road's height across)
+  let d = 0, most = 0; for (let k = 0; k < track.length; k += 8) { const b = Math.abs(track.at(k).bank); if (b > most) { most = b; d = k; } }
+  v = kart(d, 24); steps(.6, () => v.update(dt, null, {}));
+  out.bank = { bank: r1(most * 100) / 100, off: r1(Math.abs(v.z - track.where(v.x, v.y).z)) }; w.remove(v);
+  // E.Race races two AI vehicles a lap, over the hump
+  const race = new E.Race({ path, laps: 1, countdown: 0, width: 36 }), grid = race.grid(2);
+  const cars = grid.map((g, i) => w.vehicle({ kind: 'kart', x: g.x, y: g.y, angle: g.angle, color: i ? '#3a8ad8' : '#d83a2a' }));
+  cars.forEach((c, i) => race.add(c, { name: 'AI' + i, ai: { skill: .95 } }));
+  let air = 0, t = 0; while (!race.over && t < 60) { race.update(dt, null); w.step(dt); t += dt; for (const c of cars) air = Math.max(air, c.airT); }
+  out.race = { over: race.over, laps: race.racers.map(R => R.lap), air: air > .1, seconds: Math.round(t), at: cars.map(c => [r1(c.x), r1(c.y)]) };
+  for (const c of cars) w.remove(c);
+  // a flyer on rails keeps the rail's pace and moves inside its window; a barrel roll ends
+  const rail = new E.Path([[100, 100, 120], [600, 100, 120], [900, 300, 160]], { smooth: 'catmull' });
+  let f = w.flyer({ rail: { path: rail, speed: 300, w: 200, h: 100 } }); const d0 = f.d;
+  for (let k = 0; k < hz; k++) f.update(dt, { steer: [1, -1] });
+  out.rail = { d: r1(f.d - d0), ox: r1(f.ox), oy: r1(f.oy) };
+  f.update(dt, { roll: 1 }); const rolling = f.rolling > 0; for (let k = 0; k < hz; k++) f.update(dt, {});
+  out.roll = { rolling, done: f.rolling === 0 };
+  // in free flight it turns back into its bounds; seek: the one in its cone and in sight (not the one behind, nor the one walled off)
+  f = w.flyer({ x: 900, y: 360, z: 100, yaw: 0, bounds: [64, 64, 40, 960, 640, 400] }); let out2 = 0;
+  for (let k = 0; k < 8 * hz; k++) { f.update(dt, {}); if (k > 4 * hz && (f.x > 1100 || f.x < -100)) out2++; }
+  out.bounds = { outside: out2 };
+  f = w.flyer({ x: 200, y: 400, z: 20, yaw: 0, low: 4 });
+  const ahead = { x: 500, y: 420, z: 20 }, behind = { x: 60, y: 400, z: 20 }, walled = { x: 700, y: 488, z: 8 }, dead = { x: 400, y: 400, z: 20, alive: false };
+  out.seek = [ahead, behind, walled, dead].indexOf(f.seek([dead, behind, walled, ahead], { cone: .3, range: 900 }));
+  f.yaw = Math.atan2(488 - 400, 700 - 200); out.walled = f.seek([walled], { cone: .3, range: 900 }) === null;
+  return out;
+}, split() {   // two vehicles, a split screen: viewport i draws through world.cameras[i]
+  const w = world; w.reset(); const a = w.vehicle({ kind: 'kart', x: 220, y: 200, angle: 0 }), b = w.vehicle({ kind: 'car', x: 760, y: 520, angle: Math.PI, color: '#3a8ad8' });
+  game.splitScreen(2); if (w.cameras.length < 2) w.addCamera({ mode: 'behind' }); w.camera.set('behind'); w.camera.follow(a); w.cameras[1].set('behind'); w.cameras[1].follow(b);
+  return { cameras: w.cameras.length, viewports: game.viewports ? game.viewports.length : 0 };
+} };
+</script></body></html>`;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json' };
 const server = createServer((req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (path === '/check/quickstart.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(QUICK); return; }
   if (path === '/check/shapes.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(SHAPES_PAGE); return; }
   if (path === '/check/camera.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(CAMERA_PAGE); return; }
+  if (path === '/check/vehicles.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(VEHICLE_PAGE); return; }
   for (const r of rules) { const m = path.match(r.re); if (m) { path = r.to.replace(/:(\w+)/g, (_, k) => m.groups[k]); break; } }
   const file = join(root, path);
   if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end('not found'); return; }
@@ -390,6 +465,56 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
   await page.close();
 }
 
+/* 3d. vehicles, tracks, flight and split screen, on both backends: twice the same, and the same on each */
+{
+  const { decodePNG } = await import('./asset-lib.mjs'), seen = {};
+  for (const want of ['webgl', 'webgpu']) {
+    const page = await browser.newPage({ viewport: { width: 640, height: 480 } });
+    if (want === 'webgpu') await page.addInitScript(standInCanvas);
+    const errors = watch(page), label = 'vehicles ' + want;
+    await page.goto(SITE + '/check/vehicles.html' + (want === 'webgl' ? '?backend=webgl' : ''));
+    try {
+      await page.waitForFunction(() => window.__veh && __veh.world && __veh.world.stats.frames > 2, null, { timeout: 120000 });
+      if (want === 'webgpu' && await page.evaluate(() => My3D2dge.World3D.backend) !== 'WebGPU') { notes.push('WebGPU is not available in this browser: the WebGPU runs fell back to WebGL 2'); await page.close(); continue; }
+      const [r, again, r60] = await page.evaluate(() => { __veh.game.stop(); return [__veh.run(120), __veh.run(120), __veh.run(60)]; });
+      if (JSON.stringify(r) !== JSON.stringify(again)) fail(`${label}: run twice, not the same: ${JSON.stringify(r)} then ${JSON.stringify(again)}`);
+      seen[want] = JSON.stringify(r);
+      for (const [hz, q] of [[120, r], [60, r60]]) {
+        const bad = [];
+        if (!(q.top.speed > 280) || q.top.road !== 'road' || !q.top.boosted) bad.push(`along the road: ${JSON.stringify(q.top)} (to its top, 300, past the boost pad)`);
+        if (!q.wall.bumped || !(q.wall.across < 40 + 8 + 3 + 8) || !q.wall.stopped) bad.push(`at the wall: ${JSON.stringify(q.wall)} (bumped, stopped within 59 of the middle)`);
+        if (q.grass.surface !== 'grass' || !q.grass.offroad || !(q.grass.speed < 300 * .55 + 2)) bad.push(`on the grass: ${JSON.stringify(q.grass)} (slowed to 55%)`);
+        if (!q.drift.drifted || !(q.drift.charge >= 1) || !q.drift.boost) bad.push(`a drift: ${JSON.stringify(q.drift)} (a charge of 1 or more, then a boost)`);
+        if (!(Math.abs(q.hover.height - 7) < 2)) bad.push(`a hovercraft ${q.hover.height} over the ground (7: its cushion)`);
+        if (!(q.bank.bank > .15) || !(q.bank.off < 3)) bad.push(`on the banked bend (${q.bank.bank} radians) ${q.bank.off} units off the road's height`);
+        if (!q.race.over || q.race.laps.some(l => l < 1) || !q.race.air) bad.push(`the race: ${JSON.stringify(q.race)} (both finish a lap, airborne over the hump)`);
+        if (!(Math.abs(q.rail.d - 300) < 6) || !(q.rail.ox > 60 && q.rail.ox <= 100) || !(q.rail.oy > 30 && q.rail.oy <= 50)) bad.push(`on rails: ${JSON.stringify(q.rail)} (300 along in a second, right and up inside a 200 x 100 window)`);
+        if (!q.roll.rolling || !q.roll.done) bad.push(`a barrel roll: ${JSON.stringify(q.roll)}`);
+        if (q.bounds.outside) bad.push(`free flight: ${q.bounds.outside} steps far outside its bounds after turning back`);
+        if (q.seek !== 0 || !q.walled) bad.push(`seek picked ${q.seek} (0: the one ahead), the walled-off one ${q.walled ? 'not ' : ''}picked`);
+        for (const x of bad) fail(`${label} at ${hz} Hz: ${x}`);
+      }
+      // a split screen: two viewports, each drawing through its own camera
+      const sp = await page.evaluate(() => { const q = __veh.split(); __veh.game.start(); return q; });
+      await page.waitForTimeout(1200);
+      const png = want === 'webgl' ? await page.screenshot() : Buffer.from((await page.evaluate(() => __readFrame(1))).split(',')[1], 'base64');
+      writeFileSync(join(OUT, 'split-' + want + '.png'), png); pictures++;
+      // each half drawn (not black), and not the same view twice (the pixels of one half against the same place in the other)
+      const A = decodePNG(png), hw = Math.floor(A.w / 2); let lit = [0, 0], differ = 0, n = 0;
+      for (let y = Math.round(A.h * .2); y < Math.round(A.h * .8); y += 2) for (let x = Math.round(hw * .1); x < Math.round(hw * .9); x += 2) {
+        const j = (y * A.w + x) * 4, k = j + hw * 4, a = A.rgba[j] + A.rgba[j + 1] + A.rgba[j + 2], b = A.rgba[k] + A.rgba[k + 1] + A.rgba[k + 2]; n++;
+        if (a > 60) lit[0]++; if (b > 60) lit[1]++; if (Math.abs(a - b) > 60) differ++;
+      }
+      if (sp.cameras !== 2 || sp.viewports !== 2) fail(`${label}: a split screen with ${sp.cameras} cameras and ${sp.viewports} viewports`);
+      if (lit[0] < n / 4 || lit[1] < n / 4 || differ < n / 10) fail(`${label}: the split screen's halves: ${lit[0]} and ${lit[1]} of ${n} pixels lit, ${differ} differ (a quarter lit each; a tenth differ: two views)`);
+      await page.evaluate(() => { __veh.game.splitScreen(0); });
+    } catch (e) { fail(`${label}: ` + e.message.split('\n')[0]); }
+    for (const e of errors) fail(`${label}: ` + e);
+    await page.close();
+  }
+  if (seen.webgl && seen.webgpu && seen.webgl !== seen.webgpu) fail(`vehicles: not the same on both backends: ${seen.webgl} on WebGL 2, ${seen.webgpu} on WebGPU`);
+}
+
 /* 4. an upright phone */
 for (const id of SLICES) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), errors = watch(page);
@@ -414,4 +539,4 @@ await browser.close();
 server.close();
 for (const n of [...new Set(notes)]) console.log('note: ' + n);
 if (problems.length) { console.error('3D kits check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`3D kits check passed: the rules hold in ${SOURCES.length} sources; the manual's quick start runs; ${pages.length} pages on WebGL 2 and WebGPU, ${SLICES.length} slices (${Object.entries(hashes).map(([s, h]) => s + ' ' + (h.webgl || h.webgpu)).join(', ')}: the same hash on both backends and run again, no pipeline built mid-game); the camera's contracts at 60, 90, 120 and 144 Hz; every kit on a phone; ${pictures} pictures in check-output/kit3d/`);
+console.log(`3D kits check passed: the rules hold in ${SOURCES.length} sources; the manual's quick start runs; ${pages.length} pages on WebGL 2 and WebGPU, ${SLICES.length} slices (${Object.entries(hashes).map(([s, h]) => s + ' ' + (h.webgl || h.webgpu)).join(', ')}: the same hash on both backends and run again, no pipeline built mid-game); the camera's contracts at 60, 90, 120 and 144 Hz; vehicles, tracks, flight and split screen on both backends; every kit on a phone; ${pictures} pictures in check-output/kit3d/`);

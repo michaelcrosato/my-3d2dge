@@ -416,7 +416,18 @@
       "title": "Temporary",
       "about": "Prototypes, each answering one question, in the order they were made. Once a question is answered, its page is deleted or kept as a tool.",
       "empty": "Nothing here right now. One-off comparisons and experiments land here, each with its date and the question it answers.",
-      "entries": []
+      "entries": [
+        {
+          "page": "vehicle-lab",
+          "title": "Vehicle Lab",
+          "added": "2026-10-28",
+          "question": "Which way should the 3D engine's vehicles drive (Milestone 14 of docs/HANDOFF-GENRES.md): Rapier's ray-cast vehicle controller (a chassis on four sprung wheels), or a ball Rapier rolls, steered by the drive module's arcade handling (what world.vehicle does, D62)?",
+          "deviates": "reaches past the engine's API (world.pw, Rapier's own vehicle controller) for kart A, as a prototype may.",
+          "what": "One track (banked bends, a hump to jump, two boost pads) and two karts on it: A, Rapier's ray-cast vehicle (it pitches on its springs, tips, slides when its tyres let go), and B, world.vehicle (a ball steered by E.Car's handling: a hop into a drift that charges a boost, the grass slowing it). Tab switches which you drive (the other drives itself round the line); Z gas, X brake, Space hop and drift, C the camera. Which one feels like Mario Kart 64?",
+          "links": [["Drive A (ray-cast)", "?drive=A"], ["On WebGL 2", "?backend=webgl"]],
+          "next": "dist/my-3d2dge-3d.html"
+        }
+      ]
     }
   ]
 }

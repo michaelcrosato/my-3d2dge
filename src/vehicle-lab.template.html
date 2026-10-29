@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!--
+  my-3D2dge Vehicle Lab v{{VERSION}} ({{BUILD}}): a Temporary prototype (src/labs.json). Which way should the 3D engine's
+  vehicles drive: Rapier's ray-cast vehicle controller (a chassis on four sprung wheels), or a ball Rapier rolls, steered by
+  the drive module's arcade handling (what world.vehicle is)? Tab switches between them on the same track. Served, not
+  double-clicked (it loads three.js and Rapier from /vendor/).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>my-3D2dge · Vehicle Lab</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three-0.182.0/three.webgpu.min.js",
+    "three/webgpu": "/vendor/three-0.182.0/three.webgpu.min.js",
+    "three/tsl": "/vendor/three-0.182.0/three.tsl.min.js",
+    "@dimforge/rapier3d-simd-compat": "/vendor/rapier3d-simd-compat-0.19.3/rapier.js"
+  }
+}
+</script>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#stage{position:relative;width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
+#view{position:absolute;left:0;top:0;display:block;pointer-events:none;z-index:0}
+#screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;z-index:1;background:transparent}
+</style>
+</head>
+<body>
+<!-- @boot Vehicle Lab -->
+<div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen" role="img" aria-label="Vehicle Lab"></canvas></div>
+<!-- @inline engine/my-3d2dge.js -->
+<!-- @inline-esm engine/my-3d2dge-3d.js -->
+<!-- @inline-esm src/vehicle-lab.game.js -->
+</body>
+</html>

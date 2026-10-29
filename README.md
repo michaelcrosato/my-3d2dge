@@ -77,9 +77,11 @@ keeps the pause menu, settings, touch buttons, boot screen and sound. `new E.Wor
 written as text (walls, raised floors, stairs, platforms in the air, pits, pillars, braziers), heroes walked by Rapier's
 character controller and mobs that are physics bodies, the 2D engine's rigs as cards or 3D puppets, pickups and set
 dressing drawn by code, moving platforms, a camera with the 2D views in real 3D plus chase, first person and fly, fixed
-cameras by room (camera zones, cut with hysteresis), lock-on, tank controls, doors between rooms, torches, a sun, a sky,
-a flashlight, the game's particles in 3D, and filters (Comic cel, Pixel). The same inputs give the same `world.hash()` on
-WebGPU and WebGL 2. Its header is the whole manual (about 6,000 tokens, with a complete game). The 3D starter
+cameras by room (camera zones, cut with hysteresis), lock-on, tank controls, doors between rooms, vehicles on tracks
+(karts, cars and hovercraft with arcade handling, banked roads with walls and boost pads, raced by the drive module's
+`E.Race`), flight (free within bounds or on rails, barrel rolls, lock-on), split screen, torches, a sun, a sky, a
+flashlight, the game's particles in 3D, and filters (Comic cel, Pixel). The same inputs give the same `world.hash()` on
+WebGPU and WebGL 2. Its header is the whole manual (about 6,800 tokens, with a complete game). The 3D starter
 (`dist/my-3d2dge-3d.html`, [/3d](https://my-3d2dge.vercel.app/3d)) has four slices, each a 3D kit: ACTION (a torch-lit hall,
 a combo, a dash, a jump, a bolt and lock-on against five waves and a knight), PLATFORMER (a course of islands over the
 void: double jumps, moving platforms, springs, coins and three stars), SHOOTER (a badlands two kilometres across, in
@@ -371,7 +373,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.79.1**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.80.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
