@@ -15,7 +15,7 @@ spends money (approved). (Part 5, a fix to `r.pick`, landed in v0.81.7; part 2, 
 
 ## 1. Play the kits (only the owner)
 
-The Labs page's **To check** section holds 23 cards, each saying what to do and what to look for. Most want a phone or
+The Labs page's **To check** section holds 24 cards, each saying what to do and what to look for. Most want a phone or
 a second player. A card goes once checked; what the owner wants changed becomes a plan or a fix.
 - **2D kits:** Roguelike on your phone; Puzzle (how the blocks handle, and versus); Arcade (the three classics);
   Shooter (the horizontal stage); Brawler with a friend; Fighting (Street Fighter); Metroidvania (Super Metroid); Kart
@@ -23,7 +23,7 @@ a second player. A card goes once checked; what the owner wants changed becomes 
   RTS (Warcraft II, StarCraft); Sim (Theme Park); Point-and-click (Monkey Island); Pinball (Pinball Fantasies); Artillery
   (Worms); Rhythm (Dance Dance Revolution, PaRappa); Stealth's music (the chase's layers).
 - **3D kits:** Horror (Resident Evil, Alone in the Dark); 3D Action's lock-on (Zelda); Racing (Mario Kart 64); Flight
-  (Star Fox 64).
+  (Star Fox 64); Crawler (Eye of the Beholder, Dungeon Master: real time and turns).
 - **The Vehicle Lab** (Labs, Temporary, `/vehicle-lab`): drive both karts (Tab switches) to settle D62. B is what
   `world.vehicle` does (a rolling body, arcade handling); A is Rapier's ray-cast vehicle on springs. If B, the lab goes;
   if A's weight is worth having, that becomes a plan.
