@@ -1283,3 +1283,17 @@ An entry:
   of them now, about 7,000.
 - **Answered:** yes: the owner, in the goal of 2026-10-29
 - **Landed in:** v0.82.0
+
+## D71 · 2026-10-29 · A kit's API card keeps its own genre's playbook rows and modules
+
+- **Principle:** 1 (agent-readable: the card a kit carries is about the game it holds)
+- **Call:** a kit's API card is the whole card but for two lists: its genre playbook keeps the rows that name the kit's
+  own slice (a line says `API.md` has every genre), and its list of modules keeps the kit's own (a line says `API.md`
+  lists every one). `API.md`, the reference editions (`dist/my-3d2dge.html`, the compact one, the 3D starter) and the
+  handoff package carry the whole card. About 3,500 tokens off every kit.
+- **Why:** the owner's goal (2026-10-29): the budgets, the API card's detail first. A model making a game from one kit
+  copies that kit's slice, and the playbook's other rows and the other modules point at files the kit does not carry;
+  the full card is a link away. The API index has 2,500 tokens of room under its 60,000 (D57), too little to take the
+  card's detail, so the card keeps its text and a kit carries less of it.
+- **Answered:** no question asked: a reversible call, flagged in its pull request
+- **Landed in:** v0.82.0

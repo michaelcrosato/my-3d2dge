@@ -114,14 +114,14 @@ const builds = [
   ...readdirSync(join(root, STARTER)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
     if (!SLICES[id]) throw new Error(STARTER + '/' + f + ': name the slice in SLICES (tools/build.mjs)');
-    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id, sliceMods(join(STARTER, f))), compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER, f)) };
+    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id, sliceMods(join(STARTER, f))), label: SLICES[id].split(' (')[0], compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER, f)) };
   }),
   // the 3D starter (src/starter3d/: the shell, every 3D slice, the start) and a 3D genre kit for each slice
   { template: 'src/starter3d.template.html', out: 'dist/my-3d2dge-3d.html', vars: ALL3D, compact: true, modules: dirMods(STARTER3D) },
   ...readdirSync(join(root, STARTER3D)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
     if (!SLICES3D[id]) throw new Error(STARTER3D + '/' + f + ': name the slice in SLICES3D (tools/build.mjs)');
-    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id, sliceMods(join(STARTER3D, f))), compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER3D, f)) };
+    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id, sliceMods(join(STARTER3D, f))), label: '3D ' + SLICES3D[id].split(' (')[0], compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER3D, f)) };
   })
 ];
 
@@ -158,6 +158,24 @@ async function kitEngine3d(b) {
   if (!dieted3d.has(d.src)) { let code = false; try { const { minify } = await import('terser'); code = (await minify(d.src, { module: true, compress: true, mangle: true, format: { comments: /^!/ } })).code; } catch (e) { /* no terser */ } dieted3d.set(d.src, code); }
   return { diet: d, min: dieted3d.get(d.src) };
 }
+/** a kit's API card: the whole card, but its genre playbook keeps the rows of the kit's own slice and its list of modules
+ *  the kit's own (the card diet: every row and every module are in API.md, in the repo and in the reference editions) */
+const cardFor = (b, card) => {
+  const label = b.label, mods = new Set(resolveModules(b.modules || [], MODS).map(m => m.name)), lines = card.split('\n'), out = [];
+  const mine = row => { const cols = row.split('|'), copy = (cols[cols.length - 2] || '').toUpperCase(); return new RegExp('(^|[^0-9A-Z-])' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^A-Z-])').test(label.startsWith('3D ') ? copy : copy.replace(/3D [A-Z-]+/g, '')); };
+  let sec = '', cut = 0, modsCut = 0;
+  for (const l of lines) {
+    if (l.startsWith('## ')) {
+      if (cut) { out.push(`(This kit's ${label} rows; API.md, in the repo and in dist/my-3d2dge.html, has the playbook's every genre.)`, ''); cut = 0; }
+      sec = l;
+    }
+    if (sec.startsWith('## Genre playbook') && /^\| /.test(l) && !/^\| Genre/.test(l)) { if (mine(l)) out.push(l); else cut++; continue; }
+    const m = /^  - `([a-z0-9]+)`/.exec(l);
+    if (sec.startsWith('## More') && m) { if (mods.has(m[1])) out.push(l); else { if (!modsCut) out.push(`  - (the modules this kit carries; API.md lists every one)`); modsCut++; } continue; }
+    out.push(l);
+  }
+  return out.join('\n');
+};
 /** a kit's header line on what its engine leaves out */
 const dietLine = d => {
   if (!d.left.length) return '';
@@ -225,7 +243,7 @@ for (const b of builds) {
   html = boot(html);
   // a file one part needs, only where that part is (a kit of one slice leaves out the others' sets)
   html = html.replace(/<!-- @inline-with (\S+) (\S+) -->/g, (_, part, file) => !b.parts || b.parts(part) ? `<!-- @inline ${file} -->` : '');
-  html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => read(file));
+  html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => file === 'API.md' && b.kit ? cardFor(b, read(file)) : read(file));
   // a folder of script parts joined in name order into one <script> (the starter game: shell + one file per slice)
   html = html.replace(/<!-- @inline-parts (\S+) -->/g, (_, dir) => {
     const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort();
