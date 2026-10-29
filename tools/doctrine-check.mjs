@@ -25,7 +25,7 @@
 // 6. the kits' budgets (principle 1; D51): each kit is a whole engine, card and game for a chat model's context, so every 2D
 //    kit (dist/kits/my-3d2dge-<id>.html) is at most 200,000 cl100k tokens and a 3D kit no larger than at v0.59.3 (the kit
 //    diet, tools/build.mjs). Counted exactly, with gpt-tokenizer only (an estimate of minified code is too rough here).
-//    Six 2D kits keep budgets of their own (KIT2D: D69).
+//    Six 2D kits keep budgets of their own (KIT2D: D69); the 3D kits are back at their budgets from before D63 (D70).
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
@@ -178,7 +178,7 @@ if (opt('baseline')) {
   let count = null;
   try { const { countTokens } = await import('gpt-tokenizer/encoding/cl100k_base'); count = countTokens; } catch (e) { /* optional */ }
   const KIT = 200000, KIT2D = { rpg: 241000, shooter: 224000, adventure: 210000, sim: 210000, rts: 208000, brawler: 207000 };   // (a 2D kit; the six that can't get there without losing what they play: D69)
-  const KIT3D = { action: 249000, platformer: 244000, shooter: 319000, horror: 265000, racing: 252000, flight: 254000 };   // (a 3D kit: D51, the horror kit's D61, raised for vehicles and flight: D63, the racing and flight kits' D64)
+  const KIT3D = { action: 241039, platformer: 235846, shooter: 310823, horror: 256000, racing: 252000, flight: 254000 };   // (a 3D kit: D51, the horror kit's D61, the racing and flight kits' D64; back from D63 by the 3D diet: D70)
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');
   else {

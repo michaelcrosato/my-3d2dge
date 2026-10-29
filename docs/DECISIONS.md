@@ -1268,3 +1268,18 @@ An entry:
   title for every kit (its look changes, so it is the owner's call), or the slices' code thinned.
 - **Answered:** yes: the owner, in the goal of 2026-10-29 (a budget of its own by a logged decision)
 - **Landed in:** v0.82.0
+
+## D70 · 2026-10-29 · The 3D kits' budgets back from D63, by a 3D diet
+
+- **Principle:** 1 (agent-readable) and D51 (a 3D kit no larger than at v0.59.3), raised by D63
+- **Call:** the 3D engine goes on a diet as the 2D core is (`DIET3D` in `tools/build.mjs`; `tools/diet.mjs` reads the 3D
+  engine as the ES module it is, its stubs warning through `E.warn`): a 3D kit that never calls `world.vehicle`,
+  `world.track` or `world.flyer` leaves out its section 8b (vehicles and flyers). With the 2D core's new parts (the
+  platform map, which no 3D kit draws), the four 3D kits that never drive or fly are back under their budgets from
+  before D63: ACTION 241,039 (it is 230,354), PLATFORMER 235,846 (224,925), SHOOTER 310,823 (299,810) and HORROR
+  256,000 (246,096). RACING and FLIGHT keep D64's 252,000 and 254,000 (236,479 and 237,625).
+- **Why:** the owner's goal (2026-10-29): the four 3D kits that never drive or fly back under their budgets from before
+  D63, a 3D diet among the ways. Section 8b minified is about 4,300 tokens; the platform map, which the 2D diet leaves out
+  of them now, about 7,000.
+- **Answered:** yes: the owner, in the goal of 2026-10-29
+- **Landed in:** v0.82.0
