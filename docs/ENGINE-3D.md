@@ -151,6 +151,15 @@ Each 3D slice is a complete small game in the style of the 2D slices (dense, com
   the bay (`bounds`) round a flagship (four engines, then its core). Twin lasers, a charged shot that locks on
   (`f.seek`), barrel rolls that turn shots aside, boost and brake on a meter, KESTREL on the radio (`Dialog`, not
   modal). `FLIGHT.bot()` flies the stage and downs the flagship.
+- **Crawler** (`src/starter3d/70-crawler.js`): Eye of the Beholder, Dungeon Master and Wizardry. The Lantern Vaults, a
+  map of cells (each 2 x 2 of the level's tiles: corridors two metres wide) with braziers in niches, a ceiling drawn over
+  it and the party's lantern. The camera is `'fixed'` at the party's eyes, its pose tweened per step (steps, quarter
+  turns, a step aside, a lurch into a wall). A party of four (`rig.drawPortrait` on its cards): two in front who
+  strike what stands before them, a cleric who heals, a mage whose bolt flies down the corridor. Gates that rise
+  (`world.thing('door')`, one with an iron lock: `world.unlock`), a lever on a wall, a plate that raises a gate and one
+  that springs darts, wisps, slimes, the dead and the Warden walked cell to cell on the grid module's paths, an automap
+  from `E.Fog`; real time (`E.Turns` `'atb'`: each one's gauge) or turns (`'speed'`: the vaults wait). `CRAWLER.bot()`
+  plays to the Warden and up the stair, then checks that in turns the vaults hold still until the party moves.
 
 A kit is the minified 2D engine, the API card, the minified 3D engine with its manual, the shell and one slice: about
 200,000 cl100k tokens (a 2D kit is about 180,000 on the same count), so a 200k-token chat holds it with little room; a
@@ -169,7 +178,7 @@ flight and split screen on both backends (top speed, a boost pad, a wall, the gr
 cushion, a banked bend, E.Race racing two AI vehicles a lap, rails, a barrel roll, bounds, `seek`; twice the same and
 the same on each; two viewports drawn); every core shape built and drawn on both backends,
 solid where it stands (a hero stops at a crate, lands on a table), and a sheet of each beside its 2D picture; every kit on an upright phone (the 3D picture lies exactly under
-the game's, the touch buttons are there). `tools/kits-test.mjs` plays each 3D slice's bot (the horror wing to its end, a race of six karts and a split race, the flight to the flagship's end). Pictures in `check-output/kit3d/`. `tools/doctrine-check.mjs` holds the manual
+the game's, the touch buttons are there). `tools/kits-test.mjs` plays each 3D slice's bot (the horror wing to its end, a race of six karts and a split race, the flight to the flagship's end, the vaults to the Warden and out). Pictures in `check-output/kit3d/`. `tools/doctrine-check.mjs` holds the manual
 to its budget; `tools/version.mjs` keeps its version line with the rest.
 
 ## Things to know

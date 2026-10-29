@@ -9,9 +9,9 @@ owner. The plan built what each milestone needed and deferred the trimming to a 
 kits (the owner's word, 2026-10-28). It is temporary: when a part lands, its line goes; when none is left, this file
 goes.
 
-**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Parts 3 and 4 are
-an agent's, on the owner's go of 2026-10-29: part 4 adds two kits, and part 3 spends money (approved). (Part 5, a fix
-to `r.pick`, landed in v0.81.7; part 2, the budgets, in v0.82.0: D69 to D71.)
+**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Parts 3 and 4
+are an agent's, on the owner's go of 2026-10-29: part 4 adds a sports kit (its crawler landed in v0.83.0), and part 3
+spends money (approved). (Part 5, a fix to `r.pick`, landed in v0.81.7; part 2, the budgets, in v0.82.0: D69 to D71.)
 
 ## 1. Play the kits (only the owner)
 
@@ -35,14 +35,10 @@ Kart, Final Fantasy Tactics and Resident Evil, each an adaptation on the engine 
 package. Their runs spend money (a coding agent and a vision judge each), so they wait on the owner's yes (D66):
 `node tools/agent-bench.mjs --brief <name>` for each, and what they find goes into `docs/FEEDBACK-LOG.md` as a source.
 
-## 4. Optional: a first-person dungeon and sports (the plan's M15)
+## 4. Sports (the rest of the plan's M15)
 
-On the owner's word only. Needs `E.Turns` and `E.Fog` (the grid module), two to four players (the core) and the 3D
-engine's doors and levers.
+The 3D CRAWLER landed in v0.83.0. Needs two to four players (the core).
 
-- **3D CRAWLER** (Wizardry, Dungeon Master, Eye of the Beholder, King's Field): `#crawler`, in the 3D starter. A grid
-  stepped in first person on the 3D level (turns of 90 degrees and steps, tweened), turns or real time (`E.Turns`), a
-  party of four with portraits, an automap from `E.Fog`, doors, levers and pressure plates.
 - **SPORTS** (NBA Jam, Sensible Soccer, Tecmo Bowl): `#sports`. Two against two, for up to four players: a ball as a
   `Body` with bounce and curl, passes with aim assist, shots on a meter, teammates by formation, the rules and a match
   clock, commentary on `Dialog`'s radio; a ball's arc solved in the core's math.
@@ -50,12 +46,13 @@ engine's doors and levers.
 
 ## 6. Calls made without the owner, to read (each reversible: a revert undoes it)
 
-Logged in `docs/DECISIONS.md` and flagged in their pull requests (v0.79.0 to v0.82.0):
+Logged in `docs/DECISIONS.md` and flagged in their pull requests (v0.79.0 to v0.83.0):
 - **D60:** the 3D engine's manual allowed 8,000 tokens (it is at 6,807). **D61:** the 3D horror kit's budget, 256,000.
 - **D62:** the 3D engine's vehicles are a rolling body with arcade handling, not Rapier's ray-cast vehicle. Settle it in
   the Vehicle Lab (part 1).
 - **D63, D64:** the 3D kits' budgets raised, because every 3D kit carries the whole 3D engine; D70 put the four that
   never drive or fly back under their old budgets.
+- **D72 (v0.83.0):** the 3D CRAWLER kit's budget, 250,000.
 - **D69 to D71 (v0.82.0, the budgets):** the 2D kits' 200,000 back, with six (RPG, SHOOTER, ADVENTURE, SIM, RTS,
   BRAWLER) keeping budgets of their own; the 3D kits' budgets back from D63 by a 3D diet; a kit's card keeping its own
   genre's playbook rows and modules.
