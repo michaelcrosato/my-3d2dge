@@ -191,6 +191,14 @@
           "what": "Fly the stage: the stick moves the ship about the screen, J fires (hold it to charge: the reticle locks on what is ahead, let go to fire), K barrel-rolls (it turns shots aside), Shift boosts and X brakes. Fly through the rings, save KESTREL when a fighter gets on its tail, weave through the masts over the base, then fight the flagship in the bay, where the rails end and you fly free. Settings has Invert flight. On a phone: the stick, FIRE, ROLL, BOOST, BRAKE. Added with v0.81.0 (Milestone 14).",
           "look": "Is it exciting on the rails: enough to shoot, readable shots, the rolls worth doing? Is the charged shot's lock clear? Does free flight round the flagship feel good (turning, keeping it in view), and is the fight the right length? Is KESTREL's radio fun, or in the way? Does the camera keep you oriented?",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-3d-crawler.html",
+          "at": "#crawler",
+          "title": "CRAWLER: does it feel like Eye of the Beholder and Dungeon Master?",
+          "what": "Take the party down the Lantern Vaults a cell at a time: W and S step, A and D turn, Q and E step aside (on a phone: the stick, and ACT, BOLT, HEAL, MAP). J uses what is in front (the lever on a wall, the gate with an iron lock) or has the next one ready act: the two in front strike what stands before them, the mage bolts what comes down the corridor; K bolts, H heals, 1 to 4 (or a click on a portrait) has that one act; Tab opens the map of what you have seen. Find the lever, the key, the plate, and what holds the stair. Settings, Game, Turns: Real time or Turns. Added with v0.83.0 (Milestone 15).",
+          "look": "Do the steps and turns feel right (quick enough, never lost)? Is the dungeon readable: the gates, the lever, the plates, a monster before you? Are the fights fair in real time, and does Turns feel like Wizardry (the vaults waiting for you)? Is the map useful? On your phone: upright and on its side.",
+          "links": []
         }
       ]
     },
@@ -413,9 +421,15 @@
           "links": []
         },
         {
+          "page": "dist/kits/my-3d2dge-3d-crawler.html",
+          "title": "3D crawler",
+          "what": "A dungeon in first person, a cell at a time (Eye of the Beholder, Dungeon Master, Wizardry): a party of four with portraits (two who fight, two who cast), gates that rise, a lever, plates (one springs darts), wisps, slimes, the dead and the Warden, an automap of what you have seen; real time or turns.",
+          "links": [["The Warden", "#crawler/warden"]]
+        },
+        {
           "page": "dist/my-3d2dge-3d.html",
           "title": "3D in one file",
-          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and all six 3D games. Served, not opened from a disk.",
+          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and all seven 3D games. Served, not opened from a disk.",
           "links": []
         }
       ]

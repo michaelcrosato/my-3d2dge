@@ -23,7 +23,7 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 | **`dist/handoff/`** ([on the site](https://my-3d2dge.vercel.app/handoff/); `node tools/handoff.mjs --zip <file>` for a chat) | **Coding agents that need the full engine** (props, lighting, x-ray, sessions: what the agent edition leaves out). The readable engine and the agent edition, `API.md`, `API-INDEX.md` (every public name), `AI_GUIDE.md`, the tools that check, film and replay a game, and a template game with a headless test. Its `README.md` says where to start. | text only, ~1.3 MB; read `API.md`, search the rest |
 | **`dist/my-3d2dge-agent.js`** | **AI coding agents** (Claude Code, Codex, Cursor and the like). The [agent edition](#the-agent-edition-for-ai-coding-agents): the essential engine in one readable file whose header is the whole manual, with three complete example games. An agent reads the header and nothing else. | header ~10k tokens, whole file ~105k |
 | **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `pointclick`, `platformer`, `metroidvania`, `brawler`, `fighting`, `shooter`, `arcade`, `pinball`, `kart`, `road`, `puzzle`, `rhythm`, `rpg`, `roguelike`, `tactics`, `rts`, `artillery`, `sim`, `stealth`), or `animlab` to explore the animation system. Each is sized for a 200k context (D51; six whose games need more have budgets of their own, D69): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), its API card keeps the genre playbook's rows and the modules of its own (D71), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~162k-240k tokens (the RPG's journey is the largest) |
-| **`dist/kits/my-3d2dge-3d-<genre>.html`** | A [3D kit](#real-3d-the-3d-engine): the same, with the 3D engine and its manual and one 3D slice (`action`, `platformer`, `shooter`, `horror`, `racing`, `flight`); a kit that never drives or flies leaves out the 3D engine's vehicles and flyers (the 3D diet, D70). Served, not opened from a disk: it loads three.js and Rapier from `vendor/`. | ~225k-300k tokens (the shooter's open world is the largest) |
+| **`dist/kits/my-3d2dge-3d-<genre>.html`** | A [3D kit](#real-3d-the-3d-engine): the same, with the 3D engine and its manual and one 3D slice (`action`, `platformer`, `shooter`, `horror`, `racing`, `flight`, `crawler`); a kit that never drives or flies leaves out the 3D engine's vehicles and flyers (the 3D diet, D70). Served, not opened from a disk: it loads three.js and Rapier from `vendor/`. | ~225k-300k tokens (the shooter's open world is the largest) |
 | **`dist/my-3d2dge-compact.html`** | Every slice and the animation lab, engine minified (every section and module): for a game of several genres. | ~681k tokens (past the plan's 500,000 line: kept whole until the owner's review, D55) |
 | **`dist/my-3d2dge.html`** | The complete reference: readable engine, every slice and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~845k tokens |
 
@@ -82,21 +82,23 @@ cameras by room (camera zones, cut with hysteresis), lock-on, tank controls, doo
 `E.Race`), flight (free within bounds or on rails, barrel rolls, lock-on), split screen, torches, a sun, a sky, a
 flashlight, the game's particles in 3D, and filters (Comic cel, Pixel). The same inputs give the same `world.hash()` on
 WebGPU and WebGL 2. Its header is the whole manual (about 6,800 tokens, with a complete game). The 3D starter
-(`dist/my-3d2dge-3d.html`, [/3d](https://my-3d2dge.vercel.app/3d)) has six slices, each a 3D kit: ACTION (a torch-lit hall,
+(`dist/my-3d2dge-3d.html`, [/3d](https://my-3d2dge.vercel.app/3d)) has seven slices, each a 3D kit: ACTION (a torch-lit hall,
 a combo, a dash, a jump, a bolt and lock-on against five waves and a knight), PLATFORMER (a course of islands over the
 void: double jumps, moving platforms, springs, coins and three stars), SHOOTER (a badlands two kilometres across, in
 first or third person: sprint, slide, vault, climb, ziplines, a rifle and a shotgun against outposts), HORROR (a
 mansion's wings by flashlight under fixed cameras: a pistol that locks on, zombies and dogs, keys, a crank, herbs, an
 item box and a typewriter's saves, a boss), RACING (a kart circuit in a valley: banked bends, a jump, a dirt
 shortcut, drifts that charge a boost, items, five drivers, two players split) and FLIGHT (on rails over the sea to a
-base, then a flagship in free flight: lasers, charged lock-on shots, barrel rolls, a wingman on the radio). See
+base, then a flagship in free flight: lasers, charged lock-on shots, barrel rolls, a wingman on the radio) and CRAWLER
+(a dungeon in first person, a cell at a time: a party of four with portraits, gates, a lever, plates, an automap, real
+time or turns). See
 `docs/ENGINE-3D.md`.
 
 ## Try it
 
 | File | What it shows |
 |---|---|
-| `dist/my-3d2dge-3d.html` | The 3D starter (served: `npx serve`, then `/dist/my-3d2dge-3d.html`): a title stage in 3D and the six 3D slices. `C` changes the camera (the view, chase, first person), `V` the view, `[` / `]` turn it, the wheel zooms, `Q` locks on; the pause menu's Display picks cards or puppets, the picture's resolution, shadows and a filter. Deep links: `#action`, `#platformer`, `#shooter`, `#horror`, `#racing` (`#racing/vs`), `#flight`. |
+| `dist/my-3d2dge-3d.html` | The 3D starter (served: `npx serve`, then `/dist/my-3d2dge-3d.html`): a title stage in 3D and the seven 3D slices. `C` changes the camera (the view, chase, first person), `V` the view, `[` / `]` turn it, the wheel zooms, `Q` locks on; the pause menu's Display picks cards or puppets, the picture's resolution, shadows and a filter. Deep links: `#action`, `#platformer`, `#shooter`, `#horror`, `#racing` (`#racing/vs`), `#flight`. |
 | `dist/my-3d2dge.html` | Title menu plus the six vertical slices and the animation lab. Arrows and Enter; `V` changes the view, `-` / `=` or the mouse wheel zoom, `[` / `]` turn the camera where a scene allows it, `0` resets it, `M` mutes. |
 | **`examples/emberdeep.html`** | **Emberdeep**, the engine's signature game: a hack-and-slash that goes down forever (see below). Deep links: `#town`, `#depth-7`, `#proving`, `#gallery`, or one gallery entry such as `#gallery/bestiary/husk`, `#gallery/skills/whirlwind`, `#gallery/poses/fall` or `#gallery/moves/climb-up`. |
 | `examples/arena.html` | **Emberwell**, an action-RPG arena with WebGPU lighting, its stores heaped in the corners as the engine's core shapes. One game in four views: isometric (Diablo, Bastion), three-quarter (Zelda, Stardew Valley), top-down and brawler. Keys `1`-`4` or `V` switch, or open `arena.html#threequarter`. |
@@ -311,10 +313,11 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | Racing (Super Mario Kart, F-Zero, OutRun, Pole Position, Micro Machines, Mario Kart 64) | Mode 7, the pseudo-3D road, top-down | the mode7, road and drive modules: a floor a row at a time, the road's segments, cars with grip and drift, races with laps and drivers (KART and ROAD kits); in real 3D, `world.vehicle` and `world.track` (banked roads, walls, pads, a shortcut) raced by `E.Race`, split screen (3D RACING kit) |
 | 3D-era remakes (Mario 64, Ocarina, Crash) | iso, three-quarter, brawler | TileMap blocks with heights plus Body jumping (z is real height); in real 3D, the 3D engine: a level as text, a character controller, the chase camera, lock-on (`camera.lock`) (3D ACTION and 3D PLATFORMER kits) |
 | Survival horror (Resident Evil, Alone in the Dark, Silent Hill) | the 3D engine's fixed cameras | camera zones (fixed, turning, on a rail; cuts that keep the stick's way), tank or modern controls (`camera.steer`), lock-on aiming high and low, doors between rooms (`world.through`), locked doors and keys, a flashlight that flickers, fog; the rpg module's six-slot inventory, an item box, saves at a typewriter (3D HORROR kit) |
+| First-person dungeons (Wizardry, Dungeon Master, Eye of the Beholder, King's Field) | the 3D engine's fixed camera at the party's eyes | a grid stepped a cell at a time (steps and quarter turns tweened), the grid module's `E.Turns` (real time by gauges, or turns) and `E.Fog` (an automap), gates that rise, a lever, plates, a party of four with portraits (3D CRAWLER kit) |
 | Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps (STEALTH kit) |
 | Everything else of the era, by recipe (`AI_GUIDE.md`, Genre recipes) | as each says | twin-stick shooters (Robotron, Smash TV), Bomberman, Gauntlet, Frogger, Breakout, Lemmings, Sokoban, Sonic without the loops, the cinematic platformer (Prince of Persia, Flashback), top-down racing and driving, visual novels, light guns, the indoor corridor shooter (Doom, GoldenEye) on the 3D engine: each a recipe on the kit closest to it |
 
-How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the To check cards and the Vehicle Lab, the budgets, the benchmark's era briefs, an optional crawler and sports, and the calls made without the owner): `docs/HANDOFF-REVIEW.md`.
+How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the To check cards and the Vehicle Lab, the budgets, the benchmark's era briefs, a sports kit, and the calls made without the owner): `docs/HANDOFF-REVIEW.md`.
 
 ## Build and check
 
@@ -379,7 +382,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.82.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.83.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

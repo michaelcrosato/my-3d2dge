@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.83.0 (2026-10-29)
+
+A first-person dungeon: the 3D CRAWLER kit, `docs/HANDOFF-REVIEW.md`'s part 4 (the plan's M15), its first half.
+
+- **Engine**: the 3D CRAWLER kit (`#crawler`, `src/starter3d/70-crawler.js`, the grid module): the Lantern Vaults in first person, a cell at a time (cells of 2 x 2 tiles; steps, quarter turns and steps aside tweened on the `'fixed'` camera at the party's eyes; a lurch into a wall). A party of four with portraits (`rig.drawPortrait`): two in front who strike what stands before them, a cleric who heals, a mage whose bolt flies down the corridor. Gates that rise (`world.thing('door')`, one with an iron lock: `world.unlock`), a lever on a wall, a plate that raises a gate and one that springs darts; wisps, slimes, the dead and the Warden walked cell to cell by the grid's paths; an automap from `E.Fog` (Tab, or a tap on the little map); braziers in niches, a ceiling and the party's lantern. Real time (`E.Turns` `'atb'`: each one's gauge) or turns (`'speed'`: the vaults wait), a setting; `#crawler/warden` starts at the Warden's hall. Two original songs.
+- **Tools**: `kits-test`'s 3D bot for the CRAWLER (the lever, the key, the locked gate, the plate and its darts, the Warden, the stair; then in turns the vaults hold still until the party steps, and take one round); `kit3d-test` plays it (a step, the act and the bolt); the 3D kits' headers name their deep links' parts (`#racing/race`, `#racing/vs`, `#crawler/warden`).
+- **Tools**: `doctrine-check` holds the 3D CRAWLER kit to 250,000 (D72).
+- **Docs**: README (seven 3D slices; genre coverage: first-person dungeons), the API card's playbook (a first-person dungeon row), `docs/ENGINE-3D.md` (the kit), `docs/KITS.md` (the 3D engine's genres), the Labs page (the kit, and a To check card), `docs/HANDOFF-REVIEW.md` (part 4 now the SPORTS kit alone).
+
 ## 0.82.0 (2026-10-29)
 
 The kits back under their budgets: `docs/HANDOFF-REVIEW.md`'s part 2.
