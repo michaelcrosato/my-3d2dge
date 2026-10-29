@@ -314,7 +314,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps (STEALTH kit) |
 | Everything else of the era, by recipe (`AI_GUIDE.md`, Genre recipes) | as each says | twin-stick shooters (Robotron, Smash TV), Bomberman, Gauntlet, Frogger, Breakout, Lemmings, Sokoban, Sonic without the loops, the cinematic platformer (Prince of Persia, Flashback), top-down racing and driving, visual novels, light guns, the indoor corridor shooter (Doom, GoldenEye) on the 3D engine: each a recipe on the kit closest to it |
 
-How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the budgets, the To check cards, the benchmark's era briefs, an optional crawler and sports): `docs/HANDOFF-REVIEW.md`.
+How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the To check cards and the Vehicle Lab, the budgets, the benchmark's era briefs, an optional crawler and sports, a fix to `r.pick`, and the calls made without the owner): `docs/HANDOFF-REVIEW.md`.
 
 ## Build and check
 
@@ -338,7 +338,8 @@ To test any game file in a headless browser, run the checker:
 ```
 npx playwright install chromium   # once
 node tools/check.mjs dist/my-3d2dge.html#platformer
-npm test                         # rebuild, syntax, controls + developer browser regressions
+npm test                         # every suite, 31 with the build (about 40 minutes)
+npm run test:changed              # before a push: the suites that cover what you changed against main (npm run test:which lists them)
 npm run test:smoke -- --secs 2    # title, town, gallery, proving, depths 1–20
 npm run test:smoke -- --character codex --secs 2 --out check-output/codex-smoke
 npm run test:codex                # character, spells, progression, saves and device checks
@@ -348,7 +349,7 @@ npm run doctrine:check            # the doctrine's quick checks: binary files, t
 npm run test:determinism          # a fight in Emberdeep and in a starter game, played twice under the harness: the same pixels
 npm run test:replay               # sessions recorded in real time (desk, phone touch, a starter) replay to the same state
 npm run test:kit3d                # the 3D engine and kits: their rules, the manual's quick start, every 3D kit on WebGL 2 and WebGPU (the same proof hash), a phone
-npm run test:phone                # the starter kits on an emulated phone, upright and on its side (about a minute): first tap, steering, reach, frame time, thumb-sized buttons
+npm run test:phone                # the starter kits on an emulated phone, upright and on its side (about seven minutes): first tap, steering, reach, frame time, thumb-sized buttons
 npm run test:kits                 # every kit: its title, its slice's proof twice (the same hash), nothing the kit diet left out called; the reference editions' title menu
 npm run test:kits -- --compare <dir>   # also film every 2D kit beside the same kit in <dir> (another build): the same pixels, or it fails
 npm run test:motion               # game.go's transitions and the weather, filmed (check-output/motion/); the screen filter on the canvas only
@@ -378,7 +379,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.81.5**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.81.6**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
