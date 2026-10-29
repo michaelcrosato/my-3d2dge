@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.81.3 (2026-10-29)
+
+The full test's audio failure fixed forward: the music held to the game's clock through a slip.
+
+- **Engine**: the music clock meets the sound at once when it is past 10 ms off two frames running (a slip of the sound device, a long frame whose time past 50 ms the game's clock gave up, a pause), where it smoothed anything under 100 ms: a slip of 20 ms or more took about 9 frames to meet, past the 5 the audio suite allows. One frame alone past 10 ms is held, not met: the device's timestamp can be read out of step for a frame. In five recorded runs the sound sits closer to the clock (the median about 0.1 ms, from about 1.5) and is moved half as often or less.
+- **Tools**: the audio suite's clock check measures how fast the sound is met again, whatever moved it (the device's slip, a stall of the page, the device's timestamp misread): past 10 ms only in stretches of at most 6 frames, in under 1% of the frames; it skipped only the 5 frames after the device's slips, and failed in a slow container on stalls and misreads (D67).
+
 ## 0.81.2 (2026-10-29)
 
 The genre plan folded in: its Milestone 16, the last.
