@@ -1297,3 +1297,16 @@ An entry:
   card's detail, so the card keeps its text and a kit carries less of it.
 - **Answered:** no question asked: a reversible call, flagged in its pull request
 - **Landed in:** v0.82.0
+
+## D72 · 2026-10-29 · The 3D CRAWLER kit's budget, 250,000
+
+- **Principle:** 1 (agent-readable: a kit fits a chat model's context) and D51 (each 3D kit a budget of its own)
+- **Call:** `tools/doctrine-check.mjs` holds the new 3D CRAWLER kit to 250,000 cl100k tokens. At v0.83.0 it is 241,490:
+  the 2D engine on the kit diet, the API card (its own playbook row: D71), the grid module, the 3D engine without its
+  vehicles and flight (the 3D diet: D70), the 3D shell and a slice of about 16,300 tokens.
+- **Why:** every 3D kit has a budget of its own, set when it lands, with room for fixes (the others keep 9,000 to 11,000
+  of room). The owner's goal of 2026-10-29 asks for the CRAWLER kit "with everything docs/KITS.md says every new kit
+  has", which includes "doctrine-check's budget for a 3D kit". What would change it: a slice that grows past it (thin it
+  first), or the owner's own number.
+- **Answered:** no question asked: a reversible call, flagged in its pull request
+- **Landed in:** v0.83.0
