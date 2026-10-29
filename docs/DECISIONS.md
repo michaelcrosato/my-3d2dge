@@ -1153,3 +1153,20 @@ An entry:
   `world.track` or `world.flyer`), which would bring these back to about their old sizes.
 - **Answered:** yes: the owner, in the goal of 2026-10-28 (budgets may be raised with a logged decision)
 - **Landed in:** v0.80.0
+
+## D64 · 2026-10-29 · The 3D racing and flight kits' budgets: 252,000 and 254,000 tokens
+
+- **Principle:** 1 (agent-readable: a kit fits a chat model's context) and the genre plan's 3.3 (a new 3D kit has no
+  budget until it is given one, `doctrine-check`)
+- **Call:** `dist/kits/my-3d2dge-3d-racing.html` has a budget of 252,000 cl100k tokens and
+  `dist/kits/my-3d2dge-3d-flight.html` 254,000. At v0.81.0 they are 246,999 and 248,249: the minified 2D engine on its
+  diet, the API card, the 3D engine with its manual (98,582 tokens of source since M14a, D63), the shell and the slice
+  (the racing kit with the drive module; the slices about 22,500 and 35,500 bytes of game code: the circuit, its
+  karts, items, the race's menus, the proof and the bot; the terrain, the rail's waves, the rings, the base, the
+  flagship, the radio, the proof and the bot).
+- **Why:** like the other 3D kits (D51, D61, D63), a 3D kit is the 2D kit's size plus the 3D engine; the owner's goal
+  for Milestones 13, 14 and 16 (2026-10-28) says budgets may be raised with a logged decision. What would change it:
+  the owner's review pass, or a 3D diet (D63), which would take about 10,000 tokens off each 3D kit that never calls
+  what it leaves out (these two call it).
+- **Answered:** yes: the owner, in the goal of 2026-10-28 (budgets may be raised with a logged decision)
+- **Landed in:** v0.81.0

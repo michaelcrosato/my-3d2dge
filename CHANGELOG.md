@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.81.0 (2026-10-29)
+
+3D vehicles and flight, the kits: the genre plan's Milestone 14b, 3D RACING and 3D FLIGHT.
+
+- **Engine**: the 3D RACING kit (`#racing`, `src/starter3d/50-racing.js`, the drive module): a kart circuit in a valley (banked bends, a hill whose crest throws you, a jump over a stream, boost pads, a dirt shortcut through the infield's hairpin, the walls opened where it leaves and rejoins), rows of item boxes (a boost, a shell, a peel), you and five drivers with their rigs seated, three laps, a drift that charges a blue then an orange boost, a kart off the course set back on the road (Lakitu), the map and the race's HUD; VS: two players in a split screen (`#racing/vs`); the title races the drivers by themselves.
+- **Engine**: the 3D FLIGHT kit (`#flight`, `src/starter3d/60-flight.js`): a stage on rails over the sea between rock islands to the enemy's base (fighters in waves on the rail's frame, rings that mend the shield, turrets and masts, a fighter on your wingman's tail), then a flagship in free flight in a bay (four engines, then its core); twin lasers, a charged shot that locks on, barrel rolls that turn shots aside, boost and brake on a meter, KESTREL on the radio; Invert flight in Settings; touch FIRE, ROLL, BOOST, BRAKE.
+- **Engine**: the 3D starter's deep links take a part (`#racing/vs`: the slice's `enter` gets `{ part }`).
+- **Tools**: `kits-test`'s 3D bots: RACING (six karts three laps, yours over the shortcut each lap; then two players split) and FLIGHT (the stage to the flagship's end). `kit3d-test` plays each new kit (a race's gas, drift and item; the ship's fire, roll and boost) on both backends and on a phone (`S.play`: where a slice with its own menu starts playing).
+- **Docs**: README (six 3D slices, genre coverage: 3D kart racing in the racing row, rail shooters and flight), the API card's playbook (3D kart racing and rail shooter rows), `docs/ENGINE-3D.md` (the two kits), the Labs page (the two kits, and To check cards for them), the plan's M14 as built. Decision: D64 (the two kits' budgets).
+
 ## 0.80.0 (2026-10-29)
 
 3D vehicles and flight, the 3D engine's half: the genre plan's Milestone 14a, vehicles, tracks, split screen and flight (its kits, 3D RACING and 3D FLIGHT, come next).

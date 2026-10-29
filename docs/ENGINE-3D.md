@@ -136,6 +136,21 @@ Each 3D slice is a complete small game in the style of the 2D slices (dense, com
   (`world.through`), two keys for two locks, a crank for the grille over the second, herbs that mix (the rpg module's
   six-slot inventory), an item box, saves at the typewriter (`game.saves`) and an autosave at each door. Tank or modern
   controls (Settings). `HORROR.bot()` plays it from the foyer through every room to the boss and out.
+- **Racing** (`src/starter3d/50-racing.js`, the drive module): Mario Kart 64 and Crash Team Racing. A kart circuit in
+  a valley (`world.track`: banked bends, a hill whose crest throws you, a jump over a stream, boost pads; its walls
+  opened where a dirt shortcut, a track of its own without walls, crosses the infield's hairpin), item boxes in rows,
+  you and five drivers (`world.vehicle` karts with their rigs seated, raced by the drive module's `E.Race`: laps
+  through checkpoints, places, its drivers, a boost, a shell and a peel), three laps; a kart off the course a while is
+  set back on the road (Lakitu). VS: two players in a split screen (`game.splitScreen`, `world.addCamera`). The title
+  races the drivers by themselves. `RACING.bot()` races every kart to the end (yours over the shortcut each lap), then
+  two players split.
+- **Flight** (`src/starter3d/60-flight.js`): Star Fox 64 and Panzer Dragoon. A terrain of sea, rock islands, a coast,
+  the enemy's base on a plateau and mountains round a bay. The stage on rails (`world.flyer` with `rail`: the camera
+  behind the rail's point, the ship moving in a window across it): fighters in waves on the rail's frame, rings that
+  mend the shield, turrets and masts on the base, a fighter on the wingman's tail to shoot off it; then free flight in
+  the bay (`bounds`) round a flagship (four engines, then its core). Twin lasers, a charged shot that locks on
+  (`f.seek`), barrel rolls that turn shots aside, boost and brake on a meter, KESTREL on the radio (`Dialog`, not
+  modal). `FLIGHT.bot()` flies the stage and downs the flagship.
 
 A kit is the minified 2D engine, the API card, the minified 3D engine with its manual, the shell and one slice: about
 200,000 cl100k tokens (a 2D kit is about 180,000 on the same count), so a 200k-token chat holds it with little room; a
@@ -154,7 +169,7 @@ flight and split screen on both backends (top speed, a boost pad, a wall, the gr
 cushion, a banked bend, E.Race racing two AI vehicles a lap, rails, a barrel roll, bounds, `seek`; twice the same and
 the same on each; two viewports drawn); every core shape built and drawn on both backends,
 solid where it stands (a hero stops at a crate, lands on a table), and a sheet of each beside its 2D picture; every kit on an upright phone (the 3D picture lies exactly under
-the game's, the touch buttons are there). `tools/kits-test.mjs` plays each 3D slice's bot (the horror wing to its end). Pictures in `check-output/kit3d/`. `tools/doctrine-check.mjs` holds the manual
+the game's, the touch buttons are there). `tools/kits-test.mjs` plays each 3D slice's bot (the horror wing to its end, a race of six karts and a split race, the flight to the flagship's end). Pictures in `check-output/kit3d/`. `tools/doctrine-check.mjs` holds the manual
 to its budget; `tools/version.mjs` keeps its version line with the rest.
 
 ## Things to know

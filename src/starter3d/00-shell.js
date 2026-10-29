@@ -12,6 +12,10 @@
  *                        a shotgun with recoil and reloads, a punch, grenades; raiders holding five outposts
  *   SLICE 4  HORROR      a mansion's wings by flashlight under fixed cameras (Resident Evil, Alone in the Dark): a
  *                        pistol that locks on, a knife, zombies that grab, dogs; keys, a crank, an item box, saves
+ *   SLICE 5  RACING      a kart circuit in a valley (Mario Kart 64, Crash Team Racing): banked bends, a hill, a jump,
+ *                        a dirt shortcut, drifts that charge a boost, items, five drivers, two players split
+ *   SLICE 6  FLIGHT      a stage on rails over the sea to a base, then a boss in free flight (Star Fox 64): lasers,
+ *                        charged lock-on shots, barrel rolls that turn shots aside, rings, a wingman on the radio
  * THE 3D WORLD UNDER THE GAME: E.Game runs the game as it runs a 2D one (scenes, exact fixed steps, input, the pause
  * menu, settings, sound) with bg: null, so its canvas is clear; E.World3D draws the 3D world under it (three.js r182 and
  * Rapier 0.19.3). A slice's scene steps its world in update (world.step(dt)) and draws it in draw (world.draw(r)), then
@@ -20,7 +24,8 @@
  * wheel, - and = (a pinch on a phone) zoom, 0 resets it, M mutes; the pause menu's Display has the 3D settings
  * (characters as cards or puppets, the picture's resolution, shadows).
  * To make your own game: copy the slice closest to your genre, then replace everything between GAME START and GAME END
- * with ONLY your game: its own title, play and game-over scenes. Deep links: #action, #platformer, #shooter, #horror.
+ * with ONLY your game: its own title, play and game-over scenes. Deep links: #action, #platformer, #shooter, #horror,
+ * #racing, #flight.
  * ======================================================================== */
 const E = My3D2dge, W3 = E.World3D, { clamp, lerp, approach, TAU } = E;
 
@@ -35,7 +40,9 @@ const SLICES = [
   { id: 'action', label: 'ACTION', about: 'A 3D ARENA: COMBOS, DASHES AND WAVES', family: 'ACTION ADVENTURE' },
   { id: 'platformer', label: 'PLATFORMER', about: 'A 3D COURSE: ISLANDS, PLATFORMS AND COINS', family: 'PLATFORM' },
   { id: 'shooter', label: 'SHOOTER', about: 'AN OPEN WORLD: MOVE, CLIMB AND FIGHT, FIRST OR THIRD PERSON', family: 'SHOOTER' },
-  { id: 'horror', label: 'HORROR', about: 'A MANSION BY FLASHLIGHT: FIXED CAMERAS, FEW BULLETS', family: 'ACTION ADVENTURE' }
+  { id: 'horror', label: 'HORROR', about: 'A MANSION BY FLASHLIGHT: FIXED CAMERAS, FEW BULLETS', family: 'ACTION ADVENTURE' },
+  { id: 'racing', label: 'RACING', about: 'A KART CIRCUIT: DRIFTS, ITEMS, A SHORTCUT, TWO PLAYERS', family: 'RACING' },
+  { id: 'flight', label: 'FLIGHT', about: 'ON RAILS TO THE BASE, A BOSS IN FREE FLIGHT', family: 'SHOOTER' }
 ];
 // a prompt in the player's own controls ('J Sword', 'X Sword', 'ATTACK Sword' on a touch screen)
 // (a phone or tablet before its first touch counts too: a coarse pointer and nothing else used yet)
