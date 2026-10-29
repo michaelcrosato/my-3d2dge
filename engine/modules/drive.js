@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module DRIVE v0.84.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.84.1: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
