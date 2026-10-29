@@ -1,4 +1,4 @@
-// The kit diet (docs/HANDOFF-GENRES.md, 3.3): the core without the sections a kit's game never calls. tools/build.mjs
+// The kit diet (docs/KITS.md, The kit diet): the core without the sections a kit's game never calls. tools/build.mjs
 // names the sections that may be left out (DIET: parts of one or more sections, and the methods of what stays that lead
 // into one); the rest comes from the code itself, so no list goes stale:
 //   - what the kit calls: the engine's names (E.X) and the methods (.x) its code uses: the shell, the slice and the

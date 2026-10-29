@@ -295,7 +295,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | Era genre | View | Kit |
 |---|---|---|
 | Platformers, Metroidvanias, run-and-guns (Mario, Mega Man, Metroid, Contra) | side, or brawler for 2.5D | PlatformMap, Platformer (crouching, ledges, clinging, water, ropes, bars, swinging, momentum), Bullets; the rooms module: a world of rooms, the map, gates, saves (METROIDVANIA kit) |
-| Action adventures and action RPGs (Zelda, Secret of Mana, Diablo, Landstalker) | three-quarter, top-down, iso | TileMap, Body, Humanoid, Dialog |
+| Action adventures and action RPGs (Zelda, Secret of Mana, Diablo, Landstalker) | three-quarter, top-down, iso | TileMap, Body, Humanoid, Dialog (ADVENTURE kit) |
 | Point-and-click adventures and visual novels (Monkey Island, Day of the Tentacle, Broken Sword, Phoenix Wright) | rooms painted in screen pixels | the click module: walk areas with holes (the shortest way round), depth scale, hotspots, SCUMM's nine verbs, Sierra's icons, a verb coin, an inventory, puzzles as rules; the story module's talk, backlog, auto and skip (POINT-AND-CLICK kit) |
 | Beat-'em-ups and fighting (Final Fight, Streets of Rage, Street Fighter II) | brawler, side | Humanoid attack and kick specs (BRAWLER kit); the fight module: frame data, guards, throws, specials by motion, rounds, a CPU, training (FIGHTING kit) |
 | Shoot-'em-ups (1942, Xevious, Gradius, R-Type) | overhead | Bullets, patterns, a vertical and a horizontal stage, the arcade frame (SHOOTER kit) |
@@ -311,9 +311,10 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | Racing (Super Mario Kart, F-Zero, OutRun, Pole Position, Micro Machines, Mario Kart 64) | Mode 7, the pseudo-3D road, top-down | the mode7, road and drive modules: a floor a row at a time, the road's segments, cars with grip and drift, races with laps and drivers (KART and ROAD kits); in real 3D, `world.vehicle` and `world.track` (banked roads, walls, pads, a shortcut) raced by `E.Race`, split screen (3D RACING kit) |
 | 3D-era remakes (Mario 64, Ocarina, Crash) | iso, three-quarter, brawler | TileMap blocks with heights plus Body jumping (z is real height); in real 3D, the 3D engine: a level as text, a character controller, the chase camera, lock-on (`camera.lock`) (3D ACTION and 3D PLATFORMER kits) |
 | Survival horror (Resident Evil, Alone in the Dark, Silent Hill) | the 3D engine's fixed cameras | camera zones (fixed, turning, on a rail; cuts that keep the stick's way), tank or modern controls (`camera.steer`), lock-on aiming high and low, doors between rooms (`world.through`), locked doors and keys, a flashlight that flickers, fog; the rpg module's six-slot inventory, an item box, saves at a typewriter (3D HORROR kit) |
-| Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps |
+| Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps (STEALTH kit) |
+| Everything else of the era, by recipe (`AI_GUIDE.md`, Genre recipes) | as each says | twin-stick shooters (Robotron, Smash TV), Bomberman, Gauntlet, Frogger, Breakout, Lemmings, Sokoban, Sonic without the loops, the cinematic platformer (Prince of Persia, Flashback), top-down racing and driving, visual novels, light guns, the indoor corridor shooter (Doom, GoldenEye) on the 3D engine: each a recipe on the kit closest to it |
 
-What the era's genres still need, from the early 80s to the late PS1, and the milestones that add it with a kit for each family: `docs/HANDOFF-GENRES.md`.
+How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the budgets, the To check cards, the benchmark's era briefs, an optional crawler and sports): `docs/HANDOFF-REVIEW.md`.
 
 ## Build and check
 
@@ -377,7 +378,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.81.1**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.81.2**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
@@ -388,6 +389,7 @@ One version number covers the engine, its agent edition, the docs and the games:
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 9,000 tokens, with three complete example games.
 - `API-INDEX.md`: every public name in the engine, one line each (signature, units, defaults, what it does), with the height rules at the top. Written by `tools/api-index.mjs` from the engine; search it.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
+- `docs/KITS.md`: how the engine grows by genre: what converts well, which system goes where (core, a module or the 3D engine), the kit diet and the budgets, what every new kit has, the rules of every addition, the traps.
 - `docs/ENGINE-3D.md`: the 3D engine (`engine/my-3d2dge-3d.js`) and the 3D kits: how they sit on the 2D engine, what they hold, how they are checked, and what three.js and Rapier taught.
 - `docs/CHARACTERS.md`: adding a playable character to Emberdeep, from a brief to a checked hero: the scaffold, the body contract, the character test, the character sheet and the balance run.
 - `CHANGELOG.md`: what each version changed, by part (rendering, animation, art, mocap, Emberdeep, characters, tools, docs). `CLAUDE.md`: the rules every change follows (versioning, building, testing).

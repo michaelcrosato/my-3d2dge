@@ -30,7 +30,7 @@ const problems = [], t0 = Date.now();
 const check = (name, ok, detail = '') => { console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ': ' + detail : ''}`); if (!ok) problems.push(name + (detail ? ': ' + detail : '')); };
 let tok = s => Math.ceil(s.length / 3.1); try { const { encode } = await import('gpt-tokenizer/encoding/cl100k_base'); tok = s => encode(s).length; } catch (e) { /* estimated */ }
 
-// what each slice's bot() must reach (docs/HANDOFF-GENRES.md 3.4: a bot or a scripted route that plays to the end)
+// what each slice's bot() must reach (docs/KITS.md, What every new kit has: a bot or a scripted route that plays to the end)
 const BOTS = {
   roguelike: { say: 'plays ten floors and wins', ok: r => r.floors >= 10 && r.mode === 'won' },
   arcade: { say: 'clears a maze, two waves of moths and two of rocks; the attract mode plays a demo, shows the table and returns', ok: r => r.maze.level >= 2 && r.formation.level >= 3 && r.rocks.level >= 3 && r.attract },

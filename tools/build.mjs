@@ -38,7 +38,7 @@ const ALL = {
   CONTENTS: "a title menu plus twenty vertical slices\n       (ADVENTURE top-down, POINT-AND-CLICK, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, PINBALL,\n       KART, ROAD, PUZZLE, RHYTHM, RPG, ROGUELIKE, TACTICS, RTS, ARTILLERY, SIM, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.",
   LINKS: 'Deep links: add #adventure, #pointclick, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #pinball, #kart, #road, #puzzle, #rhythm,\n       #rpg, #roguelike, #tactics, #rts, #artillery, #sim, #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,\n       #fighting/versus, #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map, #kart/race,\n       #kart/vs, #road/drive, #rpg/battle, #tactics/battle, #tactics/phases, #artillery/cpu, #rhythm/stepup, #rhythm/rapschool\n       and #rhythm/calibrate jump into a part.'
 };
-// THE KIT DIET (docs/HANDOFF-GENRES.md, 3.3): a kit's engine leaves out the core's sections its game never calls. This
+// THE KIT DIET (docs/KITS.md, The kit diet): a kit's engine leaves out the core's sections its game never calls. This
 // table names the parts that may go (one or more of the core's sections, by number) and, where a part is reached only
 // through a method or field of what stays, those (entries), or through a string or option name the kit writes (names:
 // game.go's 'iris'); tools/diet.mjs works out the rest from the code: what the kit calls (its

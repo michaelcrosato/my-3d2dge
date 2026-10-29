@@ -1,4 +1,4 @@
-// The traversal suite (docs/HANDOFF-GENRES.md, M5): each of the Platformer's further moves (section 16c) filmed on
+// The traversal suite (the genre plan's M5, v0.67.0): each of the Platformer's further moves (section 16c) filmed on
 // tools/fixtures/traversal.html (?move=<name>: its own small map, the hero driven step by step by a script) into
 // check-output/traversal/: each strip is filmed twice from the same seed and must match pixel for pixel, with no
 // errors, and the move must have happened (the hero's state seen during the run: hanging for a ledge, swimming in

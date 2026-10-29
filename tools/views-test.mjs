@@ -1,4 +1,4 @@
-// The views suite (docs/HANDOFF-GENRES.md, M6a): the mode7 and road modules' views on tools/fixtures/views.html
+// The views suite (the genre plan's M6a, v0.68.0): the mode7 and road modules' views on tools/fixtures/views.html
 // (?view=mode7: a camera due north, the fast floor; turn: around a track, any heading, the sky turning; split: two
 // cameras in a split screen; road: curves, hills, a tunnel, scenery and cars), filmed into check-output/views/: each
 // strip twice from the same seed, the same pixels, with no errors; Mode 7's two floors (a row stretched due north, a
