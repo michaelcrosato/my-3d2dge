@@ -1205,3 +1205,26 @@ An entry:
   <name>` for each, its findings a source in `docs/FEEDBACK-LOG.md` (`docs/HANDOFF-REVIEW.md`, section 3).
 - **Answered:** no answer in fifteen minutes; skipped as the goal said
 - **Landed in:** v0.81.2
+
+## D67 · 2026-10-29 · The audio clock check skips the page's stalls and the device's misreads, as it skipped its slips
+
+- **Principle:** 3 (verifiable without a display: a check measures the engine, not the machine it runs on) and 8 (quality
+  under the hood: the music clock's internals)
+- **Call:** the audio suite's first check (M12, v0.78.0: the sound within 10 ms of the game's clock for three minutes,
+  but for the 5 frames after each slip of the sound device) also skips the 5 frames after each stall of the page (a
+  frame over 50 ms, whose time past 50 ms the game's clock gives up, so the sound, which played on in real time, is
+  ahead of it by that much), and each misread of the device (one frame's reading more than 5 ms off that the next frame
+  contradicts, the sound not moved between). Each kind must stay under 1% of the frames, as the slips did. With it, a fix in
+  the engine: past 10 ms two frames running, the sound is met at once (it was smoothed up to 100 ms: a slip of 20 ms or
+  more took about 9 frames to meet, past the check's 5), and one frame alone past 10 ms is held, not met.
+- **Why:** the full `npm test` on `main` failed the check at v0.79.1, v0.81.0 and v0.81.2 in a slow container, and
+  passed it on the same tree as often. Five recorded runs showed why. The engine's own fault: it met a slip of tens of
+  ms in about 9 frames (held 16.5 to 29 ms). Two the check could not tell from that: a stall of the page, which no
+  engine can foresee; and the device's timestamp read out of step for one frame (its context time and its performance
+  time 9 to 32 ms apart, the next frame back), which is not what is heard. Replayed on the five runs with all three
+  skipped, the engine as it was still fails four (so the check is not loosened to pass it); with the fix, all five
+  pass (at most 6.9 ms), the median from about 1.5 ms to about 0.1 ms, and the sound moved half as often or less. What
+  would change it: a stall or a misread past 1% of the frames, or a real device where the misreads are what is heard.
+- **Answered:** no question asked: a reversible call, flagged in its pull request (the goal: the full test's failures
+  fixed forward)
+- **Landed in:** v0.81.3
