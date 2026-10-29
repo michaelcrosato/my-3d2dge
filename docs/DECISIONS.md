@@ -1191,3 +1191,17 @@ An entry:
   started: it waits on the owner's word in `docs/HANDOFF-REVIEW.md`.
 - **Answered:** yes: the owner, in the plan's M16 and the goal of 2026-10-28
 - **Landed in:** v0.81.2
+
+## D66 · 2026-10-29 · The era briefs' benchmark runs are skipped: no answer in fifteen minutes
+
+- **Principle:** process (spending is a call that is hard to undo; D19, as D36)
+- **Call:** the genre plan's M16 adds five briefs for era games to the benchmark (`tools/agent-bench/briefs/`: Pac-Man,
+  Street Fighter II, Super Mario Kart, Final Fantasy Tactics, Resident Evil), and their runs spend money (a fresh coding
+  agent and a vision judge each). The owner was asked at 03:29 UTC with a fifteen-minute wake-up, my recommendation
+  being not to run them before the owner's review pass; with no answer when the wake-up came at 03:46, the runs are skipped, as the owner's
+  goal for Milestones 13, 14 and 16 said. The briefs are in place and the benchmark's self-test lists them.
+- **Why:** the owner set the rule: escalate, and with no answer skip them. The runs say most after the review pass has
+  settled the kits and the budgets. What would change it: the owner's yes, then `node tools/agent-bench.mjs --brief
+  <name>` for each, its findings a source in `docs/FEEDBACK-LOG.md` (`docs/HANDOFF-REVIEW.md`, section 3).
+- **Answered:** no answer in fifteen minutes; skipped as the goal said
+- **Landed in:** v0.81.2
