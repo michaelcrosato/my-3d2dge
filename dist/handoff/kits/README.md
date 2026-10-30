@@ -1,4 +1,4 @@
-# The genre kits (v0.85.0)
+# The genre kits (v0.85.1)
 
 A kit is a complete small game in one genre, written to be copied: its title, play and end, the modules it rests on,
 its sound, touch controls and a phone's screen. The API card's Genre playbook (`API.md`) names a kit for each genre (its

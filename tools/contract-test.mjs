@@ -49,6 +49,9 @@
 //                  levels and their gains, gear worn and compared, status effects, items used, rewards shared by the
 //                  living, shops, damage's bounds, encounters by zone, a party saved and restored
 //   modules        every module's manual (engine/modules/): its fenced examples run on each edition it loads after
+//   handoff        the handoff package: the template game headless and in a browser, the asset tools on the package
+//                  alone, every kit headless (kits/test.mjs) and in a browser at each deep link its table names, and
+//                  every path the cards name there (the package's own pages: only what it holds)
 //   the asset card docs/ASSETS.md's examples: on the full engine the shapes draw, the solid is placed, the sprite made, the
 //                  surfaces take their materials and every worked entry draws; on the agent edition they run, the
 //                  registries keep what a game adds and the calls warn (the suite in depth: tools/assets-test.mjs)
@@ -1441,13 +1444,16 @@ if (existsSync(join(root, 'dist/handoff/game/test.mjs'))) {
   // hash twice) and its page plays it in a browser at its deep link, as kits/README.md says
   const k = spawnSync(process.execPath, [join(root, 'dist/handoff/kits/test.mjs')], { encoding: 'utf8' });
   check('handoff: kits/test.mjs passes for every kit', k.status === 0 && /all \d+ kit\(s\) passed/.test(k.stdout), (k.stdout + k.stderr).split('\n').filter(l => /FAIL|Error/.test(l)).join(' | ').slice(0, 600));
-  for (const id of readdirSync(join(root, 'dist/handoff/kits')).filter(f => f.endsWith('.html')).map(f => f.slice(0, -5))) {
-    const page = await browser.newPage(), errors = [];
+  // (and every part its table names: #arcade/maze starts the slice there, or the part's own scene)
+  const table = readFileSync(join(root, 'dist/handoff/kits/README.md'), 'utf8'), links = id => [...new Set([...table.matchAll(new RegExp('#' + id + '(/[a-z0-9]+)?(?=[,| ])', 'g'))].map(m => m[0]))];
+  for (const id of readdirSync(join(root, 'dist/handoff/kits')).filter(f => f.endsWith('.html')).map(f => f.slice(0, -5))) for (const link of links(id).length ? links(id) : ['#' + id]) {
+    const page = await browser.newPage(), errors = [], part = link.split('/')[1];
     page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-    await page.addInitScript(CLOCK); await page.goto(pathToFileURL(join(root, 'dist/handoff/kits', id + '.html')).href + '#' + id);
+    await page.addInitScript(CLOCK); await page.goto(pathToFileURL(join(root, 'dist/handoff/kits', id + '.html')).href + link);
     const r = await page.evaluate(() => { let f = 0; for (let i = 0; i < 90; i++) window.__frame(++f * 1000 / 60); const g = My3D2dge.current; return { scene: g.sceneName, errors: g.errors.length }; }).catch(e => ({ thrown: e.message }));
+    const want = part ? await page.evaluate(([id, part]) => { const s = __game.scenes[id]; return [id].concat(s && s.parts && s.parts[part] ? [s.parts[part]] : []); }, [id, part]).catch(() => [id]) : [id];
     await page.close();
-    check(`handoff: kits/${id}.html plays its slice in a browser`, !errors.length && !r.thrown && !r.errors && r.scene === id, errors.join(' | ') + JSON.stringify(r));
+    check(`handoff: kits/${id}.html${link} plays ${part ? 'that part' : 'its slice'} in a browser`, !errors.length && !r.thrown && !r.errors && want.includes(r.scene), errors.join(' | ') + JSON.stringify(r));
   }
 }
 await browser.close();

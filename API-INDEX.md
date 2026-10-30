@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.85.0)
+# my-3D2dge API index (v0.85.1)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -112,7 +112,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.85.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.85.1"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -458,7 +458,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.Game({ loop })`: false makes a game in a page that runs only by advance()
 - `new E.Game({ menu })`: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out)
 - `new E.Game({ fullscreen })`: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false
-- `new E.Game({ corner, backGesture })`: corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page)
+- `new E.Game({ corner, backGesture })`: corner: the menu and full-screen buttons (top right); backGesture: a phone's back steps back in the game first (false: it leaves the page)
 - `new E.Game({ autoPause })`: a pausable scene pauses when the page is hidden or loses focus
 - `new E.Game({ id })`: the name the player's settings are saved under (the page's path)
 - `new E.Game({ pace })`: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly), unless the player picks Frame rate 60
