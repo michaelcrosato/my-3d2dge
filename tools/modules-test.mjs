@@ -30,6 +30,8 @@ rmSync(work, { recursive: true, force: true }); mkdirSync(repo, { recursive: tru
 const SKIP = new Set(['.git', 'node_modules', 'examples', 'dist', 'check-output', '.cache', 'temp-feedback', '.vercel']);
 for (const f of readdirSync(root)) if (!SKIP.has(f)) cpSync(join(root, f), join(repo, f), { recursive: true });
 symlinkSync(join(root, 'node_modules'), join(repo, 'node_modules'), 'dir');
+// (the CMU library the cards name, which no build writes: linked as node_modules is, so their paths are there)
+if (existsSync(join(root, 'examples/cmu-lib'))) { mkdirSync(join(repo, 'examples'), { recursive: true }); symlinkSync(join(root, 'examples/cmu-lib'), join(repo, 'examples/cmu-lib'), 'dir'); }
 mkdirSync(join(repo, 'engine/modules'), { recursive: true });
 cpSync(join(root, 'tools/fixtures/modules/fixture.js'), join(repo, 'engine/modules/fixture.js'));
 cpSync(join(root, 'tools/fixtures/starter/85-fixture.js'), join(repo, 'src/starter/85-fixture.js'));
@@ -50,7 +52,7 @@ check('the build runs with the fixture', b.ok, tail(b.out));
 const kits = readdirSync(join(repo, 'dist/kits')).filter(f => f.endsWith('.html'));
 const fx = read('dist/kits/my-3d2dge-fixture.html'), mark = 'inlined from engine/modules/fixture.js';
 check("the fixture's kit carries the module after the engine, minified with its manual", fx.includes(mark + ' (minified') && fx.includes('my-3D2dge module FIXTURE v') && fx.indexOf(mark) > fx.indexOf('inlined from engine/my-3d2dge.js'));
-check("the fixture's kit header names its module", /Its modules: fixture \(engine\/modules\/\)/.test(fx));
+check("the fixture's kit header names its module", /Its modules follow it[\s\S]{0,160}?manual:\s+fixture\./.test(fx));
 const others = kits.filter(f => f !== 'my-3d2dge-fixture.html' && read('dist/kits/' + f).includes('engine/modules/fixture.js'));
 check('every other kit leaves it out (' + (kits.length - 1) + ')', !others.length, others.join(', '));
 check('dist/my-3d2dge.js is the core and the module', read('dist/my-3d2dge.js').startsWith('/*!\n * my-3D2dge v') && read('dist/my-3d2dge.js').includes('my-3D2dge module FIXTURE'));

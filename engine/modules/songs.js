@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module SONGS v0.84.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.85.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -19,7 +19,7 @@ if (!battle.length || !E.Songbook.get(battle[0]).tracks.length) throw new Error(
 if (E.Songbook.get('clear').loop !== false || !E.Songbook.moods.includes('stealth')) throw new Error('jingles and moods');
 for (const id in E.Songbook.songs) for (const t of E.Songbook.songs[id].tracks) if (!t.notes.trim()) throw new Error(id);
 ```
-Rules: play one with game.audio.music(E.Songbook.get(id)) (a jingle: audio.sting, over the music); copy a song into
+Rules: play one with game.audio.music(E.Songbook.get(id)) (a jingle: audio.sting, over the music, in the full engine); copy a song into
 your game to change it; a kit carries this module only when it plays its songs.
 */
 (function (E) {

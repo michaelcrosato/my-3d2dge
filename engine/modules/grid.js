@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module GRID v0.84.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.85.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -28,10 +28,10 @@ keeps its units.
 - E.Fog(grid): fog.update([{ cx, cy, r }]) (each viewer's field of view: visible now; seen stays), fog.visible(c),
   fog.seen(c), fog.draw(r, T, o) (unseen black, seen dimmed: over the walls too, before your HUD); E.tint(r, cells, color,
   alpha, T, height): tints on cells' tops (ranges, paths).
-- E.GridMover({ cx, cy, speed }) moves a cell at a time: mover.update(dt, grid, [dx, dy], { blocked, push(cx, cy, dx, dy)
-  }): a turn asked early is kept and taken at the first opening (Pac-Man), push moves what is in the way (Sokoban);
+- E.GridMover({ cx, cy, speed }) moves a cell at a time: mover.update(dt, grid, [dx, dy], { blocked, push(cx, cy, dx, dy),
+  keep: true (on in the same way until blocked: Pac-Man) }): a turn asked early is kept and taken at the first opening (Pac-Man), push moves what is in the way (Sokoban);
   x, y: its smooth position in cells; moving, dir, arrived (true the step it reaches a cell).
-- E.Turns(actors, { mode }) says who acts: 'speed' (energy: each actor's speed, 100 a turn; a bat of 200 acts twice:
+- E.Turns(actors, { mode, sides (phase: their order), fill (atb: a gauge a second at speed 100, 1) }) says who acts: 'speed' (energy: each actor's speed, 100 a turn; a bat of 200 acts twice:
   roguelikes), 'ct' (charge time, the order ahead: Final Fantasy Tactics), 'phase' (every one of a side, then the next
   side: Fire Emblem; actor.side), 'atb' (gauges filled on game time: Final Fantasy). turns.next() -> the actor to act
   (speed, ct, phase); turns.order(n): who acts next, n of them; turns.update(dt) and turns.ready() (atb: those full),

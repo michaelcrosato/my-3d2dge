@@ -1,9 +1,9 @@
 /*!
-my-3D2dge module GEN v0.84.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.85.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
-Every generator takes a size in cells and { seed } and gives { rows, rooms, start, end, marks }: ASCII rows ('#' wall,
+Every generator but scatter takes a size in cells and { seed } and gives { rows, rooms, start, end, marks }: ASCII rows ('#' wall,
 '.' floor) a TileMap reads (put your own characters in with E.gen.mark), the rooms it made ({ x, y, w, h }), a start and
 an end cell far apart (stairs), and the cells it marked. The same seed gives the same rows, always (E.rng).
 - E.gen.rooms(w, h, { seed, rooms: 9, min: 4, max: 9 }): rooms placed apart, joined in order by bent corridors (Rogue).
@@ -16,7 +16,7 @@ an end cell far apart (stairs), and the cells it marked. The same seed gives the
 - E.gen.scatter(w, h, { seed, r: 3, k: 30, ok(x, y) }): Poisson disc points [x, y] at least r apart (trees, loot,
   enemies), where ok says they may go.
 - E.gen.mark(level, ch, n, { seed, near, far }): put character ch on n floor cells (spawns: 'g' goblins, '!' potions),
-  away from the start; E.gen.open(rows): every floor cell as [x, y].
+  at least far steps from the start (4) and near from each other (0); E.gen.open(rows): every floor cell as [x, y].
 
 ```js gen
 const E = My3D2dge, a = E.gen.rooms(40, 24, { seed: 7 }), b = E.gen.rooms(40, 24, { seed: 7 });

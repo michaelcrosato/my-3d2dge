@@ -250,8 +250,8 @@ to copy for each genre, and the 3D engine for survival horror, and the package c
 - `node tools/contract-test.mjs`: one test for each documented behavior an agent relies on, on both editions: the clock
   (the same inputs at 60, 90, 120 and 144 Hz give the same state; slow motion, pause, the frame counter), flow fields
   that follow the map, `audio.duck`, the height rules and queries, `Body.step`, the lifecycle and headless runs, every
-  fenced example in `API.md` and `API-INDEX.md`, and the handoff package's template game. It runs when the engine, the
-  cards, the index or `src/handoff/` change.
+  fenced example in `API.md` and `API-INDEX.md`, the handoff package's template game and kits (headless and in a browser),
+  and every path the cards name. It runs when the engine, the cards, the index or `src/handoff/` change.
 - `node tools/agent-bench.mjs --brief <name>`: the North Star's measures, above (it spends money: ask the owner). Its
   `--selftest` (the stream reader and the scoring, on fixtures) is free and runs when the tool changes; `--dry-run` sets
   up a workspace and starts nothing.

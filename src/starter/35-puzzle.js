@@ -4,7 +4,8 @@
  * hold, a ghost, rotation with wall kicks (SRS), delayed auto-shift (input.repeat), lock delay that a move resets (up to
  * 15 times), soft and hard drops; lines that flash and burst, a level every ten lines and a faster fall. PAIRS: falling
  * pairs of four colours; four or more joined (E.Grid's groups) pop, what is above falls, and pops that cause pops are a
- * chain, each worth more. A mascot beside the field cheers a clear and winces at a tall stack. Versus comes with M4.
+ * chain, each worth more. A mascot beside the field cheers a clear and winces at a tall stack. VERSUS joins the list
+ * once a second player is in (2, or Start on a pad): two fields from one seed, cleared rows sent across, a rematch.
  * Keys: left / right move (held: auto-shift), down soft drop, Space hard drop, up or X rotate, Z rotate back, C or Shift
  * hold. TOUCH: drag sideways to move (a cell for each step of the thumb), tap to rotate, flick down to drop, flick up to
  * hold, hold the thumb down to soft drop.

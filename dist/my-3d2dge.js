@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.84.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.85.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.84.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.85.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -166,7 +166,7 @@ const nullCanvas = (w, h) => {
   const c = { width: w, height: h }, img = (iw, ih) => ({ width: iw, height: ih, data: new Uint8ClampedArray(Math.max(0, iw * ih * 4)) });
   const made = { getImageData: (x, y, iw, ih) => img(iw, ih), createImageData: (iw, ih) => img(iw.width || iw, ih || iw.height), measureText: () => ({ width: 0 }),
     createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), createPattern: () => ({}), canvas: c };
-  const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : () => {}, set: (t, k, v) => { t[k] = v; return true; } });
+  const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : typeof k === 'string' && k[0] === '_' ? undefined : () => {}, set: (t, k, v) => { t[k] = v; return true; } });   // (the engine's own _ fields: unset)
   c.getContext = () => g;
   return c;
 };
@@ -316,7 +316,7 @@ Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng
 const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null, frame: null, pose: null, pause: null }, FADES = {};
 
 /* =============================================================================
- * 1b. EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
+ * 1b. MORE EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
  *    with none of them leaves it out
  * ============================================================================= */
 Object.assign(ease, {
@@ -10345,7 +10345,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.84.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.85.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10560,7 +10560,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.84.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.85.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -10920,7 +10920,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.84.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.85.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11146,12 +11146,12 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.84.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.85.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
 Street Fighter II's rules, in the side view: for fighting games, and a boss duel in any side-scroller.
-- const f = new E.Fighter(game, { name, x, rig: { size: 2.4, build: 'heroic', colors }, life: 1000, walk: 75, back: 60,
+- const f = new E.Fighter(game, { name, x, rig: { size: 2.6, build: 'heroic', colors }, life: 1000, walk: 75, back: 60,
   moves }); E.Match gives each its foe and its control: an E.Input (the scene's input: E.FIGHT_KEYS; player 2's is
   game.players[1]) or a CPU. It faces its foe, walks, crouches on down, jumps on up (straight, forward or back), and
   holds back to block.
@@ -11697,11 +11697,11 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.84.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.85.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
-Every generator takes a size in cells and { seed } and gives { rows, rooms, start, end, marks }: ASCII rows ('#' wall,
+Every generator but scatter takes a size in cells and { seed } and gives { rows, rooms, start, end, marks }: ASCII rows ('#' wall,
 '.' floor) a TileMap reads (put your own characters in with E.gen.mark), the rooms it made ({ x, y, w, h }), a start and
 an end cell far apart (stairs), and the cells it marked. The same seed gives the same rows, always (E.rng).
 - E.gen.rooms(w, h, { seed, rooms: 9, min: 4, max: 9 }): rooms placed apart, joined in order by bent corridors (Rogue).
@@ -11714,7 +11714,7 @@ an end cell far apart (stairs), and the cells it marked. The same seed gives the
 - E.gen.scatter(w, h, { seed, r: 3, k: 30, ok(x, y) }): Poisson disc points [x, y] at least r apart (trees, loot,
   enemies), where ok says they may go.
 - E.gen.mark(level, ch, n, { seed, near, far }): put character ch on n floor cells (spawns: 'g' goblins, '!' potions),
-  away from the start; E.gen.open(rows): every floor cell as [x, y].
+  at least far steps from the start (4) and near from each other (0); E.gen.open(rows): every floor cell as [x, y].
 
 ```js gen
 const E = My3D2dge, a = E.gen.rooms(40, 24, { seed: 7 }), b = E.gen.rooms(40, 24, { seed: 7 });
@@ -11880,7 +11880,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.84.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.85.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11909,10 +11909,10 @@ keeps its units.
 - E.Fog(grid): fog.update([{ cx, cy, r }]) (each viewer's field of view: visible now; seen stays), fog.visible(c),
   fog.seen(c), fog.draw(r, T, o) (unseen black, seen dimmed: over the walls too, before your HUD); E.tint(r, cells, color,
   alpha, T, height): tints on cells' tops (ranges, paths).
-- E.GridMover({ cx, cy, speed }) moves a cell at a time: mover.update(dt, grid, [dx, dy], { blocked, push(cx, cy, dx, dy)
-  }): a turn asked early is kept and taken at the first opening (Pac-Man), push moves what is in the way (Sokoban);
+- E.GridMover({ cx, cy, speed }) moves a cell at a time: mover.update(dt, grid, [dx, dy], { blocked, push(cx, cy, dx, dy),
+  keep: true (on in the same way until blocked: Pac-Man) }): a turn asked early is kept and taken at the first opening (Pac-Man), push moves what is in the way (Sokoban);
   x, y: its smooth position in cells; moving, dir, arrived (true the step it reaches a cell).
-- E.Turns(actors, { mode }) says who acts: 'speed' (energy: each actor's speed, 100 a turn; a bat of 200 acts twice:
+- E.Turns(actors, { mode, sides (phase: their order), fill (atb: a gauge a second at speed 100, 1) }) says who acts: 'speed' (energy: each actor's speed, 100 a turn; a bat of 200 acts twice:
   roguelikes), 'ct' (charge time, the order ahead: Final Fantasy Tactics), 'phase' (every one of a side, then the next
   side: Fire Emblem; actor.side), 'atb' (gauges filled on game time: Final Fantasy). turns.next() -> the actor to act
   (speed, ct, phase); turns.order(n): who acts next, n of them; turns.update(dt) and turns.ready() (atb: those full),
@@ -12289,7 +12289,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.84.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.85.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12298,12 +12298,12 @@ along a heading, pitched down; the floor drawn a screen row at a time, the sky a
 billboards (rigs drawn at the size their distance gives, sprites, your own drawing) far to near.
 - const m7 = new E.Mode7({ floor: a TileMap (its floorTex) | (x, y) => [r, g, b] | a canvas (a texel a unit), size:
   [w, h] (the floor in world units, for a function), outside: '#24402a' (beyond the floor) | wrap: true (it repeats),
-  sky: a Backdrop | ['#top', '#bottom'], fog: { color, near, far } (far: nothing past it), far: 2400 }).
+  sky: a Backdrop (full engine) | ['#top', '#bottom'], fog: { color, near, far } (far: nothing past it), far: 2400 }).
 - m7.cam = { x, y, h: 40 (height), angle: 0 (the heading, as E.angleTo gives it: 0 east, PI / 2 south; keep it
   unwrapped, the sky turns with it), pitch: 12 (degrees down), fov: 70 (degrees across the height) };
   m7.chase(body, { back: 56, h: 34, angle }) puts it behind a body (body.angle, or angle) each step.
 - In draw: m7.rig(rig, x, y, z), m7.sprite(spr or E.anim, x, y, z, { scale, flip, t }), m7.shape(id, x, y, z, { facing,
-  size }), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
+  size }) (full engine), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
   far to near, as an overlay (in a split screen, in r.viewport: give each player's cam).
 - m7.project(x, y, z) -> [sx, sy, k] on the screen, or null behind the camera; m7.toFloor(sx, sy) -> [x, y], or null
   above the horizon (both for the camera last drawn: HUD markers, a tap on the track). m7.horizon: its screen row.
@@ -12494,13 +12494,13 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.84.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.85.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
 Pinball, Breakout, Asteroids with real collisions, an artillery game's grenades: bodies in a plane of x and y (the ground
 plane, or the side plane with the engine's z as y), stepped in a fixed order, so the same inputs give the same world.
-- const world = new E.Physics({ gravity: [0, 400], substeps: 4, iterations: 8, sleep: true, on: { hit(a, b, info),
+- const world = new E.Physics({ gravity: [0, 400] (left out: [0, 0]), substeps: 4, iterations: 8, sleep: true, on: { hit(a, b, info),
   enter(sensor, body), exit(sensor, body), catch(kicker, body) } }). world.step(dt) in each fixed step (it splits dt in
   substeps: none longer than dt / substeps). gravity is a vector (a pinball table's tilt: [0, 400] down its slope).
 - Bodies: world.circle(x, y, r, o), world.box(x, y, w, h, o), world.poly(x, y, points, o) (convex, points round x, y)
@@ -12522,7 +12522,8 @@ plane, or the side plane with the engine's z as y), stepped in a fixed order, so
   A field: { shape: 'field', type: 'static', test(x, y, r) -> [nx, ny, depth] | null } collides with circles (the
   terrain module's terrain.collider()).
 - world.ray(a, b, mask) -> { body, x, y, t } | null (the nearest hit along a to b); world.query(x, y) -> bodies there;
-  world.remove(b); world.wake(); world.bodies (in the order added); world.hash() (a proof's number); world.draw(g, to,
+  world.remove(b); world.wake(); world.bodies (in the order added); world.contacts (the last substep's: { a, b, nx, ny,
+  pts }); world.hash() (a proof's number); world.draw(g, to,
   color) outlines every body (to(x, y) -> [sx, sy]: your plane on the screen).
 
 ```js physics
@@ -12860,7 +12861,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.84.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.85.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13067,7 +13068,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.84.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.85.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13076,7 +13077,7 @@ and road drawn smaller with its distance, bending and rising, and what stands be
 - const road = new E.Road({ segment: 200 (a segment's length, world units), width: 2000 (half the road), lanes: 3,
   rumble: 3 (segments a stripe), draw: 240 (segments ahead), fov: 100, height: 1000 (the camera over the road), colors:
   { road: [a, b], grass: [a, b], rumble: [a, b], lane, wall: [a, b], roof, portal }, fog: { color, density: 5 } | null, sky:
-  a Backdrop | '#color' }).
+  a Backdrop (full engine) | '#color' }).
 - Build it: road.add(n, { curve: -6..6 (+ bends right), hill: units up (- down) over the n segments, tunnel: true,
   colors }) (curves eased in and out); road.place(z, offset, what, scale): scenery at distance z, offset across (-1
   and 1: the road's edges; beyond: roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or {
@@ -13227,7 +13228,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.84.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.85.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13246,13 +13247,13 @@ Metroid's, Symphony of the Night's and Zelda's worlds: rooms on a grid of screen
 - Explored: world.seen (the cells 'gx,gy' the hero has been in), world.here (its cell). world.drawMap(g, x, y, cell,
   { all }): the pixel map of what was seen (all: every room), the rooms' walls with gaps at their doors, the save (S)
   and boss (B) rooms, the hero blinking; small in a corner, large on a map screen. world.grid: { x0, y0, w, h } (the
-  grid's cells); world.cells(): every cell { gx, gy, room, seen }; game.shell.hud({ minimap: world.shellMap() }).
+  grid's cells); world.cells(): every cell { gx, gy, room, seen }; game.shell.hud({ minimap: world.shellMap() }) (full engine).
 - Gates: a tile type with gate: 'dash' (an ability) or 'key:red' stays solid until world.give(name), which opens its
   tiles in every room. world.has(name); world.got (the set).
 - Saves: world.save(hero, extra) keeps the room, the hero's place, what was got and seen, and extra (any JSON) in
   E.store ('rooms:' + id); world.load() goes back (the room entered, got and seen restored) and returns { room, x, z,
   got, seen, extra } (put the hero at x, z: y in a top view), or null; world.clear().
-- world.draw(r): the room's map; world.drawOver(r): the transition, after everything else.
+- world.draw(r): the room's map (a TileMap's floor and walls); world.drawOver(r): the transition, after everything else.
 
 ```js rooms
 const E = My3D2dge, game = new E.Game({ headless: true });
@@ -13336,7 +13337,7 @@ class World {
   // a copy of the last frame (the slide moves it away)
   _snap() { const s = this.game.screen; if (this.o.transition !== 'slide' || !s || !s.buf) return null; const c = E.mkCanvas(s.buf.width, s.buf.height); c.getContext('2d').drawImage(s.buf, 0, 0); return c; }
   /** draw the room's map (the kit draws its actors after) */
-  draw(r) { this.room.map.draw(r); }
+  draw(r) { const m = this.room.map; if (m.draw) m.draw(r); else { m.drawFloor(r); m.queueWalls(r); } }   // (a TileMap: its floor, then its walls)
   /** draw the transition over everything (last): the old screen sliding away, or a fade through black */
   drawOver(r) {
     const tr = this._tr; if (!tr) return;
@@ -13408,7 +13409,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.84.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.85.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13422,8 +13423,7 @@ The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the 
 - const hero = rpg.member({ name, level, stats: { hp, mp, atk, def, mag, spd }, growth: { hp: 10, atk: 2 } (a level),
   equip: { weapon: 'sword' }, data }): hero.stat(k) (base, growth, gear, status), hero.max('hp'), hero.hp, mp, level,
   exp, next (to the next level), dead, data (the game's own); gain(exp) → the levels reached [{ level, up: { hp: 11 } }];
-  equip(id, inv) (the old piece back into inv), unequip(slot, inv), compare(id) → { atk: 3, def: -1 } (what equipping
-  it changes); afflict(k, turns), cure(k) (k left out: all), has(k), acts() (no skip), tick() (a turn: hurt, heal,
+  equip(id, inv) (the old piece back into inv), unequip(slot, inv), compare(id) → { atk: 3, def: -1 } (equipping it); afflict(k, turns), cure(k) (k left out: all), has(k), acts() (no skip), tick() (a turn: hurt, heal,
   effects run out; → [[k, hp change or 'ends']]).
 - const party = rpg.party([hero], { gold, inv }): members, alive, gold, inv (rpg.inventory() by default); use(id, m)
   (heal, mp, cure, revive; → true when it did something, and the item is gone); rest() (an inn); reward(troop) (monster
@@ -13439,7 +13439,7 @@ The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the 
   enc.walk(zone, units) each step → a troop when the count runs out (it starts again), else null.
 - party.state() → JSON for a save; rpg.restore(state) → that party.
 - Windows (in r.overlay): rpg.list(g, x, y, w, rows, { cursor, title, top, show, rowH, bg }) (rows: [{ label, note,
-  icon, off }]; → { x, y, w, h, row(px, py): the row under a tap, at(i) }), rpg.card(g, x, y, member, { portrait }),
+  icon, off }]; → { x, y, w, h, row(px, py): the row under a tap, at(i) }), rpg.card(g, x, y, member, { portrait } (full engine)),
   rpg.icon(id).
 
 ```js rpg
@@ -13736,7 +13736,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.84.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.85.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13756,7 +13756,7 @@ if (!battle.length || !E.Songbook.get(battle[0]).tracks.length) throw new Error(
 if (E.Songbook.get('clear').loop !== false || !E.Songbook.moods.includes('stealth')) throw new Error('jingles and moods');
 for (const id in E.Songbook.songs) for (const t of E.Songbook.songs[id].tracks) if (!t.notes.trim()) throw new Error(id);
 ```
-Rules: play one with game.audio.music(E.Songbook.get(id)) (a jingle: audio.sting, over the music); copy a song into
+Rules: play one with game.audio.music(E.Songbook.get(id)) (a jingle: audio.sting, over the music, in the full engine); copy a song into
 your game to change it; a kit carries this module only when it plays its songs.
 */
 (function (E) {
@@ -13890,14 +13890,14 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.84.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.85.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
 A JRPG's or an adventure's talk (Dragon Quest, Chrono Trigger, Zelda): conversations written as data and run through an
 E.Dialog (its markup and portraits), remembering what was said and done.
 - const story = new E.Story(game, { people: { elder: { name: 'ELDER', portrait: rig, at: npc } }, nodes, vars, on:
-  { gift(story, step) {...} }, dialog }). people: who speaks (portrait: a Humanoid or a function (g, x, y, size); at:
+  { gift(story, step) {...} }, dialog }). people: who speaks (portrait, full engine: a Humanoid or a function (g, x, y, size); at:
   anything with x, y, z, and h its height, a balloon floats over); dialog: the E.Dialog it talks through (else its own:
   story.talk); on: the game's handlers for events.
 - nodes: { id: [step, ...] }: the steps run in order, and a step with if runs only when its condition holds.
@@ -13917,7 +13917,7 @@ E.Dialog (its markup and portraits), remembering what was said and done.
 - story.emote(target, kind, seconds = 1.5): a balloon over anything with x, y, z (h: its height).
 - A visual novel: story.log (what was said and chosen: { who, name, text }, for a backlog), story.auto (seconds a page
   stays before it turns), story.skip (pages type and turn at once; choices wait).
-- story.state() and story.restore(state): its vars and quests as JSON, for a save (in game.saves' data).
+- story.state() and story.restore(state): its vars and quests as JSON, for a save (game.saves' data, full engine).
 
 ```js story
 const E = My3D2dge, game = new E.Game({ headless: true });
@@ -14098,7 +14098,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.84.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.85.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14539,7 +14539,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.84.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.85.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

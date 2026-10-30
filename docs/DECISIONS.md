@@ -1312,3 +1312,54 @@ An entry:
   first), or the owner's own number.
 - **Answered:** no question asked: a reversible call, flagged in its pull request
 - **Landed in:** v0.83.0
+
+## D73 · 2026-10-30 · The handoff package carries the 2D kits readable; the 3D engine stays out
+
+- **Principle:** 1 (agent-readable: an agent builds from what it is handed) and 3 (verifiable without a display); F7.3
+  in `docs/FEEDBACK-LOG.md` (the cards point to slices and a 3D engine the package doesn't hold)
+- **Call:** `dist/handoff/kits/` holds each 2D kit's game readable (`<id>.js`: the shell, the slice and the start, as the
+  single-file kit holds them), a page that plays it on the package's engine with the asset set its slice uses
+  (`<id>.html`), a table of them (`README.md`, from the build's `SLICES`, the slices' own deep links and `@modules`) and
+  a headless test (`test.mjs`: the slice plays, its proof gives the same hash twice). The package's README starts an
+  agent from its genre's kit (or the template). The 3D engine and its kits stay out: the package's pages say they are
+  on the site and in the repository. The contract suite holds it: every kit headless and in a browser, and every path
+  the cards and the package's pages name exists.
+- **Why:** F7's five runs never found a slice (no run could: none was there), and one wrote what its genre's module
+  does (F7.4), while the card names a kit for every genre. The 2D kits add about 1.5 MB of text (the zip about 300 KB)
+  and need nothing new. The 3D engine would add its two libraries (3.3 MB), pages that must be served, and a check
+  that sees a 3D picture (`tools/check.mjs` reads the 2D canvas); its kits are served on the site already. What would
+  change it: a benchmark run (or a builder) that wants a 3D game from the package, or a check that serves and reads 3D
+  pages: then the package carries `my-3d2dge-3d.js`, `vendor/` and the 3D kits the same way.
+- **Answered:** no: made at once as a reversible call (F7.3's theme named both ways), flagged in its pull request
+- **Landed in:** v0.85.0
+
+## D74 · 2026-10-30 · A kit's card says its engine is the kit's, and its quick start is the kit's game where the card's can't run
+
+- **Principle:** 1 (agent-readable) and D71 (a kit's card keeps its own genre's rows)
+- **Call:** in a kit, the card says once, under its first lines, that the kit's engine leaves out the sections its game
+  never calls (a name from one warns, a class throws; the file's header lists them). Where the kit's engine leaves out a
+  name the card's quick start uses (`E.TileMap`, `E.Body`, `E.tex`: 24 of the 29 kits), the quick start is a pointer to
+  the kit's own game, between `GAME START` and `GAME END`; `API.md` and the reference editions keep it whole. A kit
+  with no playbook row has no table, and one with no module says so.
+- **Why:** the audit of 2026-10-30 ran the card's quick start, "always start like this", in every kit: it threw in 17
+  of the 22 2D kits and in every 3D kit (the diet left out the tile map or the body), and warned in three more. It is the
+  first code an agent reads in the one page it reads whole. What would change it: a quick start built only on what
+  every kit keeps (the game, its scenes, the Humanoid, the platform map, the backdrops), which no kit would need to
+  replace.
+- **Answered:** no: made at once as a reversible call, flagged in its pull request
+- **Landed in:** v0.85.0
+
+## D75 · 2026-10-30 · The 3D sun shines along its dir, as the manual says: four kits' ground is sunlit
+
+- **Principle:** quality under the hood (8) and the look (the PS1/N64 bar)
+- **Call:** `engine/my-3d2dge-3d.js` no longer turns the sun's `dir` round: the light stands back along `dir` from the
+  focus and shines along it, as the manual and the code's own comment say. Before, every page's downward `dir` put the
+  sun under the ground: floors had no sun and no sun shadows, and the sky's sun disc sat below the horizon. The four
+  kits with a sun (PLATFORMER, SHOOTER, RACING, FLIGHT) and the Vehicle Lab now have sunlit ground with cast shadows; the
+  indoor kits set no sun and are unchanged.
+- **Why:** the audit of 2026-10-30 traced the light below the focus. Screenshots before and after (WebGL 2) show the
+  islands, the desert, the circuit and the sea lit from above, and the hero and the props casting shadows, with no
+  colour or exposure out of range. Gameplay never reads the light, so no proof changes. What would change it:
+  the owner preferring the old look of one of those kits (then its sun's `dir` and ambient are retuned, not the code).
+- **Answered:** no: made at once as a reversible call, in its own commit, flagged in its pull request
+- **Landed in:** v0.85.0

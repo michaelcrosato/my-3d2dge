@@ -6,7 +6,7 @@
  * The mission: knock down the targets (the ramp lights), shoot the ramp three times (the jackpot lights), sink the
  * saucer: JACKPOT, and STAR STORM multiball. A ball saver after each launch, nudging and TILT, a dot-matrix display
  * drawn by code, the bonus counted at each drain, three balls, the arcade module's high-score table and initials.
- * Keys: Left Shift / Z / left arrow the left flipper, Right Shift / M / right arrow the right; hold Space or down to
+ * Keys: Left Shift / Z / left arrow the left flipper, Right Shift / slash / right arrow the right; hold Space or down to
  * pull the plunger, let go to fire; N or up nudges; Enter starts. TOUCH: each half of the screen flips its side; a
  * swipe up (or a hold) fires the plunger. HOW IT WORKS: E.Physics (the physics module) is the table: chains for the
  * walls, flippers, bumpers, slingshots and kickers its helpers, the ramp a layer of its own the ball switches to at its
@@ -22,7 +22,7 @@ const PINBALL = (() => {
     { wave: 'square', vol: .1, notes: 'E5 . G5 . B5 . E6 - D6 . B5 . G5 . A5 . | B5 - - . A5 . G5 . F#5 . D5 . E5 - - . | C5 . E5 . G5 . C6 - B5 . G5 . E5 . F#5 . | G5 . F#5 . E5 . D#5 . E5 - - - - . . .' },
     { wave: 'triangle', vol: .3, notes: 'E2 E3 E2 E3 E2 E3 E2 E3 | G2 G3 G2 G3 D2 D3 D2 D3 | C2 C3 C2 C3 C2 C3 C2 C3 | B1 B2 B1 B2 E2 E3 E2 E3' },
     { wave: 'drums', vol: .11, notes: 'k . h . s . h k k . h . s . h h' }] };
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { flipL: ['ShiftLeft', 'KeyZ', 'ArrowLeft', 'KeyA', 'Pad4', 'Pad6', 'Pad14'], flipR: ['ShiftRight', 'KeyM', 'Slash', 'ArrowRight', 'KeyD', 'Pad5', 'Pad7', 'Pad15'],
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { flipL: ['ShiftLeft', 'KeyZ', 'ArrowLeft', 'KeyA', 'Pad4', 'Pad6', 'Pad14'], flipR: ['ShiftRight', 'Slash', 'ArrowRight', 'KeyD', 'Pad5', 'Pad7', 'Pad15'],
     plunge: ['Space', 'ArrowDown', 'KeyS', 'Pad0', 'Pad13'], nudge: ['KeyN', 'KeyX', 'ArrowUp', 'KeyW', 'Pad3', 'Pad12'] });
 
   /* ---- 1. THE TABLE: its bodies in the physics world, in table units (x across, y down the table toward the flippers) ---- */

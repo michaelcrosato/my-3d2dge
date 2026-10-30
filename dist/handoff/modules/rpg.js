@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module RPG v0.84.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.85.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13,8 +13,7 @@ The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the 
 - const hero = rpg.member({ name, level, stats: { hp, mp, atk, def, mag, spd }, growth: { hp: 10, atk: 2 } (a level),
   equip: { weapon: 'sword' }, data }): hero.stat(k) (base, growth, gear, status), hero.max('hp'), hero.hp, mp, level,
   exp, next (to the next level), dead, data (the game's own); gain(exp) → the levels reached [{ level, up: { hp: 11 } }];
-  equip(id, inv) (the old piece back into inv), unequip(slot, inv), compare(id) → { atk: 3, def: -1 } (what equipping
-  it changes); afflict(k, turns), cure(k) (k left out: all), has(k), acts() (no skip), tick() (a turn: hurt, heal,
+  equip(id, inv) (the old piece back into inv), unequip(slot, inv), compare(id) → { atk: 3, def: -1 } (equipping it); afflict(k, turns), cure(k) (k left out: all), has(k), acts() (no skip), tick() (a turn: hurt, heal,
   effects run out; → [[k, hp change or 'ends']]).
 - const party = rpg.party([hero], { gold, inv }): members, alive, gold, inv (rpg.inventory() by default); use(id, m)
   (heal, mp, cure, revive; → true when it did something, and the item is gone); rest() (an inn); reward(troop) (monster
@@ -30,7 +29,7 @@ The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the 
   enc.walk(zone, units) each step → a troop when the count runs out (it starts again), else null.
 - party.state() → JSON for a save; rpg.restore(state) → that party.
 - Windows (in r.overlay): rpg.list(g, x, y, w, rows, { cursor, title, top, show, rowH, bg }) (rows: [{ label, note,
-  icon, off }]; → { x, y, w, h, row(px, py): the row under a tap, at(i) }), rpg.card(g, x, y, member, { portrait }),
+  icon, off }]; → { x, y, w, h, row(px, py): the row under a tap, at(i) }), rpg.card(g, x, y, member, { portrait } (full engine)),
   rpg.icon(id).
 
 ```js rpg

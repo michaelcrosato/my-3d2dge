@@ -624,8 +624,8 @@ const RPG = (() => {
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in past rest(), it eases to the fight (or the hero on turn) at chest height
   return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: [], propSize: 1.3, camera: { zoom: [.75, 2], tall: TALL.zoom, rotate: true },   // touch: taps, no buttons
     back() { if (mode !== 'target') return false; mode = 'command'; A.sfx('cancel'); return true; },   // a phone's back: aiming goes back to the commands
-    enter(data) { start(data); game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
-    exit() { game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
+    enter(data) { start(data); if (game.r) game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
+    exit() { if (game.r) game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {
       if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? 'TURN ' + yaw : 'CAMERA RESET');   // the kit's notice has a degree sign the pixel font lacks
       if (placed !== game.upright) place();   // a phone turned: the camera comes in or out (camera.tall), and the sides close up or open out
@@ -1186,7 +1186,7 @@ const JOURNEY = (() => {
   return { view: 'threequarter', views: ['threequarter', 'topdown'], input: 'DEFAULT', res: 'ps1', pausable: true, propSize: 1.2, touch: ['confirm', 'cancel', 'skill'], camera: { zoom: [.75, 2] },
     parts: { battle: 'rpg-battle' },   // #rpg/battle: the battle alone, as it always was
     enter(data) {
-      game.r.rimAlpha = .28; game.cam.offset = null;
+      if (game.r) game.r.rimAlpha = .28; game.cam.offset = null;   // (headless, there is no renderer)
       if (data && data.back && party) return back(data.back);   // home from a battle
       maps = {}; crew = null; hero = null; fresh(); mode = 'title'; wins = []; end = 0; dark = 0;
       game.follow(null); game.focus(15 * T, 10 * T, 0); game.cam.snap = true;

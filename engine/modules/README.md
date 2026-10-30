@@ -16,7 +16,7 @@ Loads after: the full engine or the agent edition. Needs: no other module.
 What it holds, its API, a complete example and its rules: this header is the module's manual.
 
 ```js grid
-const E = My3D2dge, grid = new E.Grid({ w: 8, h: 6 });
+const E = My3D2dge, grid = new E.Grid(8, 6);
 if (grid.path([0, 0], [7, 5]).length !== 13) throw new Error('...');
 ```
 */

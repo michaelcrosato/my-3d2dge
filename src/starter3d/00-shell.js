@@ -1,33 +1,14 @@
 /* ============================== GAME START ==============================
  * MY-3D2DGE 3D STARTER: a title menu and the 3D slices (a 3D genre kit file holds one). Each slice is a complete small
- * 3D game, written to be copied and changed:
- *   SLICE 1  ACTION      a torch-lit hall (Zelda 64's dungeons, Diablo, the stress test's own): a three-hit combo, a
- *                        dash and its thrust, a jump, an ember bolt; husks, skeletons, slimes and wisps in waves that
- *                        take turns to attack, telegraphs, hit-stop, crates to smash; a knight boss
- *   SLICE 2  PLATFORMER  a sunlit course over the void (Mario 64, Spyro): run, jump, double jump, a dash in the air;
- *                        stairs, ledges, floating and moving platforms, springs; slimes to stomp, coins, three stars,
- *                        checkpoint flags and a goal
- *   SLICE 3  SHOOTER     an open world two kilometres across (Apex Legends without the multiplayer, first or third
- *                        person): sprint, slide, vault, mantle, climb, ladders, ziplines, doors to kick in; a rifle and
- *                        a shotgun with recoil and reloads, a punch, grenades; raiders holding five outposts
- *   SLICE 4  HORROR      a mansion's wings by flashlight under fixed cameras (Resident Evil, Alone in the Dark): a
- *                        pistol that locks on, a knife, zombies that grab, dogs; keys, a crank, an item box, saves
- *   SLICE 5  RACING      a kart circuit in a valley (Mario Kart 64, Crash Team Racing): banked bends, a hill, a jump,
- *                        a dirt shortcut, drifts that charge a boost, items, five drivers, two players split
- *   SLICE 6  FLIGHT      a stage on rails over the sea to a base, then a boss in free flight (Star Fox 64): lasers,
- *                        charged lock-on shots, barrel rolls that turn shots aside, rings, a wingman on the radio
- *   SLICE 7  CRAWLER     a dungeon in first person, a cell at a time (Eye of the Beholder, Dungeon Master, Wizardry):
- *                        a party of four with portraits, gates, a lever, plates, an automap; real time or turns
- * THE 3D WORLD UNDER THE GAME: E.Game runs the game as it runs a 2D one (scenes, exact fixed steps, input, the pause
- * menu, settings, sound) with bg: null, so its canvas is clear; E.World3D draws the 3D world under it (three.js r182 and
- * Rapier 0.19.3). A slice's scene steps its world in update (world.step(dt)) and draws it in draw (world.draw(r)), then
- * its HUD over it on r, in the game's pixels. FULL SCREEN, ANY SHAPE: res 'ps1', expand: the HUD anchors to r.W, r.H.
- * KEYS EVERY SLICE SHARES: C changes the camera (the view, the chase camera, first person), V the view, [ ] turn it, the
- * wheel, - and = (a pinch on a phone) zoom, 0 resets it, M mutes; the pause menu's Display has the 3D settings
+ * 3D game, written to be copied and changed: its own header (below this shell) says what it plays, its keys and touch
+ * controls, its deep links and how it works. The 3D engine's manual (the header of engine/my-3d2dge-3d.js) says how a
+ * game runs on a 3D world: E.Game as in 2D with bg: null, world.step(dt) in update, world.draw(r) then the HUD in draw.
+ * THE SHELL'S KEYS: M mutes; in a slice whose camera follows the game's view, V changes the view, [ ] turn it and 0
+ * resets it (the wheel, - and = zoom where the scene allows); the pause menu's Display has the 3D settings
  * (characters as cards or puppets, the picture's resolution, shadows).
- * To make your own game: copy the slice closest to your genre, then replace everything between GAME START and GAME END
- * with ONLY your game: its own title, play and game-over scenes. Deep links: #action, #platformer, #shooter, #horror,
- * #racing, #flight, #crawler.
+ * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
+ * scenes, and delete the slices you do not use; this shell (the game, its scenes, the boot steps) stays unless you replace
+ * it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
  * ======================================================================== */
 const E = My3D2dge, W3 = E.World3D, { clamp, lerp, approach, TAU } = E;
 

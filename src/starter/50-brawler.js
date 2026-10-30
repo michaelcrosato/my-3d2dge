@@ -3,6 +3,7 @@
  * J jab, cross, hook, uppercut (an E.Combo; the uppercut launches), J on a foe in your face: collar grab, knee, knee, elbow;
  * K kick, roundhouse; L sweep; Z jumps (J or K in the air: a flying kick). Each foe type has its own telegraphed
  * strings. Heavy blows knock fighters down; they get up on one knee. Waves lock the screen. Crates hide food.
+ * TOUCH: the stick, ATTACK, KICK, SWEEP, JUMP. PLAYER 2 drops in: 2 (the keyboard's right half) or Start on a pad.
  * THE LOOK: Final Fight sized fighters (90-105 of 240 lines) in a guard stance with big gloves, lit by the nearest
  * light; building fronts drawn once over TileMap walls; solid parked cars; PS1 translucency (hard shapes, one alpha)
  * ANY SCREEN: a wider screen shows more street (waves walk in from past its edges); a taller one (a phone held upright)

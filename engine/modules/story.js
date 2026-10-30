@@ -1,12 +1,12 @@
 /*!
-my-3D2dge module STORY v0.84.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.85.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
 A JRPG's or an adventure's talk (Dragon Quest, Chrono Trigger, Zelda): conversations written as data and run through an
 E.Dialog (its markup and portraits), remembering what was said and done.
 - const story = new E.Story(game, { people: { elder: { name: 'ELDER', portrait: rig, at: npc } }, nodes, vars, on:
-  { gift(story, step) {...} }, dialog }). people: who speaks (portrait: a Humanoid or a function (g, x, y, size); at:
+  { gift(story, step) {...} }, dialog }). people: who speaks (portrait, full engine: a Humanoid or a function (g, x, y, size); at:
   anything with x, y, z, and h its height, a balloon floats over); dialog: the E.Dialog it talks through (else its own:
   story.talk); on: the game's handlers for events.
 - nodes: { id: [step, ...] }: the steps run in order, and a step with if runs only when its condition holds.
@@ -26,7 +26,7 @@ E.Dialog (its markup and portraits), remembering what was said and done.
 - story.emote(target, kind, seconds = 1.5): a balloon over anything with x, y, z (h: its height).
 - A visual novel: story.log (what was said and chosen: { who, name, text }, for a backlog), story.auto (seconds a page
   stays before it turns), story.skip (pages type and turn at once; choices wait).
-- story.state() and story.restore(state): its vars and quests as JSON, for a save (in game.saves' data).
+- story.state() and story.restore(state): its vars and quests as JSON, for a save (game.saves' data, full engine).
 
 ```js story
 const E = My3D2dge, game = new E.Game({ headless: true });

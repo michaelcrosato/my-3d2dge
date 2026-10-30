@@ -55,7 +55,7 @@
 // Usage: node tools/contract-test.mjs [--node]   (exit code 1 on a failure; --node runs only the part without a browser). What runs without a screen runs in Node; the game loop
 // runs in headless Chromium on a virtual clock (CHROMIUM_PATH picks a browser).
 import { chromium } from 'playwright';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -518,7 +518,8 @@ function motion(E, ed) {
 // buffered turn; the same rows from the same seed, every floor joined
 // the arcade module: extra lives, two players taking turns, the continue, initials into a table, the attract mode's phases
 // the rooms module (M5): from room to room on the grid (sideways keeping speed, down a hole, up into the room above), an
-// edge with no room past it a wall, a gate shut until given, the explored cells, a save that loads back, the map's cells
+// edge with no room past it a wall, a gate shut until given, the explored cells, a save that loads back, the map's cells,
+// a top view's world drawn as its TileMap's floor and walls
 function rooms(E, ed) {
   if (!E.World) return check(`${ed}: rooms: E.World is there`, false, 'missing');
   const was = Object.assign({}, E.store), mem = new Map();   // (Node has no storage: E.store held in memory for the test)
@@ -551,6 +552,10 @@ function rooms(E, ed) {
     const w2 = mk(), d = w2.load();
     check(`${ed}: rooms: a save loads back: the room, the hero's place, what was got (its gates open) and seen, the extra`, d && d.room === 'd' && w2.room.id === 'd' && w2.has('key') && w2.rooms.b.map.kind(7, 9) !== 'solid' && w2.seen.has('1,0') && d.extra.n === 7 && d.x > 0, JSON.stringify(d && { room: d.room, got: d.got, extra: d.extra }));
     w2.clear(); check(`${ed}: rooms: clear() forgets it`, mk().load() === null);
+    // a top view's rooms are TileMaps, which have no draw of their own: world.draw is the room's floor, then its walls
+    const wt = new E.World(g, { id: 'contract-rooms-top', view: 'top', screen: [8, 6], legend: { '#': 1 }, types: { 1: { h: 16 } }, rooms: { a: R.a }, start: 'a', transition: 'none' }), drew = [];
+    wt.map.drawFloor = () => drew.push('floor'); wt.map.queueWalls = () => drew.push('walls'); wt.draw({});
+    check(`${ed}: rooms: in a top view, world.draw draws the room's TileMap (its floor, then its walls)`, wt.map instanceof E.TileMap && drew.join() === 'floor,walls', drew.join());
   } finally { Object.assign(E.store, was); }
 }
 
@@ -1164,6 +1169,26 @@ const RULES = () => {
   return out;
 };
 
+// the paths the cards name are there: each path a card cites (in backticks or a link, under one of the repository's or
+// the handoff package's folders; `<name>` and `*` stand for a file of that folder) is a file or folder of the repository
+// or of the package, so a rename can't leave a card pointing at nothing; and the package's own pages cite only what the
+// package holds, but on a line that says it is the repository's (its 3D engine)
+if (existsSync(join(root, 'dist/handoff/kits/README.md'))) {
+  const H = join(root, 'dist/handoff'), ROOTS = /^(engine|src|tools|docs|dist|examples|vendor|game|kits|modules)\//;
+  // (each path with what it is said in: its paragraph, or its row of a table)
+  const cited = text => text.split(/\n\s*\n/).flatMap(para => para.split('\n').flatMap(line => [...line.matchAll(/`([^`]+)`|\]\(([^)\s]+)\)/g)].flatMap(m => (m[1] || m[2]).split(/[\s,;()]+/))
+    .map(t => t.replace(/[#?].*$/, '').replace(/[.:]+$/, '')).filter(t => ROOTS.test(t)).map(path => ({ path, line: line.startsWith('|') ? line : para }))));
+  const there = (base, p) => { const q = p.replace(/[^/]*[<*].*$/, ''); return existsSync(join(base, q)); };
+  for (const card of ['API.md', 'AI_GUIDE.md', 'docs/ASSETS.md']) {
+    const dead = cited(readFileSync(join(root, card), 'utf8')).filter(c => !there(root, c.path) && !there(H, c.path)).map(c => c.path);
+    check(`${card}: every path it names is in the repository or the handoff package`, !dead.length, [...new Set(dead)].join(', '));
+  }
+  for (const page of ['README.md', 'kits/README.md']) {
+    const out = cited(readFileSync(join(H, page), 'utf8')).filter(c => !there(H, c.path) && !there(dirname(join(H, page)), c.path) && !/repository|github\.com/.test(c.line)).map(c => c.path);
+    check(`handoff: ${page} names only what the package holds`, !out.length, [...new Set(out)].join(', '));
+  }
+}
+
 if (process.argv.includes('--node')) { console.log(failures.length ? `\nFAILED ${failures.length} of ${passed + failures.length}:\n  ${failures.join('\n  ')}` : `\nall ${passed} checks without a browser passed`); process.exit(failures.length ? 1 : 0); }
 // the lifecycle in a page: dispose() takes the engine's listeners away; loop: false runs only by advance()
 const LIFE = () => {
@@ -1412,6 +1437,18 @@ if (existsSync(join(root, 'dist/handoff/game/test.mjs'))) {
   // the asset card's tools run on the package alone (its engine and its copy of the store), as the card says
   const f = spawnSync(process.execPath, [join(root, 'dist/handoff/tools/asset-find.mjs'), 'graveyard urn', '--top', '3'], { encoding: 'utf8', cwd: join(root, 'dist/handoff') });
   check('handoff: docs/ASSETS.md is there and tools/asset-find.mjs finds a store entry', existsSync(join(root, 'dist/handoff/docs/ASSETS.md')) && f.status === 0 && /kenney-graveyard:urn-round/.test(f.stdout), (f.stdout + f.stderr).slice(0, 300));
+  // the genre kits, readable (kits/): every kit runs headless (kits/test.mjs: its slice plays and its proof gives the same
+  // hash twice) and its page plays it in a browser at its deep link, as kits/README.md says
+  const k = spawnSync(process.execPath, [join(root, 'dist/handoff/kits/test.mjs')], { encoding: 'utf8' });
+  check('handoff: kits/test.mjs passes for every kit', k.status === 0 && /all \d+ kit\(s\) passed/.test(k.stdout), (k.stdout + k.stderr).split('\n').filter(l => /FAIL|Error/.test(l)).join(' | ').slice(0, 600));
+  for (const id of readdirSync(join(root, 'dist/handoff/kits')).filter(f => f.endsWith('.html')).map(f => f.slice(0, -5))) {
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+    await page.addInitScript(CLOCK); await page.goto(pathToFileURL(join(root, 'dist/handoff/kits', id + '.html')).href + '#' + id);
+    const r = await page.evaluate(() => { let f = 0; for (let i = 0; i < 90; i++) window.__frame(++f * 1000 / 60); const g = My3D2dge.current; return { scene: g.sceneName, errors: g.errors.length }; }).catch(e => ({ thrown: e.message }));
+    await page.close();
+    check(`handoff: kits/${id}.html plays its slice in a browser`, !errors.length && !r.thrown && !r.errors && r.scene === id, errors.join(' | ') + JSON.stringify(r));
+  }
 }
 await browser.close();
 

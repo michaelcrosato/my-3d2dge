@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.84.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.85.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -15,6 +15,7 @@ moves, E.font, E.ui, E.Menu, audio). Read the code below only to debug: its sect
 <script type="importmap">{ "imports": { "three": "/vendor/three-0.182.0/three.webgpu.min.js",
   "three/webgpu": "/vendor/three-0.182.0/three.webgpu.min.js", "three/tsl": "/vendor/three-0.182.0/three.tsl.min.js",
   "@dimforge/rapier3d-simd-compat": "/vendor/rapier3d-simd-compat-0.19.3/rapier.js" } }</script>
+<style>html, body { margin: 0; height: 100%; overflow: hidden; background: #000 }</style>
 <div id="stage" style="position:relative;width:100%;height:100%;overflow:hidden">
   <canvas id="view"></canvas><canvas id="screen" style="position:absolute;inset:0;width:100%;height:100%"></canvas></div>
 <script src="/dist/my-3d2dge.js"></script>                   the 2D engine, a classic script, first
@@ -101,7 +102,8 @@ level: { rows, legend, ground, side, colors, bottom }. A legend entry says what 
   { shape: 'bench', facing, scale, mats, solid }   a shape standing on the tile (world.shape), walked round when solid
 and its look: ground ('flagstone' 'grass' 'dirt' 'sand' 'snow' 'planks' 'tiles' 'plain' 'water' 'lava', or (x, y) =>
 [r, g, b]) with colors { base, dark, light }, side ('brick' 'block' 'earth' 'planks' 'metal') with color (and top, line).
-The level's own ground and side are every tile's default. Add looks: E.World3D.GROUND.name, E.World3D.SIDE.name.
+The level's ground is every tile's default; its side styles the floors' edges, its wallSide the walls ('brick'; a tile's
+own side wins). Add looks: E.World3D.GROUND.name, E.World3D.SIDE.name.
 
 ## The world: new E.World3D(game, o)
 o: { level, look: 'card' | 'puppet', res: 'pixels' | 'balanced' | 'full', gravity: 480, sky: '#06050b' or [top,
@@ -111,6 +113,7 @@ lights: 2 (your own), spots: 0 (flashlights), glowLights: 4, shadows, outlines, 
 world instead of the level: below), overlay: { fov } (first person: below), onDraw: (world, r) => {} (your own 3D drawing
 each frame, whichever scene draws the world) }
   world.step(dt) / world.draw(r) / world.reset() / world.hash([your numbers]) / world.prepare() (build the shaders now)
+  world.dispose(): frees a world (its physics, meshes and textures); dispose a level's world before making the next
   world.width, depth (units), mw, mh (tiles), bottom, marks, torches, actors, props, platforms, things, time, stats
   world.ground(x, y)   the ground's height (a wall's top on a wall; bottom over a pit)
   world.floorAt(x, y, z)   the surface a body at height z stands on or falls to (platforms too)
@@ -121,7 +124,8 @@ each frame, whichever scene draws the world) }
   world.randomFloor(rnd, minDist, fx, fy) -> [x, y]; world.clear(x0, y0, z0, x1, y1, z1) -> a clear line of sight?
   world.ray(x, y, z, dx, dy, dz, len, { skip: actor(s), level: true (sight lines), down }) -> the first hit { x, y, z, nx,
       ny, nz, dist, actor, prop, ground } or null: hitscan, ledges, feet on the ground
-  world.block({ x, y, z, w, d, h, yaw } | { x, y, z, r, h }): an invisible fixed collider (walls you draw your own way)
+  world.block({ x, y, z, w, d, h, yaw } | { x, y, z, r, h }): an invisible fixed collider (walls you draw your own way;
+      z its base, as for world.box, world.thing and world.shape)
   world.near(x, y, r, kind) -> actors within r; world.touching(actor, kind) -> things it touches
   world.project(x, y, z) -> [x, y] in game pixels for the HUD (null behind the camera)
   world.remove(actor | prop | platform | thing)
@@ -138,7 +142,7 @@ a blob's { squash, look: [dx, dy], squint, flap }); world.step moves it, reads b
 a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), and poses its rig.
   a.place(x, y, z), a.push(vx, vy, vz) (knockback), a.setSolid(false) (fallen: it stops blocking the others), a.remove(),
   a.resize(half) (a crouch, a slide: the capsule shorter, the feet kept; look up with world.ray before standing)
-  a.flash (seconds of hit flash), a.fade (0..1), a.sink (units drawn into the floor: spawning, sinking away), a.visible,
+  a.flash (a hit flash while above 0: count it down yourself, a.flash -= dt), a.fade (0..1), a.sink (units drawn into the floor: spawning, sinking away), a.visible,
   a.data (yours). E.Attack, E.Combo and E.MOVES work as in 2D: attack.hits(list, e => E.inArc(a, a.facing, e, range,
   half), e => ...) on actors.
 
@@ -146,7 +150,7 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   world.shape(id, x, y, z, { facing, scale, mats, flip, params, solid: true }): a shape (docs/ASSETS.md: an E.SHAPES id,
   a store set's 'SET:id' after E.addAssets, or an entry) in 3D, from the 2D engine's parts and materials, solid as
   map.solid's box. A reset takes yours away (the legend's stand again); world.shapes holds them; world.remove(s)
-  world.crate(x, y, z, yaw), world.barrel(x, y, z): dynamic bodies; world.knock(p, fromX, fromY, dv, up) throws one;
+  world.crate(x, y, z, yaw), world.barrel(x, y, z): dynamic bodies (z their centre; left out, on the floor); world.knock(p, fromX, fromY, dv, up) throws one;
   world.box({ x, y, z, w, d, h, color, side, fixed, mass }); a prop has x, y, z, q (its rotation), data
   world.platform({ w, d, h, path: [[x, y, z], ...] (its top's points), speed, wait, loop, side, color }): a platform that
   moves (there and back, or round with loop); heroes on it ride it, bodies on it are carried
@@ -174,8 +178,9 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   game.shake(n), game.flash(color), game.freeze(s), game.note(text): as in 2D
 
 ## The camera: world.camera
-  modes: 'view' (the 2D engine's views as real 3D cameras following camera.target: game.view (V: game.nextView()),
-  game.yaw ([ ]: game.rotateView(45)), game.zoom (the wheel, a pinch, Settings); proj 'persp' | 'ortho'; dist; walls in
+  modes: 'view' (the 2D engine's views as real 3D cameras following camera.target: game.view (game.nextView()),
+  game.yaw (game.rotateView(45)): the starter's shell binds V and [ ] to them, the engine no key; game.zoom (the wheel,
+  a pinch, Settings, where the scene's camera.zoom allows); proj 'persp' | 'ortho'; dist; walls in
   front cut low), 'chase' (behind the target; it swings round behind as the target moves; a click captures the mouse to
   turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own),
   'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z] (fixed) | follow:
@@ -213,7 +218,8 @@ drift boost), boostT, onGround, surface ('road', 'boost', a track's off, the lev
 bumped; v.boost(sec, power), v.spinOut(sec). E.Race (the drive module) races vehicles as it races E.Cars.
 world.track({ path: new E.Path(points [x, y, z], { closed: true, smooth: 'catmull' }), width: 96, bank: .25 (radians at
 the tightest bends), walls: true, kerb: 8, pads: [[d, across]] (boost pads), gaps: [[d0, d1, side]] (no wall: a
-shortcut's way off), off: 'grass', surface: 'road' (a shortcut's 'dirt'), color, line }): the road and its walls, drawn
+shortcut's way off), off (the surface beside it, 'grass'; null: the ground's own), surface: 'road' (a shortcut's
+'dirt'), color, line }): the road and its walls, drawn
 and solid (heights in the path: hills, a hump to jump; banked about the low edge); track.at(d) -> { x, y, z, angle, bank
 }, track.where(x, y) -> { d, across, z }, track.surface(x, y). A terrain under it keeps below it (your height function).
 world.flyer({ x, y, z, yaw, speed: 300, min, max (brake, boost), turn, climb, bank, invert, low (least height), bounds:
@@ -2769,7 +2775,7 @@ Object.assign(World3D.prototype, {
       this._sunBack = (s.back || Math.max(960, (s.area || 220) * 1.5)) / U;   // (metres from the focus back toward the sun: what stands that far casts)
       Object.assign(L.shadow.camera, { left: -area, right: area, top: area, bottom: -area, near: .5, far: Math.max(200, this._sunBack + area * 2.5) }); L.shadow.mapSize.set(s.map || 1024, s.map || 1024); L.shadow.bias = s.bias ?? -.0015; L.shadow.normalBias = s.normalBias ?? .02;
       this._sunTexel = area * 2 / (s.map || 1024);
-      const d = s.dir || [-.5, -.7, -.6]; this._sunDir = new THREE.Vector3(d[0], d[2], d[1]).normalize().negate();   // (engine axes -> three's; it shines along dir)
+      const d = s.dir || [-.5, -.7, -.6]; this._sunDir = new THREE.Vector3(d[0], d[2], d[1]).normalize();   // (engine axes -> three's; it shines along dir)
       sc.add(L); sc.add(L.target);
     }
   },

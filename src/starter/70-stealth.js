@@ -6,13 +6,14 @@
  * swings are telegraphed: K just before the blow parries and stuns them.
  * Keys (E.Input.THIRDPERSON): WASD move, Shift sprint, Space jump, climb a wall, vault, leap a gap, C crouch, J attack or
  * take down, K block or parry, L dodge roll, V view. The ledger is a checkpoint. The hero climbs any wall: Space at a
- * face latches on, the stick climbs (up the screen is up the wall), Space leaps up, C lets go.
+ * face latches on, the stick climbs (up the screen is up the wall), Space leaps up, C lets go. TOUCH: the stick, JUMP,
+ * ATTACK, BLOCK, CROUCH.
  * HOW IT WORKS: the hero and the guards are E.Mover bodies (the same climbing, vaulting and gap-leaping for both); a
  * guard's eyes are E.sees through the map's heights, its mind an E.Suspicion, its legs a FlowField that climbs, drops and
  * jumps. Climbs, vaults, rolls and takedowns are E.ACTIONS; the facades are wall-type options; the belfry's canopy sorts by
  * its footprint; r.sightCone and r.marker draw the cones and the objective. Dusk is canvas lighting (game.lights): an
  * ambient and the lights added each draw (street lamps, the ledger's glow, the gate), on a computer: its pass costs a
- * few milliseconds a frame, so a phone keeps its frame rate and an unlit street (as the ADVENTURE slice's Auto does).
+ * few milliseconds a frame, so a phone keeps its frame rate and an unlit street.
  * The interface is HTML, E.Shell's: the objective with its distance, health, status, the takedown prompt, toasts and
  * the results; the guards' marks stay in the world. The music is one song in layers (game.audio.layer): it sneaks on
  * three tracks, and a guard's alert brings in the chase's drums and its saw over them, taken out again when they lose
