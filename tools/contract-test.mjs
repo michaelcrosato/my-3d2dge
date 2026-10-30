@@ -1453,7 +1453,7 @@ if (existsSync(join(root, 'dist/handoff/game/test.mjs'))) {
     const r = await page.evaluate(() => { let f = 0; for (let i = 0; i < 90; i++) window.__frame(++f * 1000 / 60); const g = My3D2dge.current; return { scene: g.sceneName, errors: g.errors.length }; }).catch(e => ({ thrown: e.message }));
     const want = part ? await page.evaluate(([id, part]) => { const s = __game.scenes[id]; return [id].concat(s && s.parts && s.parts[part] ? [s.parts[part]] : []); }, [id, part]).catch(() => [id]) : [id];
     await page.close();
-    check(`handoff: kits/${id}.html${link} plays ${part ? 'that part' : 'its slice'} in a browser`, !errors.length && !r.thrown && !r.errors && want.includes(r.scene), errors.join(' | ') + JSON.stringify(r));
+    check(`handoff: kits/${id}.html${link} plays ${part ? 'that part' : 'its slice'} in a browser`, !errors.length && !r.thrown && !r.errors && (want.includes(r.scene) || (part && String(r.scene).startsWith(id + '-'))), errors.join(' | ') + JSON.stringify(r));   // (a part may be a scene of the slice's own: arcade-rocks)
   }
 }
 await browser.close();
