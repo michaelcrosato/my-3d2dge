@@ -249,7 +249,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.84.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.85.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -330,7 +330,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.84.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.85.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -416,7 +416,7 @@ const nullCanvas = (w, h) => {
   const c = { width: w, height: h }, img = (iw, ih) => ({ width: iw, height: ih, data: new Uint8ClampedArray(Math.max(0, iw * ih * 4)) });
   const made = { getImageData: (x, y, iw, ih) => img(iw, ih), createImageData: (iw, ih) => img(iw.width || iw, ih || iw.height), measureText: () => ({ width: 0 }),
     createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), createPattern: () => ({}), canvas: c };
-  const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : () => {}, set: (t, k, v) => { t[k] = v; return true; } });
+  const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : typeof k === 'string' && k[0] === '_' ? undefined : () => {}, set: (t, k, v) => { t[k] = v; return true; } });   // (the engine's own _ fields: unset)
   c.getContext = () => g;
   return c;
 };
@@ -566,7 +566,7 @@ Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng
 const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null, frame: null, pose: null, pause: null }, FADES = {};
 
 /* =============================================================================
- * 1b. EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
+ * 1b. MORE EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
  *    with none of them leaves it out
  * ============================================================================= */
 Object.assign(ease, {
@@ -10598,7 +10598,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.84.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.85.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10607,12 +10607,12 @@ along a heading, pitched down; the floor drawn a screen row at a time, the sky a
 billboards (rigs drawn at the size their distance gives, sprites, your own drawing) far to near.
 - const m7 = new E.Mode7({ floor: a TileMap (its floorTex) | (x, y) => [r, g, b] | a canvas (a texel a unit), size:
   [w, h] (the floor in world units, for a function), outside: '#24402a' (beyond the floor) | wrap: true (it repeats),
-  sky: a Backdrop | ['#top', '#bottom'], fog: { color, near, far } (far: nothing past it), far: 2400 }).
+  sky: a Backdrop (full engine) | ['#top', '#bottom'], fog: { color, near, far } (far: nothing past it), far: 2400 }).
 - m7.cam = { x, y, h: 40 (height), angle: 0 (the heading, as E.angleTo gives it: 0 east, PI / 2 south; keep it
   unwrapped, the sky turns with it), pitch: 12 (degrees down), fov: 70 (degrees across the height) };
   m7.chase(body, { back: 56, h: 34, angle }) puts it behind a body (body.angle, or angle) each step.
 - In draw: m7.rig(rig, x, y, z), m7.sprite(spr or E.anim, x, y, z, { scale, flip, t }), m7.shape(id, x, y, z, { facing,
-  size }), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
+  size }) (full engine), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
   far to near, as an overlay (in a split screen, in r.viewport: give each player's cam).
 - m7.project(x, y, z) -> [sx, sy, k] on the screen, or null behind the camera; m7.toFloor(sx, sy) -> [x, y], or null
   above the horizon (both for the camera last drawn: HUD markers, a tap on the track). m7.horizon: its screen row.

@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.84.1: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.85.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -190,7 +190,7 @@ TileMap (iso, threequarter, topdown and brawler levels):
   new E.FlowField(map, { climb, drop }): update(tx, ty) every step, dir(x, y, tx, ty) -> [dx, dy] around walls, over roofs
   Heights: z = feet; a cell's top = height(cx, cy); eyes at z + E.HEIGHTS.eye (30) see z + chest (22); same level |dz| <= 8.
   map.sight(a, b), ray(a, b), standable(x, y, z, r), ledge / landing / drop(from, dir), arcClear(a, b, apex);
-  map.pick(sx, sy) -> { cx, cy, z, face } the cell under a screen point (input.clicked()), in any view and turn
+  map.pick(sx, sy) -> { cx, cy, z, face } the cell under a screen point (input.mouseScreen()), in any view and turn
   E.sameLevel(a, b), E.targets(from, list, { range, arc, dz, sight: map }) nearest first, inArc(..., dz)
   E.sees(guard, hero, { map, range: 120, fov: 1.6 }) -> { seen, exposure } (hero.crouch, hero.exposure 0..1 hide it);
   E.hears(guard, { x, y, z, loud: 80 }, map) -> 1 at the noise .. 0 at loud, halved through a wall
@@ -369,16 +369,14 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 - Objects and materials as data (full engine): r.shape('barrel', x, y, 0, { facing }) draws a still object from any
   view; materials dress floors, walls and tiles. docs/ASSETS.md: the format, the library, tools/asset-sheet.mjs.
 - Worked examples: Emberdeep (src/emberdeep/), a whole game on the full engine, one line per part:
-  grep -nE "def\(['\"](archetypes|characters|skills)" src/emberdeep/*.js   (28 monster, boss and dummy bodies with
-  tags, 3 heroes, 30 skills: Codex's six come from one helper); bodies that are not people: grep -n "^class "
-  src/emberdeep/*.js (a spider, a serpent, a floating eye, a living book, a scythed beast). They lean on the game's
-  helpers: adapt them, do not paste them (the recipe for a new body is docs/CHARACTERS.md).
-- A starter game per genre: dist/kits/my-3d2dge-<adventure|platformer|brawler|shooter|rpg|stealth|animlab>.html.
+  grep -nE "def\(['\"](archetypes|characters|skills)" src/emberdeep/*.js (29 bodies, 3 heroes, 30 skills); bodies
+  not people: grep -n "^class " src/emberdeep/*.js. Adapt them, do not paste them (docs/CHARACTERS.md).
+- A starter game per genre: dist/kits/my-3d2dge-<genre>.html (22 genres; 7 more in 3D: my-3d2dge-3d-<genre>.html).
 */
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.84.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.85.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };

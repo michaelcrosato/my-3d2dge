@@ -13,6 +13,7 @@
 //     A run trips the index's split rule (D38, D41) when it reads it whole or through ranges covering most of it, or
 //     when more than a third of its searches are followed by a read of the source; two runs in a row that trip it
 //     reopen the split (D43);
+//   - which genre kits it opened (kits/<id>.js: did it find its genre's?);
 //   - a vision judge's score of the check's screenshots against the PS1/N64-era 2D bar (tools/agent-bench/judge.md).
 // It writes result.json and prints one table row per run (the format DOCTRINE.md's open measures take).
 //
@@ -104,9 +105,11 @@ function grepLines(text, g) {
 /** read an agent's JSON stream (claude stream-json or codex --json) into what the bench measures. o.lines: each manual's
  *  line count in the workspace ({ 'API-INDEX.md': 1077 }), for how much of it a read covers and whether a Read was cut */
 export function readStream(text, header, o = {}) {
-  const out = { agent: null, outputTokens: 0, inputTokens: 0, costUsd: null, turns: 0, ms: null, reads: [], searches: [], belowHeader: false, patched: false, result: '', error: null, manuals: [] };
+  const out = { agent: null, outputTokens: 0, inputTokens: 0, costUsd: null, turns: 0, ms: null, reads: [], searches: [], belowHeader: false, patched: false, result: '', error: null, manuals: [], kits: [] };
   const engine = p => typeof p === 'string' && basename(p) === ENGINE && !/\/node_modules\//.test(p);
-  const manual = p => typeof p === 'string' && !/\/node_modules\/|(^|\/)game\//.test(p) && MANUALS.includes(basename(p)) ? basename(p) : null;
+  const manual = p => typeof p === 'string' && !/\/node_modules\/|(^|\/)(game|kits)\//.test(p) && MANUALS.includes(basename(p)) ? basename(p) : null;
+  // the genre kits it opened (kits/<id>.js, by a read, a search or a command naming it): whether it found its genre's
+  const kit = t => { for (const [, id] of String(t || '').matchAll(/(?:^|[\s'"\/=])kits\/([\w-]+)\.js\b/g)) if (!out.kits.includes(id)) out.kits.push(id); };
   // every tool call in order, each with the manuals it read and its read of the engine below the header, if any
   const calls = [], byId = new Map();
   const call = id => { const c = { at: calls.length, manuals: [] }; calls.push(c); if (id) byId.set(id, c); return c; };
@@ -117,14 +120,14 @@ export function readStream(text, header, o = {}) {
   // nl, less or awk read the file whole; anything else (wc, ls, cp, node ...) reads nothing. A search of a folder: its
   // result says which manuals it hit
   const shell = (id, cmd) => {
-    const c = call(id); if (typeof cmd !== 'string') return;
+    const c = call(id); if (typeof cmd !== 'string') return; kit(cmd);
     cmd = cmd.replace(/<<-?\s*(['"]?)(\w+)\1[\s\S]*?\n\2(?=\s|$)/g, '<<script').replace(/\s-e\s+(["'])[\s\S]*?\1/g, ' -e script');   // a script that loads the engine is not a read of it
     if (/\b(sed\s+-i|perl\s+-pi)\b[^;|&]*my-3d2dge\.js|>\s*\S*my-3d2dge\.js/.test(cmd)) { out.patched = true; return; }
     const pipes = pipelines(cmd); c.reads = 0;
     // (the pipelines that print something: the result is one read's alone only when nothing else in the call prints)
     c.prints = pipes.filter(P => !['cd', 'export', 'mkdir', 'cp', 'mv', 'rm', 'touch', 'set', 'true', 'pushd', 'popd', 'unset', 'source', '.'].includes(basename(P[0][0] || ''))).length;
     for (const P of pipes) {
-      const r = classify(P), named = P[0].slice(1).map(a => basename(a)).filter(a => a === ENGINE || MANUALS.includes(a));
+      const r = classify(P), named = P[0].slice(1).filter(a => !/(^|\/)(game|kits)\//.test(a)).map(a => basename(a)).filter(a => a === ENGINE || MANUALS.includes(a));
       if (!r) continue;   // (not a read)
       if (r.how === 'search' && !named.length) { c.grep = cmd; continue; }   // (a folder's: its result says which manuals)
       for (const f of named) {
@@ -167,6 +170,7 @@ export function readStream(text, header, o = {}) {
       for (const c of e.message.content || []) if (c.type === 'tool_use') {
         const i = c.input || {}, man = manual(i.file_path) || manual(i.path);
         if (c.name === 'Bash') { shell(c.id, i.command); continue; }
+        kit(' ' + (i.file_path || '') + ' ' + (i.path || ''));
         const k = call(c.id);
         if ((c.name === 'Read' || c.name === 'View') && engine(i.file_path)) { const from = i.offset || 1, to = from + (i.limit || 2000) - 1; engineRead(k, { how: 'read', from, to }); }
         else if ((c.name === 'Read' || c.name === 'View') && man) readMan(k, man, i.offset || i.limit ? 'range' : 'whole', 'Read', i.offset || i.limit ? { from: i.offset || 1, to: (i.offset || 1) + (i.limit || 2000) - 1 } : {});
@@ -343,6 +347,9 @@ function selftest() {
   ok('a read of the source within three calls of an index search is a lookup it missed; one later is not', s.reads.length === 2 && s.reads[0].afterIndexSearch === true && s.reads[1].afterIndexSearch === false, JSON.stringify(s.reads));
   ok('so 1 of 2 index searches then read the source: over a third trips the split rule', s.index.search.n === 2 && s.index.searchesThenSource === 1 && s.index.tripsSplit, JSON.stringify(s.index));
   ok('a game\'s own README is not a manual', !readStream(S(useId('a', 'Read', { file_path: '/w/game/README.md' })), 70).manuals.length);
+  s = readStream(S(useId('a', 'Bash', { command: 'cd /w; cat kits/README.md; sed -n 190,400p kits/arcade.js' }), res('a', 'table and code'), useId('b', 'Read', { file_path: '/w/kits/puzzle.js' }), res('b', 'code'),
+    useId('c', 'Grep', { pattern: 'E.Arcade', path: '/w/kits/arcade.js' }), res('c', '200: E.Arcade')), 70);
+  ok('the kits it opened, in order, once each; the kits\' README is not the package\'s', s.kits.join() === 'arcade,puzzle' && !s.manuals.length, JSON.stringify({ kits: s.kits, manuals: s.manuals }));
   ok('the row\'s index column', indexCell(indexReads([{ file: 'API-INDEX.md', how: 'search', tokens: 1200 }, { file: 'API-INDEX.md', how: 'search', tokens: 300, thenSource: true }, { file: 'API-INDEX.md', how: 'range', tokens: 2100, from: 1, to: 40 }], 1000)) === '2 / 1 / 0 (1.5k / 2.1k / 0); 1 of 2 searches then read the source; trips the split rule',
     indexCell(indexReads([{ file: 'API-INDEX.md', how: 'search', tokens: 1200 }, { file: 'API-INDEX.md', how: 'search', tokens: 300, thenSource: true }, { file: 'API-INDEX.md', how: 'range', tokens: 2100, from: 1, to: 40 }], 1000)));
   const ce = childEnv({ PATH: '/bin', HOME: '/h', ANTHROPIC_BASE_URL: 'u', CLAUDECODE: '1', CLAUDE_CODE_SESSION_ID: 's', CLAUDE_EFFORT: 'max', CLAUDE_CODE_REMOTE: 'true', CLAUDE_SESSION_INGRESS_TOKEN_FILE: 't', CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST: '1' });
@@ -355,7 +362,7 @@ function selftest() {
 if (resolve(process.argv[1] || '') !== fileURLToPath(import.meta.url)) { /* imported (readStream, codeSize, readJudge): no command line */ }
 else if (flag('selftest')) selftest();
 else if (flag('list')) console.log(briefs().join('\n'));
-else if (opt('rescore')) { const r = score(resolve(opt('rescore')), { judgeModel: opt('judge-model'), noJudge: flag('no-judge') }); console.log(HEAD + '\n' + row(r)); }
+else if (opt('rescore')) { const r = score(resolve(opt('rescore')), { judgeModel: opt('judge-model'), noJudge: flag('no-judge') }); console.log(HEAD + '\n' + row(r) + '\n\nkits opened: ' + (r.kits.join(', ') || 'none')); }
 else {
   const name = opt('brief'); if (!name) { console.error('Usage: node tools/agent-bench.mjs --brief <' + briefs().join('|') + '> [--agent claude|codex] [--model M] [--budget 30] [--dry-run]'); process.exit(2); }
   const agent = opt('agent', 'claude'), model = opt('model'), budget = +opt('budget', 30), text = brief(name);
@@ -373,6 +380,6 @@ else {
   child.on('close', code => log.end(() => {
     const meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')); meta.wallSeconds = (Date.now() - t0) / 1000; meta.exit = code; writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2));
     const r = score(dir, { judgeModel: opt('judge-model') });
-    console.log('\n' + HEAD + '\n' + row(r) + '\n\nresult: ' + join(dir, 'result.json'));
+    console.log('\n' + HEAD + '\n' + row(r) + '\n\nkits opened: ' + (r.kits.join(', ') || 'none') + '\nresult: ' + join(dir, 'result.json'));
   }));
 }

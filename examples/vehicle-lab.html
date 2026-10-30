@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge Vehicle Lab v0.84.1 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
+  my-3D2dge Vehicle Lab v0.85.0 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
   vehicles drive: Rapier's ray-cast vehicle controller (a chassis on four sprung wheels), or a ball Rapier rolls, steered by
   the drive module's arcade handling (what world.vehicle is)? Tab switches between them on the same track. Served, not
   double-clicked (it loads three.js and Rapier from /vendor/).
@@ -28,12 +28,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.84.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.85.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen" role="img" aria-label="Vehicle Lab"></canvas></div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.84.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.85.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -114,7 +114,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.84.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.85.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -200,7 +200,7 @@ const nullCanvas = (w, h) => {
   const c = { width: w, height: h }, img = (iw, ih) => ({ width: iw, height: ih, data: new Uint8ClampedArray(Math.max(0, iw * ih * 4)) });
   const made = { getImageData: (x, y, iw, ih) => img(iw, ih), createImageData: (iw, ih) => img(iw.width || iw, ih || iw.height), measureText: () => ({ width: 0 }),
     createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), createPattern: () => ({}), canvas: c };
-  const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : () => {}, set: (t, k, v) => { t[k] = v; return true; } });
+  const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : typeof k === 'string' && k[0] === '_' ? undefined : () => {}, set: (t, k, v) => { t[k] = v; return true; } });   // (the engine's own _ fields: unset)
   c.getContext = () => g;
   return c;
 };
@@ -350,7 +350,7 @@ Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng
 const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null, frame: null, pose: null, pause: null }, FADES = {};
 
 /* =============================================================================
- * 1b. EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
+ * 1b. MORE EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
  *    with none of them leaves it out
  * ============================================================================= */
 Object.assign(ease, {
@@ -10382,7 +10382,7 @@ root.My3D2dge = E;
 <script type="module">
 /* ---- inlined from engine/my-3d2dge-3d.js ---- */
 /*!
-my-3D2dge 3D v0.84.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.85.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -10398,6 +10398,7 @@ moves, E.font, E.ui, E.Menu, audio). Read the code below only to debug: its sect
 <script type="importmap">{ "imports": { "three": "/vendor/three-0.182.0/three.webgpu.min.js",
   "three/webgpu": "/vendor/three-0.182.0/three.webgpu.min.js", "three/tsl": "/vendor/three-0.182.0/three.tsl.min.js",
   "@dimforge/rapier3d-simd-compat": "/vendor/rapier3d-simd-compat-0.19.3/rapier.js" } }<\/script>
+<style>html, body { margin: 0; height: 100%; overflow: hidden; background: #000 }</style>
 <div id="stage" style="position:relative;width:100%;height:100%;overflow:hidden">
   <canvas id="view"></canvas><canvas id="screen" style="position:absolute;inset:0;width:100%;height:100%"></canvas></div>
 <script src="/dist/my-3d2dge.js"><\/script>                   the 2D engine, a classic script, first
@@ -10484,7 +10485,8 @@ level: { rows, legend, ground, side, colors, bottom }. A legend entry says what 
   { shape: 'bench', facing, scale, mats, solid }   a shape standing on the tile (world.shape), walked round when solid
 and its look: ground ('flagstone' 'grass' 'dirt' 'sand' 'snow' 'planks' 'tiles' 'plain' 'water' 'lava', or (x, y) =>
 [r, g, b]) with colors { base, dark, light }, side ('brick' 'block' 'earth' 'planks' 'metal') with color (and top, line).
-The level's own ground and side are every tile's default. Add looks: E.World3D.GROUND.name, E.World3D.SIDE.name.
+The level's ground is every tile's default; its side styles the floors' edges, its wallSide the walls ('brick'; a tile's
+own side wins). Add looks: E.World3D.GROUND.name, E.World3D.SIDE.name.
 
 ## The world: new E.World3D(game, o)
 o: { level, look: 'card' | 'puppet', res: 'pixels' | 'balanced' | 'full', gravity: 480, sky: '#06050b' or [top,
@@ -10494,6 +10496,7 @@ lights: 2 (your own), spots: 0 (flashlights), glowLights: 4, shadows, outlines, 
 world instead of the level: below), overlay: { fov } (first person: below), onDraw: (world, r) => {} (your own 3D drawing
 each frame, whichever scene draws the world) }
   world.step(dt) / world.draw(r) / world.reset() / world.hash([your numbers]) / world.prepare() (build the shaders now)
+  world.dispose(): frees a world (its physics, meshes and textures); dispose a level's world before making the next
   world.width, depth (units), mw, mh (tiles), bottom, marks, torches, actors, props, platforms, things, time, stats
   world.ground(x, y)   the ground's height (a wall's top on a wall; bottom over a pit)
   world.floorAt(x, y, z)   the surface a body at height z stands on or falls to (platforms too)
@@ -10504,7 +10507,8 @@ each frame, whichever scene draws the world) }
   world.randomFloor(rnd, minDist, fx, fy) -> [x, y]; world.clear(x0, y0, z0, x1, y1, z1) -> a clear line of sight?
   world.ray(x, y, z, dx, dy, dz, len, { skip: actor(s), level: true (sight lines), down }) -> the first hit { x, y, z, nx,
       ny, nz, dist, actor, prop, ground } or null: hitscan, ledges, feet on the ground
-  world.block({ x, y, z, w, d, h, yaw } | { x, y, z, r, h }): an invisible fixed collider (walls you draw your own way)
+  world.block({ x, y, z, w, d, h, yaw } | { x, y, z, r, h }): an invisible fixed collider (walls you draw your own way;
+      z its base, as for world.box, world.thing and world.shape)
   world.near(x, y, r, kind) -> actors within r; world.touching(actor, kind) -> things it touches
   world.project(x, y, z) -> [x, y] in game pixels for the HUD (null behind the camera)
   world.remove(actor | prop | platform | thing)
@@ -10521,7 +10525,7 @@ a blob's { squash, look: [dx, dy], squint, flap }); world.step moves it, reads b
 a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), and poses its rig.
   a.place(x, y, z), a.push(vx, vy, vz) (knockback), a.setSolid(false) (fallen: it stops blocking the others), a.remove(),
   a.resize(half) (a crouch, a slide: the capsule shorter, the feet kept; look up with world.ray before standing)
-  a.flash (seconds of hit flash), a.fade (0..1), a.sink (units drawn into the floor: spawning, sinking away), a.visible,
+  a.flash (a hit flash while above 0: count it down yourself, a.flash -= dt), a.fade (0..1), a.sink (units drawn into the floor: spawning, sinking away), a.visible,
   a.data (yours). E.Attack, E.Combo and E.MOVES work as in 2D: attack.hits(list, e => E.inArc(a, a.facing, e, range,
   half), e => ...) on actors.
 
@@ -10529,7 +10533,7 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   world.shape(id, x, y, z, { facing, scale, mats, flip, params, solid: true }): a shape (docs/ASSETS.md: an E.SHAPES id,
   a store set's 'SET:id' after E.addAssets, or an entry) in 3D, from the 2D engine's parts and materials, solid as
   map.solid's box. A reset takes yours away (the legend's stand again); world.shapes holds them; world.remove(s)
-  world.crate(x, y, z, yaw), world.barrel(x, y, z): dynamic bodies; world.knock(p, fromX, fromY, dv, up) throws one;
+  world.crate(x, y, z, yaw), world.barrel(x, y, z): dynamic bodies (z their centre; left out, on the floor); world.knock(p, fromX, fromY, dv, up) throws one;
   world.box({ x, y, z, w, d, h, color, side, fixed, mass }); a prop has x, y, z, q (its rotation), data
   world.platform({ w, d, h, path: [[x, y, z], ...] (its top's points), speed, wait, loop, side, color }): a platform that
   moves (there and back, or round with loop); heroes on it ride it, bodies on it are carried
@@ -10557,8 +10561,9 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   game.shake(n), game.flash(color), game.freeze(s), game.note(text): as in 2D
 
 ## The camera: world.camera
-  modes: 'view' (the 2D engine's views as real 3D cameras following camera.target: game.view (V: game.nextView()),
-  game.yaw ([ ]: game.rotateView(45)), game.zoom (the wheel, a pinch, Settings); proj 'persp' | 'ortho'; dist; walls in
+  modes: 'view' (the 2D engine's views as real 3D cameras following camera.target: game.view (game.nextView()),
+  game.yaw (game.rotateView(45)): the starter's shell binds V and [ ] to them, the engine no key; game.zoom (the wheel,
+  a pinch, Settings, where the scene's camera.zoom allows); proj 'persp' | 'ortho'; dist; walls in
   front cut low), 'chase' (behind the target; it swings round behind as the target moves; a click captures the mouse to
   turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own),
   'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z] (fixed) | follow:
@@ -10596,7 +10601,8 @@ drift boost), boostT, onGround, surface ('road', 'boost', a track's off, the lev
 bumped; v.boost(sec, power), v.spinOut(sec). E.Race (the drive module) races vehicles as it races E.Cars.
 world.track({ path: new E.Path(points [x, y, z], { closed: true, smooth: 'catmull' }), width: 96, bank: .25 (radians at
 the tightest bends), walls: true, kerb: 8, pads: [[d, across]] (boost pads), gaps: [[d0, d1, side]] (no wall: a
-shortcut's way off), off: 'grass', surface: 'road' (a shortcut's 'dirt'), color, line }): the road and its walls, drawn
+shortcut's way off), off (the surface beside it, 'grass'; null: the ground's own), surface: 'road' (a shortcut's
+'dirt'), color, line }): the road and its walls, drawn
 and solid (heights in the path: hills, a hump to jump; banked about the low edge); track.at(d) -> { x, y, z, angle, bank
 }, track.where(x, y) -> { d, across, z }, track.surface(x, y). A terrain under it keeps below it (your height function).
 world.flyer({ x, y, z, yaw, speed: 300, min, max (brake, boost), turn, climb, bank, invert, low (least height), bounds:

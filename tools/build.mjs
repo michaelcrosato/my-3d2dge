@@ -2,7 +2,7 @@
 // Usage: node tools/build.mjs
 // Every output is a single self-contained HTML file (no network, no other files) that
 // you can open, host, or hand to another AI model.
-//   dist/my-3d2dge.html          readable engine + API card + all six starter slices (the reference)
+//   dist/my-3d2dge.html          readable engine + API card + every starter slice (the reference)
 //   dist/my-3d2dge-compact.html  same, with the engine minified (fewer tokens)
 //   dist/kits/my-3d2dge-<genre>.html  minified engine + API card + ONE slice: the smallest file to
 //                                hand a model that is making a game in that genre. Its engine is on the kit diet: the
@@ -18,8 +18,9 @@
 //                                for AI coding agents (source: engine/my-3d2dge-agent.js; test: node tools/agent-test.mjs)
 //   API-INDEX.md                 every public name in the engine, one line each (tools/api-index.mjs)
 //   dist/handoff/                the package for coding agents that need the full engine: the engines, API.md, the
-//                                index, AI_GUIDE.md, the tools that check, film and replay a game, and a template game
-//                                with a headless test (sources: src/handoff/). The only output of several files; text only
+//                                index, AI_GUIDE.md, the tools that check, film and replay a game, a template game
+//                                with a headless test, and the 2D genre kits readable (kits/) (sources: src/handoff/).
+//                                The only output of several files; text only
 // MODULES (engine/modules/<name>.js, engine/modules/README.md): each loads after the core, in a <script> of its own. The
 // reference editions carry every module; a kit carries the ones its slice names in its header (@modules grid gen) and
 // the ones those need; the examples pages carry none.
@@ -32,12 +33,7 @@ import { modules as allModules, resolve as resolveModules, sliceModules } from '
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
 const STARTER = 'src/starter', STARTER3D = 'src/starter3d', ENGINE3D = 'engine/my-3d2dge-3d.js';
-const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', metroidvania: 'METROIDVANIA (a world of rooms: its map, two abilities that open its gates, a save room, two bosses)', brawler: "BRAWLER (beat-'em-up)", fighting: 'FIGHTING (one on one: three fighters, versus, arcade, training)', shooter: 'SHOOTER (vertical shoot-em-up)', arcade: 'ARCADE (a cabinet of three: maze, formation, rocks)', pinball: 'PINBALL (one table: flippers, bumpers, a ramp, drop targets, a spinner, a kickback, a mission, multiball, tilt, a dot-matrix display)', kart: 'KART (Mode 7 karts: six on a circuit, three laps, items, two players in a split screen)', road: 'ROAD (a pseudo-3D coast road against the clock: curves, hills, a tunnel, traffic, checkpoints, a radio)', puzzle: 'PUZZLE (falling blocks and falling pairs)', rhythm: 'RHYTHM (four lanes on the music clock: two songs, notes, jumps, holds, a rapping teacher to answer, a dancer and a crowd on the beat, grades, the audio offset)', rpg: 'RPG (a JRPG\'s journey: a town, a world map, a cave and its boss, the ATB battle, menus and save slots)', roguelike: 'ROGUELIKE (a turn-based crypt of generated floors)', tactics: 'TACTICS (an isometric battle on a map of heights: charge time or phases, facing, arcs, areas, a scoring AI)', rts: 'RTS (real-time strategy: workers, gold, a barracks and a stable, three kinds to fight, fog, an enemy camp that builds and attacks in waves)', sim: 'SIM (a theme park: paths, four rides and two shops, guests with needs and money, prices, a rating, day and night, time controls)', artillery: 'ARTILLERY (two teams of three on an island every blast carves: turns, aim and power, wind, a rocket, a bouncing grenade, a cluster bomb, falls and the sea, a CPU that tries its shots in simulation)', pointclick: 'POINT-AND-CLICK (an adventure of three rooms: a dock, a tavern, a lighthouse; four puzzles, the nine verbs or a verb coin, an inventory, a riddle contest)', stealth: 'STEALTH (third-person stealth and parkour)', sports: 'SPORTS (two against two in a walled cage, up to four players: a ball that bounces and curls, passes, lobs, shots on a meter, formations, a match clock; Sensible Soccer and NBA Jam)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
-const ALL = {
-  GAMES: 'twenty working games and an animation lab',
-  CONTENTS: "a title menu plus twenty vertical slices\n       (ADVENTURE top-down, POINT-AND-CLICK, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, PINBALL,\n       KART, ROAD, PUZZLE, RHYTHM, RPG, ROGUELIKE, TACTICS, RTS, ARTILLERY, SIM, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.",
-  LINKS: 'Deep links: add #adventure, #pointclick, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #pinball, #kart, #road, #puzzle, #rhythm,\n       #rpg, #roguelike, #tactics, #rts, #artillery, #sim, #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,\n       #fighting/versus, #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map, #kart/race,\n       #kart/vs, #road/drive, #rpg/battle, #tactics/battle, #tactics/phases, #artillery/cpu, #rhythm/stepup, #rhythm/rapschool\n       and #rhythm/calibrate jump into a part.'
-};
+const SLICES = { adventure: 'ADVENTURE (a top-down action adventure: a village, ruins and a shrine, a sword, a key and a great door, talk with portraits; Zelda and Secret of Mana)', platformer: 'PLATFORMER (a side-scroller: a night approach to a castle in five zones, a sword, a dash, candles, a 2.5D view; Castlevania, Mega Man X, Klonoa)', metroidvania: 'METROIDVANIA (a world of rooms: its map, two abilities that open its gates, a save room, two bosses)', brawler: "BRAWLER (a beat-'em-up: a city block at dusk, combos, grabs and kicks, waves that lock the screen, a second player who drops in; Final Fight, Streets of Rage)", fighting: 'FIGHTING (one on one: three fighters, versus, arcade, training)', shooter: 'SHOOTER (a vertical shoot-\'em-up stage, then a horizontal one: waves, power-ups, bosses; 1943 and Raiden, then Gradius and R-Type)', arcade: 'ARCADE (a cabinet of three: maze, formation, rocks)', pinball: 'PINBALL (one table: flippers, bumpers, a ramp, drop targets, a spinner, a kickback, a mission, multiball, tilt, a dot-matrix display)', kart: 'KART (Mode 7 karts: six on a circuit, three laps, items, two players in a split screen)', road: 'ROAD (a pseudo-3D coast road against the clock: curves, hills, a tunnel, traffic, checkpoints, a radio)', puzzle: 'PUZZLE (falling blocks and falling pairs that chain, versus with a second player or the CPU; Tetris, Puyo Puyo)', rhythm: 'RHYTHM (four lanes on the music clock: two songs, notes, jumps, holds, a rapping teacher to answer, a dancer and a crowd on the beat, grades, the audio offset)', rpg: 'RPG (a JRPG\'s journey: a town, a world map, a cave and its boss, the ATB battle, menus and save slots)', roguelike: 'ROGUELIKE (a turn-based crypt of ten generated floors: fields of view and fog, turns by speed, potions and scrolls; Rogue, Mystery Dungeon)', tactics: 'TACTICS (an isometric battle on a map of heights: charge time or phases, facing, arcs, areas, a scoring AI)', rts: 'RTS (real-time strategy: workers, gold, a barracks and a stable, three kinds to fight, fog, an enemy camp that builds and attacks in waves)', sim: 'SIM (a theme park: paths, four rides and two shops, guests with needs and money, prices, a rating, day and night, time controls)', artillery: 'ARTILLERY (two teams of three on an island every blast carves: turns, aim and power, wind, a rocket, a bouncing grenade, a cluster bomb, falls and the sea, a CPU that tries its shots in simulation)', pointclick: 'POINT-AND-CLICK (an adventure of three rooms: a dock, a tavern, a lighthouse; four puzzles, the nine verbs or a verb coin, an inventory, a riddle contest)', stealth: 'STEALTH (third-person stealth and parkour: a rooftop district at dusk, guards with sight and suspicion, climbing, takedowns, an HTML HUD; Assassin\'s Creed, Metal Gear)', sports: 'SPORTS (two against two in a walled cage, up to four players: a ball that bounces and curls, passes, lobs, shots on a meter, formations, a match clock; Sensible Soccer and NBA Jam)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
 // THE KIT DIET (docs/KITS.md, The kit diet): a kit's engine leaves out the core's sections its game never calls. This
 // table names the parts that may go (one or more of the core's sections, by number) and, where a part is reached only
 // through a method or field of what stays, those (entries), or through a string or option name the kit writes (names:
@@ -75,20 +71,35 @@ const DIET = [
 const DIET3D = [
   { part: 'vehicles', sections: ['8b'], entries: ['vehicle', 'track', 'flyer'] }   // world.vehicle, world.track, world.flyer
 ];
-// the parts a slice's deep link can jump into (#arcade/maze), named in its kit's header
-const PARTS = { arcade: ['maze', 'formation', 'rocks'], shooter: ['horizontal'], fighting: ['versus', 'arcade', 'training'], metroidvania: ['miniboss', 'boss', 'map'], kart: ['race', 'vs'], road: ['drive'], rpg: ['battle'], tactics: ['battle', 'phases'], sports: ['match', 'vs'] };
-const PARTS3D = { racing: ['race', 'vs'], crawler: ['warden'] };   // (the 3D slices')
+// the parts a slice's deep link can jump into (#arcade/maze): each slice's own header names them ("#arcade/maze"), for its
+// kit's header, the reference editions' and the handoff package's table of kits
+const partsOf = dir => Object.fromEntries(readdirSync(join(root, dir)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
+  const id = f.replace(/^\d+-|\.js$/g, ''), head = readFileSync(join(root, dir, f), 'utf8').split(/\*\/\s*$/m)[0];
+  return [id, [...new Set([...head.matchAll(new RegExp('#' + id + '/([a-z0-9]+)', 'g'))].map(m => m[1]))]];
+}).filter(([, p]) => p.length));
+const PARTS = partsOf(STARTER), PARTS3D = partsOf(STARTER3D);
+/** a long line of a page's header, wrapped at its width and continued at its indent (at: the columns its first line has used) */
+const wrapHead = (text, at = 0, w = 116) => { const out = ['']; let col = at; for (const word of text.split(' ')) { if (col + word.length + 1 > w && out[out.length - 1]) { out.push(''); col = 7; } out[out.length - 1] += (out[out.length - 1] ? ' ' : '') + word; col += word.length + 1; } return out.join('\n       '); };
+const links = (ids, parts, one) => wrapHead((one ? 'Deep link: add #' : 'Deep links: add #') + ids.join(', #') + ' to the address to start ' + (one ? 'the slice' : 'a slice') +
+  (Object.keys(parts).some(id => ids.includes(id)) ? '; ' + ids.flatMap(id => (parts[id] || []).map(p => '#' + id + '/' + p)).join(', ') + ' jump into a part.' : '.'), 2);
+const GENRES = Object.keys(SLICES).filter(id => id !== 'animlab');
+const ALL = {
+  WHOLE: 'the whole engine', GAMES: GENRES.length + ' working games and an animation lab',
+  ENGINE: '\n       Every module follows it, each a script marked "inlined from engine/modules/<name>.js" that starts with its manual.',
+  CONTENTS: wrapHead('a title menu plus ' + GENRES.length + ' vertical slices (' + GENRES.map(id => SLICES[id].split(' (')[0]).join(', ') + ') and an ANIMATION LAB that plays every move, pose and skin in every view.', 52),
+  LINKS: links(Object.keys(SLICES), PARTS)
+};
 // a kit's line on its modules (the scripts marked "inlined from engine/modules/...", after the engine), when it has any
-const modLine = mods => mods.length ? '\n       Its modules: ' + resolveModules(mods, MODS).map(m => m.name).join(', ') + ' (engine/modules/), each loaded after the engine.' : '';
+const modLine = mods => mods.length ? '\n       ' + wrapHead('Its modules follow it, each a script marked "inlined from engine/modules/<name>.js" that starts with its manual: ' + resolveModules(mods, MODS).map(m => m.name).join(', ') + '.', 7) : '';
 const kit = (id, mods = []) => ({
-  EDITION: id + ' kit', GAMES: 'one working game to copy',
-  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with every slice is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.' + modLine(mods),
-  LINKS: 'Deep link: add #' + id + ' to the address to start the slice' + (PARTS[id] ? '; ' + PARTS[id].map(p => '#' + id + '/' + p).join(', ') + ' jump into a part.' : '.')
+  EDITION: id + ' kit', WHOLE: 'the engine (on the kit diet: 2. says what it leaves out)', GAMES: 'one working game to copy', ENGINE: modLine(mods),
+  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit: dist/my-3d2dge.html has every slice (my-3d2dge.vercel.app/dist/my-3d2dge.html), and the\n       handoff package every kit readable, with the index, the guide and the tools (my-3d2dge.vercel.app/handoff/).',
+  LINKS: links([id], PARTS, true)
 });
 // the 3D slices: their ids and what each is (the kit's header names it)
 const SLICES3D = { action: 'ACTION (a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test)', platformer: 'PLATFORMER (a 3D course of islands, platforms and coins, Mario 64 and Spyro)', shooter: 'SHOOTER (an open world to move through and fight in, first or third person: Apex Legends without the multiplayer)', horror: 'HORROR (a mansion\'s wings by flashlight under fixed cameras: a pistol that locks on, zombies, dogs, keys, a crank, an item box and saves, a boss; Resident Evil and Alone in the Dark)', racing: 'RACING (a kart circuit in a valley: banked bends, a hill, a jump, a dirt shortcut, five drivers, items, three laps, two players in a split screen; Mario Kart 64 and Crash Team Racing)', flight: 'FLIGHT (a stage on rails over the sea to a base, then a boss in free flight: lasers, charged lock-on shots, barrel rolls, rings and a wingman on the radio; Star Fox 64 and Panzer Dragoon)', crawler: 'CRAWLER (a dungeon in first person, a cell at a time: a party of four with portraits, gates, a lever, plates, an automap, real time or turns; Eye of the Beholder, Dungeon Master and Wizardry)' };
-const ALL3D = { EDITION: '3D edition', GAMES: 'the 3D starter games', CONTENTS: 'a title menu plus every 3D slice (' + Object.keys(SLICES3D).map(k => k.toUpperCase()).join(', ') + ').', LINKS: 'Deep links: add #' + Object.keys(SLICES3D).join(', #') + ' to the address to start a slice.' };
-const kit3d = (id, mods = []) => ({ EDITION: '3D ' + id + ' kit', GAMES: 'one 3D game to copy', CONTENTS: 'a title menu plus the ' + SLICES3D[id] + ' slice.\n       This is a 3D genre kit. The file with every 3D slice is dist/my-3d2dge-3d.html at github.com/michaelcrosato/my-3d2dge.' + modLine(mods), LINKS: 'Deep link: add #' + id + ' to the address to start the slice' + (PARTS3D[id] ? '; ' + PARTS3D[id].map(p => '#' + id + '/' + p).join(', ') + ' jump into a part.' : '.') });
+const ALL3D = { EDITION: '3D edition', GAMES: 'the 3D starter games', ENGINE: '', CONTENTS: 'a title menu plus every 3D slice (' + Object.keys(SLICES3D).map(k => k.toUpperCase()).join(', ') + ').', LINKS: links(Object.keys(SLICES3D), PARTS3D) };
+const kit3d = (id, mods = []) => ({ EDITION: '3D ' + id + ' kit', GAMES: 'one 3D game to copy', ENGINE: modLine(mods), CONTENTS: 'a title menu plus the ' + SLICES3D[id] + ' slice.\n       This is a 3D genre kit: dist/my-3d2dge-3d.html has every 3D slice and the whole of both engines\n       (my-3d2dge.vercel.app/3d).', LINKS: links([id], PARTS3D, true) });
 // the modules a slice names (@modules in its header), and those of a folder of slices together
 const sliceMods = file => sliceModules(readFileSync(join(root, file), 'utf8'));
 const dirMods = dir => [...new Set(readdirSync(join(root, dir)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).flatMap(f => sliceMods(join(dir, f))))];
@@ -146,7 +157,7 @@ const KINDS = (() => { const ctx = { console: { log() {}, warn() {}, error() {} 
 /** a kit's engine on the diet, minified (its manual kept): { diet, min }; null without acorn or terser (npm install) */
 async function kitEngine(b) {
   let D; try { D = await import('./diet.mjs'); } catch (e) { console.warn('acorn is not installed (npm install); skipping the kits'); return null; }
-  const d = D.diet(readFileSync(join(root, ENGINE), 'utf8'), DIET, D.uses(kitCodes(b)), KINDS);
+  const d = D.diet(readFileSync(join(root, ENGINE), 'utf8'), DIET, D.uses(kitCodes(b)), KINDS, b.template === 'src/starter3d.template.html' ? { full: 'dist/my-3d2dge-3d.html, both engines whole' } : {});
   if (!dieted.has(d.src)) { let code = false; try { const { minify } = await import('terser'); code = (await minify(d.src, { compress: true, mangle: true, format: { comments: /^!/ } })).code; } catch (e) { /* no terser */ } dieted.set(d.src, code); }
   return { diet: d, min: dieted.get(d.src) };
 }
@@ -156,33 +167,44 @@ async function kitEngine3d(b) {
   let D; try { D = await import('./diet.mjs'); } catch (e) { return null; }
   const src = readFileSync(join(root, ENGINE3D), 'utf8'), codes = kitCodes(b).filter(c => c.text !== src);
   const d = D.diet(src, DIET3D, D.uses(codes), {}, { module: true, warn: 'E.warn', full: 'dist/my-3d2dge-3d.js; dist/my-3d2dge-3d.html for every 3D slice' });
-  if (!dieted3d.has(d.src)) { let code = false; try { const { minify } = await import('terser'); code = (await minify(d.src, { module: true, compress: true, mangle: true, format: { comments: /^!/ } })).code; } catch (e) { /* no terser */ } dieted3d.set(d.src, code); }
-  return { diet: d, min: dieted3d.get(d.src) };
+  // a kit that leaves out the vehicles keeps one line of its manual's section on them
+  const out = d.left.some(l => l.part === 'vehicles') ? d.src.replace(/^## Vehicles, tracks, flight.*\n[\s\S]*?(?=^## )/m, '## Vehicles, tracks, flight: left out of this kit (the 3D diet); dist/my-3d2dge-3d.html has them\n\n') : d.src;
+  if (!dieted3d.has(out)) { let code = false; try { const { minify } = await import('terser'); code = (await minify(out, { module: true, compress: true, mangle: true, format: { comments: /^!/ } })).code; } catch (e) { /* no terser */ } dieted3d.set(out, code); }
+  return { diet: d, min: dieted3d.get(out) };
 }
 /** a kit's API card: the whole card, but its genre playbook keeps the rows of the kit's own slice and its list of modules
- *  the kit's own (the card diet: every row and every module are in API.md, in the repo and in the reference editions) */
-const cardFor = (b, card) => {
+ *  the kit's own (the card diet: every row and every module are in API.md, in the repo and in the reference editions); and
+ *  where its quick start calls what the kit's engine leaves out (diet.gone), the quick start is the kit's own game */
+const DIETLIB = await import('./diet.mjs').catch(() => null);
+const cardFor = (b, card, diet) => {
   const label = b.label, mods = new Set(resolveModules(b.modules || [], MODS).map(m => m.name)), lines = card.split('\n'), out = [];
+  const qs = /^## Quick start.*\n```js\n([\s\S]*?)\n```$/m.exec(card), lost = qs && diet && DIETLIB ? [...DIETLIB.uses([{ text: qs[1] }]).E].filter(n => diet.gone.includes(n)) : [];
   const mine = row => { const cols = row.split('|'), copy = (cols[cols.length - 2] || '').toUpperCase(); return new RegExp('(^|[^0-9A-Z-])' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^A-Z-])').test(label.startsWith('3D ') ? copy : copy.replace(/3D [A-Z-]+/g, '')); };
-  let sec = '', cut = 0, modsCut = 0;
+  const row = l => /^\| /.test(l) && !/^\| Genre/.test(l), kept = (() => { let sec = ''; return lines.filter(l => { if (l.startsWith('## ')) sec = l; return sec.startsWith('## Genre playbook') && row(l) && mine(l); }).length; })();
+  let sec = '', cut = 0, modsIn = 0, modsCut = 0;
   for (const l of lines) {
-    if (l.startsWith('## ')) {
-      if (cut) { out.push(`(This kit's ${label} rows; API.md, in the repo and in dist/my-3d2dge.html, has the playbook's every genre.)`, ''); cut = 0; }
-      sec = l;
+    if (l.startsWith('## ')) sec = l;
+    // the card describes the full engine: say once that this kit's leaves sections out
+    if (l.startsWith('**Looking a name up:**') && diet && diet.left.length) out.push(`**This kit's engine** leaves out the sections its game never calls (the kit diet: the file's header lists them). A name from one warns once, naming its section, and a class throws; the card describes the full engine, \`dist/my-3d2dge.html\`.`, '');
+    if (sec.startsWith('## Quick start') && lost.length) { if (l === sec) out.push(l, `This kit's engine leaves out ${lost.map(n => '`E.' + n + '`').join(', ')}, which the card's quick start (a top-down walk) is built on. This kit's quick start is its own game, between \`GAME START\` and \`GAME END\`: the slice's header says what it plays and how. \`API.md\` and the reference editions have the card's.`, ''); continue; }
+    if (sec.startsWith('## Genre playbook')) {
+      if (!kept && /^\|/.test(l)) { if (!cut++) out.push(`(API.md, in the repo and in dist/my-3d2dge.html, has the playbook: a row for each genre, none of them this kit's.)`); continue; }   // (no table)
+      if (row(l)) { if (mine(l)) out.push(l); else cut++; continue; }
+      if (cut && kept && !/^\|/.test(l)) { out.push(`(This kit's ${label} rows; API.md, in the repo and in dist/my-3d2dge.html, has the playbook's every genre.)`); cut = 0; }
     }
-    if (sec.startsWith('## Genre playbook') && /^\| /.test(l) && !/^\| Genre/.test(l)) { if (mine(l)) out.push(l); else cut++; continue; }
     const m = /^  - `([a-z0-9]+)`/.exec(l);
-    if (sec.startsWith('## More') && m) { if (mods.has(m[1])) out.push(l); else { if (!modsCut) out.push(`  - (the modules this kit carries; API.md lists every one)`); modsCut++; } continue; }
+    if (sec.startsWith('## More') && m) { modsIn++; if (mods.has(m[1])) out.push(l); else modsCut++; continue; }
+    if (modsIn && modsCut) { out.push(mods.size ? `  - (the modules this kit carries; API.md lists every one)` : `  - (this kit carries no module; API.md lists every one)`); modsCut = 0; }
     out.push(l);
   }
   return out.join('\n');
 };
-/** a kit's header line on what its engine leaves out */
-const dietLine = d => {
+/** a kit's header line on what its engine leaves out (a 3D kit's whole engine, with every 3D slice, is the 3D starter's) */
+const dietLine = (d, is3d) => {
   if (!d.left.length) return '';
-  const items = d.left.flatMap(l => l.sections.map(([id, t]) => id + ' ' + t)), lines = ['Its engine leaves out what its game never calls (the kit diet):'];
-  items.forEach((w, i) => { w += i < items.length - 1 ? ',' : '.'; if ((lines[lines.length - 1] + ' ' + w).length > 104) lines.push(w); else lines[lines.length - 1] += ' ' + w; });
-  return '\n       ' + lines.join('\n       ') + '\n       Calling one of them warns, naming its section. A game of several genres starts from the full engine:\n       dist/my-3d2dge.html (every slice and section, readable) or dist/my-3d2dge-compact.html.';
+  const items = d.left.flatMap(l => l.sections.map(([id, t]) => id + ' ' + t));
+  return '\n       ' + wrapHead('It leaves out what its game never calls (the kit diet): ' + items.join('; ') + '. Calling one of them warns, naming its section (a class throws). ' +
+    (is3d ? 'dist/my-3d2dge-3d.html has both engines whole.' : 'A game of several genres starts from the full engine: dist/my-3d2dge.html (every slice and section, readable) or dist/my-3d2dge-compact.html.'), 7);
 };
 /** a 3D kit's header line on what its 3D engine leaves out (the 3D diet) */
 const dietLine3d = d => {
@@ -239,12 +261,12 @@ for (const b of builds) {
   if (b.compact && !min) continue;
   let html = readFileSync(join(root, b.template), 'utf8');
   const ke3 = b.kit && /@inline-esm engine\/my-3d2dge-3d\.js/.test(html) ? await kitEngine3d(b) : null;
-  const vars = Object.assign({}, GLOBAL, b.vars); if (ke) vars.CONTENTS += dietLine(ke.diet); if (ke3) vars.CONTENTS += dietLine3d(ke3.diet);
+  const vars = Object.assign({}, GLOBAL, b.vars); if (ke) vars.ENGINE += dietLine(ke.diet, !!ke3 || b.template === 'src/starter3d.template.html'); if (ke3) vars.ENGINE += dietLine3d(ke3.diet);
   for (const [k, v] of Object.entries(vars)) html = html.replaceAll(`{{${k}}}`, v);
   html = boot(html);
   // a file one part needs, only where that part is (a kit of one slice leaves out the others' sets)
   html = html.replace(/<!-- @inline-with (\S+) (\S+) -->/g, (_, part, file) => !b.parts || b.parts(part) ? `<!-- @inline ${file} -->` : '');
-  html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => file === 'API.md' && b.kit ? cardFor(b, read(file)) : read(file));
+  html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => file === 'API.md' && b.kit ? cardFor(b, read(file), ke && ke.diet) : read(file));
   // a folder of script parts joined in name order into one <script> (the starter game: shell + one file per slice)
   html = html.replace(/<!-- @inline-parts (\S+) -->/g, (_, dir) => {
     const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort();
@@ -329,7 +351,27 @@ for (const [to, from] of HANDOFF) {
 const sets = HANDOFF.filter(([to]) => to.startsWith('src/assets/sets/')).map(([to, from]) => { const t = readFileSync(join(root, from), 'utf8'), n = /(\d+) shapes, (\d+) materials, (\d+) sprites/.exec(t);
   return `- [${to.split('/').pop()}](sets/${to.split('/').pop()}): ${n ? n[0] : ''}${existsSync(join(root, 'src/assets/catalogs', to.split('/').pop().replace(/\.js$/, '.json'))) ? ` ([catalog](catalogs/${to.split('/').pop().replace(/\.js$/, '.json')}))` : ' (a game\'s own cut)'}`; });
 writeFileSync(join(root, H, 'src/assets/README.md'), '# The asset store\n\nSets of still objects, materials and sprites converted from CC0 libraries (each entry says where it came from),\nand the hand-written catalogs that describe them. `docs/ASSETS.md` is the card;\n`node tools/asset-find.mjs \"words\"` searches them; a game loads one with its script and\n`E.addAssets(window.ASSETS[\'<set>\'])`, or cuts the few it uses with `node tools/asset-set.mjs`.\n\n' + sets.join('\n') + '\n');
+// the genre kits, readable (kits/; sources src/handoff/kits/): each 2D kit's game, what the single-file kit holds between
+// GAME START and GAME END (the shell, its slice, the start), a page that plays it on the package's engine with the asset
+// set the starter's page gives that slice, a table of them, and their headless test
+const KITSETS = Object.fromEntries([...readFileSync(join(root, 'src/starter.template.html'), 'utf8').matchAll(/<!-- @inline-with (\S+) (\S+) -->/g)].map(m => [m[1], m[2]]));
+const KITS = readdirSync(join(root, STARTER)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).sort().map(f => {
+  const id = f.replace(/^\d+-|\.js$/g, ''), [, label, what] = /^(.+?) \((.*)\)$/.exec(SLICES[id]);
+  return { id, f, label, what, set: KITSETS[f], mods: resolveModules(sliceMods(join(STARTER, f)), MODS).map(m => m.name) };
+});
+mkdirSync(join(root, H, 'kits'), { recursive: true });
+const kitPage = readFileSync(join(root, 'src/handoff/kits/kit.html'), 'utf8');
+for (const k of KITS) {
+  const [shell, slice, start] = ['00-shell.js', k.f, '90-start.js'].map(p => readFileSync(join(root, STARTER, p), 'utf8')), at = 4 + shell.split('\n').length;
+  writeFileSync(join(root, H, 'kits', k.id + '.js'), `// The ${k.label} kit's game (${k.what}), readable: the starter's shell (${STARTER}/00-shell.js), then\n// the slice from line ${at} (${STARTER}/${k.f}: its header says what it plays and how), then the start (90-start.js), as the\n// single-file kit holds them between GAME START and GAME END. ${k.id}.html plays it; node kits/test.mjs ${k.id} runs it headless.\n` +
+    [shell, slice, start].join('\n'));
+  writeFileSync(join(root, H, 'kits', k.id + '.html'), fill(kitPage.replaceAll('{{LABEL}}', k.label).replaceAll('{{ID}}', k.id).replace('{{SETS}}', k.set ? `<script src="../${k.set}"></script>\n` : '')));
+}
+writeFileSync(join(root, H, 'kits/README.md'), fill(readFileSync(join(root, 'src/handoff/kits/README.md'), 'utf8')).replace('{{KITS}}', KITS.map(k =>
+  `| ${k.label} | [${k.id}.js](${k.id}.js), [${k.id}.html](${k.id}.html) | ${k.what} | ${k.mods.join(', ') || 'none'} | #${k.id}${(PARTS[k.id] || []).map(p => `, #${k.id}/${p}`).join('')} |`).join('\n')));
+writeFileSync(join(root, H, 'kits/test.mjs'), readFileSync(join(root, 'src/handoff/kits/test.mjs'), 'utf8'));
 const list = HANDOFF.filter(([to]) => !to.startsWith('src/assets/')).map(([to]) => `<li><a href="${to}">${to}</a><span>${SAY[to] || ''}</span></li>`)
-  .concat(`<li><a href="src/assets/README.md">src/assets/</a><span>the asset store: ${sets.length} sets of objects and materials converted from CC0 libraries, and their catalogs (docs/ASSETS.md, "Make one")</span></li>`).join('\n');
+  .concat(`<li><a href="kits/README.md">kits/</a><span>the ${KITS.length} genre kits, readable: each kit's game and the page that plays it (kits/arcade.html), the table of them, and their headless test (node kits/test.mjs)</span></li>`,
+    `<li><a href="src/assets/README.md">src/assets/</a><span>the asset store: ${sets.length} sets of objects and materials converted from CC0 libraries, and their catalogs (docs/ASSETS.md, "Make one")</span></li>`).join('\n');
 writeFileSync(join(root, H, 'index.html'), fill(readFileSync(join(root, 'src/handoff/index.html'), 'utf8')).replace('{{FILES}}', list));
-console.log('built ' + H + '/ (' + (HANDOFF.length + 2) + ' files)');
+console.log('built ' + H + '/ (' + (HANDOFF.length + 2 + KITS.length * 2 + 2) + ' files)');

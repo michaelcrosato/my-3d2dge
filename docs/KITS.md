@@ -79,7 +79,9 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
 - **The 3D diet:** `DIET3D` does the same for the 3D engine (read as the ES module it is): a 3D kit that never calls
   `world.vehicle`, `world.track` or `world.flyer` leaves out its section 8b (D70).
 - **The card in a kit:** a kit's API card keeps its genre playbook's rows for the kit's own slice and its list of modules
-  for the kit's own; `API.md`, the reference editions and the handoff package carry the whole card (D71).
+  for the kit's own; `API.md`, the reference editions and the handoff package carry the whole card (D71). It says once
+  that the kit's engine is on the diet, and where the kit's engine leaves out a name the card's quick start uses, the
+  quick start is a pointer to the kit's own game (D74).
 - The diet changes no pixel: `kits-test` runs each slice's proof (no stub ever called), and `kits-test --compare <dir>`
   films each kit beside a build from before.
 - A core addition that not every game calls goes in a section of its own (a `/* ====` banner) with a line in `DIET`; a
@@ -106,9 +108,11 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   plays to the end, with its expectation in `tools/kits-test.mjs` (`BOTS`, `BOTS3D`).
 - **Original:** its names, characters, levels and songs are its own. The docs may name the games it is in the style of;
   the game never uses their names, characters, logos or music.
-- **Registered where kits are:** the shell's `SLICES`, `tools/build.mjs` (`SLICES3D` for a 3D one), `vercel.json`'s kit
-  routes, `src/labs.json` (Starter kits, and a To check card), README's tables, the API card's playbook,
-  `doctrine-check`'s budget for a 3D kit. A slice's number keeps families together (`25-metroidvania` beside
+- **Registered where kits are:** the shell's `SLICES`, `tools/build.mjs` (`SLICES` or `SLICES3D`: a line on what it
+  plays, which the kit's header and the handoff package's table of kits show), `vercel.json`'s kit routes,
+  `src/labs.json` (Starter kits, and a To check card), README's tables, the API card's playbook, `doctrine-check`'s
+  budget for a 3D kit. Its deep links are named in its slice's header (`#<id>/<part>`: the build reads them there), and
+  the handoff package carries a 2D kit's game by itself (`kits/`, D73). A slice's number keeps families together (`25-metroidvania` beside
   `20-platformer`).
 
 ## Every change that adds to the engine

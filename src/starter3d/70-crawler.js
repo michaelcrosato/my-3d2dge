@@ -11,7 +11,8 @@
  * each step, turn or blow is the party's turn, the monsters act by their speed, E.Turns 'speed': Wizardry).
  * THE 3D: the camera 'fixed' at the party's eyes, tweened per step; a level of 2 x 2 tiles a cell, braziers in niches,
  * a ceiling and the party's lantern; world.thing gates that rise, and a lever, plates and a stair drawn by the slice;
- * mobs walked cell to cell. CRAWLER.run(n): a scripted walk's hash (the proof); CRAWLER.bot(): to the Warden and out
+ * mobs walked cell to cell. Deep link: #crawler/warden (the Warden's hall, its gates open). CRAWLER.run(n): a scripted
+ * walk's hash (the proof); CRAWLER.bot(): to the Warden and out
  * ===================================================================================== */
 const CRAWLER = (() => {
   const C = 32, PI = Math.PI, EYE = 25, STEP_T = .28, TURN_T = .2, MOVE_T = .4;

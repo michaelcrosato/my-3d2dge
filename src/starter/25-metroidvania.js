@@ -11,8 +11,9 @@
  *   forward, or down (crouched, it fires low). Down crouches and crawls; a ledge caught when falling is climbed with up.
  * TOUCH: the stick (it aims too), JUMP, FIRE (beside a foe, or near a ring in the air, it lashes), DASH and MAP.
  * THE MAP: the rooms seen, cell by cell, their doors, the save room (S) and the bosses' (B); the corner shows the cells
- * round you. SAVE: step onto the station (it refills energy); the next visit starts there. Deep links: #metroidvania/
- * miniboss and #metroidvania/boss (a practice: the abilities given, at the arena's door), #metroidvania/map.
+ * round you. SAVE: step onto the station (it refills energy); the next visit starts there.
+ * Deep links: #metroidvania/miniboss and #metroidvania/boss (a practice: the abilities given, at the arena's door),
+ * #metroidvania/map.
  * HOW IT WORKS: E.World (the rooms module) holds the rooms, their doors, the map, the gates and the save; the core's
  * Platformer the moves (crouching, ledges, clinging, swimming, the rope and the bars, swinging); this file the cast,
  * the bosses and the look.

@@ -105,7 +105,7 @@ function references(st) {
  * o: { module (the 3D engine: an ES module, its statements at the top level), warn (what its stubs warn through: 'warn',
  * or the 3D engine's 'E.warn'), full (where the whole engine is, for the stubs' message) }.
  * Returns { src, left: [{ part, sections: [[id, title]] }], kept: ['parseLevel (13. TILE MAP), for PlatformMap'],
- * stubbed: [names] }
+ * stubbed: [names], gone: [the E names left out: 'TileMap'] }
  */
 export function diet(src, parts, used, kinds, o = {}) {
   const ast = acorn.parse(src, { ecmaVersion: 'latest', sourceType: o.module ? 'module' : 'script' });
@@ -179,5 +179,5 @@ export function diet(src, parts, used, kinds, o = {}) {
   out = out.slice(0, lastAt) + block + out.slice(lastAt);
   for (const [a, b] of cuts) { if (a >= lastAt) throw new Error('the diet would cut the engine\'s last statement'); out = out.slice(0, a) + out.slice(b); }
   const bySec = new Map(); for (const s of go) if (s.part) { const k = s.part.part; if (!bySec.has(k)) bySec.set(k, new Map()); bySec.get(k).set(s.sec.id, s.sec.title); }
-  return { src: out, left: [...bySec].map(([part, m]) => ({ part, sections: [...m] })), kept, stubbed: [...stubs.keys()], attached: S.filter(s => s.attached).length };
+  return { src: out, left: [...bySec].map(([part, m]) => ({ part, sections: [...m] })), kept, stubbed: [...stubs.keys()], gone: [...names], attached: S.filter(s => s.attached).length };
 }

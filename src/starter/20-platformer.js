@@ -2,7 +2,7 @@
  * SLICE 2  PLATFORMER  (side-scroller in the style of Castlevania: SotN, Mega Man X and Klonoa)
  * A night approach to a castle in five zones (graveyard, bailey, lava moat, rampart above the clouds, gate hall). Space jumps,
  * C dashes, X attacks (the move set is in reset()). Cut down skeletons, bats and knights, break candles for gold and hearts,
- * reach the gate. V switches to a 2.5D view, - / = zoom. How the look is built:
+ * reach the gate. TOUCH: the stick, JUMP, ATTACK, DASH. V switches to a 2.5D view, - / = zoom. How the look is built:
  *   1. SKIES   three E.Backdrops cross-faded by zone, a painted moon, a castle on its crag, soft mist, a sea of clouds
  *   2. LAYERS  two E.PlatformMaps: BACK (small-brick walls, never solid) and ROWS (big stone blocks you stand on)
  *   3. DRESS   engine props in two depth rows (against the wall, on the path in front), baked decals, an earth cut
@@ -554,9 +554,9 @@ const PLAT = (() => {
     if (clear) { ribbon(40, 30, .6); E.font.title(g, 'STAGE CLEAR', r.W / 2, 46, { scale: 2, align: 'center', colors: ['#fffbe8', '#ffd36a', '#e0662a'] }); }   // a translucent ribbon keeps the lit gate visible
   }
   return { view: 'side', views: ['side', 'brawler'], input: 'PLATFORMER', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2], tall: 1.5 },   // props at the hero's scale; the player zooms .75x to 2x (no turning), a phone held upright starts at 1.5x: the level fills more of it
-    enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => { const b = level.bounds(v); return Object.assign({}, b, { y1: b.y1 + soilFor(b, game.H) }); }; A.music('adventure'); L.enabled = false; rimWas = game.r.rimAlpha; game.r.rimAlpha = .5;   // a stronger, zone-colored rim light
+    enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => { const b = level.bounds(v); return Object.assign({}, b, { y1: b.y1 + soilFor(b, game.H) }); }; A.music('adventure'); L.enabled = false; if (game.r) { rimWas = game.r.rimAlpha; game.r.rimAlpha = .5; }   // a stronger, zone-colored rim light (headless, no renderer)
       P.ground = (x, y, z) => level.groundBelow(x, z + 1); },              // sparks and debris land and bounce on the platform under them
-    exit() { game.r.rimAlpha = rimWas; P.ground = null; }, update, draw,
+    exit() { if (game.r) game.r.rimAlpha = rimWas; P.ground = null; }, update, draw,
     /** the proof: a run to the right through the graveyard, jumping, cutting and dashing; a hash of the run (with a new rig:
      *  the hero keeps his between visits, and his pose decides where the blade lands) */
     run: (n = 600) => proof('platformer', n, (i, k) => { if (!i) k.hold('right'); if (i % 70 === 10) k.tap('jump'); if (i % 45 === 30) k.tap('attack'); if (i % 240 === 200) k.tap('dash'); if (i % 150 === 100) k.tap('confirm'); },

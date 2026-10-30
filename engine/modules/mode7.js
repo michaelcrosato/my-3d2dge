@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module MODE7 v0.84.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.85.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -8,12 +8,12 @@ along a heading, pitched down; the floor drawn a screen row at a time, the sky a
 billboards (rigs drawn at the size their distance gives, sprites, your own drawing) far to near.
 - const m7 = new E.Mode7({ floor: a TileMap (its floorTex) | (x, y) => [r, g, b] | a canvas (a texel a unit), size:
   [w, h] (the floor in world units, for a function), outside: '#24402a' (beyond the floor) | wrap: true (it repeats),
-  sky: a Backdrop | ['#top', '#bottom'], fog: { color, near, far } (far: nothing past it), far: 2400 }).
+  sky: a Backdrop (full engine) | ['#top', '#bottom'], fog: { color, near, far } (far: nothing past it), far: 2400 }).
 - m7.cam = { x, y, h: 40 (height), angle: 0 (the heading, as E.angleTo gives it: 0 east, PI / 2 south; keep it
   unwrapped, the sky turns with it), pitch: 12 (degrees down), fov: 70 (degrees across the height) };
   m7.chase(body, { back: 56, h: 34, angle }) puts it behind a body (body.angle, or angle) each step.
 - In draw: m7.rig(rig, x, y, z), m7.sprite(spr or E.anim, x, y, z, { scale, flip, t }), m7.shape(id, x, y, z, { facing,
-  size }), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
+  size }) (full engine), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
   far to near, as an overlay (in a split screen, in r.viewport: give each player's cam).
 - m7.project(x, y, z) -> [sx, sy, k] on the screen, or null behind the camera; m7.toFloor(sx, sy) -> [x, y], or null
   above the horizon (both for the camera last drawn: HUD markers, a tap on the track). m7.horizon: its screen row.

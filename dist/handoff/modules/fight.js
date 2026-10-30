@@ -1,10 +1,10 @@
 /*!
-my-3D2dge module FIGHT v0.84.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.85.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
 Street Fighter II's rules, in the side view: for fighting games, and a boss duel in any side-scroller.
-- const f = new E.Fighter(game, { name, x, rig: { size: 2.4, build: 'heroic', colors }, life: 1000, walk: 75, back: 60,
+- const f = new E.Fighter(game, { name, x, rig: { size: 2.6, build: 'heroic', colors }, life: 1000, walk: 75, back: 60,
   moves }); E.Match gives each its foe and its control: an E.Input (the scene's input: E.FIGHT_KEYS; player 2's is
   game.players[1]) or a CPU. It faces its foe, walks, crouches on down, jumps on up (straight, forward or back), and
   holds back to block.

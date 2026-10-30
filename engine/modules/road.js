@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ROAD v0.84.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.85.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -8,7 +8,7 @@ and road drawn smaller with its distance, bending and rising, and what stands be
 - const road = new E.Road({ segment: 200 (a segment's length, world units), width: 2000 (half the road), lanes: 3,
   rumble: 3 (segments a stripe), draw: 240 (segments ahead), fov: 100, height: 1000 (the camera over the road), colors:
   { road: [a, b], grass: [a, b], rumble: [a, b], lane, wall: [a, b], roof, portal }, fog: { color, density: 5 } | null, sky:
-  a Backdrop | '#color' }).
+  a Backdrop (full engine) | '#color' }).
 - Build it: road.add(n, { curve: -6..6 (+ bends right), hill: units up (- down) over the n segments, tunnel: true,
   colors }) (curves eased in and out); road.place(z, offset, what, scale): scenery at distance z, offset across (-1
   and 1: the road's edges; beyond: roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or {

@@ -9,6 +9,7 @@
  * PLAYERS: MATCH is you against the CPU; VERSUS lets players 2 to 4 in (2 on the keyboard, or Start on a pad): player 2
  * takes the RUST, 3 and 4 the second of each side. The rest are run by formation: with the ball, the other one runs
  * ahead on the far side; without it, the nearer presses and the other covers the goal. Commentary on Dialog's radio.
+ * Deep links: #sports/match (a match against the CPU), #sports/vs (VERSUS: players 2 to 4 join).
  * HOW IT WORKS: a TileMap cage (boards that cut low before the camera, nets), the ball and the players as E.Body, rigs
  * that kick and slide (E.Attack), E.arc for the lob, game.allowJoin for players; SPORTS.run(n) is the proof,
  * SPORTS.bot() plays a match through to its whistle and then a short one with four players.

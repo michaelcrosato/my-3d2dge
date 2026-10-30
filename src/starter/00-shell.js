@@ -1,46 +1,13 @@
 /* ============================== GAME START ==============================
- * MY-3D2DGE STARTER: a title menu, nine vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
- * small game, written to be copied and changed:
- *   SLICE 1  ADVENTURE   top-down action adventure (Zelda, Secret of Mana): rooms, sword,
- *                        key and locked door, NPC dialog, hearts, rupees, torch lighting
- *   SLICE 2  PLATFORMER  side-scroller (Mario, Mega Man): E.PlatformMap + E.Platformer,
- *                        stomp and shoot, ? blocks, ladder, moving platform, 2.5D view (V)
- *   SLICE 3  SHOOTER     vertical shoot-'em-up (1942, Xevious): E.Bullets, waves, boss
- *   SLICE 4  RPG         a JRPG's journey (Dragon Quest, Final Fantasy): a town, a world map, a cave, the
- *                        ATB battle (E.Menu), E.Story's talk and quests, E.RPG's items, gear, menus, save slots
- *   SLICE 5  BRAWLER     beat-'em-up (Final Fight, Streets of Rage): E.Combo punches, kicks,
- *                        knockback, depth lanes, waves that lock the screen, a boss
- *   SLICE 6  ANIM LAB    every move, pose and reaction on every skin, in every view
- *   SLICE 7  STEALTH     third-person stealth (Assassin's Creed, Metal Gear): E.Mover climbing,
- *                        vaulting and gap leaps, guards with sight and suspicion, takedowns, hiding
- *   SLICE 8  ROGUELIKE   turn-based dungeon (Rogue, Mystery Dungeon): generated floors (E.gen), fields of
- *                        view and fog, turns by speed (E.Turns), bump to attack, potions, scrolls, stairs
- *   SLICE 9  PUZZLE      falling blocks (Tetris: a bag of seven, hold, kicks, lock delay) and falling pairs
- *                        that chain (Puyo Puyo: E.Grid's groups), a mascot that reacts
- *   SLICE 10 ARCADE      a cabinet of three (Pac-Man, Galaga, Asteroids): E.Arcade's scores, tables, initials,
- *                        continues, turns and attract mode; a maze of E.GridMovers, moths on E.Paths, wrapping rocks
- *   SLICE 15 TACTICS     an isometric battle on a map of heights (Final Fantasy Tactics, Fire Emblem): map.pick under
- *                        the cursor, E.Grid's reach, shapes, facing and threat maps, E.Turns' charge time, E.Story
- *   SLICE 16 RTS         real-time strategy (Warcraft II, StarCraft): E.Strategy's selection, orders, gold, building,
- *                        training, fog and an AI's waves; a free camera, r.pick, buildings as E.SHAPES, E.Shell's minimap
- *   SLICE 17 SIM         a theme park (Theme Park, RollerCoaster Tycoon): paths, rides whose shapes turn, guests with
- *                        needs (E.needs, E.choose), money, prices, a rating, E.Clock's days, time controls, an overlay
- *   SLICE 18 POINT-AND-CLICK  an adventure (Monkey Island, Broken Sword): E.Click's rooms, walk areas with holes, depth,
- *                        hotspots, the nine verbs or a coin, an inventory, puzzles as rules; E.Story's talk and riddles
- *   SLICE 19 PINBALL     a table (Pinball Fantasies, Space Cadet): E.Physics' flippers, bumpers, a ramp on its own layer,
- *                        a swept ball; a mission, multiball, tilt, a dot-matrix display drawn by code; E.Arcade's table
- *   SLICE 20 ARTILLERY   two teams of three (Worms, Scorched Earth): E.Terrain's island carved by every blast, E.Physics'
- *                        bouncing grenades, E.Turns; wind, falls and the sea; a CPU that tries its shots in simulation
- *   SLICE 21 RHYTHM      four lanes on the music clock (Dance Dance Revolution, PaRappa): E.Rhythm's charts, judgments,
- *                        holds and calls, the songbook's songs; a dancer and a crowd on the beat; the audio offset
- *   SLICE 22 SPORTS      two against two in a walled cage (Sensible Soccer, NBA Jam): a ball that bounces and curls,
- *                        passes, lobs by E.arc, shots on a meter, formations, a match clock, up to four players
+ * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
+ * slice adds an animation lab). Each slice is a complete small game, written to be copied and changed: its own header
+ * (below this shell) says what it plays, its keys and touch controls, its deep links and how it works.
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
- * To make your own game: copy the slice closest to your genre, then replace everything
- * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs, #rpg/battle, #tactics/battle, #sports/match, #sports/vs).
+ * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
+ * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
+ * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -100,7 +67,7 @@ addEventListener('keydown', e => {
 const MID = 480, stage = new E.PlatformMap({ rows: ['S'.repeat(60), 'S'.repeat(60)], legend: { S: 1 },
   types: { 1: { style: 'stone', side: '#6a5a78', moss: '#4a6a3a' } }, edges: 'open' });
 const titleBg = new E.Backdrop('castle-night');
-const HEROES = [   // one hero per genre slice, each dressed with the HD rig options
+const HEROES = [   // six heroes, each dressed with the HD rig options
   { face: 0, rig: new E.Humanoid({ size: 1.25, build: 'heroic', armor: true, hair: 'short', cape: { len: 6, width: 6, seg: 2.6 }, colors: { cloth: '#3a5ab0', cape: '#b02a3a', capeIn: '#5a1020', hair: '#e0b050', trim: '#e8c860' } }) },
   { face: 0, rig: new E.Humanoid({ size: 1.25, outfit: 'tunic', hair: 'spiky', hat: { style: 'pointed', color: '#3aa050' }, colors: { cloth: '#3aa050', pants: '#e8dcc0', hair: '#e0b040', trim: '#8a5a2a' } }) },
   { face: 0, rig: new E.Humanoid({ size: 1.3, build: 'bulky', weapon: null, hat: { style: 'band', color: '#e03a3a' }, colors: { cloth: '#f0f0f0', pants: '#2f5fd0' } }) },

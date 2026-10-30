@@ -3,7 +3,8 @@
  * attack (with its wind / hit / recover timeline and frozen key poses), combos, poses, reactions, stances and gun aims.
  * Up / Down pick the animation, Left / Right the skin, L lines every skin up, F turns them round, B shows the skeleton,
  * T the weapon trail, Space pauses, . steps one frame, S plays at quarter speed, J (or Enter) replays, H hides the HUD,
- * Esc goes back to the title. The shell's camera keys work: V view, - = zoom, [ ] turn, 0 reset.
+ * Esc goes back to the title. The shell's camera keys work: V view, - = zoom, [ ] turn, 0 reset. TOUCH: the stick picks
+ * (up, down) and changes the skin (left, right); REPLAY, SLOW, HOLD (pause).
  * HOW IT WORKS: one clock drives every subject, so the lineup stays in sync. A move is an E.Attack, a combo an E.Combo,
  * and a straw dummy takes the hits with hit-stop. Everything else is a list of timed phases whose fields go straight
  * into rig.update. Blobs turn every move into their own attack: a bite, a leap, a pounce (the bat darts and dives) or a spit.

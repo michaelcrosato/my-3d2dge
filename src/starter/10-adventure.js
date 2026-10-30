@@ -2,6 +2,7 @@
  * SLICE 1  ADVENTURE  (Secret of Mana, Zelda: ALttP). Three rooms: village, ruins, shrine. Talk, clear the ruins for
  * the key, open the great door, claim the crystal. THE LOOK: wall MATERIALS, ONE floorTex with PAINTED LIGHT, pitched
  * roofs, leaf-clump bushes, light shafts, dialog PORTRAITS.
+ * KEYS: WASD or arrows move, J or X swings the sword, Enter or Space talks. TOUCH: the stick, ATTACK, CONFIRM.
  * ANY SCREEN: rooms are 4:3 in a world that goes on past them (forest above and below, the next rooms beside), so a
  * screen of any shape is filled. CAMERA (Settings, or C): ROOMS slides screen by screen as Zelda's does, the rooms beside
  * this one under a dim CURTAIN (they wait, as their monsters do); SCROLL follows the hero. The HUD sits in the corners.

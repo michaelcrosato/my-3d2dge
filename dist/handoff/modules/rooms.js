@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ROOMS v0.84.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.85.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18,13 +18,13 @@ Metroid's, Symphony of the Night's and Zelda's worlds: rooms on a grid of screen
 - Explored: world.seen (the cells 'gx,gy' the hero has been in), world.here (its cell). world.drawMap(g, x, y, cell,
   { all }): the pixel map of what was seen (all: every room), the rooms' walls with gaps at their doors, the save (S)
   and boss (B) rooms, the hero blinking; small in a corner, large on a map screen. world.grid: { x0, y0, w, h } (the
-  grid's cells); world.cells(): every cell { gx, gy, room, seen }; game.shell.hud({ minimap: world.shellMap() }).
+  grid's cells); world.cells(): every cell { gx, gy, room, seen }; game.shell.hud({ minimap: world.shellMap() }) (full engine).
 - Gates: a tile type with gate: 'dash' (an ability) or 'key:red' stays solid until world.give(name), which opens its
   tiles in every room. world.has(name); world.got (the set).
 - Saves: world.save(hero, extra) keeps the room, the hero's place, what was got and seen, and extra (any JSON) in
   E.store ('rooms:' + id); world.load() goes back (the room entered, got and seen restored) and returns { room, x, z,
   got, seen, extra } (put the hero at x, z: y in a top view), or null; world.clear().
-- world.draw(r): the room's map; world.drawOver(r): the transition, after everything else.
+- world.draw(r): the room's map (a TileMap's floor and walls); world.drawOver(r): the transition, after everything else.
 
 ```js rooms
 const E = My3D2dge, game = new E.Game({ headless: true });
@@ -108,7 +108,7 @@ class World {
   // a copy of the last frame (the slide moves it away)
   _snap() { const s = this.game.screen; if (this.o.transition !== 'slide' || !s || !s.buf) return null; const c = E.mkCanvas(s.buf.width, s.buf.height); c.getContext('2d').drawImage(s.buf, 0, 0); return c; }
   /** draw the room's map (the kit draws its actors after) */
-  draw(r) { this.room.map.draw(r); }
+  draw(r) { const m = this.room.map; if (m.draw) m.draw(r); else { m.drawFloor(r); m.queueWalls(r); } }   // (a TileMap: its floor, then its walls)
   /** draw the transition over everything (last): the old screen sliding away, or a fade through black */
   drawOver(r) {
     const tr = this._tr; if (!tr) return;

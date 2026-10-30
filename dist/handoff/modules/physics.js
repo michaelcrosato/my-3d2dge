@@ -1,11 +1,11 @@
 /*!
-my-3D2dge module PHYSICS v0.84.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.85.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
 Pinball, Breakout, Asteroids with real collisions, an artillery game's grenades: bodies in a plane of x and y (the ground
 plane, or the side plane with the engine's z as y), stepped in a fixed order, so the same inputs give the same world.
-- const world = new E.Physics({ gravity: [0, 400], substeps: 4, iterations: 8, sleep: true, on: { hit(a, b, info),
+- const world = new E.Physics({ gravity: [0, 400] (left out: [0, 0]), substeps: 4, iterations: 8, sleep: true, on: { hit(a, b, info),
   enter(sensor, body), exit(sensor, body), catch(kicker, body) } }). world.step(dt) in each fixed step (it splits dt in
   substeps: none longer than dt / substeps). gravity is a vector (a pinball table's tilt: [0, 400] down its slope).
 - Bodies: world.circle(x, y, r, o), world.box(x, y, w, h, o), world.poly(x, y, points, o) (convex, points round x, y)
@@ -27,7 +27,8 @@ plane, or the side plane with the engine's z as y), stepped in a fixed order, so
   A field: { shape: 'field', type: 'static', test(x, y, r) -> [nx, ny, depth] | null } collides with circles (the
   terrain module's terrain.collider()).
 - world.ray(a, b, mask) -> { body, x, y, t } | null (the nearest hit along a to b); world.query(x, y) -> bodies there;
-  world.remove(b); world.wake(); world.bodies (in the order added); world.hash() (a proof's number); world.draw(g, to,
+  world.remove(b); world.wake(); world.bodies (in the order added); world.contacts (the last substep's: { a, b, nx, ny,
+  pts }); world.hash() (a proof's number); world.draw(g, to,
   color) outlines every body (to(x, y) -> [sx, sy]: your plane on the screen).
 
 ```js physics
