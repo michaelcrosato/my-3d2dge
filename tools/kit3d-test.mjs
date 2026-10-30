@@ -398,8 +398,9 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
       });
       const near = ([u, v]) => { let n = 0; const cx = Math.round(u * oa.w), cy = Math.round(v * oa.h), R = Math.max(1, Math.round(oa.w / 400)); for (let y = cy - R; y <= cy + R; y++) for (let x = cx - R; x <= cx + R; x++) { const j = (y * oa.w + x) * 4; if (Math.abs(oa.rgba[j] - ob.rgba[j]) + Math.abs(oa.rgba[j + 1] - ob.rgba[j + 1]) + Math.abs(oa.rgba[j + 2] - ob.rgba[j + 2]) > 24) n++; } return n; };
       if (marks.ends.some(p => !p || !near(p)) || marks.sides.some(p => p && near(p))) fail(`${label}: a bench turned to .9 is not drawn where its box is (its ends ${marks.ends.map(p => p ? near(p) : 'off').join(', ')} pixels changed, beside it ${marks.sides.map(p => p ? near(p) : 'off').join(', ')})`);
-      // the outline turns with the shape: row by row, it reaches past the silhouette on both sides
-      await page.evaluate(() => { const k = __sheet.world._shapeKit; k._keep = k.outlines; k.outlines = () => {}; });
+      // the outline turns with the shape: row by row, it reaches past the silhouette on both sides (shadows off: the sun's
+      // shadow beside the shape is not its outline)
+      await page.evaluate(() => { const k = __sheet.world._shapeKit; k._keep = k.outlines; k.outlines = () => {}; __sheet.world.shadows = false; });
       for (const [id, f] of [['crate', -Math.PI / 2], ['barrel', 0]]) {
         await page.evaluate(([id, f]) => { const w = __sheet.world; w.reset(); w.shape(id, 120, 72, 0, { facing: f, solid: false }); __sheet.lookAt(120, 72); }, [id, f]);
         const vis = (m, s) => page.evaluate(([m, s]) => { const K = __sheet.world.shapes[0].kind; K.mesh.visible = m; K.shell.visible = s; }, [m, s]);
@@ -409,7 +410,7 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
         for (let y = 0; y < bg.h; y++) { const [b0, b1] = span(body, y); if (b0 < 0) continue; const [f0, f1] = span(full, y); rows++; if (f0 < b0) left++; if (f1 > b1) right++; }
         if (!rows || left < rows * .6 || right < rows * .6) fail(`${label}: a ${id} turned to ${f.toFixed(2)}: its outline reaches past it on the left in ${left} and the right in ${right} of ${rows} rows`);
       }
-      await page.evaluate(() => { const k = __sheet.world._shapeKit; k.outlines = k._keep; });
+      await page.evaluate(() => { const k = __sheet.world._shapeKit; k.outlines = k._keep; __sheet.world.shadows = true; });
       // solid: a hero walks east into a crate and stops; one dropped over a table lands on its top
       const solid = await page.evaluate(() => {
         const w = __sheet.world, g = __sheet.game; g.stop(); w.reset();
