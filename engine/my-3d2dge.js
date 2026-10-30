@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.85.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.85.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.85.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.85.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -2283,7 +2283,7 @@ class Game {
    * - menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out)
    * - fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it
    *   off), 'button' (only when asked) or false
-   * - corner, backGesture: corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a
+   * - corner, backGesture: corner: the menu and full-screen buttons (top right); backGesture: a
    *   phone's back steps back in the game first (false: it leaves the page)
    * - autoPause: a pausable scene pauses when the page is hidden or loses focus
    * - id: the name the player's settings are saved under (the page's path)

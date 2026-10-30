@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.85.1 (2026-10-30)
+
+The handoff package's kits, held to every deep link they name, and one stale line of the index.
+
+- **Tools**: the contract suite plays every deep link the handoff package's table of kits names (`#arcade/maze`, `#rpg/battle`: the slice there, or the part's own scene), not only each kit's `#<id>`; its header lists its handoff checks.
+- **Docs**: the corner buttons (the menu and full screen) sit top right on every screen: the engine's doc comment and `API-INDEX.md` said top left on a touch screen.
+
 ## 0.85.0 (2026-10-30)
 
 The handoff package and the kits, audited for how an agent finds its way: the package carries every 2D kit, and the cards, the kits' headers and the manuals say what is true where they are read (F7.3 taken up; D73, D74).
