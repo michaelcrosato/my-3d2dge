@@ -13158,7 +13158,7 @@ Object.assign(World3D.prototype, {
       this._sunBack = (s.back || Math.max(960, (s.area || 220) * 1.5)) / U;   // (metres from the focus back toward the sun: what stands that far casts)
       Object.assign(L.shadow.camera, { left: -area, right: area, top: area, bottom: -area, near: .5, far: Math.max(200, this._sunBack + area * 2.5) }); L.shadow.mapSize.set(s.map || 1024, s.map || 1024); L.shadow.bias = s.bias ?? -.0015; L.shadow.normalBias = s.normalBias ?? .02;
       this._sunTexel = area * 2 / (s.map || 1024);
-      const d = s.dir || [-.5, -.7, -.6]; this._sunDir = new THREE.Vector3(d[0], d[2], d[1]).normalize().negate();   // (engine axes -> three's; it shines along dir)
+      const d = s.dir || [-.5, -.7, -.6]; this._sunDir = new THREE.Vector3(d[0], d[2], d[1]).normalize();   // (engine axes -> three's; it shines along dir)
       sc.add(L); sc.add(L.target);
     }
   },

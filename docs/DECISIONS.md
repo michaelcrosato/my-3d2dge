@@ -1348,3 +1348,18 @@ An entry:
   replace.
 - **Answered:** no: made at once as a reversible call, flagged in its pull request
 - **Landed in:** v0.85.0
+
+## D75 · 2026-10-30 · The 3D sun shines along its dir, as the manual says: four kits' ground is sunlit
+
+- **Principle:** quality under the hood (8) and the look (the PS1/N64 bar)
+- **Call:** `engine/my-3d2dge-3d.js` no longer turns the sun's `dir` round: the light stands back along `dir` from the
+  focus and shines along it, as the manual and the code's own comment say. Before, every page's downward `dir` put the
+  sun under the ground: floors had no sun and no sun shadows, and the sky's sun disc sat below the horizon. The four
+  kits with a sun (PLATFORMER, SHOOTER, RACING, FLIGHT) and the Vehicle Lab now have sunlit ground with cast shadows; the
+  indoor kits set no sun and are unchanged.
+- **Why:** the audit of 2026-10-30 traced the light below the focus. Screenshots before and after (WebGL 2) show the
+  islands, the desert, the circuit and the sea lit from above, and the hero and the props casting shadows, with no
+  colour or exposure out of range. Gameplay never reads the light, so no proof changes. What would change it:
+  the owner preferring the old look of one of those kits (then its sun's `dir` and ambient are retuned, not the code).
+- **Answered:** no: made at once as a reversible call, in its own commit, flagged in its pull request
+- **Landed in:** v0.85.0
