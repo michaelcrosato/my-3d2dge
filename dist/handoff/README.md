@@ -1,7 +1,12 @@
-# my-3D2dge handoff package (v0.85.1)
+# my-3D2dge handoff package (v0.85.2)
 
 Everything a coding agent needs to build, run, test and check a game on the full my-3D2dge engine, in one folder of text
 files. You don't need the engine's repository, and you don't need to read the engine's source below its header.
+
+**The engine is yours to change.** This copy is yours to fix, extend or rewrite in any way you see fit: `my-3d2dge.js`
+is the engine, readable, with every module, and every page and test here loads it (`modules/` and `my-3d2dge-agent.js`
+are separate copies). If you hand the game back, a line on what you changed and why helps: it shows what the engine
+lacks.
 
 ## Start here
 

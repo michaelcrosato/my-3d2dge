@@ -7,11 +7,11 @@
     1. Read the 3D engine's manual: the comment at the top of the script marked "inlined from engine/my-3d2dge-3d.js".
        Then the API card in <script type="text/markdown" id="my3d2dge-api"> below, for what the 2D engine still does in
        a 3D game: the game and its scenes, input, the rigs and their moves, the HUD (font, ui, menus), sound.
-    2. The engines are the scripts marked "inlined from engine/...". Do not change them unless you are asked to extend
-       the engines themselves.{{ENGINE}}
+    2. The engines are the scripts marked "inlined from engine/...". They are yours to change: fix, extend or rewrite
+       any of them as you see fit (their sources, readable, are in the repository's engine/).{{ENGINE}}
     3. The games live between GAME START and GAME END: {{CONTENTS}}
        To make a new game, change the slice closest to your genre into yours (its own title, play and game-over
-       scenes) and delete what you don't use of the rest; keep everything outside GAME START and GAME END as it is.
+       scenes) and delete what you don't use of the rest.
     4. SERVED, NOT DOUBLE-CLICKED: the 3D engine loads three.js r182 and Rapier 0.19.3 from /vendor/ (this repository's
        vendor/ folder) through the import map below. Serve the repository's root (npx serve, python3 -m http.server)
        and open this file there, or open it on my-3d2dge.vercel.app. Elsewhere, copy vendor/ beside it and change the

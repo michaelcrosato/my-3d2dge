@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.85.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.85.2: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -9,7 +9,8 @@ textures pixel by pixel, characters by the 2D engine's rigs (as cards, or as 3D 
 pickups from four shapes. No image, model or sound files.
 
 AGENTS: this header is the whole manual for the 3D side; the API card (API.md) covers the 2D side (E.Game, input, rigs,
-moves, E.font, E.ui, E.Menu, audio). Read the code below only to debug: its sections start with "/* ===" and a number.
+moves, E.font, E.ui, E.Menu, audio). Read the code below to debug it, or to change it (it is yours to change, in any
+way you see fit): its sections start with "/* ===" and a number.
 
 ## Host it (served: browsers load modules only over http; npx serve at the repository's root, or my-3d2dge.vercel.app)
 <script type="importmap">{ "imports": { "three": "/vendor/three-0.182.0/three.webgpu.min.js",
