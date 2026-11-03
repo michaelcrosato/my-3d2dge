@@ -169,6 +169,16 @@ case, it is part of what the engine is.
   models copy), Emberdeep (the game in production), the kept labs and demos, the mocap store, the tools and the docs.
   The rules in `CLAUDE.md` (versions, changelog, rebuild, checks) apply to it.
 
+### A builder's copy
+
+The tiers, the checks and the versions govern this repository: what merges into its `main`. An agent that takes the
+engine to build a game (a clone of the repository, the handoff package, a single file) may change its copy of the
+engine in any way it sees fit (D76, the owner's word), and the manuals say so where they say how a game is built. The
+engine still aims to make that unnecessary (principle 1), so a builder's change to it reads as a prototype's reach past
+the API does (principle 8): a sign of what the engine lacks. The benchmark records one ("patched it"), and one a
+builder reports is feedback (`docs/FEEDBACK-LOG.md`). Vesper's patch to the clock became the engine's fixed step (F1,
+D16). `doctrine-check` holds the manuals to it.
+
 ### Each principle here
 
 | Principle | Here | Grandfathered or open | Checked by |
@@ -240,7 +250,7 @@ to copy for each genre, and the 3D engine for survival horror, and the package c
 
 ### The checks here
 
-- `node tools/doctrine-check.mjs`: assets, the manuals' budgets (the index's too), the API boundary, the logs that are never cleaned up (decisions and feedback), and the API index (current, every public name described, its lookups answered). Quick, no
+- `node tools/doctrine-check.mjs`: assets, the manuals' budgets (the index's too), the API boundary, the logs that are never cleaned up (decisions and feedback), and the API index (current, every public name described, its lookups answered), and a builder's copy (the manuals a builder reads say the engine is theirs to change, D76). Quick, no
   browser; `npm run test:changed` and `npm test` always run it, beside the version and syntax checks.
 - `node tools/determinism-test.mjs`: Emberdeep and a starter game, recorded twice under the harness, must match pixel for
   pixel. It runs when the engine, Emberdeep, the starters or the harness change.

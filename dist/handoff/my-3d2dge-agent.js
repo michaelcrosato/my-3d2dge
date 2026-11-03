@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.85.1: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.85.2: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -9,8 +9,9 @@ game.enableGPU), props, parallax backdrops, touch controls, camera zoom and turn
 replayable sessions, tweens, scripts, transitions, weather, and more.
 
 AGENTS: this header is the whole manual. Build games from it; you do not need to read the code below.
-Read a section only to debug: each starts with "// ---- N. NAME" (grep "// ---- 10." for the Humanoid). With the
-handoff package, grep API-INDEX.md for a name first: one line each (a † marks the full engine's only).
+Read a section to debug it, or to change it (the engine is yours to change, in any way you see fit): each starts
+with "// ---- N. NAME" (grep "// ---- 10." for the Humanoid). With the handoff package, grep API-INDEX.md for a name
+first: one line each (a † marks the full engine's only).
 
 ## Host it
 <!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
@@ -376,7 +377,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.85.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.85.2', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };

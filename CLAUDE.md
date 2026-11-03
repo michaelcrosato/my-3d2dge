@@ -2,6 +2,8 @@
 
 my-3D2dge is a 2D game engine for AI models (`engine/my-3d2dge.js`), its agent edition (`engine/my-3d2dge-agent.js`), the 3D engine that puts a real 3D world under a game (`engine/my-3d2dge-3d.js`, `docs/ENGINE-3D.md`), the starter games (`src/starter/`, `src/starter3d/`), the labs, and Emberdeep, the signature game (`src/emberdeep/`). Start with `README.md`; Emberdeep's contract is `src/emberdeep/DESIGN.md`.
 
+These rules are for changes to this repository: what merges into its `main`. An agent that clones it to build a game of its own may change the engine in any way it sees fit, and needn't follow them (the owner's word, D76).
+
 ## The doctrine
 
 `DOCTRINE.md` says what this engine optimizes and why; these rules are how. Its last section says how each principle applies here and what was grandfathered when it was adopted.

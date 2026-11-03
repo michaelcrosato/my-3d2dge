@@ -1363,3 +1363,29 @@ An entry:
   the owner preferring the old look of one of those kits (then its sun's `dir` and ambient are retuned, not the code).
 - **Answered:** no: made at once as a reversible call, in its own commit, flagged in its pull request
 - **Landed in:** v0.85.0
+
+## D76 · 2026-11-03 · A builder's copy of the engine is theirs to change, in any way they see fit
+
+- **Principle:** process (what the manuals tell a builder), with 1 (agent-readable) and 8 (quality under the hood)
+- **Call:** an agent that takes the engine to build a game (a clone of the repository, the handoff package, a single
+  file) may change its copy of the engine in any way it sees fit: fix it, extend it, rewrite it. The manuals said the
+  opposite: the API card's "Never edit the engine." and the guide's hard rule 6 of the same words (both from the
+  v0.85.0 audit), the single files' headers ("Do not change it unless you are asked to extend the engine itself";
+  "keep everything outside GAME START and GAME END as it is"), and the agent edition's and the 3D engine's manuals
+  ("read ... only to debug"). Each now says the engine is the builder's to change and, where it helps, where its
+  readable copy is: the card in one sentence (its budget had 95 tokens left), the guide's rule 6 with the copies in
+  the repository, the package and the single files, the single files' headers with the readable edition, the handoff
+  package's README (its `my-3d2dge.js` is what every page and test there loads), `README.md`, and `CLAUDE.md`, whose
+  rules are for what merges into this repository, not for a clone kept for a game of one's own. `DOCTRINE.md` says how
+  it sits with the principles ("A builder's copy"). `doctrine-check` holds it: the builders' manuals say the engine is
+  theirs to change, and none says not to.
+- **Why:** the owner's word. The engine still aims to make a change unnecessary (principle 1: a game from the manual
+  alone), so a builder's change reads as a prototype's reach past the API does (principle 8): a sign of what the engine
+  lacks, which the benchmark records ("patched it") and a builder's report brings in as feedback. Vesper's patch (F1:
+  the clock, the flow fields' revisions) became the fixed-step clock (D16). The rule had come in with the v0.85.0
+  audit's wording, not a decision. Emberdeep's "don't edit the file" (`src/emberdeep/DESIGN.md`) is about its own core,
+  for content added in this repository, and stays.
+- **Answered:** yes: the owner, 2026-11-03 ("it is ok if an agent modifies the game engine in any way they see fit if
+  they so desire after they have cloned it"); the wording, the places and the check are the agent's, made at once as
+  reversible calls
+- **Landed in:** v0.85.2

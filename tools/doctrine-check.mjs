@@ -26,6 +26,10 @@
 //    kit (dist/kits/my-3d2dge-<id>.html) is at most 200,000 cl100k tokens and a 3D kit no larger than at v0.59.3 (the kit
 //    diet, tools/build.mjs). Counted exactly, with gpt-tokenizer only (an estimate of minified code is too rough here).
 //    Six 2D kits keep budgets of their own (KIT2D: D69); the 3D kits are back at their budgets from before D63 (D70).
+// 7. a builder's copy (D76): the manuals a builder reads (the API card, the guide, the handoff package's README, the single
+//    files' headers, the agent edition's and the 3D engine's manuals) say the engine is theirs to change ("yours to
+//    change"), and none says not to (never edit the engine, do not change it unless asked, keep everything outside GAME
+//    START and GAME END as it is, read the code only to debug).
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
@@ -191,6 +195,27 @@ if (opt('baseline')) {
     }
     console.log(`6. the kits (cl100k tokens; 2D at most ${KIT / 1000}k but six of their own, 3D each its own): ${line.join(', ')}`);
   }
+}
+
+/* 7. a builder's copy (D76) */
+// the manuals a builder reads say the engine is theirs to change, and none says not to (the owner's call, after the v0.85.0
+// audit wrote "Never edit the engine." into the card and the guide): every page built from them (the kits' cards and
+// headers, the handoff package) follows
+{
+  const head = s => s.slice(0, s.indexOf('*/') + 2);   // an engine file's manual: its header
+  const COPIES = [['API.md'], ['AI_GUIDE.md'], ['src/handoff/README.md'], ['src/starter.template.html'], ['src/starter3d.template.html'],
+    ['engine/my-3d2dge-agent.js', head], ['engine/my-3d2dge-3d.js', head]];
+  // the ways they said it: never edit (change, patch, touch) the engine; do not change it unless asked (or "(do not edit
+  // it)"); keep everything outside GAME START and GAME END as it is; read the code only to debug
+  const NOT = /\b(?:never|don['’]t|do not|must not)\s+(?:edit|change|modify|patch|touch|alter)\s+(?:(?:it|them)\b(?:\s+unless\b|\))|(?:(?:the|this|its|their|your)\s+)?engines?\b)|\boutside GAME START and GAME END as it is\b|\bonly to debug\b/gi;
+  let say = 0, nots = 0;
+  for (const [f, part = s => s] of COPIES) {
+    const text = part(read(f));
+    if (/\byours to change\b/i.test(text)) say++;
+    else fail('copy', `${f} no longer says the engine is the builder's to change ("yours to change"): a builder's copy of the engine is theirs to change in any way they see fit (D76); say so again, or supersede D76 in docs/DECISIONS.md`);
+    for (const m of text.matchAll(NOT)) { nots++; fail('copy', `${f}:${text.slice(0, m.index).split('\n').length}: "${m[0].replace(/\s+/g, ' ')}" tells a builder to leave the engine alone, but their copy is theirs to change (D76): say that instead, or supersede D76 in docs/DECISIONS.md`); }
+  }
+  console.log(`7. a builder's copy (D76): ${say} of ${COPIES.length} manuals say the engine is the builder's to change, ${nots ? nots + ' line(s) say not to' : 'none says not to'}`);
 }
 
 for (const n of notes) console.log('   note: ' + n);

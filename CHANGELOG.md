@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.85.2 (2026-11-03)
+
+A builder's copy of the engine is theirs to change, in any way they see fit: the owner's word (D76). The manuals said never to.
+
+- **Docs**: the API card, the guide (its hard rule 6), the single files' headers, the handoff package's README and the agent edition's and the 3D engine's manuals say the engine is the builder's to change: fix, extend or rewrite any of it. They said "Never edit the engine.", "Do not change it unless you are asked to extend the engine itself", "keep everything outside GAME START and GAME END as it is" and "read the code only to debug". The guide and the headers say where a readable copy is (the repository's `engine/`, the package's `my-3d2dge.js`, which every page and test there loads, and `dist/my-3d2dge.html`; a kit's is minified), and the guide and the package ask a builder who hands a game back for a line on what they changed: it shows what the engine lacks.
+- **Docs**: `README.md` and `CLAUDE.md` say the repository's rules are for what merges into its `main`, not for a clone kept for a game of one's own; `DOCTRINE.md` says how a builder's copy sits with the principles (a change to it reads as a prototype's reach past the API does: a sign of what the engine lacks); D76 records the call.
+- **Tools**: `doctrine-check` holds it (part 7): the seven manuals a builder reads say the engine is theirs to change, and none says not to (it names the file and line of any that does).
+
 ## 0.85.1 (2026-10-30)
 
 The handoff package's kits, held to every deep link they name, and one stale line of the index.
