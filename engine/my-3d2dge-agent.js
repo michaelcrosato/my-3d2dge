@@ -1853,7 +1853,8 @@ class Humanoid {
     this.C = Object.assign({}, HUMAN_COLORS, o.colors || {});
     const C = this.C;
     C.clothLt = C.clothLt || shade(C.cloth, .25);
-    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this._mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
+    this._rnd = rng(o.seed !== undefined ? o.seed : Math.floor(Math.random() * 2147483647) + 1);   // (its own stream: o.seed, else one draw of Math.random; its blinks never draw from Math.random)
+    this.t = this._rnd() * 10; this.phase = 0; this._spW = 0; this._mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
     this._theta = 1.2; this.atkZ = 10; this.reach = 7; this._twist = 0; this.spin = 0; this._atkLean = 0;
     this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {};
     this.capeL = null; this._airW = 0; this._pointW = 0; this._kicking = false;
@@ -1895,7 +1896,7 @@ class Humanoid {
     this._pointW = approach(this._pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
     this._aimA = approach(this._aimA || 0, s.aim || 0, dt * 14);
     if (s.attack) this._kicking = !!s.attack.spec.kick;
-    this.blink -= dt; if (this.blink < -.12) this.blink = 2 + Math.random() * 3;
+    this.blink -= dt; if (this.blink < -.12) this.blink = 2 + this._rnd() * 3;
     this.sqV += (-260 * this.sq - 15 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.3, .3);
     const A = s.attack; let tLean = 0, tTwist = 0, tLunge = 0, tHop = 0, tCrouch = 0, armT = A ? 1 : 0;
     this.spin = 0;

@@ -67,43 +67,43 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 621 10g. Weather
 - 625 10k. Save slots; E.Saves: saves
 - 648 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 721 Blob rig; E.Blob: blob
-- 741 Tile map; E.TileMap: map
-- 805 Materials
-- 826 Flow field; E.FlowField: flow
-- 844 Texture helpers for floortex functions
-- 855 Platform map; E.PlatformMap: level
-- 889 Platformer; E.Platformer: hero
-- 930 Body; E.Body: body
-- 950 Actions; E.Action: action
-- 972 17c. Mover; E.Mover: mover
-- 1011 17d. Perception; E.Suspicion: suspicion
-- 1028 Bullets; E.Bullets: shots
-- 1048 Spatial hash; E.SpatialHash: grid
-- 1058 Audio; game.audio
-- 1091 Backdrops; E.Backdrop: backdrop
-- 1099 21c. Props
-- 1104 21e. Shapes
-- 1116 Ui; E.Dialog: talk, E.Menu: menu
-- 1175 21d. Shell; E.Shell: shell
-- 1204 Gpu lighting (webgpu); game.gpu
-- 1225 Sessions
-- 1234 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1269 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1314 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1352 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1433 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1444 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1503 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1526 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1555 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1587 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1604 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1633 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1652 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1660 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1689 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1735 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 727 Blob rig; E.Blob: blob
+- 747 Tile map; E.TileMap: map
+- 811 Materials
+- 832 Flow field; E.FlowField: flow
+- 850 Texture helpers for floortex functions
+- 861 Platform map; E.PlatformMap: level
+- 895 Platformer; E.Platformer: hero
+- 936 Body; E.Body: body
+- 956 Actions; E.Action: action
+- 978 17c. Mover; E.Mover: mover
+- 1017 17d. Perception; E.Suspicion: suspicion
+- 1034 Bullets; E.Bullets: shots
+- 1054 Spatial hash; E.SpatialHash: grid
+- 1064 Audio; game.audio
+- 1097 Backdrops; E.Backdrop: backdrop
+- 1105 21c. Props
+- 1110 21e. Shapes
+- 1122 Ui; E.Dialog: talk, E.Menu: menu
+- 1181 21d. Shell; E.Shell: shell
+- 1210 Gpu lighting (webgpu); game.gpu
+- 1231 Sessions
+- 1240 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1275 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1320 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1358 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1439 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1450 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1509 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1532 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1561 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1593 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1610 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1639 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1658 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1666 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1695 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1741 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -673,7 +673,13 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `combo.moves`: the Attacks
 - `combo.step = -1`: the index of the current hit (-1 before the first)
 - `combo.window`: seconds after a hit ends that a press still chains
-- `new E.Humanoid(o = {}) → rig`: new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style, color }); hood: true (drawn in colors.hair)
+- `new E.Humanoid(o = {}) → rig`: new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style, color }; E.Humanoid.hat adds one); weapon: 'sword' | 'gun' | 'staff' (E.Humanoid.weapon adds one); hood: true (drawn in colors.hair); draw: { under(g, Q, rig), over(g, Q, rig) } the game's own drawing before and after the body (Q: the joints on screen, [x, y, depth]: outfits, accessories); seed: its own random stream (blinks, its clock)
+- `E.Humanoid.hat(id, draw)` †: a hat of the game's own: draw(h) with h.at(forward, right, up) a point round the head on screen, h.r its radius there, h.c its color (o.hat.color), h.dk a darker one, h.g, h.rig
+- `E.Humanoid.hats` †: the hats a Humanoid may wear, by id: the built-ins (cap, band, crown, helmet, pointed) and a game's own
+- `E.Humanoid.pose(id, fn)` †: a held pose of the game's own: fn(J, w, rig) moves the joints (the rig's frame: forward, right, up) toward the pose by w, 0..1, which eases in and out as state.pose names it or not (blended over the rig's solve)
+- `E.Humanoid.poses` †: the held poses of a game's own, by id (the built-in poses are the rig's own solve: state.pose names either)
+- `E.Humanoid.weapon(id, spec)` †: a weapon of the game's own (or a built-in replaced): { length: the tip's distance from the hand (a number, or rig => one; tip() and the swing's trail), rest: [forward, right, up] the way it points held at rest, blade: true (a swing smears along it), draw(w): its drawing in both styles (w.style, w.at(t), w.push(depth, fn), w.u: rig._weaponDraw) }
+- `E.Humanoid.weapons` †: the weapons a Humanoid may hold, by id: the built-ins (sword, gun, staff) and a game's own
 - `rig.debug(r)` †: skeleton overlay for debugging, draws straight into the buffer
 - `rig.draw(g, ox, oy, view)`: draw into g with (ox, oy) = projected position of the rig's root
 - `rig.drawPortrait(g, x, y, size = 40, o = {})` †: a close-up bust for dialog boxes and menus, drawn live from the rig (blinks, hair and hats included): rig.drawPortrait(g, x, y, 40, { zoom: 3, turn: .6, bg: '#1a2050', frame: true }) // inside r.overlay(g => ...) zoom: pixels per world unit (3 = face fills the frame), turn: 0 = facing you, .6 = three-quarter. The bust stays upright while the rig kneels or lies down (upright: false shows the real pose); cape: false hides the cape; tint: '#808080' greys it out (a KO'd party member).
@@ -684,7 +690,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `rig.land(strength = 1)` †: a heavy landing: knees bend deep and spring back over a moment; strength 1 or more drops a hand to the ground (a three-point landing), .3-.6 is a soft one. Call it on the step the body lands
 - `rig.solvePose()`: set the joints J from the rig's state this step (update and setPose call it); a clip player may wrap it on one rig: const base = rig.solvePose; rig.solvePose = function () { base.call(this); ...move J... }
 - `rig.tip()`: world position of the weapon tip (sword tip, gun muzzle, staff orb)
-- `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll), pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die' | 'block', stance: 'guard' | 'ready', down: 0..1, vz (with climb: the climbing speed), land: k (a heavy landing), expr: 'smile' | 'shout' | 'angry' | 'wince', run: 0..1 (run in place)
+- `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll), pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die' | 'block' or one of E.Humanoid.pose's, tilt (radians: the whole body forward about the feet, a dive) and roll (sideways), stance: 'guard' | 'ready', down: 0..1, vz (with climb: the climbing speed), land: k (a heavy landing), expr: 'smile' | 'shout' | 'angry' | 'wince', run: 0..1 (run in place)
 - `rig.worldOffset(p)`: where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it) sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint
 - `rig.C`: its colors (skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye, ...), the defaults with o.colors over them; change one and it shows at the next draw
 - `rig.J`: its joints this step in its own frame ({ hipL, kneeL, footL, shC, head, handR, ... }; rig.worldOffset(J.handR) gives one in the world)

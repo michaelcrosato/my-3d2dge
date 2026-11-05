@@ -4150,7 +4150,9 @@ class Humanoid {
   /** new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a
    *  character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each
    *  step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style,
-   *  color }); hood: true (drawn in colors.hair) */
+   *  color }; E.Humanoid.hat adds one); weapon: 'sword' | 'gun' | 'staff' (E.Humanoid.weapon adds one); hood: true
+   *  (drawn in colors.hair); draw: { under(g, Q, rig), over(g, Q, rig) } the game's own drawing before and after the body
+   *  (Q: the joints on screen, [x, y, depth]: outfits, accessories); seed: its own random stream (blinks, its clock) */
   constructor(o = {}) {
     if (o.build && !BUILDS[o.build]) warn('build:' + o.build, 'Humanoid build "' + o.build + '" is unknown (chibi, heroic, bulky, skeleton)');
     o = Object.assign({}, BUILDS[o.build] || {}, o);
@@ -4167,7 +4169,7 @@ class Humanoid {
     if (typeof this.o.hair === 'string' || !this.o.hair) this.o.hair = { style: this.o.hair || 'short' };
     /** hairPts: the long hair's simulated points (null until it has some) */
     this._hairPts = null;
-    if (this.o.weapon && !['sword', 'gun', 'staff'].includes(this.o.weapon)) { warn('weapon:' + this.o.weapon, 'Humanoid weapon "' + this.o.weapon + '" is not built in (sword, gun, staff or null); drawing a sword'); this.o.weapon = 'sword'; }
+    if (this.o.weapon && !HUMANOID_WEAPONS[this.o.weapon]) { warn('weapon:' + this.o.weapon, 'Humanoid weapon "' + this.o.weapon + '" is not on E.Humanoid.weapons (sword, gun, staff, a game\'s own by E.Humanoid.weapon(id, spec), or null); drawing a sword'); this.o.weapon = 'sword'; }
     if (typeof this.o.hat === 'string') this.o.hat = { style: this.o.hat };
     /** C: its colors (skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye, ...), the defaults with
      *  o.colors over them; change one and it shows at the next draw */
@@ -4176,9 +4178,10 @@ class Humanoid {
     if (this.o.skeleton) C.skin = C.pants = C.boot = C.glove = C.bone || '#e6dfc8';
     C.clothDk = C.clothDk || shade(C.cloth, -.3); C.clothLt = C.clothLt || shade(C.cloth, .25);
     C.pantsDk = C.pantsDk || shade(C.pants, -.3); C.bootDk = C.bootDk || shade(C.boot, -.3); C.skinDk = C.skinDk || shade(C.skin, -.2);
+    this._rnd = rng(o.seed !== undefined ? o.seed : Math.floor(Math.random() * 2147483647) + 1);   // (its own stream: o.seed, else one draw of Math.random; its blinks never draw from Math.random)
     /** t: seconds of its own clock (idle breathing, blinks); phase: the walk cycle's phase, radians; mv: the last
      *  ground direction it moved, a unit vector; hurtW: 0..1, how far into the hurt flinch */
-    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this._mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
+    this.t = this._rnd() * 10; this.phase = 0; this._spW = 0; this._mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
     /** atkZ: the height of the weapon hand during an attack; reach: how far it reaches forward; spin: the body's
      *  extra turn during a spinning move, radians */
     this._theta = 1.2; this.atkZ = 10; this.reach = 7; this._twist = 0; this.spin = 0; this._atkLean = 0;
@@ -4218,7 +4221,7 @@ class Humanoid {
   /** world position of a hand ('R' holds the weapon): spawn bullets, sparks or thrown things here */
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   /** world position of the weapon tip (sword tip, gun muzzle, staff orb) */
-  tip() { const J = this.J, L = this.o.weapon === 'gun' ? 5 : this.o.weapon === 'staff' ? 10 : this.o.bladeLen, w = this._w(V3.add(J.handR, V3.mul(J.bladeDir, L))); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
+  tip() { const J = this.J, W = HUMANOID_WEAPONS[this.o.weapon], l = W ? W.length : this.o.bladeLen, L = typeof l === 'function' ? l(this) : l, w = this._w(V3.add(J.handR, V3.mul(J.bladeDir, L))); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   /** where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it)
    *  sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint */
   worldOffset(p) { return this._w(p); }
@@ -4232,7 +4235,8 @@ class Humanoid {
    *   air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun)
    *   attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand
    *   also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll),
-   *   pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die' | 'block',
+   *   pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die' | 'block' or one of
+   *   E.Humanoid.pose's, tilt (radians: the whole body forward about the feet, a dive) and roll (sideways),
    *   stance: 'guard' | 'ready', down: 0..1, vz (with climb: the climbing speed), land: k (a heavy landing),
    *   expr: 'smile' | 'shout' | 'angry' | 'wince', run: 0..1 (run in place)
    */
@@ -4277,7 +4281,7 @@ class Humanoid {
     this._pointW = approach(this._pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
     this._aimA = approach(this._aimA || 0, s.aim || 0, dt * 14);   // aim: radians above (+) or below (-) level while pointing
     if (s.attack) this._kicking = !!s.attack.spec.kick;
-    this.blink -= dt; if (this.blink < -.12) this.blink = 2 + Math.random() * 3;
+    this.blink -= dt; if (this.blink < -.12) this.blink = 2 + this._rnd() * 3;
     this.sqV += (-260 * this.sq - 15 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.3, .3);
 
     const A = s.attack; let tLean = 0, tTwist = 0, tLunge = 0, tHop = 0, tCrouch = 0, armT = A ? 1 : 0;
@@ -4334,6 +4338,10 @@ class Humanoid {
     if (o.hair.style === 'long' || o.hair.style === 'ponytail') this._hair(dt);
     if (HOOKS.pose) HOOKS.pose.call(this, dt, s);   // (crawling, swimming, swinging: section 16c)
     if (s.flip > 0 && s.flip < 1) this._roll(s.flip);
+    const OW = this._ownW || (this._ownW = {});   // a game's own held poses (E.Humanoid.pose), eased in and out as state.pose names them, over the solve
+    for (const id in HUMANOID_POSES) { const w = OW[id] = approach(OW[id] || 0, s.pose === id ? 1 : 0, dt * 9); if (w > 0) HUMANOID_POSES[id](this.J, w, this); }
+    const tl = s.tilt || 0, rl = s.roll || 0;   // the whole body tilted forward (a dive, a fall) and rolled sideways (a cartwheel's lean), radians, about the feet
+    if (tl || rl) { const ct = Math.cos(tl), st = Math.sin(tl), cr = Math.cos(rl), sr = Math.sin(rl); for (const k in this.J) { const q = this.J[k]; if (!q) continue; const f = q[0] * ct + q[2] * st, z0 = -q[0] * st + q[2] * ct; this.J[k] = [f, q[1] * cr + z0 * sr, -q[1] * sr + z0 * cr]; } }
     // weapon trail: remember where the blade (or fist, or foot) really went, so the smear works in every view
     const T = this.trail;
     for (const p of T) p.age += dt;
@@ -4341,7 +4349,7 @@ class Humanoid {
     while (T.length && T[0].age > maxAge) T.shift();
     const atk = s.attack, swinging = atk && (atk.phase === 'active' || (atk.phase === 'recover' && atk.u < .12));
     if (swinging && (atk.spec.blade !== 0 || atk.spec.kick || !o.weapon || atk.spec.hand === 'L')) {
-      const J = this.J, kick = atk.spec.kick, left = atk.spec.hand === 'L', sword = o.weapon === 'sword' && !kick && !left;
+      const J = this.J, kick = atk.spec.kick, left = atk.spec.hand === 'L', sword = !!(HUMANOID_WEAPONS[o.weapon] || {}).blade && !kick && !left;
       const b = kick ? J.kneeR : sword ? V3.add(J.handR, V3.mul(J.bladeDir, 2)) : left ? J.elbowL : J.elbowR, t = kick ? J.footR : sword ? V3.add(J.handR, V3.mul(J.bladeDir, o.bladeLen)) : left ? J.handL : J.handR;
       const wb = this._w(b), wt = this._w(t), last = T[T.length - 1];
       if (last && Math.hypot(this.x + wt[0] - last.t[0], this.y + wt[1] - last.t[1], this.z + wt[2] - last.t[2]) > 14 * o.size) T.length = 0;   // a jump (teleport, respawn): start a new ribbon
@@ -4438,7 +4446,7 @@ class Humanoid {
       const [elbow, h2] = ik3(sh, hand, o.armUpper, o.armLower, [-1, s * .7, -.2]);
       J[s > 0 ? 'elbowR' : 'elbowL'] = elbow; J[s > 0 ? 'handR' : 'handL'] = h2;
     }
-    const wp = o.weapon, rest = V3.norm(wp === 'staff' ? [.3, .15, 1] : wp === 'gun' ? [.8, 0, -.6] : [.55, .35, -.75]), atk = aDir;
+    const wp = o.weapon, rest = V3.norm((HUMANOID_WEAPONS[wp] || HUMANOID_WEAPONS.sword).rest), atk = aDir;
     let bd = V3.lerp(rest, atk, this._kicking || sA < 0 ? 0 : aw);
     if (this._from && this._windK < 1 && !this._kicking && sA > 0) bd = V3.lerp(this._from.bd, bd, this._windK);   // the weapon turns from where it was
     if (PW.cheer > 0) bd = V3.lerp(bd, [.15, .05, 1], PW.cheer);   // raised in triumph, point up
@@ -4742,27 +4750,9 @@ class Humanoid {
       ops.push({ d: hd[2] + .02, f: () => { px.disc(g, hd[0], hd[1], Math.max(.6, .82 * u * lw - .35), far ? ht.deep : ht.sh); px.disc(g, hd[0] - .5, hd[1] - .5, Math.max(.4, .58 * u * lw - .35), far ? ht.sh : ht.base); } });
       if (o.armor) { const pad = Sp(s > 0 ? J.shR : J.shL, -.1, s * .3, .5), m = tones(C.plate || C.metal); ops.push({ d: sh[2] + .03, f: () => { px.disc(g, pad[0], pad[1], 1.55 * u, far ? m.deep : m.sh); px.disc(g, pad[0] - .6, pad[1] - .6, Math.max(.5, 1.55 * u - 1), far ? m.sh : m.base); px.dot(g, pad[0] - u * .8, pad[1] - u * .8, m.hi); } }); }
     }
-    // ---- weapons ----
-    if (o.weapon === 'gun') {
-      const hd = J.handR, bd = J.bladeDir, Hn = Q.handR, mz = Sp(hd, bd[0] * 5.5, bd[1] * 5.5, bd[2] * 5.5), gp = Sp(hd, -bd[0] * .6, -bd[1] * .6, -bd[2] * .6 - 1.4), m = tones(C.metal);
-      ops.push({ d: Hn[2] + .03, f: () => { cap(Hn, gp, .8 * u, .7 * u, m.deep); cap(Hn, mz, .95 * u, .75 * u, m.sh); cap(Hn, mz, Math.max(.4, .95 * u - .8), Math.max(.4, .75 * u - .8), m.base, -.5, -.5); px.dot(g, mz[0], mz[1], '#ffffff'); } });
-    } else if (o.weapon === 'staff') {
-      const hd = J.handR, bd = J.bladeDir, Hn = Q.handR, top = Sp(hd, bd[0] * 10, bd[1] * 10, bd[2] * 10), bot = Sp(hd, -bd[0] * 7, -bd[1] * 7, -bd[2] * 7), wt = tones(C.staff || '#8a5a32'), ot = tones(C.orb || '#7fe3ff');
-      ops.push({ d: (Hn[2] + top[2]) / 2, f: () => { cap(bot, top, .6 * u, .6 * u, wt.sh); px.line(g, bot[0] - .5, bot[1] - .5, top[0] - .5, top[1] - .5, wt.lt); px.glow(g, 1); px.disc(g, top[0], top[1], Math.max(1, u * 1.5), ot.sh); px.disc(g, top[0] - .6, top[1] - .6, Math.max(.6, u * 1.5 - 1), ot.base); px.dot(g, top[0] - 1, top[1] - 1, '#ffffff'); } });
-    }
-    if (o.weapon === 'sword') {
-      const hd = J.handR, bd = J.bladeDir, Lb = o.bladeLen, Hn = Q.handR, sl = Math.hypot(bd[0], bd[1]) || 1, gx = -bd[1] / sl * 1.8, gy = bd[0] / sl * 1.8;
-      const tip = Sp(hd, bd[0] * Lb, bd[1] * Lb, bd[2] * Lb), b0 = Sp(hd, bd[0] * 1.5, bd[1] * 1.5, bd[2] * 1.5), pom = Sp(hd, -bd[0] * 1.5, -bd[1] * 1.5, -bd[2] * 1.5);
-      const g0 = Sp(hd, bd[0] * 1.5 + gx, bd[1] * 1.5 + gy, bd[2] * 1.5), g1 = Sp(hd, bd[0] * 1.5 - gx, bd[1] * 1.5 - gy, bd[2] * 1.5), m = tones(C.metal), h = tones(C.hilt);
-      ops.push({ d: (Hn[2] + tip[2]) / 2, f: () => {
-        const vx = tip[0] - b0[0], vy = tip[1] - b0[1], l = Math.hypot(vx, vy) || 1, nx = -vy / l * Math.max(.7, .65 * u), ny = vx / l * Math.max(.7, .65 * u);
-        px.poly(g, [[b0[0] + nx, b0[1] + ny], [tip[0], tip[1]], [b0[0] - nx, b0[1] - ny]], m.sh);
-        px.line(g, b0[0] - nx * .4, b0[1] - ny * .4, tip[0], tip[1], m.hi); px.line(g, b0[0] + nx * .5, b0[1] + ny * .5, tip[0], tip[1], m.base);
-        px.line(g, pom[0], pom[1], Hn[0], Hn[1], '#5a3620', Math.max(1, Math.round(u * .7)));
-        cap(g0, g1, .55 * u, .55 * u, h.sh); px.line(g, g0[0] - .5, g0[1] - .5, g1[0] - .5, g1[1] - .5, h.lt);
-        px.disc(g, pom[0], pom[1], Math.max(.5, .6 * u - .35), h.base); px.dot(g, tip[0], tip[1], '#ffffff');
-      } });
-    }
+    // ---- the weapon (E.Humanoid.weapons), and the game's own drawing under and over the body ----
+    { const W = HUMANOID_WEAPONS[o.weapon]; if (W && W.draw) W.draw(this._weaponDraw('hd', g, Q, Sp, u, ops, cap)); }
+    if (o.draw) this._drawHooks(g, Q, ops);
     ops.sort((a, b) => a.d - b.d);
     for (const op of ops) op.f();
   }
@@ -4823,48 +4813,25 @@ class Humanoid {
       seg(sh, el, far ? C.clothDk : C.cloth, lw); seg(el, hd, far ? C.skinDk : C.skin, lw);
       ops.push({ d: hd[2] + .02, f: () => px.rect(g, hd[0] - 1, hd[1] - 1, 2, 2, far ? C.skinDk : C.skin) });
     }
-    if (o.weapon === 'gun') {
-      const hd = J.handR, bd = J.bladeDir, Hn = Q.handR, mz = Sp(hd, bd[0] * 5, bd[1] * 5, bd[2] * 5), gp = Sp(hd, -bd[0] * .6, -bd[1] * .6, -bd[2] * .6 - 1.2);
-      ops.push({ d: Hn[2] + .03, f: () => { px.line(g, Hn[0], Hn[1], gp[0], gp[1], C.metalDk, 2); px.line(g, gp[0], gp[1], mz[0], mz[1], C.metalDk, 2); px.line(g, Hn[0], Hn[1] - 1, mz[0], mz[1] - 1, C.metal); px.dot(g, mz[0], mz[1], '#ffffff'); } });
-    } else if (o.weapon === 'staff') {
-      const hd = J.handR, bd = J.bladeDir, Hn = Q.handR, top = Sp(hd, bd[0] * 10, bd[1] * 10, bd[2] * 10), bot = Sp(hd, -bd[0] * 7, -bd[1] * 7, -bd[2] * 7);
-      ops.push({ d: (Hn[2] + top[2]) / 2, f: () => { px.line(g, bot[0], bot[1], top[0], top[1], C.staff || '#8a5a32', Math.max(1, Math.round(sc * .9))); px.glow(g, 1); px.disc(g, top[0], top[1], Math.max(1, sc * 1.4), C.orb || '#7fe3ff'); px.dot(g, top[0] - 1, top[1] - 1, '#ffffff'); } });
-    }
-    if (o.weapon === 'sword') {
-      const hd = J.handR, bd = J.bladeDir, L = o.bladeLen, Hn = Q.handR, sl = Math.hypot(bd[0], bd[1]) || 1, sx = -bd[1] / sl * 1.6, sy = bd[0] / sl * 1.6;
-      const tip = Sp(hd, bd[0] * L, bd[1] * L, bd[2] * L), b0 = Sp(hd, bd[0] * 1.4, bd[1] * 1.4, bd[2] * 1.4), pom = Sp(hd, -bd[0] * 1.2, -bd[1] * 1.2, -bd[2] * 1.2);
-      const g0 = Sp(hd, bd[0] * 1.4 + sx, bd[1] * 1.4 + sy, bd[2] * 1.4), g1 = Sp(hd, bd[0] * 1.4 - sx, bd[1] * 1.4 - sy, bd[2] * 1.4);
-      ops.push({
-        d: (Hn[2] + tip[2]) / 2, f: () => {
-          px.line(g, pom[0], pom[1], Hn[0], Hn[1], '#5a3620'); px.line(g, g0[0], g0[1], g1[0], g1[1], C.hilt);
-          px.line(g, b0[0] + 1, b0[1], tip[0], tip[1], C.metalDk); px.line(g, b0[0], b0[1], tip[0], tip[1], C.metal); px.dot(g, tip[0], tip[1], '#ffffff');
-        }
-      });
-    }
+    { const W = HUMANOID_WEAPONS[o.weapon]; if (W && W.draw) W.draw(this._weaponDraw('classic', g, Q, Sp, sc, ops, null)); }   // (E.Humanoid.weapons)
+    if (o.draw) this._drawHooks(g, Q, ops);
     ops.sort((a, b) => a.d - b.d);
     for (const op of ops) op.f();
   }
   _hat(g, Sp, J, r, H) {
-    const h = this.o.hat, st = h.style || 'cap', c = h.color || '#d83a2a', R = this.o.headR, dk = shade(c, -.3);
-    if (st === 'cap') {            // plumber / baseball cap with a brim facing forward
-      const t = Sp(J.head, -.4, 0, R * .55), b = Sp(J.head, R * 1.05, 0, R * .25), b2 = Sp(J.head, R * 1.7, 0, R * .1);
-      px.disc(g, t[0], t[1], r * .92, c); px.line(g, b[0], b[1], b2[0], b2[1], dk, 2);
-    } else if (st === 'pointed') { // elf / wizard cap flopping backward (two triangles so it reads from the side and the front)
-      const a = Sp(J.head, R * .2, -R * .95, R * .45), b = Sp(J.head, R * .2, R * .95, R * .45), f = Sp(J.head, R * .75, 0, R * .5), k = Sp(J.head, -R * .9, 0, R * .25), tip = Sp(J.head, -R * 2.3, 0, R * 1.6);
-      px.poly(g, [f, k, tip], c); px.poly(g, [a, b, tip], c); px.line(g, a[0], a[1], b[0], b[1], dk); px.line(g, f[0], f[1], k[0], k[1], dk);
-    } else if (st === 'helmet') {  // robot / knight helmet that leaves the face open
-      const t = Sp(J.head, -.8, 0, .6), cr = Sp(J.head, 0, 0, R * 1.05);
-      px.disc(g, t[0], t[1], r * 1.02, c); px.disc(g, cr[0], cr[1], Math.max(1, r * .28), shade(c, .35));
-      const f = Sp(J.head, R * .75, 0, -.2); px.disc(g, f[0], f[1], r * .55, this.C.skin);
-    } else if (st === 'band') {    // headband around the forehead with two tails
-      const a = Sp(J.head, R * .6, -R * .9, R * .55), b = Sp(J.head, R * .6, R * .9, R * .55), f = Sp(J.head, R * .95, 0, R * .5), k = Sp(J.head, -R * .95, 0, R * .5), t2 = Sp(J.head, -R * 2.2, -.6, -.4), t3 = Sp(J.head, -R * 2, .6, -1.2);
-      px.line(g, a[0], a[1], b[0], b[1], c, 2); px.line(g, f[0], f[1], k[0], k[1], c, 2); px.line(g, k[0], k[1], t2[0], t2[1], c); px.line(g, k[0], k[1], t3[0], t3[1], c);
-    } else if (st === 'crown') {
-      for (const k of [-1, 0, 1]) { const p = Sp(J.head, 0, k * R * .6, R * .9), q = Sp(J.head, 0, k * R * .6, R * 1.6); px.line(g, p[0], p[1], q[0], q[1], c, 2); }
-      const a = Sp(J.head, 0, -R * .8, R * .85), b = Sp(J.head, 0, R * .8, R * .85); px.line(g, a[0], a[1], b[0], b[1], c, 2);
-    }
-    void H;
+    const h = this.o.hat, st = h.style || 'cap', c = h.color || '#d83a2a', draw = HUMANOID_HATS[st];
+    if (draw) draw({ g, Sp, J, r, R: this.o.headR, c, dk: shade(c, -.3), H, rig: this, at: (f, rr, z) => Sp(J.head, f, rr, z) });   // (E.Humanoid.hats: at(forward, right, up) a point round the head)
   }
+  // what a weapon's draw(w) gets: w.style ('hd' | 'classic'), g, the rig and its o, C, J, Q (the joints on screen: [x, y,
+  // depth]), Sp(joint, f, r, z) (a point near a joint, projected), u (screen pixels a unit), at(t, dx, dy, dz) (the point
+  // t units along it from the hand, nudged), hand (Q.handR), push(depth, fn) (drawn in depth order with the body), cap
+  // (the HD style's capsule), and the raw hd (J.handR), bd (its direction), ops
+  _weaponDraw(style, g, Q, Sp, u, ops, cap) {
+    const J = this.J, hd = J.handR, bd = J.bladeDir;
+    return { style, g, rig: this, o: this.o, C: this.C, J, Q, Sp, u, ops, cap, hd, bd, hand: Q.handR, at: (t, dx = 0, dy = 0, dz = 0) => Sp(hd, bd[0] * t + dx, bd[1] * t + dy, bd[2] * t + dz), push: (d, f) => ops.push({ d, f }) };
+  }
+  // o.draw: { under(g, Q, rig), over(g, Q, rig) }: the game's own drawing before and after the body (Q: the joints on screen)
+  _drawHooks(g, Q, ops) { const D = this.o.draw; if (D.under) ops.push({ d: -1e9, f: () => D.under(g, Q, this) }); if (D.over) ops.push({ d: 1e9, f: () => D.over(g, Q, this) }); }
   /** motion smear for the current swing, queued in front of the rig */
   drawSmear(r, colors = ['#ffffff', '#dff8ff', '#8fe0f2', '#4bb1d4']) {
     const T = this.trail;
@@ -4917,6 +4884,101 @@ class Humanoid {
   }
 }
 E.Humanoid = Humanoid;
+/* the Humanoid's registries (a game's own weapons, hats and held poses beside the built-ins, which are on them too) */
+/** the weapons a Humanoid holds (o.weapon), by id: E.Humanoid.weapon(id, { length, rest, blade, draw(w) }) adds one */
+const HUMANOID_WEAPONS = {};
+/** the hats a Humanoid wears (o.hat: an id, or { style: id, color }), by id: E.Humanoid.hat(id, draw(h)) adds one */
+const HUMANOID_HATS = {};
+/** held poses of a game's own (state.pose: an id), by id: E.Humanoid.pose(id, (J, w, rig) => ...) adds one */
+const HUMANOID_POSES = {};
+HUMANOID_WEAPONS.sword = { length: rig => rig.o.bladeLen, rest: [.55, .35, -.75], blade: true, draw(w) {
+  const { g, C, J, Q, Sp, ops, cap, o } = w, u = w.u, sc = w.u;
+  if (w.style === 'hd') {
+    const hd = J.handR, bd = J.bladeDir, Lb = o.bladeLen, Hn = Q.handR, sl = Math.hypot(bd[0], bd[1]) || 1, gx = -bd[1] / sl * 1.8, gy = bd[0] / sl * 1.8;
+    const tip = Sp(hd, bd[0] * Lb, bd[1] * Lb, bd[2] * Lb), b0 = Sp(hd, bd[0] * 1.5, bd[1] * 1.5, bd[2] * 1.5), pom = Sp(hd, -bd[0] * 1.5, -bd[1] * 1.5, -bd[2] * 1.5);
+    const g0 = Sp(hd, bd[0] * 1.5 + gx, bd[1] * 1.5 + gy, bd[2] * 1.5), g1 = Sp(hd, bd[0] * 1.5 - gx, bd[1] * 1.5 - gy, bd[2] * 1.5), m = tones(C.metal), h = tones(C.hilt);
+    ops.push({ d: (Hn[2] + tip[2]) / 2, f: () => {
+      const vx = tip[0] - b0[0], vy = tip[1] - b0[1], l = Math.hypot(vx, vy) || 1, nx = -vy / l * Math.max(.7, .65 * u), ny = vx / l * Math.max(.7, .65 * u);
+      px.poly(g, [[b0[0] + nx, b0[1] + ny], [tip[0], tip[1]], [b0[0] - nx, b0[1] - ny]], m.sh);
+      px.line(g, b0[0] - nx * .4, b0[1] - ny * .4, tip[0], tip[1], m.hi); px.line(g, b0[0] + nx * .5, b0[1] + ny * .5, tip[0], tip[1], m.base);
+      px.line(g, pom[0], pom[1], Hn[0], Hn[1], '#5a3620', Math.max(1, Math.round(u * .7)));
+      cap(g0, g1, .55 * u, .55 * u, h.sh); px.line(g, g0[0] - .5, g0[1] - .5, g1[0] - .5, g1[1] - .5, h.lt);
+      px.disc(g, pom[0], pom[1], Math.max(.5, .6 * u - .35), h.base); px.dot(g, tip[0], tip[1], '#ffffff');
+    } });
+  } else {
+    const hd = J.handR, bd = J.bladeDir, L = o.bladeLen, Hn = Q.handR, sl = Math.hypot(bd[0], bd[1]) || 1, sx = -bd[1] / sl * 1.6, sy = bd[0] / sl * 1.6;
+    const tip = Sp(hd, bd[0] * L, bd[1] * L, bd[2] * L), b0 = Sp(hd, bd[0] * 1.4, bd[1] * 1.4, bd[2] * 1.4), pom = Sp(hd, -bd[0] * 1.2, -bd[1] * 1.2, -bd[2] * 1.2);
+    const g0 = Sp(hd, bd[0] * 1.4 + sx, bd[1] * 1.4 + sy, bd[2] * 1.4), g1 = Sp(hd, bd[0] * 1.4 - sx, bd[1] * 1.4 - sy, bd[2] * 1.4);
+    ops.push({
+      d: (Hn[2] + tip[2]) / 2, f: () => {
+        px.line(g, pom[0], pom[1], Hn[0], Hn[1], '#5a3620'); px.line(g, g0[0], g0[1], g1[0], g1[1], C.hilt);
+        px.line(g, b0[0] + 1, b0[1], tip[0], tip[1], C.metalDk); px.line(g, b0[0], b0[1], tip[0], tip[1], C.metal); px.dot(g, tip[0], tip[1], '#ffffff');
+      }
+    });
+  }
+} };
+HUMANOID_WEAPONS.gun = { length: 5, rest: [.8, 0, -.6], blade: false, draw(w) {
+  const { g, C, J, Q, Sp, ops, cap, o } = w, u = w.u, sc = w.u;
+  if (w.style === 'hd') {
+    const hd = J.handR, bd = J.bladeDir, Hn = Q.handR, mz = Sp(hd, bd[0] * 5.5, bd[1] * 5.5, bd[2] * 5.5), gp = Sp(hd, -bd[0] * .6, -bd[1] * .6, -bd[2] * .6 - 1.4), m = tones(C.metal);
+    ops.push({ d: Hn[2] + .03, f: () => { cap(Hn, gp, .8 * u, .7 * u, m.deep); cap(Hn, mz, .95 * u, .75 * u, m.sh); cap(Hn, mz, Math.max(.4, .95 * u - .8), Math.max(.4, .75 * u - .8), m.base, -.5, -.5); px.dot(g, mz[0], mz[1], '#ffffff'); } });
+  } else {
+    const hd = J.handR, bd = J.bladeDir, Hn = Q.handR, mz = Sp(hd, bd[0] * 5, bd[1] * 5, bd[2] * 5), gp = Sp(hd, -bd[0] * .6, -bd[1] * .6, -bd[2] * .6 - 1.2);
+    ops.push({ d: Hn[2] + .03, f: () => { px.line(g, Hn[0], Hn[1], gp[0], gp[1], C.metalDk, 2); px.line(g, gp[0], gp[1], mz[0], mz[1], C.metalDk, 2); px.line(g, Hn[0], Hn[1] - 1, mz[0], mz[1] - 1, C.metal); px.dot(g, mz[0], mz[1], '#ffffff'); } });
+  }
+} };
+HUMANOID_WEAPONS.staff = { length: 10, rest: [.3, .15, 1], blade: false, draw(w) {
+  const { g, C, J, Q, Sp, ops, cap, o } = w, u = w.u, sc = w.u;
+  if (w.style === 'hd') {
+    const hd = J.handR, bd = J.bladeDir, Hn = Q.handR, top = Sp(hd, bd[0] * 10, bd[1] * 10, bd[2] * 10), bot = Sp(hd, -bd[0] * 7, -bd[1] * 7, -bd[2] * 7), wt = tones(C.staff || '#8a5a32'), ot = tones(C.orb || '#7fe3ff');
+    ops.push({ d: (Hn[2] + top[2]) / 2, f: () => { cap(bot, top, .6 * u, .6 * u, wt.sh); px.line(g, bot[0] - .5, bot[1] - .5, top[0] - .5, top[1] - .5, wt.lt); px.glow(g, 1); px.disc(g, top[0], top[1], Math.max(1, u * 1.5), ot.sh); px.disc(g, top[0] - .6, top[1] - .6, Math.max(.6, u * 1.5 - 1), ot.base); px.dot(g, top[0] - 1, top[1] - 1, '#ffffff'); } });
+  } else {
+    const hd = J.handR, bd = J.bladeDir, Hn = Q.handR, top = Sp(hd, bd[0] * 10, bd[1] * 10, bd[2] * 10), bot = Sp(hd, -bd[0] * 7, -bd[1] * 7, -bd[2] * 7);
+    ops.push({ d: (Hn[2] + top[2]) / 2, f: () => { px.line(g, bot[0], bot[1], top[0], top[1], C.staff || '#8a5a32', Math.max(1, Math.round(sc * .9))); px.glow(g, 1); px.disc(g, top[0], top[1], Math.max(1, sc * 1.4), C.orb || '#7fe3ff'); px.dot(g, top[0] - 1, top[1] - 1, '#ffffff'); } });
+  }
+} };
+HUMANOID_HATS.cap = h => {
+  const { g, Sp, J, r, R, c, dk } = h;
+  const t = Sp(J.head, -.4, 0, R * .55), b = Sp(J.head, R * 1.05, 0, R * .25), b2 = Sp(J.head, R * 1.7, 0, R * .1);
+  px.disc(g, t[0], t[1], r * .92, c); px.line(g, b[0], b[1], b2[0], b2[1], dk, 2);
+};
+HUMANOID_HATS.band = h => {
+  const { g, Sp, J, r, R, c, dk } = h;
+  const a = Sp(J.head, R * .6, -R * .9, R * .55), b = Sp(J.head, R * .6, R * .9, R * .55), f = Sp(J.head, R * .95, 0, R * .5), k = Sp(J.head, -R * .95, 0, R * .5), t2 = Sp(J.head, -R * 2.2, -.6, -.4), t3 = Sp(J.head, -R * 2, .6, -1.2);
+  px.line(g, a[0], a[1], b[0], b[1], c, 2); px.line(g, f[0], f[1], k[0], k[1], c, 2); px.line(g, k[0], k[1], t2[0], t2[1], c); px.line(g, k[0], k[1], t3[0], t3[1], c);
+};
+HUMANOID_HATS.crown = h => {
+  const { g, Sp, J, r, R, c, dk } = h;
+  for (const k of [-1, 0, 1]) { const p = Sp(J.head, 0, k * R * .6, R * .9), q = Sp(J.head, 0, k * R * .6, R * 1.6); px.line(g, p[0], p[1], q[0], q[1], c, 2); }
+  const a = Sp(J.head, 0, -R * .8, R * .85), b = Sp(J.head, 0, R * .8, R * .85); px.line(g, a[0], a[1], b[0], b[1], c, 2);
+};
+HUMANOID_HATS.helmet = h => {
+  const { g, Sp, J, r, R, c, dk } = h;
+  const t = Sp(J.head, -.8, 0, .6), cr = Sp(J.head, 0, 0, R * 1.05);
+  px.disc(g, t[0], t[1], r * 1.02, c); px.disc(g, cr[0], cr[1], Math.max(1, r * .28), shade(c, .35));
+  const f = Sp(J.head, R * .75, 0, -.2); px.disc(g, f[0], f[1], r * .55, h.rig.C.skin);
+};
+HUMANOID_HATS.pointed = h => {
+  const { g, Sp, J, r, R, c, dk } = h;
+  const a = Sp(J.head, R * .2, -R * .95, R * .45), b = Sp(J.head, R * .2, R * .95, R * .45), f = Sp(J.head, R * .75, 0, R * .5), k = Sp(J.head, -R * .9, 0, R * .25), tip = Sp(J.head, -R * 2.3, 0, R * 1.6);
+  px.poly(g, [f, k, tip], c); px.poly(g, [a, b, tip], c); px.line(g, a[0], a[1], b[0], b[1], dk); px.line(g, f[0], f[1], k[0], k[1], dk);
+};
+/** the weapons a Humanoid may hold, by id: the built-ins (sword, gun, staff) and a game's own */
+Humanoid.weapons = HUMANOID_WEAPONS;
+/** the hats a Humanoid may wear, by id: the built-ins (cap, band, crown, helmet, pointed) and a game's own */
+Humanoid.hats = HUMANOID_HATS;
+/** the held poses of a game's own, by id (the built-in poses are the rig's own solve: state.pose names either) */
+Humanoid.poses = HUMANOID_POSES;
+/** a weapon of the game's own (or a built-in replaced): { length: the tip's distance from the hand (a number, or rig =>
+ *  one; tip() and the swing's trail), rest: [forward, right, up] the way it points held at rest, blade: true (a swing
+ *  smears along it), draw(w): its drawing in both styles (w.style, w.at(t), w.push(depth, fn), w.u: rig._weaponDraw) } */
+Humanoid.weapon = (id, spec) => { HUMANOID_WEAPONS[id] = Object.assign({ length: 10, rest: [.55, .35, -.75], blade: true }, spec); return HUMANOID_WEAPONS[id]; };
+/** a hat of the game's own: draw(h) with h.at(forward, right, up) a point round the head on screen, h.r its radius
+ *  there, h.c its color (o.hat.color), h.dk a darker one, h.g, h.rig */
+Humanoid.hat = (id, draw) => { HUMANOID_HATS[id] = draw; return draw; };
+/** a held pose of the game's own: fn(J, w, rig) moves the joints (the rig's frame: forward, right, up) toward the pose by
+ *  w, 0..1, which eases in and out as state.pose names it or not (blended over the rig's solve) */
+Humanoid.pose = (id, fn) => { HUMANOID_POSES[id] = fn; return fn; };
 
 /**
  * Attack: the wind-up / active / recover timer every melee game needs (swords, punches, kicks, claws).

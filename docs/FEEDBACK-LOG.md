@@ -49,6 +49,7 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Cinematic cameras (shots along a rail with line of sight) | deferred | F8 | a second source asks |
 | Perception's tuning (suspicion that never decays while seen) | watch | F8 | a second stealth game tunes it by hand |
 | The pseudo-3D road square by default (one focal length) | deferred | F8 | the owner picks the ROAD kit's look with a retuned camera; `square: true` meanwhile |
+| The rig's built-in poses as data on its pose registry | no | F8 | a built-in pose a game needs to change can't be (the registry's poses lay over the solve: a game's own pose does it) |
 
 ## Sources
 
@@ -357,4 +358,11 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     foot on any screen). **Deferred**, the default: filmed on the ROAD kit, square needs the camera 1.8 times farther
     back on a wide screen (the road narrow and far, the car off the screen) or a new field of view and camera height,
     and the stretched road is the arcades' own look (OutRun). Which look the kit takes is the owner's call.
+  - **F8.10** · the built-in poses on the pose registry · the plan (`docs/HANDOFF-MATRIX.md` 4.1) moved every built-in
+    weapon, hat and pose onto the Humanoid's registries, as the proof that they are enough. The weapons and hats are
+    there (v0.89.0, the same pixels in five views, both styles, swings and all). **No**, the poses: cheer, cast, guard,
+    kneel, crouch, wave, hips, block, down and die are the rig's own solve (the hands on the hips need the elbows' IK,
+    a kneel moves the hips the feet hang from, die and down drive the fall), not a pose laid over the joints after it;
+    as `(J, w)` functions they would blend differently and change what every game shows. A game's own held pose
+    (`E.Humanoid.pose(id, (J, w) => ...)`) lays over the solve, the poses the 37 builds patched in.
 
