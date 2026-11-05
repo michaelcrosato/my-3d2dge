@@ -254,6 +254,28 @@ function matrixInput2(E, ed) {
   hg.start({ scenes: { a: { pausable: true, update() {} }, b: { update() {} } }, scene: 'a' }); hg.advance(.05); hg.pause(); hg.advance(.05); const paused = { ...seen }; hg.resume();
   if (off) off(); hg.advance(.05); hg.go('b', { n: 2 }, { fade: 0 }); hg.advance(1 / 120);
   check(`${ed}: game.hook: 'input' every step (paused too), 'step' in play, 'enter' with the scene's name and data; the removal works`, !seen.err && paused.input >= 12 && paused.step === 6 && seen.step === 6 && seen.enter.join() === 'a:undefined,b:2', JSON.stringify({ seen, paused }));
+  // 3.2 r.ppu (pixels per world unit: the view's scale times the zoom), and a sprite that scales with the world
+  const pg = new E.Game({ headless: true, draw: true, view: 'threequarter' }), spr = E.sprite(['##', '##'], { '#': '#ffffff' }), widths = []; let ppu = null;
+  const was = E.px.sprite; E.px.sprite = (g, sp, ...a) => { widths.push(sp.w); return was(g, sp, ...a); };
+  try { pg.start({ update() {}, draw(r) { ppu = r.ppu; r.sprite(40, 40, 0, spr); r.sprite(60, 40, 0, spr, { world: true }); } }); pg.advance(.05); } finally { E.px.sprite = was; }
+  check(`${ed}: r.ppu is the view's pixels per unit (threequarter 1.5 at zoom 1); r.sprite(..., { world: true }) grows with it`, ppu === 1.5 && widths.join() === '2,3', JSON.stringify({ ppu, widths }));
+  // 3.9 a long piece of geometry queued a cell at a time (each piece sorts at its own place, clipped to its part)
+  const qg = new E.Game({ headless: true, draw: true, view: 'iso' }); let pieces = null, calls = 0;
+  qg.start({ update() {}, draw(r) { if (!r.queueSpan) return; const n0 = r._items.length; r.queueSpan([0, 40], [96, 40], 0, 32, g => { calls++; }, { occluder: true }); pieces = r._items.slice(n0).map(it => Math.round(it.k * 100) / 100); } }); qg.advance(.05);
+  check(`${ed}: r.queueSpan(a, b, z, h, fn): a 96-unit wall queued as six cell-long pieces, each at its own depth, fn drawing each`, !!pieces && pieces.length === 6 && new Set(pieces).size === 6 && calls === 6, JSON.stringify({ pieces, calls }));
+  // 3.11 colours: rgb(), rgba(), hsl(), hsla() and the basic names are colours too; px takes [r, g, b]
+  const C = c => JSON.stringify(E.hex(c)), g0 = { fillStyle: '', fillRect() {}, _c: null };
+  E.px.rect(g0, 0, 0, 1, 1, [255, 128, 0]);
+  check(`${ed}: rgb(), rgba(), hsl(), hsla() and the basic CSS names are colours (not magenta); px.rect takes [r, g, b]`, C('rgb(255, 128, 0)') === '[255,128,0]' && C('rgba(10,20,30,.5)') === '[10,20,30]' && C('hsl(120, 100%, 50%)') === '[0,255,0]' && C('hsla(240deg 100% 50% / .5)') === '[0,0,255]' && C('orange') === '[255,165,0]' && C(' White ') === '[255,255,255]' && E.shade('red', -.2) !== E.shade('#ff00ff', -.2) && g0.fillStyle === '#ff8000',
+    [C('rgb(255, 128, 0)'), C('rgba(10,20,30,.5)'), C('hsl(120, 100%, 50%)'), C('hsla(240deg 100% 50% / .5)'), C('orange'), C(' White '), g0.fillStyle].join(' '));
+  // 3.10 a flow field reads the solids (map.solid: a crate is no floor to walk through) and takes several targets
+  const fmap = new E.TileMap({ rows: ['#########', '#.......#', '#.......#', '#.......#', '#########'], legend: { '#': 1 }, types: { 1: { h: 24 } } }), T = fmap.T;
+  const ff = new E.FlowField(fmap), at = (cx, cy) => ff.d[cy * fmap.w + cx]; ff.update(7.5 * T, 2.5 * T); const open = at(1, 2);
+  fmap.solid('crate', 4.5 * T, 2.5 * T, 0); fmap.solid('crate', 4.5 * T, 1.5 * T, 0); fmap.solid('crate', 4.5 * T, 3.5 * T, 0); ff.update(7.5 * T, 2.5 * T);
+  check(`${ed}: a flow field goes round map.solid crates (a wall of three across the room: no way through)`, open === 6 && at(1, 2) >= 1e9 && at(6, 2) === 1, [open, at(1, 2), at(6, 2)].join());
+  const fm2 = new E.TileMap({ rows: ['#########', '#.......#', '#########'], legend: { '#': 1 }, types: { 1: { h: 24 } } }), f2 = new E.FlowField(fm2), d2 = cx => f2.d[fm2.w + cx];
+  let many = ''; try { f2.update([[1.5 * T, 1.5 * T], [7.5 * T, 1.5 * T]]); } catch (e) { many = e.message; }
+  check(`${ed}: a flow field with several targets leads each cell to the nearest (update([[x, y], ...]))`, !many && d2(1) === 0 && d2(7) === 0 && d2(4) === 3 && d2(3) === 2 && d2(5) === 2, many || [1, 2, 3, 4, 5, 6, 7].map(d2).join());
   // 1.9 the move stick inverted, a standard Controller setting each way
   const mg = new EP.Game({ headless: true }); mg.start({ update() {}, draw() {} }); mg.settings.set('invertMoveX', true); mg.settings.set('invertMoveY', true);
   pads[0].axes = [.9, -.9, 0, 0]; mg.advance(1 / 120); const mv = mg.input.move(); pads[0].axes = [0, 0, 0, 0];
@@ -314,11 +336,21 @@ function matrixFixes(E, ed) {
   tg.after(.3, () => fired.push('kept'), { keep: true }); tg.after(.3, () => fired.push('cleared')); tg.every(.1, () => fired.push('every'), { keep: true });
   tg.go('b', null, { fade: 0 }); tg.advance(.45);
   check(`${ed}: game.after(s, fn, { keep: true }) outlives a scene change; one not kept is cleared`, fired.includes('kept') && !fired.includes('cleared') && fired.filter(f => f === 'every').length >= 3, JSON.stringify(fired));
-  // the floor's bakes: at most seven views, the least recently used let go (not every one)
+  // the floor's bakes: held to a byte budget (floorBudget), the least recently used let go (not every one)
   const fm = new E.TileMap({ rows: ['....', '....'], legend: {} }), V = n => new E.View('lru' + n, 'v', 20 + n, 45, 1, 1), vs = [0, 1, 2, 3, 4, 5, 6, 7].map(V);
-  for (const v of vs.slice(0, 7)) fm._floor(v); fm._floor(vs[0]); fm._floor(vs[7]);
+  const full = ed === 'full', one = (fm._floor(vs[0]), full ? fm.floorBytes() : 0); if (full) fm.floorBudget = one * 7.5;   // (the agent edition keeps seven)
+  for (const v of vs.slice(1, 7)) fm._floor(v); fm._floor(vs[0]); fm._floor(vs[7]);
   const keys = Object.keys(fm.floors);
-  check(`${ed}: the floor bakes keep the latest used (seven at most)`, keys.length === 7 && keys.some(k => k.startsWith('lru0:')) && !keys.some(k => k.startsWith('lru1:')), keys.join(' '));
+  check(`${ed}: the floor bakes keep the latest used (${full ? 'within floorBudget bytes, floorBytes()' : 'seven at most'})`, keys.length === 7 && (!full || fm.floorBytes() <= fm.floorBudget) && keys.some(k => k.startsWith('lru0:')) && !keys.some(k => k.startsWith('lru1:')), keys.join(' ') + ' ' + one);
+  if (full) { fm.floorBudget = one * 3.5; fm._floor(vs[1]); check(`${ed}: a smaller floorBudget keeps fewer bakes (three of these)`, Object.keys(fm.floors).length === 3 && Object.keys(fm.floors).pop().startsWith('lru1:'), Object.keys(fm.floors).join(' ')); }
+  if (ed === 'full') {   // a camera that zooms smoothly bakes the floor once, draws it scaled while the zoom moves, and crisp once it holds (HANDOFF-MATRIX 3.1)
+    const zg = new E.Game({ headless: true, draw: true, view: 'iso' }), zm = new E.TileMap({ rows: Array.from({ length: 8 }, () => '........'), legend: {} }); let bakes = 0;
+    const bake = zm._bake.bind(zm); zm._bake = (...a) => { bakes++; return bake(...a); };
+    zg.start({ update() {}, draw(r) { zm.drawFloor(r); } }); zg.advance(.05); const b0 = bakes;
+    for (let i = 1; i <= 30; i++) { zg.setZoom(1 + i * .01); zg.advance(1 / 60); }
+    const moving = bakes - b0; zg.advance(.5); const settled = bakes - b0 - moving;
+    check(`${ed}: the floor follows a smooth zoom without a bake a frame (drawn scaled; crisp once it holds)`, b0 === 1 && moving <= 2 && settled === 1, JSON.stringify({ b0, moving, settled }));
+  }
 }
 
 // every fenced example in API.md and API-INDEX.md runs: a snippet in Node, in a headless game when it uses one it
@@ -803,6 +835,13 @@ function views(E, ed) {
   const L = 200, jumps = []; for (let k = 1; k < road.segs.length; k++) jumps.push(Math.abs(road.yAt(k * L - 1e-6) - road.yAt(k * L)));
   check(`${ed}: views: road: its lap; distance wraps; a curve eases in to its strength and out; a hill climbs smoothly to its height`, road.length === 120 * L && road.seg(-1) === road.segs[119] && road.seg(road.length + 5) === road.segs[0] && road.curveAt(30 * L) === 0 && road.curveAt(60 * L) === 4 && road.curveAt(89 * L) < 1 && Math.abs(road.segs[89].y1 - 3000) < 1e-9 && Math.max(...jumps) < 1e-3, [road.curveAt(30 * L), road.curveAt(60 * L), road.curveAt(89 * L).toFixed(2), Math.max(...jumps).toFixed(5)].join());
   check(`${ed}: views: road: a body touches the scenery beside it, not across the road; nothing is projected before a draw`, road.hits(1100, -1.4, .1).length === 1 && road.hits(1100, 0, .1).length === 0 && road.hits(3000, -1.4, .1).length === 0 && road.project(1000, 0) === null && road.ahead(1000) === 1000 * road.depth && road.segs[95].tunnel);
+  if (ed === 'full') {   // square: true: one focal length, so a unit across is a unit up on screens of any shape (HANDOFF-MATRIX 3.7)
+    const ratio = (o, res) => { const rg = new E.Game({ headless: true, draw: true, res }), rd = new E.Road(Object.assign({ segment: 200 }, o)); rd.add(40); let q = null;
+      rg.start({ update() {}, draw(r) { rd.draw(r, { z: 0, x: 0, h: 1000 }); } }); rg.advance(.05);   // (the road draws in an overlay: projected once the frame is done)
+      const a = rd.project(2000, 0, 0), b = rd.project(2000, .5, 0), c = rd.project(2000, 0, 1000); q = a && b && c ? (b[0] - a[0]) / (a[1] - c[1]) : null; return q; };
+    const sq = [ratio({ square: true }, [427, 240]), ratio({ square: true }, [240, 427])], old = ratio({}, [427, 240]);
+    check(`${ed}: views: road: square: true draws a unit across as a unit up, wide or upright (the default: the screen's shape)`, sq.every(q => q && Math.abs(q - 1) < .02) && Math.abs(old - 427 / 240) < .05, JSON.stringify({ sq, old }));
+  }
 }
 
 // E.Dialog's markup (M7a): what types, how long it takes, the values it reads; and which maps bake their floor in chunks

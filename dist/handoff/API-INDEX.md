@@ -59,51 +59,51 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 368 Lighting; game.lights
 - 387 Particles; E.Particles: game.particles
 - 407 Renderer; r
-- 455 Game; E.Game: game
-- 570 Standard features; settings, fullscreen
-- 587 10c. Boot
-- 592 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 609 10e. Paths; E.Path: path
-- 619 10g. Weather
-- 623 10k. Save slots; E.Saves: saves
-- 646 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 719 Blob rig; E.Blob: blob
-- 739 Tile map; E.TileMap: map
-- 802 Materials
-- 823 Flow field; E.FlowField: flow
-- 841 Texture helpers for floortex functions
-- 852 Platform map; E.PlatformMap: level
-- 886 Platformer; E.Platformer: hero
-- 927 Body; E.Body: body
-- 947 Actions; E.Action: action
-- 969 17c. Mover; E.Mover: mover
-- 1008 17d. Perception; E.Suspicion: suspicion
-- 1025 Bullets; E.Bullets: shots
-- 1045 Spatial hash; E.SpatialHash: grid
-- 1055 Audio; game.audio
-- 1088 Backdrops; E.Backdrop: backdrop
-- 1096 21c. Props
-- 1101 21e. Shapes
-- 1113 Ui; E.Dialog: talk, E.Menu: menu
-- 1172 21d. Shell; E.Shell: shell
-- 1201 Gpu lighting (webgpu); game.gpu
-- 1222 Sessions
-- 1231 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1266 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1311 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1349 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1430 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1441 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1500 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1523 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1552 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1584 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1601 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1630 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1649 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1657 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1686 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1732 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 457 Game; E.Game: game
+- 572 Standard features; settings, fullscreen
+- 589 10c. Boot
+- 594 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 611 10e. Paths; E.Path: path
+- 621 10g. Weather
+- 625 10k. Save slots; E.Saves: saves
+- 648 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 721 Blob rig; E.Blob: blob
+- 741 Tile map; E.TileMap: map
+- 805 Materials
+- 826 Flow field; E.FlowField: flow
+- 844 Texture helpers for floortex functions
+- 855 Platform map; E.PlatformMap: level
+- 889 Platformer; E.Platformer: hero
+- 930 Body; E.Body: body
+- 950 Actions; E.Action: action
+- 972 17c. Mover; E.Mover: mover
+- 1011 17d. Perception; E.Suspicion: suspicion
+- 1028 Bullets; E.Bullets: shots
+- 1048 Spatial hash; E.SpatialHash: grid
+- 1058 Audio; game.audio
+- 1091 Backdrops; E.Backdrop: backdrop
+- 1099 21c. Props
+- 1104 21e. Shapes
+- 1116 Ui; E.Dialog: talk, E.Menu: menu
+- 1175 21d. Shell; E.Shell: shell
+- 1204 Gpu lighting (webgpu); game.gpu
+- 1225 Sessions
+- 1234 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1269 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1314 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1352 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1433 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1444 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1503 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1526 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1555 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1587 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1604 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1633 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1652 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1660 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1689 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1735 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -160,7 +160,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.ease.outQuad(u)`: fast start, smooth stop (gentler than outCubic)
 - `E.ease.outSine(u)` †: smooth stop (the gentlest)
 - `E.hash2(x, y)`: a fixed random number 0..1 for whole-number grid coordinates (texture specks, scatter that never flickers)
-- `E.hex(h)`: '#rrggbb' or '#rgb' (or an [r, g, b] array) -> [r, g, b]
+- `E.hex(h)`: '#rrggbb' or '#rgb', rgb(), rgba(), hsl(), hsla(), a basic CSS name ('orange', 'navy') or an [r, g, b] array -> [r, g, b]
 - `E.hsl(hh, s, l)`: '#rrggbb' from hue (degrees), saturation and lightness (0..1)
 - `E.ik3(a, b, L1, L2, hint)`: two-bone IK in 3D: returns [joint, end]. hint points the way the joint should bend.
 - `E.inArc(a, facing, b, range, halfAngle, dz)`: melee cone on the ground: is b (with optional radius r) within range of a and within halfAngle of facing? dz (optional) also limits the height difference, so a hero on a roof can't hit a guard in the street (left out, height is ignored)
@@ -428,13 +428,15 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.marker(x, y, z = 0, o = {})`: an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' }
 - `r.overlay(fn)`: draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus)
 - `r.pick(sx, sy)` †: what was drawn under a screen point (the HUD's pixels: input.clicked(), input.pointer()) in the last frame, front to back: the pick values of the actors, sprites, props and queued draws given one (r.actor(x, y, z, fn, { pick: unit })), each where its pixels went (an actor's drawn bounds; others' box, or a body's size round its point). [] for none
+- `r.ppu` †: pixels per world unit on the ground here: the view's scale times the zoom (iso 1.41, the others 1.5, overhead 1, at zoom 1). Rigs, maps and props grow with it; a sprite's pixel is a screen pixel at zoom 1 unless drawn with world: true
 - `r.prop(name, x, y, z, o = {})` †: set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint }) feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights. A prop at least chest high (E.HEIGHTS.chest, 22: a pillar, a statue, a lamp) drawn in front of an x-ray actor shows the actor's silhouette through it; a lower one (grass, a crate, a barrel) doesn't; hides: true or false says so.
-- `r.queue(x, y, z, fn, o)`: queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show through it (props, sprites, bodies), nothing else changes
+- `r.queue(x, y, z, fn, o)`: queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint, box, top} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show through it (props, sprites, bodies), nothing else changes. box: [x0, y0, x1, y1], what it covers in buffer pixels: an occluder joins the x-ray only where its box meets a silhouette (without one, a 48 x 140 box round its foot: give a long wall its box, or queue it with queueSpan); top: its top's height (one under the knees hides nothing). It sorts by its one point (x, y, z): a long thing that other things stand along sorts wrong somewhere: queueSpan
+- `r.queueSpan(a, b, z, h, fn, o = {})` †: queue a long piece of geometry (a wall, a fence, a roof's edge, drawn whole by fn(g)) a cell at a time from a to b ([x, y] world units) at height z, h tall: each cell-long piece sorts at its own middle, clipped to its part, with its box (as the engine's own walls are). o: queue's options, depth (its thickness across, 0), step (16 units)
 - `r.shadow(x, y, rad, alpha = .5, color = '#0c0818', z = 0)`: soft contact shadow under a character: a cached dithered ellipse, correct for the current view. z = height of the surface it falls on (0 = floor; the top of a block or platform otherwise)
 - `r.shape(id, x, y, z = 0, o = {})` †: Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o). o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material }, flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (x-ray silhouettes show through it: by default when it stands at least E.HEIGHTS.chest, 22, high), footprint, light (add its lights to game.lights), shadow (default true), charView (default true: steep views draw it from the characters' lower angle), flash, alpha, xray, pick (r.pick finds it) }
 - `r.sightCone(obs, o = {})` †: an observer's view on the ground: a dithered fan fov wide (radians) about its facing, out to range, cut short where the map hides a body's chest (map.ray, the height rules), draped over the ground below. o: { range: 120, fov: 1.6, facing, map, eye, color: '#ffe080', alpha: .3, rays }. Call it in draw (it is a decal: under walls and bodies)
 - `r.sky(colors, o = {})`: background of dithered color bands, top to bottom: r.sky(['#0b1030', '#3b2d6b', '#e0806a']). Call first in draw.
-- `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost (the last five use the actor path), t (an E.anim's clock: spr may be one), rot (radians, about its center: anchor 'center' unless given), steps (16), scale, wrap: [w, h] (a world that wraps round: a copy across each edge it crosses; w alone wraps x) }
+- `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost (the last five use the actor path), t (an E.anim's clock: spr may be one), rot (radians, about its center: anchor 'center' unless given), steps (16), scale, world: true (it grows with the view's scale, as rigs and maps: r.ppu pixels a unit), wrap: [w, h] (a world that wraps round: a copy across each edge it crosses; w alone wraps x) }
 - `r.starfield(o = {})`: scrolling star dots for space and night skies. opts: { count: 70, speed: 30 px/s, dir: 'down' | 'up' | 'left' | 'right', colors, layers: 3, seed }
 - `r.text(str, x, y, color = '#ffffff', o)`: HUD text in screen pixels, drawn on top and never lit: r.text('SCORE 120', 4, 4, '#fff', { align, scale, outline })
 - `r.textAt(x, y, z, str, color = '#ffffff', o = {})`: text floating at a world point (names, prompts): r.textAt(x, y, z, 'OPEN', '#ffe08a')
@@ -785,6 +787,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `map.cells`: the wall type id of every cell, row by row (index cy * w + cx; change one with set)
 - `map.chunks` †: the floor baked in squares of 128 screen pixels as the camera comes to them (its colors and the GPU lighting's canvas both), the far ones let go, so a 256 x 256-cell map costs what the screen shows; a change to cells re-bakes only the squares over them. True, false, or by default when the map has more than 128 x 128 cells
 - `map.cutaway`: walls between the camera and the floor drop low (types with cut: true; false turns it off)
+- `map.floorBudget` †: the bytes the floor's bakes may hold (64 MB): past it the least recently used go (floorBytes())
 - `map.floorMat` †: a material (E.MATERIALS id or '#hex pattern') for every floor cell
 - `map.floorMats` †: { tag: material } for the cells with that floor tag, over floorMat (untagged cells have the tag null). Either stands in for floorTex
 - `map.floorTags`: each cell's floor tag from the legend ('water', 'lava', ...), row by row, or null for a map built from cells
@@ -827,7 +830,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.FlowField({ jump })`: (world units) links tops across a gap that a jump clears, straight along a row or column, by map.landing's rules (up to jumpRise higher, 11, and jumpDrop lower, 18): an agent with E.Mover's leap chases across roofs. With jump, distances are travel: a jump of k cells costs k, and a climb 1 plus its rise in cells (climbing is slow), so a chase leaps a gap rather than drop into the street and climb back up
 - `flow.dir(x, y, fx, fy)`: normalized ground direction to walk from (x, y) toward the target (straight at it where the field doesn't reach)
 - `flow.next(x, y)` †: the next cell to head for from (x, y): { x, y, z (its center and top), kind: 'walk' | 'climb' | 'drop' | 'jump', edge (how far (x, y) is from the side of its cell it leaves by) }, or null where the field doesn't reach (or at the target). An AI standing on the ground presses jump for a 'climb' or a 'jump' once edge is under its radius plus a little (E.Mover climbs or leaps; a press in the air would be kept for the landing)
-- `flow.update(x, y)`: aim the field at a world point; it rebuilds only when the target's cell or the map (map.version) changes
+- `flow.update(x, y)`: aim the field at a world point, or at several (update([[x, y], ...]): each cell leads to the nearest, the heroes a horde chases); it rebuilds only when a target's cell or the map (map.version) changes. A map.solid shape standing on the floor raises the cells under it to its top (a crate is walked round, a low step climbed)
 - `flow.climb`: how much higher a next-door top may be (an agent that climbs walls)
 - `flow.d`: each cell's distance in steps to the target cell (1e9 where it can't get there), row by row
 - `flow.drop`: how much lower (an agent that hops down)

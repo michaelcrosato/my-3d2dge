@@ -409,9 +409,16 @@ function smoothDamp(cur, target, vel, st, dt) {
   const om = 2 / st, x = om * dt, ex = 1 / (1 + x + .48 * x * x + .235 * x * x * x), ch = cur - target, tmp = (vel + om * ch) * dt;
   return [target + (ch + tmp) * ex, (vel - om * tmp) * ex];
 }
+// CSS colour functions and the basic names, read as hex (a full table of names would cost every kit; others draw magenta)
+const CSS_NAMES = { black: '000', white: 'fff', red: 'f00', lime: '0f0', green: '008000', blue: '00f', yellow: 'ff0', cyan: '0ff', aqua: '0ff', magenta: 'f0f', fuchsia: 'f0f', gray: '808080', grey: '808080', silver: 'c0c0c0', maroon: '800000', olive: '808000', navy: '000080', teal: '008080', purple: '800080', orange: 'ffa500', pink: 'ffc0cb', brown: 'a52a2a', gold: 'ffd700', transparent: '000' };
+const cssColor = s => {
+  const m = /^(rgb|hsl)a?\(\s*([-\d.]+)(?:deg)?(%?)[\s,]+([-\d.]+)(%?)[\s,]+([-\d.]+)(%?)/.exec(s); if (!m) return CSS_NAMES[s] || null;
+  const v = (i, max) => +m[i] * (m[i + 1] === '%' ? max / 100 : 1);
+  return (m[1] === 'rgb' ? toHex([v(2, 255), v(4, 255), v(6, 255)]) : hsl(+m[2], +m[4] / 100, +m[6] / 100)).slice(1);
+};
 const hex = h => {
   if (Array.isArray(h)) return h.slice(0, 3);
-  let s = String(h).trim(); if (s[0] === '#') s = s.slice(1);
+  let s = String(h).trim(); if (s[0] === '#') s = s.slice(1); else { const c = cssColor(s.toLowerCase()); if (c) s = c; }   // (rgb(), hsl(), a basic name)
   if (s.length === 3 || s.length === 4) s = s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
   const n = parseInt(s.slice(0, 6), 16);
   if (s.length < 6 || isNaN(n)) { warn('hex:' + h, 'color "' + h + '" is not a "#rrggbb" hex color (drawn magenta)'); return [255, 0, 255]; }
@@ -551,7 +558,7 @@ Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, r
 
 // ---- 2. PIXELS: every shape snaps to whole pixels (never anti-aliased); g is a CanvasRenderingContext2D ----
 const px = {};
-px.col = (g, c) => { if (g._c !== c) { g.fillStyle = c; g._c = c; } };
+px.col = (g, c) => { if (Array.isArray(c)) c = toHex(c); if (g._c !== c) { g.fillStyle = c; g._c = c; } };
 px.reset = g => { g._c = null; };
 px.rect = (g, x, y, w, h, c) => { px.col(g, c); g.fillRect(Math.round(x), Math.round(y), w, h); };
 px.dot = (g, x, y, c) => { px.col(g, c); g.fillRect(Math.round(x), Math.round(y), 1, 1); };

@@ -64,7 +64,9 @@ const DIET = [
   { part: 'sequences', sections: ['10h'], entries: ['history'] },   // input.sequence, input.motion, input.history
   { part: 'camera', sections: ['10i'], entries: ['window', 'snapY', 'frame'] },   // game.cam.window, cam.snapY, cam.frame
   { part: 'players', sections: ['10j'], entries: ['allowJoin', 'addPlayer', 'removePlayer', 'splitScreen', 'viewport', 'halfKeys'] },   // game.allowJoin, game.splitScreen, Input.halfKeys (game.players and game.viewports are the core's)
-  { part: 'saves', sections: ['10k'], entries: ['saves'], names: ['saves'] }   // game.saves, and menu: { saves }
+  { part: 'saves', sections: ['10k'], entries: ['saves'], names: ['saves'] },   // game.saves, and menu: { saves }
+  { part: 'spans', sections: ['9b'], entries: ['queueSpan'] },   // r.queueSpan
+  { part: 'input2', sections: ['10l'], entries: ['value', 'hook'], names: ['never'] }   // input.value, game.hook, and touch: 'never''s notice
 ];
 // THE 3D DIET: the 3D engine's sections a 3D kit's game never calls, left out as the kit diet leaves out the core's
 // (tools/diet.mjs, reading the 3D engine as the ES module it is): what the kit calls is its shell, slice and modules
