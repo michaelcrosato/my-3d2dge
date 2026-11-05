@@ -764,6 +764,9 @@ class Input {
      *  left stick after the dead zone; padAim: its right stick, or null when centered; padPrev: which gamepad buttons
      *  were down at the last step; aimSource: what aims right now: 'move' | 'mouse' | 'pad' */
     this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this.padPrev = []; this.aimSource = 'move';
+    /** padValues: each gamepad button's travel, 0 to 1 (the triggers; input.value reads them); invertMoveX, invertMoveY:
+     *  the move stick turned round (the Controller settings) */
+    this.padValues = []; this.invertMoveX = this.invertMoveY = false;
     /** deadzone: how far a gamepad stick moves before it counts (0..0.8); padIndex, padId: the gamepad in use (null
      *  and '' without one); lastDevice: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the
      *  right button prompts) */
@@ -816,6 +819,8 @@ class Input {
     // the wheel zooms where the game lets it (a mouse's notch 10%; a trackpad's pinch comes as the wheel with ctrlKey);
     // not over a menu, which scrolls
     el.addEventListener('wheel', e => {
+      const wc = e.deltaY < 0 ? 'WheelUp' : e.deltaY > 0 ? 'WheelDown' : null;
+      if (wc && this._codes[wc]) { e.preventDefault(); this._tapCode(wc); this.lastDevice = 'mouse'; return; }   // (a wheel bound to an action: a notch taps it, no zoom)
       if (!this._wheelOn) return; e.preventDefault();
       const d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 100 : 1);
       this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25); this._zoomPt = this.screenPoint(e.clientX, e.clientY);
@@ -972,6 +977,7 @@ class Input {
   }
   /** build the touch buttons again from the player's settings (touch, hand, touchSize, touchOpacity) */
   _touchSync() {
+    if (this._never) { this.touchEnabled = false; if (this.stickOn) this._stickEnd({ pointerId: this.stickId }); return null; }   // (touch: 'never')
     if (!this._touchArgs || !this.screen.canvas) return null;
     const { actions, o } = this._touchArgs, S = this._settings || {}, mode = S.touch || 'auto', left = S.hand === 'left', size = clamp(+S.touchSize || 62, 40, 96);
     const coarse = this._touched || (window.matchMedia && matchMedia('(pointer: coarse)').matches);   // (a laptop with a touch screen: once touched)
@@ -1026,6 +1032,21 @@ class Input {
     this.lastDevice = d;   // (no device either; and a tap of a held action leaves it held)
   }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
+  /** how far action a is pressed, 0 to 1: a gamepad button by its travel (the triggers, even short of a press), a stick's
+   *  direction (PadAxisUp ..., or up / down / left / right on the touch stick) by its push, any other code held 1 */
+  value(a) {
+    const m = this.map[a]; if (!m) { this._check(a); return 0; } if (this._suppressed.has(a)) return 0;
+    const PV = this.padValues || [], mv = this.padMove || [0, 0], st = this.stickOn ? this.stick : [0, 0], push = { up: [1, -1], down: [1, 1], left: [0, -1], right: [0, 1] };
+    let v = 0;
+    for (const c of m) {
+      const k = /^Pad(\d+)$/.exec(c), ax = /^Pad(R?)Axis(Up|Down|Left|Right)$/.exec(c), pv = k ? PV[+k[1]] || 0 : 0;
+      if (k) v = Math.max(v, pv);
+      if (ax) { const [i, s] = push[ax[2].toLowerCase()], q = ax[1] ? this.padAim || [0, 0] : mv; v = Math.max(v, clamp(q[i] * s, 0, 1)); }
+      else if (this.held.has(c)) v = Math.max(v, k && pv > 0 ? pv : 1);
+    }
+    if (push[a]) { const [i, s] = push[a]; v = Math.max(v, clamp(st[i] * s, 0, 1)); }
+    return v;
+  }
   /** is the action held right now? */
   down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } if (this._suppressed.has(a)) return false; for (const c of m) if (this.held.has(c)) return true; return false; }
   /** true only during the first update step after the press (menus, jumps, one-shot actions) */
@@ -1160,17 +1181,20 @@ class Input {
     this.padLost = false;
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
       if (!p && this.padIndex !== null) { this.padLost = this.lastDevice === 'gamepad'; this.stopRumble(); }   // unplugged while in use
-      if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
-      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
+      if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight', 'PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
+      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = []; this.padValues = [];
       this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
       if (this.aimSource === 'pad') this.aimSource = 'move';
     }
     if (p) {
       const dz = (x, y) => { const l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8); return l <= d ? [0, 0] : [x / l * Math.min(1, (l - d) / (1 - d)), y / l * Math.min(1, (l - d) / (1 - d))]; };
       this.padAxes = Array.from(p.axes);
-      this.padMove = dz(p.axes[0] || 0, p.axes[1] || 0);
+      this.padMove = dz(p.axes[0] || 0, p.axes[1] || 0); if (this.invertMoveX) this.padMove[0] *= -1; if (this.invertMoveY) this.padMove[1] *= -1;   // (the Controller settings: a stick worn the wrong way)
       const aim = dz(p.axes[2] || 0, p.axes[3] || 0);
       this.padAim = Math.hypot(...aim) > 0 ? [aim[0], aim[1] * (this.invertAimY ? -1 : 1)] : null;
+      this.padValues = p.buttons.map(b => b.value || (b.pressed ? 1 : 0));
+      const ra = this.padAim || [0, 0], rd = [ra[1] < -.5, ra[1] > .5, ra[0] < -.5, ra[0] > .5];
+      ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'].forEach((c, i) => rd[i] ? this.press(c) : this.release(c));   // (the right stick past halfway: codes to bind)
       if (this.padAim || Math.hypot(...this.padMove) > 0) { this.aimSource = 'pad'; this.lastDevice = 'gamepad'; }
       p.buttons.forEach((b, i) => { const on = b.pressed; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
@@ -1270,11 +1294,11 @@ const MENU_KEYS = {
 };
 /* rebinding: the codes a player may bind (not Escape, Enter, the F keys, Start or Home: the menus and the browser keep
    them), the arrow keys and d-pad that stay on the moves whatever is bound, and which codes are a gamepad's */
-const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Pad([0-8]|1[0-5]))$/;
+const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Wheel(Up|Down)|Pad([0-8]|1[0-5])|PadRAxis(Up|Down|Left|Right))$/;
 const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15', 'PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']);
 /* the left stick past halfway presses the direction actions, as the d-pad does (menus, dialog choices, ladders) */
 const STICK_CODES = { up: 'PadAxisUp', down: 'PadAxisDown', left: 'PadAxisLeft', right: 'PadAxisRight' };
-const padCode = c => c.startsWith('Pad');
+const padCode = c => c.startsWith('Pad'), RSTICK = ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'];   // (the right stick's codes, past halfway)
 /* a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders and triggers, 8 back, 9 start,
    10-11 stick clicks, 12-15 d-pad, 16 home), as each family prints them */
 const PAD_GLYPHS = {
@@ -1287,7 +1311,8 @@ const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift',
   Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Esc', Backspace: 'Backspace', Tab: 'Tab', CapsLock: 'Caps', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
   Mouse0: 'Left click', Mouse1: 'Middle click', Mouse2: 'Right click', Mouse3: 'Mouse 4', Mouse4: 'Mouse 5', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[',
   BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
-  PadAxisUp: 'L stick ↑', PadAxisDown: 'L stick ↓', PadAxisLeft: 'L stick ←', PadAxisRight: 'L stick →' };
+  PadAxisUp: 'L stick ↑', PadAxisDown: 'L stick ↓', PadAxisLeft: 'L stick ←', PadAxisRight: 'L stick →',
+  PadRAxisUp: 'R stick ↑', PadRAxisDown: 'R stick ↓', PadRAxisLeft: 'R stick ←', PadRAxisRight: 'R stick →', WheelUp: 'Wheel up', WheelDown: 'Wheel down' };
 /** top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks */
 Input.DEFAULT = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
@@ -2377,6 +2402,7 @@ class Game {
     /** the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth
      *  at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count */
     this.alpha = .5; this._acc = this.o.step / 2;
+    if ((this.input._never = this.o.touch === 'never')) this.input.touchEnabled = false;   // (a game that never shows touch controls)
     /** the player's choices (game.settings.volume, game.settings.set('volume', .5), your own from menu.settings), saved
      *  and applied (section 10b) */
     this.settings = new Settings(this, (this.o.menu && this.o.menu.settings) || []);
@@ -2489,6 +2515,15 @@ class Game {
   /** pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused.
    *  The player resumes (Escape, Start, Resume); resume() does it from code */
   pause(reason = 'player') { this.input.stopRumble(); if (this.paused) return false; this.paused = true; this.pauseReason = reason; return true; }
+  /** a function of the game's own on the engine's clock: kind 'input' fn(dt) every step, paused or not, after the input
+   *  is read (a host's guard, an idle timer); 'step' fn(dt) every update step in play, before the scene's update (an
+   *  attract mode's watcher); 'enter' fn(name, data) as a scene starts. Returns a function that removes it */
+  hook(kind, fn) {
+    const L = (this._own || (this._own = { input: [], step: [], enter: [] }))[kind];
+    if (!L) throw new Error('game.hook("' + kind + '"): the hooks are input, step and enter');
+    L.push(fn); return () => { const i = L.indexOf(fn); if (i >= 0) L.splice(i, 1); };
+  }
+  _ownRun(kind, ...a) { const L = this._own && this._own[kind]; if (L) for (const f of L.slice()) try { f(...a); } catch (e) { this.fail('hook ' + kind, e); } }
   /** take the game out of pause (and close the pause screen) */
   resume() { this.paused = false; this.pauseReason = null; this._goOn = false; }
   /** a pausable scene in play pauses when the page is hidden, the window loses focus or the controller is unplugged
@@ -2532,6 +2567,7 @@ class Game {
     this.input.names = (this.o.menu && this.o.menu.controls) || null;
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
     this.input._cornerMenu = !!this._corner;   // (on a touch screen the corner's menu button is the touch START)
+    if (this.o.touch === 'never') on(window, 'keydown', () => { this._keyed = true; });   // (a keyboard is there: the notice below goes)
     if (this.o.menu !== false) new Shell(this, { system: true });
   }
   /** full screen by itself on a touch screen (fullscreen: 'tap', the default): at the first tap, and again when a game
@@ -2571,6 +2607,7 @@ class Game {
    *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen (with the
    *  engine's touch buttons it is their START); hidden under an open menu screen (its close button is there) */
   _cornerSync() {
+    if (this.o.touch === 'never') this._needSync();
     const c = this._corner; if (!c) return;
     const sh = this.shell, s = this.scene, I = this.input, fs = this.fullscreen, open = !!(sh && sh.screen);
     const main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
@@ -2581,6 +2618,21 @@ class Game {
     if (key === this._cornerKey) return; this._cornerKey = key;
     const [m, f] = c.children; c.style.display = showM || showF ? 'flex' : 'none'; m.style.display = showM ? 'grid' : 'none'; f.style.display = showF ? 'grid' : 'none';
     f.innerHTML = cornerIcon(fs.on ? CORNER_ICONS.exit : CORNER_ICONS.full); f.setAttribute('aria-label', fs.on ? 'Leave full screen' : 'Full screen'); f.title = f.getAttribute('aria-label');
+  }
+  /** touch: 'never' on a device with touch alone: "Controller or keyboard required", with Settings, until a controller
+   *  is connected or a key pressed */
+  _needSync() {
+    const fine = window.matchMedia && matchMedia('(any-pointer: fine)').matches, coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    const need = coarse && !fine && !this._keyed && this.input.padIndex === null, el = this._needEl;
+    if (!need) { if (el) el.style.display = 'none'; return; }
+    if (!el) {
+      const d = this._needEl = document.createElement('div'); d.setAttribute('data-sys', 'need'); d.setAttribute('role', 'alert');
+      d.style.cssText = 'position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:rgba(5,3,12,.88);color:#f4f0ff;font:600 17px/1.45 system-ui,sans-serif';
+      d.innerHTML = '<div><div style="font-size:21px;margin-bottom:8px">Controller or keyboard required</div><div style="opacity:.8;margin-bottom:18px">This game plays with a controller or a keyboard. Connect one, then press any button.</div><button type="button" style="font:inherit;padding:10px 22px;border-radius:10px;border:2px solid #b8a8ff;background:#2a2050;color:#fff;min-width:44px;min-height:44px">Settings</button></div>';
+      d.querySelector('button').onclick = () => this.menu('settings');
+      (this.screen.canvas.parentElement || document.body).appendChild(d);
+    }
+    this._needEl.style.display = this.shell && this.shell.screen ? 'none' : 'flex';   // (Settings open over it: hidden while it is)
   }
   _applyView() {
     const b = this.baseView, z = this.zoom || 1, y = b.pitchDeg < 5 ? 0 : (this.yaw || 0);
@@ -2871,6 +2923,7 @@ class Game {
     this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
     for (const f of HOOKS.enter) f(this, old);
+    this._ownRun('enter', name, data);
     if (s.enter) s.enter(data);
   }
   /** report an error in game code without stopping the game: logged once per place and message, kept in game.errors
@@ -2889,6 +2942,7 @@ class Game {
     this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(dt);   // (the other players: section 10j)
     this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
+    this._ownRun('input', dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
@@ -2912,6 +2966,7 @@ class Game {
       prune(T, t => t.dead);
     }
     for (const f of HOOKS.step) f(this, dt);
+    this._ownRun('step', dt);
     if (s && s.update) s.update(dt);
     const f = this._follow;
     if (f && f.target) {
@@ -3014,6 +3069,8 @@ const STANDARD_SETTINGS = {
   bindings: { group: 'Controls', type: 'bindings', value: () => ({}), apply: (g, v) => { g.input.bindings = v; } },
   deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, step: .01, apply: (g, v) => { for (const q of g._players || [g.input]) q.deadzone = v; } },
   invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertAimY = !!v; } },
+  invertMoveX: { group: 'Controller', label: 'Invert move left and right', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertMoveX = !!v; } },
+  invertMoveY: { group: 'Controller', label: 'Invert move up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertMoveY = !!v; } },
   glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { for (const q of g._players || [g.input]) q.glyphs = v; } },
   rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { for (const q of g._players || [g.input]) q.rumbleScale = v; } },
   touch: { group: 'Touch', label: 'Touch buttons', type: 'select', value: 'auto', options: [['auto', 'Automatic'], ['on', 'Always'], ['off', 'Hidden']], apply: g => g.input._touchSync() },
@@ -3052,7 +3109,7 @@ class Settings {
     hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});   // (a newer version's values are checked like the rest)
     if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     game.input._settings = this; game.input._onBindings = b => this.set('bindings', b);
-    for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
+    for (const k in STANDARD_SETTINGS) if (!(game.o.touch === 'never' && STANDARD_SETTINGS[k].group === 'Touch')) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));   // (touch: 'never': no Touch group)
     for (const sp of own) this.define(sp && !sp.label && Object.prototype.hasOwnProperty.call(STANDARD_SETTINGS, sp.key) ? Object.assign({ key: sp.key }, STANDARD_SETTINGS[sp.key], sp) : sp);   // (a standard key with no label: the game's fields over the standard ones; with a label it is the game's own)
   }
   /** add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value,
@@ -3716,7 +3773,7 @@ Game.prototype.addPlayer = function (o = {}) {
   const P = this.players; if (P.length >= 4) return null;
   const q = new Input(_pStub(this), Input.DEFAULT), n = P.length + 1;
   Object.assign(q, { player: n, name: 'P' + n, color: E.PLAYER_COLORS[n - 1], pad: typeof o.pad === 'number' ? o.pad : null, half: o.keys ? 'right' : null, device: o.keys ? 'keyboard' : 'gamepad' });
-  for (const k of ['glyphs', 'deadzone', 'invertAimY', 'rumbleScale']) q[k] = this.input[k];   // (the player's settings: button symbols, dead zone, aim, vibration)
+  for (const k of ['glyphs', 'deadzone', 'invertAimY', 'invertMoveX', 'invertMoveY', 'rumbleScale']) q[k] = this.input[k];   // (the player's settings: button symbols, dead zone, aim, the move stick, vibration)
   q.lastDevice = q.device; if (q.pad !== null) { q.tick(0); q.consumeAll(); }   // (the buttons held as it joins, its Start among them, are no presses)
   const I = P[0]; if (q.half && !I.half) { I._full = I.preset; I.half = 'left'; I.use(Input.halfKeys(I._full, 'left')); }   // player 1 moves to the left half
   q.use(_pPreset(this, q));
@@ -9231,6 +9288,7 @@ class Shell {
     const signal = game._abort ? game._abort.signal : undefined;
     addEventListener('keydown', e => { const c = this._cap; if (!c) return; e.preventDefault(); e.stopImmediatePropagation(); if (e.code === 'Escape') this._capEnd('Not changed.'); else if (c.device === 'keys' && !e.repeat) this._capBind(e.code); }, { capture: true, signal });
     addEventListener('pointerdown', e => { const c = this._cap; if (!c || c.device !== 'keys' || e.pointerType !== 'mouse') return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind('Mouse' + e.button); }, { capture: true, signal });
+    addEventListener('wheel', e => { const c = this._cap; if (!c || c.device !== 'keys' || !e.deltaY) return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind(e.deltaY < 0 ? 'WheelUp' : 'WheelDown'); }, { capture: true, signal, passive: false });
     if (!document.getElementById('esh-css')) { const st = document.createElement('style'); st.id = 'esh-css'; st.textContent = SHELL_CSS; document.head.appendChild(st); }
     const r = this.root = this._el('div', 'esh' + (game._corner ? ' esh-cornered' : '')), th = Object.assign({}, SHELL_THEME, o.theme);   // (the top-right column starts below the corner's buttons)
     for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
@@ -9455,7 +9513,7 @@ class Shell {
     if (touch && !first) touchRows();
   }
   _capStart(a, device, name) {
-    this._cap = { a, device, name, prev: this._ctlI().padPrev.slice() };
+    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)) };
     this._status = device === 'pad' ? 'Press a controller button for ' + name + ' (Start cancels).' : 'Press a key or mouse button for ' + name + ' (Escape cancels).';
     this._render();
   }
@@ -9614,7 +9672,8 @@ class Shell {
   _capPad() {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
     const i = I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
-    if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i);
+    const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
+    if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
   }
   /** move the focus (or turn a focused slider or choice), keeping it in view */
   _nav(dir) {

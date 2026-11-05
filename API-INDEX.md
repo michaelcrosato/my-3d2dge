@@ -55,55 +55,55 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 220 Views (projections); E.View: view
 - 247 Screen; game.screen
 - 269 Input; E.Input: input
-- 354 Pixel fonts
-- 365 Lighting; game.lights
-- 384 Particles; E.Particles: game.particles
-- 404 Renderer; r
-- 452 Game; E.Game: game
-- 566 Standard features; settings, fullscreen
-- 583 10c. Boot
-- 588 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 605 10e. Paths; E.Path: path
-- 615 10g. Weather
-- 619 10k. Save slots; E.Saves: saves
-- 642 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 715 Blob rig; E.Blob: blob
-- 735 Tile map; E.TileMap: map
-- 798 Materials
-- 819 Flow field; E.FlowField: flow
-- 837 Texture helpers for floortex functions
-- 848 Platform map; E.PlatformMap: level
-- 882 Platformer; E.Platformer: hero
-- 923 Body; E.Body: body
-- 943 Actions; E.Action: action
-- 965 17c. Mover; E.Mover: mover
-- 1004 17d. Perception; E.Suspicion: suspicion
-- 1021 Bullets; E.Bullets: shots
-- 1041 Spatial hash; E.SpatialHash: grid
-- 1051 Audio; game.audio
-- 1084 Backdrops; E.Backdrop: backdrop
-- 1092 21c. Props
-- 1097 21e. Shapes
-- 1109 Ui; E.Dialog: talk, E.Menu: menu
-- 1168 21d. Shell; E.Shell: shell
-- 1197 Gpu lighting (webgpu); game.gpu
-- 1218 Sessions
-- 1227 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1262 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1307 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1345 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1426 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1437 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1496 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1519 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1548 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1580 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1597 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1626 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1645 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1653 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1682 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1728 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 357 Pixel fonts
+- 368 Lighting; game.lights
+- 387 Particles; E.Particles: game.particles
+- 407 Renderer; r
+- 455 Game; E.Game: game
+- 570 Standard features; settings, fullscreen
+- 587 10c. Boot
+- 592 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 609 10e. Paths; E.Path: path
+- 619 10g. Weather
+- 623 10k. Save slots; E.Saves: saves
+- 646 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 719 Blob rig; E.Blob: blob
+- 739 Tile map; E.TileMap: map
+- 802 Materials
+- 823 Flow field; E.FlowField: flow
+- 841 Texture helpers for floortex functions
+- 852 Platform map; E.PlatformMap: level
+- 886 Platformer; E.Platformer: hero
+- 927 Body; E.Body: body
+- 947 Actions; E.Action: action
+- 969 17c. Mover; E.Mover: mover
+- 1008 17d. Perception; E.Suspicion: suspicion
+- 1025 Bullets; E.Bullets: shots
+- 1045 Spatial hash; E.SpatialHash: grid
+- 1055 Audio; game.audio
+- 1088 Backdrops; E.Backdrop: backdrop
+- 1096 21c. Props
+- 1101 21e. Shapes
+- 1113 Ui; E.Dialog: talk, E.Menu: menu
+- 1172 21d. Shell; E.Shell: shell
+- 1201 Gpu lighting (webgpu); game.gpu
+- 1222 Sessions
+- 1231 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1266 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1311 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1349 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1430 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1441 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1500 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1523 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1552 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1584 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1601 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1630 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1649 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1657 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1686 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1732 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -319,6 +319,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.touchSet(a, label = null, show = true)` †: one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null, near || talking)
 - `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
 - `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it. Every preset (E.Input.DEFAULT, PLATFORMER, THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel). The keys held stay held (down() in the new layout, not pressed() again), and a press no step has seen counts in it
+- `input.value(a)` †: how far action a is pressed, 0 to 1: a gamepad button by its travel (the triggers, even short of a press), a stick's direction (PadAxisUp ..., or up / down / left / right on the touch stick) by its push, any other code held 1
 - `input.zoom()` †: the camera zoom the player asked for since the last step, as a factor (1.1: 10% closer, .9: farther; 1: none): the wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy)
 - `input.zoomPoint()` †: [x, y] where the last zoom was asked for: the mouse pointer for the wheel, between the fingers for a pinch; null when the keys zoomed (about the screen's middle)
 - `input.aimSource = 'move'` †: what aims right now: 'move' | 'mouse' | 'pad'
@@ -326,6 +327,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.deadzone = .18`: how far a gamepad stick moves before it counts (0..0.8)
 - `input.glyphs = 'auto'`: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' | 'nintendo' | 'generic' (positions)
 - `input.held`: the key and button codes down right now ('KeyD', 'Mouse0', 'Pad0', 'Act:jump')
+- `input.invertMoveX`, `input.invertMoveY = false` †: the move stick turned round (the Controller settings)
 - `input.keysTo = null` †: the other players' inputs the keyboard's codes go to as well (players sharing it, each with half its keys: game.players)
 - `input.lastDevice = 'keyboard'`: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the right button prompts)
 - `input.map`: each action's codes ({ jump: ['Space', 'Pad0', 'Act:jump'] }); every action also answers to 'Act:<name>' (DOM buttons with data-act, tap, hold)
@@ -338,6 +340,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.padLost = false`: true for the step after the gamepad in use was unplugged (a pausable scene pauses)
 - `input.padMove = [0, 0]`: the gamepad's left stick after the dead zone
 - `input.padPrev = []`: which gamepad buttons were down at the last step
+- `input.padValues = []` †: each gamepad button's travel, 0 to 1 (the triggers; input.value reads them)
 - `input.preset` †: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own)
 - `input.rumbleScale = .6` †: vibration strength 0..1 (0 = off; game.settings.rumble sets it)
 - `input.screen`: the game's screen (mouse positions are read through it)
@@ -484,6 +487,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.freeze(s)`: hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks
 - `game.go(name, data, o = {})`: switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 (a cut) or another number of seconds; opts.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or 'dissolve', each way taking opts.seconds (.4), round opts.at (iris and swirl: a world point { x, y, z }, which each scene's camera places, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
 - `game.hitFx(x, y, z, o = {})`: everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound, a damage number and a rumble on a gamepad. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit', rumble: true })
+- `game.hook(kind, fn)` †: a function of the game's own on the engine's clock: kind 'input' fn(dt) every step, paused or not, after the input is read (a host's guard, an idle timer); 'step' fn(dt) every update step in play, before the scene's update (an attract mode's watcher); 'enter' fn(name, data) as a scene starts. Returns a function that removes it
 - `game.menu(name, o)`: open the menu (the corner's menu button and the touch START do it): a pausable scene (or a game started without scenes) pauses on its pause screen; any other scene, a title, waits under the settings. menu('settings') or menu('controls') opens that screen. Without a menu (menu: false, or the agent edition) it pauses a scene in play. o: { pause: false } opens it over a world that keeps stepping, as game.live does for every pause. Returns true when a menu opened
 - `game.mouseGround()`: the mouse's point on the ground: [x, y] in world units (an array, not { x, y }), or null with no mouse over the canvas
 - `game.nextView(dir = 1)`: cycle through game.views (or every view): bind it to a key for players who like to switch

@@ -125,7 +125,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - `input`: `'DEFAULT'` (top-down action), `'PLATFORMER'`, `'SHMUP'`, `'THIRDPERSON'`, or your own `{ action: ['KeyQ', 'Pad0'] }`.
 - `views`: the views your game supports; `game.nextView()` cycles them (bind it to a key).
 - Start: `game.start({ update(dt), draw(r) })`, or with scenes (below).
-- Methods: `follow(obj, { z: 16, lead: 20 })` (camera tracks it automatically), `focus(x, y, z)` (or aim it yourself every update), `setView(id)`, `nextView()`, `freeze(s)` (hit-stop: `update` waits; `game.hitstop` is the time left), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
+- Methods: `follow(obj, { z: 16, lead: 20 })` (camera tracks it automatically), `focus(x, y, z)` (or aim it yourself every update), `setView(id)`, `nextView()`, `freeze(s)` (hit-stop: `update` waits; `game.hitstop` is the time left), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `hook('input' | 'step' | 'enter', fn)` (your own each step, paused too for input; returns its removal), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
 - Fields: `W`, `H` (screen pixels), `time`, `real`, `timeScale` (0.25 = slow motion), `paused`, `input`, `audio`, `particles`, `lights`, `view`, `errors`, `cam`. `game.fail('my power', err)` reports an error in your code (logged, in `errors`, on the error panel) and plays on.
 - Camera zoom and turn: `game.setZoom(1.5)` (.5 .. 3; everything drawn by the engine re-rasterizes crisply, the HUD stays), `game.rotateView(45)` (ground views only), `game.resetCamera()` (to the scene's zoom), `game.zoom`, `game.yaw`, `game.note('ZOOM 2x')` (a short notice at the top of the screen; `game.shownNote` is the one showing). Custom painters can read `r.view.zoom` (undefined at 1x) to scale their own art.
 - The player's zoom: a scene's `camera: { zoom: [.75, 2], start: 1, tall: 1.5 }` lets the player zoom within `zoom` from `start` (wheel, `-` `=`, pinch, Settings; `false`: none; `AI_GUIDE.md`, Camera).
@@ -161,8 +161,8 @@ game.script(function* () {
 - Wrap-around (Asteroids): `x = E.wrap(x, 0, W)`, `E.wrapDiff(a, b, W)` (the short way across the seam), and `wrap: [W, H]` on `r.sprite` or `r.actor` draws a copy across each edge.
 
 ## Standard features (every game has them: don't build your own)
-With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling, a screen filter: clean, scanlines or CRT, the frame rate: Auto, 60 or Full, and its readout), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap and each game started by a tap, a top-right button, the menu; turning it off is remembered), a **menu button** at the top right (on a touch screen it stays in play: it is the touch START), a **way out** of every menu screen (close, back, a sideways swipe), the **back gesture** stepping back in the game (`game.back()`: a menu screen closes, play pauses) before it leaves the page, **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling, zooming or pull to refresh on the canvas).
-- Adjust: `new E.Game({ menu: { items: [['Restart', fn]], settings: [{ key: 'hints', label: 'Hints', value: true }, { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }], controls: { attack: 'Sword', skill: false }, quit: 'title' } })`, then read `game.settings.hints`. Leave parts out: `menu: false` (your own pause), `fullscreen: 'button' | false`, `corner: false`, `backGesture: false`, `autoPause: false`. `game.cornerArea()`: where the corner's buttons cover the screen (or null): keep a HUD clear of it.
+With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling, a screen filter: clean, scanlines or CRT, the frame rate: Auto, 60 or Full, and its readout), **controls** the player rebinds (conflicts said first; dead zone, invert aim and move, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap and each game started by a tap, a top-right button, the menu; turning it off is remembered), a **menu button** at the top right (on a touch screen it stays in play: it is the touch START), a **way out** of every menu screen (close, back, a sideways swipe), the **back gesture** stepping back in the game (`game.back()`: a menu screen closes, play pauses) before it leaves the page, **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling, zooming or pull to refresh on the canvas).
+- Adjust: `new E.Game({ menu: { items: [['Restart', fn]], settings: [{ key: 'hints', label: 'Hints', value: true }, { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }], controls: { attack: 'Sword', skill: false }, quit: 'title' } })`, then read `game.settings.hints`. Leave parts out: `menu: false` (your own pause), `fullscreen: 'button' | false`, `corner: false`, `backGesture: false`, `autoPause: false`, `touch: 'never'` (a phone is told a controller or keyboard is needed). `game.cornerArea()`: where the corner's buttons cover the screen (or null): keep a HUD clear of it.
 - Save slots (`game.saves`): three slots and an autosave, each with its place, level and time played. `game.saves.write = () => ({ data, place, level })` and `read = save => {...}`; then `save(slot)` (0, 1, 2 or `'auto'`), `load(slot)`, `copy(a, b)`, `erase(slot)`, `autosave()`, `list()`, `latest()` (a title's Continue). `menu: { saves: true }` (or `{ slots, version, migrate(data, from) }`) puts Save (while `saves.canSave`: a save point) and Load in the pause menu, and `saves.show('save' | 'load')` opens the screen from your own menu. Blocked storage keeps them for the visit.
 - Prompts: `game.input.label('jump')` is that action's key or button on the player's device, after rebinding ('Space', 'A', '✕'). PlayStation symbols by default: `settings: [{ key: 'glyphs', value: 'playstation' }]` (a standard key without a label sets its default). A canvas title's OPTIONS: `game.menu('settings')`. From code: `game.settings.set(key, v)`, `game.fullscreen.toggle()` (from a key, click or tap), `game.pause(reason)`, `game.resume()`. `live: true` (or `game.menu(name, { pause: false })`): menus over a world that keeps stepping (online play).
 - **Boot**: heavy setup in steps behind a boot screen, and a report for any error before play: `game.start({ scenes, scene, boot: { title, steps: [['Building the city', () => { map = build(); }]] } })` (`AI_GUIDE.md`, Boot).
@@ -174,7 +174,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - Moves: `input.motion('236', 'attack', { facing })` is true on the step a quarter circle forward and punch ends (numpad notation, mirrored when `facing` is -1: `'623'`, `'41236'`); `input.sequence(['up', 'up', 'down', 'down+right', 'attack'], { window: .5 })` any run of inputs (a cheat code); `input.history` the last second of them (`{ t, dir, pressed }`, for an input display).
 - Players (two to four on one machine): `game.players` is `[game.input, ...]`, each an input with this API, its `player` number, `name` (`'P2'`), `color` (`E.PLAYER_COLORS`) and device. `game.allowJoin({ max: 2, onJoin: (input, n) => {} })` lets them in: Start on a free gamepad, or 2 on the keyboard (player 2 takes its right half: arrows, `.` `/` `,` and the numpad; player 1 keeps WASD with F G H; a preset's `halves: { left: { pass: ['KeyR'] }, right: {...} }` its own); `game.addPlayer({ pad: 0 })` or `({ keys: 'right' })`, `game.removePlayer(p)`. Prompts, the pause (P2 PAUSED), a lost controller and the Controls screen are per player. One screen: `cam.frame(heroes)`. Split: `game.splitScreen(2, { follow: [h1, h2], layout: 'auto' })` (`'columns'`, `'rows'`, `'grid'`; up to 4) draws the scene once per viewport (`r.viewport` is `{ i, x, y, w, h }`), then `scene.hud(r)` once over the whole screen; `game.viewports[i].follow(t)` or `.focus(x, y)`.
 - `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
-- Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`, `lastDevice` (the index has the rest). The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same. Options while Create is held is no press (the AI Hub's chord).
+- Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`, `lastDevice` (the index has the rest). The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same; the right stick is `PadRAxisUp/Down/Left/Right`, the wheel `WheelUp`/`WheelDown`; `value(a)`: 0 to 1 (a trigger's travel, a stick's push). Options while Create is held is no press (the AI Hub's chord).
 - Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one; `steer = 'drag'`: a finger anywhere steers, no stick drawn (`stickOn`: a finger is on it). `zones = [{ x0, y0, x1, y1, act }]` (fractions of the canvas): a finger in one holds its act until it lifts, no stick (a pinball's halves, a rhythm game's lanes). Gestures (a mouse or one finger, screen pixels): `box()` → `{ x0, y0, x1, y1, done }` (a left drag; on touch a long press, then a drag), `longPress()`, `doubleTap()`, `pan()` → `[dx, dy]` (a finger's drag on open ground, a middle or right drag), `zoomPoint()`; `feed('down' | 'move' | 'up', x, y, { touch, button, id })` plays a pointer in a test. `bindButtons(root)` wires `[data-act]` elements.
 
 ## Drawing: `r` in `draw(r)`
@@ -306,14 +306,14 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `mode7`: the SNES's Mode 7 (`E.Mode7`): a camera over a flat floor (a TileMap's, a function's or a canvas), a turning sky, billboards far to near (rigs, sprites, shapes, your drawing), fog, `project` and `toFloor`, split screens. KART.
   - `road`: the pseudo-3D road (`E.Road`): segments with curves and hills, lanes, rumble strips, tunnels, scenery and cars scaled by distance and hidden past a crest, the sky's parallax on curves. ROAD.
   - `drive`: cars on the ground plane (`E.Car`: grip and slide, a kart's hop and drift boost, floor tags, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, places, drivers that pass and rubber-band, items, the HUD; the 3D engine's `world.vehicle` too). KART.
-  - `story`: dialogue as data (`E.Story`): nodes of lines with speakers and portraits, choices with conditions, flags and values (`{$name}` in lines), gotos, the game's events (one may hold the talk), a quest log, emote balloons over heads, a backlog, auto and skip; its state for a save. RPG, POINT-AND-CLICK, TACTICS.
+  - `story`: dialogue as data (`E.Story`): lines with speakers and portraits, choices with conditions, flags and values, gotos, the game's events, a quest log, balloons over heads, a backlog, auto and skip; its state for a save. RPG, POINT-AND-CLICK, TACTICS.
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG, 3D HORROR.
   - `strategy` (the full engine only; needs `grid`): `E.Strategy` for real-time strategy (selection by click, box and group; queued orders; formations; production, resources, placement; fog, the minimap; an AI's build order and waves) and for sims `E.Clock` (days, the light), `E.needs` and `E.choose`, `E.overlay`, `E.tooltip`. RTS, SIM.
   - `click` (the full engine only): point-and-click adventures (`E.Click`): painted rooms, walk areas with holes (`E.Walkbox`), depth scale, hotspots with verbs, SCUMM's nine verbs, Sierra's icons, a verb coin or two buttons, an inventory, rules as data, exits, `story`'s talk; taps on a phone. POINT-AND-CLICK.
   - `physics`: 2D rigid bodies (`E.Physics`): circles, boxes, polygons, segments, chains and arcs; bounce, friction, sensors, layers, sleep; fast balls swept, never passing through; the same world at any refresh rate; flippers, bumpers, slingshots, kickers. PINBALL, ARTILLERY.
-  - `terrain`: destructible ground in the side plane (`E.Terrain`): a mask of materials carved and added by circles and polygons, the ground below a point and its normal, hits and rays for shots, walkers on slopes (Worms, Lemmings), a collider for `physics`, drawn in chunks redrawn only where it changed. ARTILLERY.
-  - `songs`: the songbook (`E.Songbook`): the kits' best songs and more by mood (field, town, shop, battle, race, puzzle, space, horror, stealth, chase, dance), and jingles (stage clear, game over, one-up, level up, fanfare); `get(id)`, `find(mood)`. RHYTHM.
-  - `rhythm` (the full engine only): `E.Rhythm`: charts on a song's steps (lane strings, parts in an order, or a track's notes), judgments in ms of the music clock (perfect, great, good, miss), combo, score, a life gauge, grades, holds, call and response, a note highway in any direction. RHYTHM.
+  - `terrain`: destructible ground in the side plane (`E.Terrain`): carved and added by circles and polygons, the ground below a point and its normal, rays for shots, walkers on slopes, a collider for `physics`. ARTILLERY.
+  - `songs`: the songbook (`E.Songbook`): songs by mood (field, town, battle, race, horror, chase, dance ...) and jingles (stage clear, game over, level up); `get(id)`, `find(mood)`. RHYTHM.
+  - `rhythm` (the full engine only): `E.Rhythm`: charts on a song's steps, judgments in ms of the music clock, combo, score, a life gauge, grades, holds, call and response, a note highway in any direction. RHYTHM.
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER, PINBALL.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
@@ -1137,6 +1137,9 @@ class Input {
      *  left stick after the dead zone; padAim: its right stick, or null when centered; padPrev: which gamepad buttons
      *  were down at the last step; aimSource: what aims right now: 'move' | 'mouse' | 'pad' */
     this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this.padPrev = []; this.aimSource = 'move';
+    /** padValues: each gamepad button's travel, 0 to 1 (the triggers; input.value reads them); invertMoveX, invertMoveY:
+     *  the move stick turned round (the Controller settings) */
+    this.padValues = []; this.invertMoveX = this.invertMoveY = false;
     /** deadzone: how far a gamepad stick moves before it counts (0..0.8); padIndex, padId: the gamepad in use (null
      *  and '' without one); lastDevice: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the
      *  right button prompts) */
@@ -1189,6 +1192,8 @@ class Input {
     // the wheel zooms where the game lets it (a mouse's notch 10%; a trackpad's pinch comes as the wheel with ctrlKey);
     // not over a menu, which scrolls
     el.addEventListener('wheel', e => {
+      const wc = e.deltaY < 0 ? 'WheelUp' : e.deltaY > 0 ? 'WheelDown' : null;
+      if (wc && this._codes[wc]) { e.preventDefault(); this._tapCode(wc); this.lastDevice = 'mouse'; return; }   // (a wheel bound to an action: a notch taps it, no zoom)
       if (!this._wheelOn) return; e.preventDefault();
       const d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 100 : 1);
       this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25); this._zoomPt = this.screenPoint(e.clientX, e.clientY);
@@ -1345,6 +1350,7 @@ class Input {
   }
   /** build the touch buttons again from the player's settings (touch, hand, touchSize, touchOpacity) */
   _touchSync() {
+    if (this._never) { this.touchEnabled = false; if (this.stickOn) this._stickEnd({ pointerId: this.stickId }); return null; }   // (touch: 'never')
     if (!this._touchArgs || !this.screen.canvas) return null;
     const { actions, o } = this._touchArgs, S = this._settings || {}, mode = S.touch || 'auto', left = S.hand === 'left', size = clamp(+S.touchSize || 62, 40, 96);
     const coarse = this._touched || (window.matchMedia && matchMedia('(pointer: coarse)').matches);   // (a laptop with a touch screen: once touched)
@@ -1399,6 +1405,21 @@ class Input {
     this.lastDevice = d;   // (no device either; and a tap of a held action leaves it held)
   }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
+  /** how far action a is pressed, 0 to 1: a gamepad button by its travel (the triggers, even short of a press), a stick's
+   *  direction (PadAxisUp ..., or up / down / left / right on the touch stick) by its push, any other code held 1 */
+  value(a) {
+    const m = this.map[a]; if (!m) { this._check(a); return 0; } if (this._suppressed.has(a)) return 0;
+    const PV = this.padValues || [], mv = this.padMove || [0, 0], st = this.stickOn ? this.stick : [0, 0], push = { up: [1, -1], down: [1, 1], left: [0, -1], right: [0, 1] };
+    let v = 0;
+    for (const c of m) {
+      const k = /^Pad(\d+)$/.exec(c), ax = /^Pad(R?)Axis(Up|Down|Left|Right)$/.exec(c), pv = k ? PV[+k[1]] || 0 : 0;
+      if (k) v = Math.max(v, pv);
+      if (ax) { const [i, s] = push[ax[2].toLowerCase()], q = ax[1] ? this.padAim || [0, 0] : mv; v = Math.max(v, clamp(q[i] * s, 0, 1)); }
+      else if (this.held.has(c)) v = Math.max(v, k && pv > 0 ? pv : 1);
+    }
+    if (push[a]) { const [i, s] = push[a]; v = Math.max(v, clamp(st[i] * s, 0, 1)); }
+    return v;
+  }
   /** is the action held right now? */
   down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } if (this._suppressed.has(a)) return false; for (const c of m) if (this.held.has(c)) return true; return false; }
   /** true only during the first update step after the press (menus, jumps, one-shot actions) */
@@ -1533,17 +1554,20 @@ class Input {
     this.padLost = false;
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
       if (!p && this.padIndex !== null) { this.padLost = this.lastDevice === 'gamepad'; this.stopRumble(); }   // unplugged while in use
-      if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
-      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
+      if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight', 'PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
+      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = []; this.padValues = [];
       this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
       if (this.aimSource === 'pad') this.aimSource = 'move';
     }
     if (p) {
       const dz = (x, y) => { const l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8); return l <= d ? [0, 0] : [x / l * Math.min(1, (l - d) / (1 - d)), y / l * Math.min(1, (l - d) / (1 - d))]; };
       this.padAxes = Array.from(p.axes);
-      this.padMove = dz(p.axes[0] || 0, p.axes[1] || 0);
+      this.padMove = dz(p.axes[0] || 0, p.axes[1] || 0); if (this.invertMoveX) this.padMove[0] *= -1; if (this.invertMoveY) this.padMove[1] *= -1;   // (the Controller settings: a stick worn the wrong way)
       const aim = dz(p.axes[2] || 0, p.axes[3] || 0);
       this.padAim = Math.hypot(...aim) > 0 ? [aim[0], aim[1] * (this.invertAimY ? -1 : 1)] : null;
+      this.padValues = p.buttons.map(b => b.value || (b.pressed ? 1 : 0));
+      const ra = this.padAim || [0, 0], rd = [ra[1] < -.5, ra[1] > .5, ra[0] < -.5, ra[0] > .5];
+      ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'].forEach((c, i) => rd[i] ? this.press(c) : this.release(c));   // (the right stick past halfway: codes to bind)
       if (this.padAim || Math.hypot(...this.padMove) > 0) { this.aimSource = 'pad'; this.lastDevice = 'gamepad'; }
       p.buttons.forEach((b, i) => { const on = b.pressed; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
@@ -1643,11 +1667,11 @@ const MENU_KEYS = {
 };
 /* rebinding: the codes a player may bind (not Escape, Enter, the F keys, Start or Home: the menus and the browser keep
    them), the arrow keys and d-pad that stay on the moves whatever is bound, and which codes are a gamepad's */
-const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Pad([0-8]|1[0-5]))$/;
+const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Wheel(Up|Down)|Pad([0-8]|1[0-5])|PadRAxis(Up|Down|Left|Right))$/;
 const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15', 'PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']);
 /* the left stick past halfway presses the direction actions, as the d-pad does (menus, dialog choices, ladders) */
 const STICK_CODES = { up: 'PadAxisUp', down: 'PadAxisDown', left: 'PadAxisLeft', right: 'PadAxisRight' };
-const padCode = c => c.startsWith('Pad');
+const padCode = c => c.startsWith('Pad'), RSTICK = ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'];   // (the right stick's codes, past halfway)
 /* a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders and triggers, 8 back, 9 start,
    10-11 stick clicks, 12-15 d-pad, 16 home), as each family prints them */
 const PAD_GLYPHS = {
@@ -1660,7 +1684,8 @@ const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift',
   Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Esc', Backspace: 'Backspace', Tab: 'Tab', CapsLock: 'Caps', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
   Mouse0: 'Left click', Mouse1: 'Middle click', Mouse2: 'Right click', Mouse3: 'Mouse 4', Mouse4: 'Mouse 5', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[',
   BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
-  PadAxisUp: 'L stick ↑', PadAxisDown: 'L stick ↓', PadAxisLeft: 'L stick ←', PadAxisRight: 'L stick →' };
+  PadAxisUp: 'L stick ↑', PadAxisDown: 'L stick ↓', PadAxisLeft: 'L stick ←', PadAxisRight: 'L stick →',
+  PadRAxisUp: 'R stick ↑', PadRAxisDown: 'R stick ↓', PadRAxisLeft: 'R stick ←', PadRAxisRight: 'R stick →', WheelUp: 'Wheel up', WheelDown: 'Wheel down' };
 /** top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks */
 Input.DEFAULT = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
@@ -2750,6 +2775,7 @@ class Game {
     /** the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth
      *  at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count */
     this.alpha = .5; this._acc = this.o.step / 2;
+    if ((this.input._never = this.o.touch === 'never')) this.input.touchEnabled = false;   // (a game that never shows touch controls)
     /** the player's choices (game.settings.volume, game.settings.set('volume', .5), your own from menu.settings), saved
      *  and applied (section 10b) */
     this.settings = new Settings(this, (this.o.menu && this.o.menu.settings) || []);
@@ -2862,6 +2888,15 @@ class Game {
   /** pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused.
    *  The player resumes (Escape, Start, Resume); resume() does it from code */
   pause(reason = 'player') { this.input.stopRumble(); if (this.paused) return false; this.paused = true; this.pauseReason = reason; return true; }
+  /** a function of the game's own on the engine's clock: kind 'input' fn(dt) every step, paused or not, after the input
+   *  is read (a host's guard, an idle timer); 'step' fn(dt) every update step in play, before the scene's update (an
+   *  attract mode's watcher); 'enter' fn(name, data) as a scene starts. Returns a function that removes it */
+  hook(kind, fn) {
+    const L = (this._own || (this._own = { input: [], step: [], enter: [] }))[kind];
+    if (!L) throw new Error('game.hook("' + kind + '"): the hooks are input, step and enter');
+    L.push(fn); return () => { const i = L.indexOf(fn); if (i >= 0) L.splice(i, 1); };
+  }
+  _ownRun(kind, ...a) { const L = this._own && this._own[kind]; if (L) for (const f of L.slice()) try { f(...a); } catch (e) { this.fail('hook ' + kind, e); } }
   /** take the game out of pause (and close the pause screen) */
   resume() { this.paused = false; this.pauseReason = null; this._goOn = false; }
   /** a pausable scene in play pauses when the page is hidden, the window loses focus or the controller is unplugged
@@ -2905,6 +2940,7 @@ class Game {
     this.input.names = (this.o.menu && this.o.menu.controls) || null;
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
     this.input._cornerMenu = !!this._corner;   // (on a touch screen the corner's menu button is the touch START)
+    if (this.o.touch === 'never') on(window, 'keydown', () => { this._keyed = true; });   // (a keyboard is there: the notice below goes)
     if (this.o.menu !== false) new Shell(this, { system: true });
   }
   /** full screen by itself on a touch screen (fullscreen: 'tap', the default): at the first tap, and again when a game
@@ -2944,6 +2980,7 @@ class Game {
    *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen (with the
    *  engine's touch buttons it is their START); hidden under an open menu screen (its close button is there) */
   _cornerSync() {
+    if (this.o.touch === 'never') this._needSync();
     const c = this._corner; if (!c) return;
     const sh = this.shell, s = this.scene, I = this.input, fs = this.fullscreen, open = !!(sh && sh.screen);
     const main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
@@ -2954,6 +2991,21 @@ class Game {
     if (key === this._cornerKey) return; this._cornerKey = key;
     const [m, f] = c.children; c.style.display = showM || showF ? 'flex' : 'none'; m.style.display = showM ? 'grid' : 'none'; f.style.display = showF ? 'grid' : 'none';
     f.innerHTML = cornerIcon(fs.on ? CORNER_ICONS.exit : CORNER_ICONS.full); f.setAttribute('aria-label', fs.on ? 'Leave full screen' : 'Full screen'); f.title = f.getAttribute('aria-label');
+  }
+  /** touch: 'never' on a device with touch alone: "Controller or keyboard required", with Settings, until a controller
+   *  is connected or a key pressed */
+  _needSync() {
+    const fine = window.matchMedia && matchMedia('(any-pointer: fine)').matches, coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    const need = coarse && !fine && !this._keyed && this.input.padIndex === null, el = this._needEl;
+    if (!need) { if (el) el.style.display = 'none'; return; }
+    if (!el) {
+      const d = this._needEl = document.createElement('div'); d.setAttribute('data-sys', 'need'); d.setAttribute('role', 'alert');
+      d.style.cssText = 'position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:rgba(5,3,12,.88);color:#f4f0ff;font:600 17px/1.45 system-ui,sans-serif';
+      d.innerHTML = '<div><div style="font-size:21px;margin-bottom:8px">Controller or keyboard required</div><div style="opacity:.8;margin-bottom:18px">This game plays with a controller or a keyboard. Connect one, then press any button.</div><button type="button" style="font:inherit;padding:10px 22px;border-radius:10px;border:2px solid #b8a8ff;background:#2a2050;color:#fff;min-width:44px;min-height:44px">Settings</button></div>';
+      d.querySelector('button').onclick = () => this.menu('settings');
+      (this.screen.canvas.parentElement || document.body).appendChild(d);
+    }
+    this._needEl.style.display = this.shell && this.shell.screen ? 'none' : 'flex';   // (Settings open over it: hidden while it is)
   }
   _applyView() {
     const b = this.baseView, z = this.zoom || 1, y = b.pitchDeg < 5 ? 0 : (this.yaw || 0);
@@ -3244,6 +3296,7 @@ class Game {
     this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
     for (const f of HOOKS.enter) f(this, old);
+    this._ownRun('enter', name, data);
     if (s.enter) s.enter(data);
   }
   /** report an error in game code without stopping the game: logged once per place and message, kept in game.errors
@@ -3262,6 +3315,7 @@ class Game {
     this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(dt);   // (the other players: section 10j)
     this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
+    this._ownRun('input', dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
@@ -3285,6 +3339,7 @@ class Game {
       prune(T, t => t.dead);
     }
     for (const f of HOOKS.step) f(this, dt);
+    this._ownRun('step', dt);
     if (s && s.update) s.update(dt);
     const f = this._follow;
     if (f && f.target) {
@@ -3387,6 +3442,8 @@ const STANDARD_SETTINGS = {
   bindings: { group: 'Controls', type: 'bindings', value: () => ({}), apply: (g, v) => { g.input.bindings = v; } },
   deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, step: .01, apply: (g, v) => { for (const q of g._players || [g.input]) q.deadzone = v; } },
   invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertAimY = !!v; } },
+  invertMoveX: { group: 'Controller', label: 'Invert move left and right', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertMoveX = !!v; } },
+  invertMoveY: { group: 'Controller', label: 'Invert move up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertMoveY = !!v; } },
   glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { for (const q of g._players || [g.input]) q.glyphs = v; } },
   rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { for (const q of g._players || [g.input]) q.rumbleScale = v; } },
   touch: { group: 'Touch', label: 'Touch buttons', type: 'select', value: 'auto', options: [['auto', 'Automatic'], ['on', 'Always'], ['off', 'Hidden']], apply: g => g.input._touchSync() },
@@ -3425,7 +3482,7 @@ class Settings {
     hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});   // (a newer version's values are checked like the rest)
     if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     game.input._settings = this; game.input._onBindings = b => this.set('bindings', b);
-    for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
+    for (const k in STANDARD_SETTINGS) if (!(game.o.touch === 'never' && STANDARD_SETTINGS[k].group === 'Touch')) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));   // (touch: 'never': no Touch group)
     for (const sp of own) this.define(sp && !sp.label && Object.prototype.hasOwnProperty.call(STANDARD_SETTINGS, sp.key) ? Object.assign({ key: sp.key }, STANDARD_SETTINGS[sp.key], sp) : sp);   // (a standard key with no label: the game's fields over the standard ones; with a label it is the game's own)
   }
   /** add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value,
@@ -4089,7 +4146,7 @@ Game.prototype.addPlayer = function (o = {}) {
   const P = this.players; if (P.length >= 4) return null;
   const q = new Input(_pStub(this), Input.DEFAULT), n = P.length + 1;
   Object.assign(q, { player: n, name: 'P' + n, color: E.PLAYER_COLORS[n - 1], pad: typeof o.pad === 'number' ? o.pad : null, half: o.keys ? 'right' : null, device: o.keys ? 'keyboard' : 'gamepad' });
-  for (const k of ['glyphs', 'deadzone', 'invertAimY', 'rumbleScale']) q[k] = this.input[k];   // (the player's settings: button symbols, dead zone, aim, vibration)
+  for (const k of ['glyphs', 'deadzone', 'invertAimY', 'invertMoveX', 'invertMoveY', 'rumbleScale']) q[k] = this.input[k];   // (the player's settings: button symbols, dead zone, aim, the move stick, vibration)
   q.lastDevice = q.device; if (q.pad !== null) { q.tick(0); q.consumeAll(); }   // (the buttons held as it joins, its Start among them, are no presses)
   const I = P[0]; if (q.half && !I.half) { I._full = I.preset; I.half = 'left'; I.use(Input.halfKeys(I._full, 'left')); }   // player 1 moves to the left half
   q.use(_pPreset(this, q));
@@ -9604,6 +9661,7 @@ class Shell {
     const signal = game._abort ? game._abort.signal : undefined;
     addEventListener('keydown', e => { const c = this._cap; if (!c) return; e.preventDefault(); e.stopImmediatePropagation(); if (e.code === 'Escape') this._capEnd('Not changed.'); else if (c.device === 'keys' && !e.repeat) this._capBind(e.code); }, { capture: true, signal });
     addEventListener('pointerdown', e => { const c = this._cap; if (!c || c.device !== 'keys' || e.pointerType !== 'mouse') return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind('Mouse' + e.button); }, { capture: true, signal });
+    addEventListener('wheel', e => { const c = this._cap; if (!c || c.device !== 'keys' || !e.deltaY) return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind(e.deltaY < 0 ? 'WheelUp' : 'WheelDown'); }, { capture: true, signal, passive: false });
     if (!document.getElementById('esh-css')) { const st = document.createElement('style'); st.id = 'esh-css'; st.textContent = SHELL_CSS; document.head.appendChild(st); }
     const r = this.root = this._el('div', 'esh' + (game._corner ? ' esh-cornered' : '')), th = Object.assign({}, SHELL_THEME, o.theme);   // (the top-right column starts below the corner's buttons)
     for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
@@ -9828,7 +9886,7 @@ class Shell {
     if (touch && !first) touchRows();
   }
   _capStart(a, device, name) {
-    this._cap = { a, device, name, prev: this._ctlI().padPrev.slice() };
+    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)) };
     this._status = device === 'pad' ? 'Press a controller button for ' + name + ' (Start cancels).' : 'Press a key or mouse button for ' + name + ' (Escape cancels).';
     this._render();
   }
@@ -9987,7 +10045,8 @@ class Shell {
   _capPad() {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
     const i = I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
-    if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i);
+    const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
+    if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
   }
   /** move the focus (or turn a focused slider or choice), keeping it in view */
   _nav(dir) {

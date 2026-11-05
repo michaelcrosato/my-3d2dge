@@ -131,6 +131,7 @@ for (const [ed, file] of EDITIONS) {
   matrixFixes(E, ed);
   matrixInput(E, ed);
   matrixHeadless(E, ed);
+  if (ed === 'full') matrixInput2(E, ed);   // (additions of the full engine's)
 }
 
 // the matrix run's input (docs/HANDOFF-MATRIX.md, Part 1): the host's Create + Options, a world that steps under the
@@ -224,6 +225,40 @@ function matrixHeadless(E, ed) {
   const sl = new E.Game({ headless: true }); sl.start({ scenes: { a: { update() {} }, b: { update() {} } }, scene: 'a' }); sl.advance(.05);
   sl.timeScale = .5; sl.hitstop = 1; sl.go('b', null, { fade: 0 }); sl.advance(1 / 120);
   check(`${ed}: game.timeScale outlives a scene change, hitstop ends with it`, sl.sceneName === 'b' && sl.timeScale === .5 && sl.hitstop === 0, [sl.sceneName, sl.timeScale, sl.hitstop].join());
+}
+
+// the matrix run's further input (docs/HANDOFF-MATRIX.md 1.5 to 1.9): analog values, the right stick and the wheel as
+// codes, touch off for good, a game's own hooks, the move stick inverted
+function matrixInput2(E, ed) {
+  const btn = () => ({ pressed: false, value: 0 }), pads = [{ index: 0, id: 'pad', connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) }];
+  const EP = load('engine/my-3d2dge.js', { globals: { navigator: { getGamepads: () => pads } } }), g = new EP.Game({ headless: true }), I = g.input;
+  g.start({ update() {}, draw() {} }); g.advance(.05);
+  // 1.5 input.value(a): a trigger's travel, a stick's push, a key 1, nothing 0
+  const v = {}; pads[0].buttons[7] = { pressed: false, value: .35 }; g.advance(1 / 120);
+  try { v.light = I.value('jump'); } catch (e) { v.light = e.message; }   // (DEFAULT's jump: no trigger; then a trigger of our own)
+  I.use({ ...EP.Input.DEFAULT, throttle: ['KeyW', 'Pad7'] }); g.advance(1 / 120);
+  try { v.trig = I.value('throttle'); pads[0].buttons[7] = { pressed: true, value: .8 }; g.advance(1 / 120); v.trig2 = I.value('throttle'); pads[0].buttons[7] = btn(); g.advance(1 / 120); I.press('KeyW'); g.advance(1 / 120); v.key = I.value('throttle'); I.release('KeyW'); g.advance(1 / 120); v.none = I.value('throttle'); pads[0].axes = [.75, 0, 0, 0]; g.advance(1 / 120); v.stick = I.value('right'); pads[0].axes = [0, 0, 0, 0]; g.advance(1 / 120); } catch (e) { v.err = e.message; }
+  check(`${ed}: input.value(a): a trigger's travel (0 to 1), a key 1, the stick's push, nothing 0`, Math.abs(v.trig - .35) < 1e-9 && Math.abs(v.trig2 - .8) < 1e-9 && v.key === 1 && v.none === 0 && v.stick > .6 && v.stick < .8, JSON.stringify(v));
+  // 1.6 the right stick as PadRAxis codes, the wheel as WheelUp / WheelDown: bindable, labelled
+  I.use({ ...EP.Input.DEFAULT, look: ['PadRAxisUp'], next: ['WheelDown'] }); g.advance(1 / 120);
+  pads[0].axes = [0, 0, 0, -.9]; g.advance(1 / 120); const look = I.down('look'); pads[0].axes = [0, 0, 0, 0]; g.advance(1 / 120);
+  I.press('WheelDown'); g.advance(1 / 120); const next = I.pressed('next'); I.release('WheelDown');
+  const rb = [I.rebind('next', 'keys', 'WheelUp'), I.rebind('look', 'pad', 'PadRAxisLeft')];
+  check(`${ed}: the right stick (PadRAxisUp ...) and the wheel (WheelUp, WheelDown) are codes: held, bound, rebound and named`, look && !I.down('look') && next && rb[0] === null && rb[1] === null && I.codeLabel('PadRAxisLeft') === 'R stick ←' && I.codeLabel('WheelUp') === 'Wheel up', JSON.stringify({ look, next, rb, l: I.codeLabel('PadRAxisLeft'), w: I.codeLabel('WheelUp') }));
+  // 1.7 touch: 'never': no touch controls ever, and no Touch settings to turn them back on
+  const tg = new E.Game({ headless: true, touch: 'never' });
+  check(`${ed}: new E.Game({ touch: 'never' }): touch off, no Touch settings`, tg.input.touchEnabled === false && !tg.settings.keys('Touch').length, JSON.stringify({ on: tg.input.touchEnabled, keys: tg.settings.keys('Touch') }));
+  // 1.8 game.hook('input' | 'step' | 'enter', fn) -> its removal: input runs paused too, step only in play
+  const hg = new E.Game({ headless: true }), seen = { input: 0, step: 0, enter: [] };
+  let off = null; try { hg.hook('input', () => seen.input++); off = hg.hook('step', () => seen.step++); hg.hook('enter', (name, data) => seen.enter.push(name + ':' + (data && data.n))); } catch (e) { seen.err = e.message; }
+  hg.start({ scenes: { a: { pausable: true, update() {} }, b: { update() {} } }, scene: 'a' }); hg.advance(.05); hg.pause(); hg.advance(.05); const paused = { ...seen }; hg.resume();
+  if (off) off(); hg.advance(.05); hg.go('b', { n: 2 }, { fade: 0 }); hg.advance(1 / 120);
+  check(`${ed}: game.hook: 'input' every step (paused too), 'step' in play, 'enter' with the scene's name and data; the removal works`, !seen.err && paused.input >= 12 && paused.step === 6 && seen.step === 6 && seen.enter.join() === 'a:undefined,b:2', JSON.stringify({ seen, paused }));
+  // 1.9 the move stick inverted, a standard Controller setting each way
+  const mg = new EP.Game({ headless: true }); mg.start({ update() {}, draw() {} }); mg.settings.set('invertMoveX', true); mg.settings.set('invertMoveY', true);
+  pads[0].axes = [.9, -.9, 0, 0]; mg.advance(1 / 120); const mv = mg.input.move(); pads[0].axes = [0, 0, 0, 0];
+  const sp = mg.settings.spec('invertMoveX');
+  check(`${ed}: invertMoveX and invertMoveY (Controller settings) turn the move stick round`, !!sp && sp.group === 'Controller' && mv[0] < -.5 && mv[1] > .5 && mg.input.down('left') && mg.input.down('down'), JSON.stringify({ mv, sp: sp && sp.group }));
 }
 
 // the cc-matrix run's patches, in the engine now (docs/HANDOFF-MATRIX.md): each was made by builders again and again

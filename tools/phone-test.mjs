@@ -49,6 +49,8 @@
 //      notes touched as they meet their targets are judged (not missed), each in the lane touched; CALIBRATE: taps
 //      anywhere count
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
+//  24. touchless (tools/fixtures/touchless.html: touch: 'never'): no touch buttons, a notice that a controller or a
+//      keyboard is needed with Settings (a tap opens them), gone at a key
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -1006,6 +1008,26 @@ if (want('rhythm')) {
     check(`rhythm ${label}: CALIBRATE, then taps anywhere count`, cal.mode === 'calibrate' && cal.taps >= 2 && !errors.length, `mode ${cal.mode}, ${cal.taps} taps counted${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
+}
+
+/* 24. a touchless game (new E.Game({ touch: 'never' })): no touch buttons on a phone, a notice that says a controller or a
+ * keyboard is needed with Settings, gone once a key is pressed */
+if (want('touchless')) {
+  console.log('touchless: a game that never shows touch controls, on a phone');
+  const ctx = await browser.newContext({ viewport: UP, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage(), errors = [];
+  page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  await page.goto(pathToFileURL(resolve('tools/fixtures/touchless.html')).href);
+  await page.waitForFunction(() => window.__fx && window.__fx.game.sceneName === 'play'); await wait(400);
+  const seen = await ev(page, () => { const n = document.querySelector('[data-sys=need]'), b = n && n.querySelector('button'), q = b && b.getBoundingClientRect();
+    return { buttons: [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.offsetParent).length, shown: !!n && getComputedStyle(n).display !== 'none', text: n ? n.textContent : '', settings: q ? [q.width, q.height] : null }; });
+  await page.screenshot({ path: resolve('check-output/phone', 'touchless.png') });
+  if (seen.settings) { const b = await page.$('[data-sys=need] button'); await b.tap(); await wait(300); }
+  const menu = await ev(page, () => window.__fx.game.shell && window.__fx.game.shell.screen);
+  await ev(page, () => window.__fx.game.shell && window.__fx.game.shell.hide()); await page.keyboard.press('KeyX'); await wait(300);
+  const gone = await ev(page, () => { const n = document.querySelector('[data-sys=need]'); return !n || getComputedStyle(n).display === 'none'; });
+  check('touchless: no touch buttons; "Controller or keyboard required" with Settings (it opens them), gone at a key', !seen.buttons && seen.shown && /Controller or keyboard required/.test(seen.text) && seen.settings && seen.settings[1] >= 44 && menu === 'settings' && gone && !errors.length, JSON.stringify({ ...seen, menu, gone, errors }));
+  await ctx.close();
 }
 
 await browser.close();
