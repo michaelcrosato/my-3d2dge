@@ -13315,8 +13315,10 @@ class Road {
   yAt(z) { const L = this.o.segment, s = this.seg(z), u = ((z % L) + L) % L / L; return s.y0 + (s.y1 - s.y0) * u; }
   /** the scenery a body w half roads wide at (z, x) touches */
   hits(z, x, w) { const W = this.o.width; return this.seg(z).things.filter(t => Math.abs(t.offset - x) * W < t.w / 2 + w * W); }
-  /** how far past the camera the player's car stands when drawn at the screen's bottom, for a camera h over the road */
-  ahead(h = this.o.height) { return h * this.depth; }
+  /** how far past the camera the player's car stands when drawn at the screen's bottom, for a camera h over the road;
+   *  square, that depends on the screen's shape: give r (draw's), and draw the camera that far behind the car (keep the
+   *  car's own place along the road as it was: the game plays the same on any screen) */
+  ahead(h = this.o.height, r) { const v = r && (r.viewport || { w: r.W, h: r.H }); return h * this.depth * (this.o.square && v ? v.w / v.h : 1); }
   // a road point into the screen for camera C: { x, y, w (half the road there, pixels), scale (pixels a unit), d }
   _p(wx, wy, wz, C) {
     const d = wz - C.z; if (d <= 0) return null;

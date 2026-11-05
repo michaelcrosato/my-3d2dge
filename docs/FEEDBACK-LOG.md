@@ -48,6 +48,7 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | The 3D engine's level as data that changes in play, a headless stand-in for it, a crawler's cells | deferred | F8 | a second source asks, or the CRAWLER kit needs a secret wall |
 | Cinematic cameras (shots along a rail with line of sight) | deferred | F8 | a second source asks |
 | Perception's tuning (suspicion that never decays while seen) | watch | F8 | a second stealth game tunes it by hand |
+| The pseudo-3D road square by default (one focal length) | deferred | F8 | the owner picks the ROAD kit's look with a retuned camera; `square: true` meanwhile |
 
 ## Sources
 
@@ -349,4 +350,11 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     line (Part 8) says to wait on state.
   - **F8.8** · real devices · the goal checks asked for a real pad, sound heard and a person playing, which no headless
     run can give. **No** for the engine (principle 10); the run's own fix is cc-matrix's.
+  - **F8.9** · the road square by default · OutBloom (Opus xhigh) and DenshaDeHalo (Opus xhigh) wrote square projections
+    for `E.Road` (it scales x by half the width and y by half the height: on a wide screen the world is squashed). The
+    plan (`docs/HANDOFF-MATRIX.md` 3.7) put it behind an option first, then the default with the ROAD kit retuned.
+    v0.89.0 has the option (`square: true`, and `road.ahead(h, r)` to draw the camera where the car stands at the screen's
+    foot on any screen). **Deferred**, the default: filmed on the ROAD kit, square needs the camera 1.8 times farther
+    back on a wide screen (the road narrow and far, the car off the screen) or a new field of view and camera height,
+    and the stretched road is the arcades' own look (OutRun). Which look the kit takes is the owner's call.
 

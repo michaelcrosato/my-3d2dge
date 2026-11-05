@@ -1588,7 +1588,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `new E.Road(o = {}) → road`: new E.Road({ segment, width, lanes, rumble, draw, fov, height, colors, fog, sky }): a road (the manual above)
 - `road.add(n, o = {})`: n segments more, bending (curve) and climbing (hill: units up, - down), eased in and out; o.tunnel, o.colors
-- `road.ahead(h = this.o.height)`: how far past the camera the player's car stands when drawn at the screen's bottom, for a camera h over the road
+- `road.ahead(h = this.o.height, r)`: how far past the camera the player's car stands when drawn at the screen's bottom, for a camera h over the road; square, that depends on the screen's shape: give r (draw's), and draw the camera that far behind the car (keep the car's own place along the road as it was: the game plays the same on any screen)
 - `road.curveAt(z)`: how hard the road bends at a distance
 - `road.draw(r, v = {})`: draw the road over r's frame (an overlay; r.viewport's part in a split screen): { z, x, h, turn, cars }
 - `road.hits(z, x, w)`: the scenery a body w half roads wide at (z, x) touches

@@ -841,6 +841,10 @@ function views(E, ed) {
       const a = rd.project(2000, 0, 0), b = rd.project(2000, .5, 0), c = rd.project(2000, 0, 1000); q = a && b && c ? (b[0] - a[0]) / (a[1] - c[1]) : null; return q; };
     const sq = [ratio({ square: true }, [427, 240]), ratio({ square: true }, [240, 427])], old = ratio({}, [427, 240]);
     check(`${ed}: views: road: square: true draws a unit across as a unit up, wide or upright (the default: the screen's shape)`, sq.every(q => q && Math.abs(q - 1) < .02) && Math.abs(old - 427 / 240) < .05, JSON.stringify({ sq, old }));
+    const foot = res => { const fg = new E.Game({ headless: true, draw: true, res }), rd = new E.Road({ segment: 200, square: true }); rd.add(40); let a = 0;
+      fg.start({ update() {}, draw(r) { a = rd.ahead(1000, r); rd.draw(r, { z: 3000 - a, x: 0, h: 1000 }); } }); fg.advance(.05); const p = rd.project(3000, 0, 0); return p && p[1] / res[1]; };
+    const feet = [foot([427, 240]), foot([240, 427])];
+    check(`${ed}: views: road: square, the camera road.ahead(h, r) behind a point draws it at the screen's foot, wide or upright`, feet.every(f => f && Math.abs(f - 1) < .01), JSON.stringify(feet));
   }
 }
 
