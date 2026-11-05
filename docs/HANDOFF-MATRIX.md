@@ -63,53 +63,13 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
   own commit, with its line in `docs/DECISIONS.md`. A big design (marked **prototype**) starts as a Temporary lab
   (`src/labs.json`: its date, the question it answers) for the owner to judge, and graduates only on their word.
 
-## Part 1: input, and the AI Hub's controller
-
-- **1.5 Analog values:** `input.value(a)` 0 to 1 (a pad button's `value`: the triggers; a key or scripted hold 1). 8
-  builds (SnipeoutHD, OutBloom, Crackmania x2).
-- **1.6 More bindable codes:** the right stick as `PadRAxisUp/Down/Left/Right` (KarateChampon x2), the mouse wheel as
-  `WheelUp`/`WheelDown` (TideCrisis x3, DragonQuilt), with labels and rebinding.
-- **1.7 Touch off for good:** `new E.Game({ touch: 'never' })` (AheadOrAlive x2), and a standard "Controller or keyboard
-  required" notice with Settings for a touch-only device (the run's brief asks for it; 5 games missed it, about 10 ran
-  off a portrait screen).
-- **1.8 A per-step hook:** `game.hook('step' | 'input' | 'enter', fn)` (returns its removal): `HOOKS` is private and 8
-  builds exported it (an attract-mode watcher, an idle timer, a hub guard that runs while paused).
-- **1.9 Move-stick inversion** (the brief asks every game for invert X and Y toggles for a known pad fault): standard
-  Controller settings `invertMoveX`, `invertMoveY` (off), beside `invertY` (aim).
-
 ## Part 3: 2D rendering and cameras
 
-- **3.1 The floor bake follows the zoom** (four Opus builders made it their one change; three more got stuck on it;
-  six raised the cache). The bake's key holds `view.scale`, so a camera that zooms smoothly re-bakes the whole floor
-  every frame (`TileMap._floor`). Bake per view angle at one scale and draw it scaled while the zoom moves, re-baking
-  crisp once it settles (as the player's own zoom does: `_zoomApply` after .25 s), or bake at the largest scale and
-  sample down. Hold the cache to a byte budget (`floorBytes()`), not a count.
-- **3.2 Sprites and props scale by the zoom alone** (confirmed: `r.sprite`, `r.prop`; rigs and maps by the view's
-  scale times the zoom; MashTV's pickups drew tiny at zoom .6). Expose `r.ppu` (pixels per world unit) and a sprite
-  option to scale with the world, and say on the card that a sprite's pixel is a screen pixel at zoom 1.
-- **3.3 The views' scales** (5 Opus builders were surprised that threequarter and side draw 1.5 pixels a unit at zoom 1:
-  "zoom 1 was far too close"). The card's Coordinates table gives each view's pixels per unit.
 - **3.4 A perspective camera for 2D games** (**prototype**; the most asked-for addition: 13 runs, and all four Big Buck
   Hunter and all four Time Crisis builders wrote their own renderer). First, point light-gun and first-person games at
   the 3D engine (the README does now). Then a light-gun gallery on the mode7 module as a Temporary lab: `m7.pick(x, y)`
   (the billboard or shape under the crosshair, by its drawn box), `m7.wall`/`m7.quad` (world polygons sorted with the
   billboards), shapes with their params (3.5), lights; or a perspective `E.View`. The owner picks.
-- **3.7 `E.Road` scales x by W/2 and y by H/2** (confirmed: `engine/modules/road.js` 80; the up-to-across ratio is .56 at
-  427x240 and 1.78 upright, so a wide screen squashes the world; OutBloom and DenshaDeHalo wrote square projections).
-  One focal length, behind an option first (`square: true`), then the default with the ROAD kit retuned, filmed
-  before and after (`node tools/filmstrip.mjs ... --compare`).
-- **3.8 What joins the x-ray mask** (confirmed: an occluder queued without `box` counts only if a fixed 48s x 140s box
-  round its anchor meets a silhouette, `engine/my-3d2dge.js` near 2171; a long wall anchored at its end was skipped;
-  DragonQuilt x2). Document `r.queue`'s `box` and `top`, or keep each occluder's drawn bounds as actors' are.
-- **3.9 Big geometry sorts by one point** (confirmed, inherent; Bentou, IceHoc, AheadOrAlive, Europhoria). Say so, and
-  add a helper that queues a span (a long wall, a roof) a cell at a time, as the engine's own walls are.
-- **3.10 FlowField and solid shapes** (partly: a field is bound to the map it was made with, by design: a new map takes
-  a new field, which the card can say; but `map.solid` shapes are confirmed ignored: `FlowField._top` reads the
-  cells, `blocked` and `height`, not the solids, so agents path through a crate; Bentou2). Read the solids' tops,
-  bump `map.version` when one is added or moved; and fields with several targets (the nearest hero: Gauntletdown).
-- **3.11 Colours other than hex draw magenta** (partly: it warns once; rgb(), hsl() and names are refused). Parse
-  `rgb()`, `rgba()`, `hsl()` and the CSS names into hex where the colour helpers take a colour; let `px` take
-  `E.hex`'s `[r, g, b]` too, or say on the card that it can't.
 
 ## Part 4: the Humanoid
 
@@ -152,5 +112,5 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
 ## Order and size
 
 Landed: Part 9 (the suites' own failures) in v0.85.3, Part 0 (the room) in v0.86.1, and in v0.87.0 1.1 to 1.4, 1.10,
-Part 2, 3.5, 3.6, 7.1 to 7.4 and Part 8. Then 1.5 to 1.9, 3.1 to 3.3, 3.7 to 3.11, Parts 4 to 6 (medium); the prototypes
-3.4 and 7.5 last, for the owner.
+Part 2, 3.5, 3.6, 7.1 to 7.4 and Part 8; in v0.88.0 1.5 to 1.9, 3.1 to 3.3 and 3.7 to 3.11 (3.7's default: F8.9). Then
+Parts 4 to 6 (medium); the prototypes 3.4 and 7.5 last, for the owner.

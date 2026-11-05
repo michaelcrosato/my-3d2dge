@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ROAD v0.87.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.88.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -8,7 +8,8 @@ and road drawn smaller with its distance, bending and rising, and what stands be
 - const road = new E.Road({ segment: 200 (a segment's length, world units), width: 2000 (half the road), lanes: 3,
   rumble: 3 (segments a stripe), draw: 240 (segments ahead), fov: 100, height: 1000 (the camera over the road), colors:
   { road: [a, b], grass: [a, b], rumble: [a, b], lane, wall: [a, b], roof, portal }, fog: { color, density: 5 } | null, sky:
-  a Backdrop (full engine) | '#color' }).
+  a Backdrop (full engine) | '#color', square: true (one focal length: a unit across is a unit up on a screen of any
+  shape; without it the picture stretches to the screen's, as the arcades' did) }).
 - Build it: road.add(n, { curve: -6..6 (+ bends right), hill: units up (- down) over the n segments, tunnel: true,
   colors }) (curves eased in and out); road.place(z, offset, what, scale): scenery at distance z, offset across (-1
   and 1: the road's edges; beyond: roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or {
@@ -72,8 +73,10 @@ class Road {
   yAt(z) { const L = this.o.segment, s = this.seg(z), u = ((z % L) + L) % L / L; return s.y0 + (s.y1 - s.y0) * u; }
   /** the scenery a body w half roads wide at (z, x) touches */
   hits(z, x, w) { const W = this.o.width; return this.seg(z).things.filter(t => Math.abs(t.offset - x) * W < t.w / 2 + w * W); }
-  /** how far past the camera the player's car stands when drawn at the screen's bottom, for a camera h over the road */
-  ahead(h = this.o.height) { return h * this.depth; }
+  /** how far past the camera the player's car stands when drawn at the screen's bottom, for a camera h over the road;
+   *  square, that depends on the screen's shape: give r (draw's), and draw the camera that far behind the car (keep the
+   *  car's own place along the road as it was: the game plays the same on any screen) */
+  ahead(h = this.o.height, r) { const v = r && (r.viewport || { w: r.W, h: r.H }); return h * this.depth * (this.o.square && v ? v.w / v.h : 1); }
   // a road point into the screen for camera C: { x, y, w (half the road there, pixels), scale (pixels a unit), d }
   _p(wx, wy, wz, C) {
     const d = wz - C.z; if (d <= 0) return null;
@@ -92,7 +95,7 @@ class Road {
     const vp = r.viewport || { x: 0, y: 0, w: r.bw, h: r.bh }, o = this.o, segs = this.segs, n = segs.length, L = o.segment, cars = v.cars || [];
     r.overlay(g => {
       const W = vp.w, H = vp.h, z = ((v.z || 0) % this.length + this.length) % this.length, base = this.seg(z), pct = (z % L) / L, t = r.game.time;
-      const C = this._cam = { x: (v.x || 0) * o.width, y: (v.h === undefined ? o.height : v.h) + this.yAt(z), z, cx: vp.x + W / 2, cy: vp.y + H / 2, hw: W / 2, hh: H / 2, pct, bend: [] };
+      const C = this._cam = { x: (v.x || 0) * o.width, y: (v.h === undefined ? o.height : v.h) + this.yAt(z), z, cx: vp.x + W / 2, cy: vp.y + H / 2, hw: W / 2, hh: o.square ? W / 2 : H / 2, pct, bend: [] };   // (square: one focal length)
       const out = this._out && this._out.width === W && this._out.height === H ? this._out : (this._out = E.mkCanvas(W, H)), cg = E.ctx2d(out);
       cg.setTransform(1, 0, 0, 1, -vp.x, -vp.y);
       if (o.sky && o.sky.draw) { const val = value => ({ value }); o.sky.draw(Object.create(r, { ctx: val(cg), bw: val(W), bh: val(H), W: val(W), H: val(H), ix: val(v.turn || 0), iy: val(0) })); }

@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>touchless fixture</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
+<body><canvas id="screen"></canvas>
+<script src="../../dist/my-3d2dge.js"></script>
+<script>
+// the phone test's touchless game (tools/phone-test.mjs, case 18; docs/HANDOFF-MATRIX.md 1.7): new E.Game({ touch:
+// 'never' }) plays with a controller or a keyboard only, so on a phone it shows no touch controls and says what it needs
+const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: 'snes', touch: 'never' });
+game.start({ scenes: { play: { pausable: true, touch: ['jump', 'attack'], update() {}, draw(r) { r.sky(['#203060', '#405090']); r.text('PLAY', r.W / 2, 100, '#fff', { align: 'center' }); } } }, scene: 'play' });
+window.__fx = { game };
+</script></body></html>

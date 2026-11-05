@@ -96,7 +96,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.87.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.88.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -177,7 +177,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.87.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.88.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -235,13 +235,20 @@ function smoothDamp(cur, target, vel, st, dt) {
   const om = 2 / st, x = om * dt, ex = 1 / (1 + x + .48 * x * x + .235 * x * x * x), ch = cur - target, tmp = (vel + om * ch) * dt;
   return [target + (ch + tmp) * ex, (vel - om * tmp) * ex];
 }
-/** '#rrggbb' or '#rgb' (or an [r, g, b] array) -> [r, g, b] */
+// CSS colour functions and the basic names, read as hex (a full table of names would cost every kit; others draw magenta)
+const CSS_NAMES = { black: '000', white: 'fff', red: 'f00', lime: '0f0', green: '008000', blue: '00f', yellow: 'ff0', cyan: '0ff', aqua: '0ff', magenta: 'f0f', fuchsia: 'f0f', gray: '808080', grey: '808080', silver: 'c0c0c0', maroon: '800000', olive: '808000', navy: '000080', teal: '008080', purple: '800080', orange: 'ffa500', pink: 'ffc0cb', brown: 'a52a2a', gold: 'ffd700', transparent: '000' };
+const cssColor = s => {
+  const m = /^(rgb|hsl)a?\(\s*([-\d.]+)(?:deg)?(%?)[\s,]+([-\d.]+)(%?)[\s,]+([-\d.]+)(%?)/.exec(s); if (!m) return CSS_NAMES[s] || null;
+  const v = (i, max) => +m[i] * (m[i + 1] === '%' ? max / 100 : 1);
+  return (m[1] === 'rgb' ? toHex([v(2, 255), v(4, 255), v(6, 255)]) : hsl(+m[2], +m[4] / 100, +m[6] / 100)).slice(1);
+};
+/** '#rrggbb' or '#rgb', rgb(), rgba(), hsl(), hsla(), a basic CSS name ('orange', 'navy') or an [r, g, b] array -> [r, g, b] */
 const hex = h => {
   if (Array.isArray(h)) return h.slice(0, 3);
-  let s = String(h).trim(); if (s[0] === '#') s = s.slice(1);
+  let s = String(h).trim(); if (s[0] === '#') s = s.slice(1); else { const c = cssColor(s.toLowerCase()); if (c) s = c; }   // (rgb(), hsl(), a basic name)
   if (s.length === 3 || s.length === 4) s = s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
   const n = parseInt(s.slice(0, 6), 16);
-  if (s.length < 6 || isNaN(n)) { warn('hex:' + h, 'color "' + h + '" is not a "#rrggbb" hex color; engine color helpers need hex (drawn magenta)'); return [255, 0, 255]; }
+  if (s.length < 6 || isNaN(n)) { warn('hex:' + h, 'color "' + h + '" is no color the engine reads ("#rrggbb", rgb(), hsl() or a basic name): drawn magenta'); return [255, 0, 255]; }
   return [n >> 16 & 255, n >> 8 & 255, n & 255];
 };
 /** [r, g, b] -> '#rrggbb' */
@@ -443,7 +450,7 @@ Object.assign(ease, {
 /** the pixel primitives: px.rect, px.line, px.dot, px.disc, px.poly, px.sprite, ... (each snaps to whole pixels) */
 const px = {};
 /** set the fill color (px.* do it themselves) */
-px.col = (g, c) => { const s = g._info ? g._mat : c; if (g._c !== s) { g.fillStyle = s; g._c = s; } };
+px.col = (g, c) => { const s = g._info ? g._mat : Array.isArray(c) ? toHex(c) : c; if (g._c !== s) { g.fillStyle = s; g._c = s; } };   // (c: any CSS colour, or E.hex's [r, g, b])
 /** GPU lighting: what follows glows (0..1). No effect in Canvas mode, so call it freely. */
 px.glow = (g, e = 1) => { if (g._info && g._r) { g._mat = g._r._infoCol(g._z || 0, 10, e); g._c = null; } };
 /** forget the color cache (after drawing on g with the canvas API directly) */
@@ -861,6 +868,9 @@ class Input {
      *  left stick after the dead zone; padAim: its right stick, or null when centered; padPrev: which gamepad buttons
      *  were down at the last step; aimSource: what aims right now: 'move' | 'mouse' | 'pad' */
     this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this.padPrev = []; this.aimSource = 'move';
+    /** padValues: each gamepad button's travel, 0 to 1 (the triggers; input.value reads them); invertMoveX, invertMoveY:
+     *  the move stick turned round (the Controller settings) */
+    this.padValues = []; this.invertMoveX = this.invertMoveY = false;
     /** deadzone: how far a gamepad stick moves before it counts (0..0.8); padIndex, padId: the gamepad in use (null
      *  and '' without one); lastDevice: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the
      *  right button prompts) */
@@ -913,6 +923,8 @@ class Input {
     // the wheel zooms where the game lets it (a mouse's notch 10%; a trackpad's pinch comes as the wheel with ctrlKey);
     // not over a menu, which scrolls
     el.addEventListener('wheel', e => {
+      const wc = e.deltaY < 0 ? 'WheelUp' : e.deltaY > 0 ? 'WheelDown' : null;
+      if (wc && this._codes[wc]) { e.preventDefault(); this._tapCode(wc); this.lastDevice = 'mouse'; return; }   // (a wheel bound to an action: a notch taps it, no zoom)
       if (!this._wheelOn) return; e.preventDefault();
       const d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 100 : 1);
       this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25); this._zoomPt = this.screenPoint(e.clientX, e.clientY);
@@ -1069,6 +1081,7 @@ class Input {
   }
   /** build the touch buttons again from the player's settings (touch, hand, touchSize, touchOpacity) */
   _touchSync() {
+    if (this._never) { this.touchEnabled = false; if (this.stickOn) this._stickEnd({ pointerId: this.stickId }); return null; }   // (touch: 'never')
     if (!this._touchArgs || !this.screen.canvas) return null;
     const { actions, o } = this._touchArgs, S = this._settings || {}, mode = S.touch || 'auto', left = S.hand === 'left', size = clamp(+S.touchSize || 62, 40, 96);
     const coarse = this._touched || (window.matchMedia && matchMedia('(pointer: coarse)').matches);   // (a laptop with a touch screen: once touched)
@@ -1257,17 +1270,20 @@ class Input {
     this.padLost = false;
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
       if (!p && this.padIndex !== null) { this.padLost = this.lastDevice === 'gamepad'; this.stopRumble(); }   // unplugged while in use
-      if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
-      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
+      if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight', 'PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
+      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = []; this.padValues = [];
       this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
       if (this.aimSource === 'pad') this.aimSource = 'move';
     }
     if (p) {
       const dz = (x, y) => { const l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8); return l <= d ? [0, 0] : [x / l * Math.min(1, (l - d) / (1 - d)), y / l * Math.min(1, (l - d) / (1 - d))]; };
       this.padAxes = Array.from(p.axes);
-      this.padMove = dz(p.axes[0] || 0, p.axes[1] || 0);
+      this.padMove = dz(p.axes[0] || 0, p.axes[1] || 0); if (this.invertMoveX) this.padMove[0] *= -1; if (this.invertMoveY) this.padMove[1] *= -1;   // (the Controller settings: a stick worn the wrong way)
       const aim = dz(p.axes[2] || 0, p.axes[3] || 0);
       this.padAim = Math.hypot(...aim) > 0 ? [aim[0], aim[1] * (this.invertAimY ? -1 : 1)] : null;
+      this.padValues = p.buttons.map(b => b.value || (b.pressed ? 1 : 0));
+      const ra = this.padAim || [0, 0], rd = [ra[1] < -.5, ra[1] > .5, ra[0] < -.5, ra[0] > .5];
+      ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'].forEach((c, i) => rd[i] ? this.press(c) : this.release(c));   // (the right stick past halfway: codes to bind)
       if (this.padAim || Math.hypot(...this.padMove) > 0) { this.aimSource = 'pad'; this.lastDevice = 'gamepad'; }
       p.buttons.forEach((b, i) => { const on = b.pressed; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
@@ -1367,11 +1383,11 @@ const MENU_KEYS = {
 };
 /* rebinding: the codes a player may bind (not Escape, Enter, the F keys, Start or Home: the menus and the browser keep
    them), the arrow keys and d-pad that stay on the moves whatever is bound, and which codes are a gamepad's */
-const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Pad([0-8]|1[0-5]))$/;
+const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Wheel(Up|Down)|Pad([0-8]|1[0-5])|PadRAxis(Up|Down|Left|Right))$/;
 const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15', 'PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']);
 /* the left stick past halfway presses the direction actions, as the d-pad does (menus, dialog choices, ladders) */
 const STICK_CODES = { up: 'PadAxisUp', down: 'PadAxisDown', left: 'PadAxisLeft', right: 'PadAxisRight' };
-const padCode = c => c.startsWith('Pad');
+const padCode = c => c.startsWith('Pad'), RSTICK = ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'];   // (the right stick's codes, past halfway)
 /* a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders and triggers, 8 back, 9 start,
    10-11 stick clicks, 12-15 d-pad, 16 home), as each family prints them */
 const PAD_GLYPHS = {
@@ -1384,7 +1400,8 @@ const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift',
   Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Esc', Backspace: 'Backspace', Tab: 'Tab', CapsLock: 'Caps', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
   Mouse0: 'Left click', Mouse1: 'Middle click', Mouse2: 'Right click', Mouse3: 'Mouse 4', Mouse4: 'Mouse 5', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[',
   BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
-  PadAxisUp: 'L stick ↑', PadAxisDown: 'L stick ↓', PadAxisLeft: 'L stick ←', PadAxisRight: 'L stick →' };
+  PadAxisUp: 'L stick ↑', PadAxisDown: 'L stick ↓', PadAxisLeft: 'L stick ←', PadAxisRight: 'L stick →',
+  PadRAxisUp: 'R stick ↑', PadRAxisDown: 'R stick ↓', PadRAxisLeft: 'R stick ←', PadRAxisRight: 'R stick →', WheelUp: 'Wheel up', WheelDown: 'Wheel down' };
 /** top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks */
 Input.DEFAULT = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
@@ -1803,6 +1820,9 @@ class Renderer {
   get ctx() { return this.game.screen.ctx; }
   /** the view this frame is drawn in (the game's, with zoom and turn) */
   get view() { return this.game.view; }
+  /** pixels per world unit on the ground here: the view's scale times the zoom (iso 1.41, the others 1.5, overhead 1, at
+   *  zoom 1). Rigs, maps and props grow with it; a sprite's pixel is a screen pixel at zoom 1 unless drawn with world: true */
+  get ppu() { return (this.view.scale || 1) * (this.view.zoom || 1); }
   /** the screen's width in game pixels */
   get W() { return this.game.screen.W; }
   /** the screen's height in game pixels */
@@ -1832,9 +1852,12 @@ class Renderer {
   }
   /** world -> buffer pixel coords */
   w(x, y, z = 0) { const v = this.game.view; return [v.ax * x + v.ay * y - this.ix, v.bx * x + v.by * y + v.bz * z - this.iy]; }
-  /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint}
-   *  occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show
-   *  through it (props, sprites, bodies), nothing else changes */
+  /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint,
+   *  box, top} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show
+   *  through it (props, sprites, bodies), nothing else changes. box: [x0, y0, x1, y1], what it covers in buffer pixels:
+   *  an occluder joins the x-ray only where its box meets a silhouette (without one, a 48 x 140 box round its foot: give
+   *  a long wall its box, or queue it with queueSpan); top: its top's height (one under the knees hides nothing). It
+   *  sorts by its one point (x, y, z): a long thing that other things stand along sorts wrong somewhere: queueSpan */
   queue(x, y, z, fn, o) {
     let k = this.game.view.order(x, y, z) + (o && o.bias || 0);
     // things standing on top of a TileMap wall block must sort after that block; a footprint ([x0, y0, x1, y1], world units)
@@ -1934,15 +1957,16 @@ class Renderer {
    * Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor.
    * opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1,
    *         bias, flash, outline, alpha, xray, ghost (the last five use the actor path), t (an E.anim's clock: spr may be
-   *         one), rot (radians, about its center: anchor 'center' unless given), steps (16), scale, wrap: [w, h] (a world
-   *         that wraps round: a copy across each edge it crosses; w alone wraps x) }
+   *         one), rot (radians, about its center: anchor 'center' unless given), steps (16), scale, world: true (it grows
+   *         with the view's scale, as rigs and maps: r.ppu pixels a unit), wrap: [w, h] (a world that wraps round: a copy
+   *         across each edge it crosses; w alone wraps x) }
    */
   sprite(x, y, z, spr, o = {}) {
     if (o.wrap) { const [ww, wh] = Array.isArray(o.wrap) ? o.wrap : [o.wrap, 0], q = Object.assign({}, o, { wrap: null }); for (const i of [-1, 0, 1]) for (const j of wh ? [-1, 0, 1] : [0]) this.sprite(x + i * ww, y + j * wh, z, spr, q); return; }
     if (spr && spr.isAnim) spr = spr.frame(o.t === undefined ? this.game.time : o.t);
     if (!spr || !spr.isSprite) { warn('r.sprite', 'r.sprite(x, y, z, spr) needs a sprite made with E.sprite(rows, colors)'); return; }
-    const zs = (this.view.zoom || 1) * (o.scale || 1);
-    if (zs !== 1) spr = scaleSprite(spr, zs);   // camera zoom (and scale): whole-pixel nearest-neighbour copy
+    const zs = (this.view.zoom || 1) * (o.world ? this.view.scale || 1 : 1) * (o.scale || 1);
+    if (zs !== 1) spr = scaleSprite(spr, zs);   // camera zoom (and scale; with o.world the view's scale too, as rigs and maps): whole-pixel nearest-neighbour copy
     if (o.rot) { spr = _turn(spr, o); if (o.anchor === undefined) o = Object.assign({}, o, { anchor: 'center' }); }
     const flip = !!o.flip, gl = o.glow || 0, ft = o.anchor === undefined && spr.foot;   // (a shape's sprite stands on its feet)
     const ax = ft ? (flip ? spr.w - ft[0] : ft[0]) : Math.floor(spr.w / 2), ay = ft ? ft[1] : o.anchor === 'center' ? Math.floor(spr.h / 2) : o.anchor === 'top' ? 0 : spr.h;
@@ -2323,6 +2347,22 @@ class Renderer {
 }
 
 /* =============================================================================
+ * 9b. SPANS  r.queueSpan: a long piece of geometry queued a cell at a time, so each piece sorts at its own place. In a
+ *    section of its own: a kit whose game queues none leaves it out
+ * ============================================================================= */
+/** queue a long piece of geometry (a wall, a fence, a roof's edge, drawn whole by fn(g)) a cell at a time from a to b
+ *  ([x, y] world units) at height z, h tall: each cell-long piece sorts at its own middle, clipped to its part, with
+ *  its box (as the engine's own walls are). o: queue's options, depth (its thickness across, 0), step (16 units) */
+Renderer.prototype.queueSpan = function (a, b, z, h, fn, o = {}) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, n = Math.max(1, Math.ceil(L / (o.step || 16) - 1e-9)), d = (o.depth || 0) / 2, nx = -dy / L * d, ny = dx / L * d, P = t => [a[0] + dx * t, a[1] + dy * t];
+  for (let i = 0; i < n; i++) {
+    const p0 = P(Math.max(0, i / n - .5 / L)), p1 = P(Math.min(1, (i + 1) / n + .5 / L)), m = P((i + .5) / n), pts = [];   // (each piece half a unit over its neighbours: no seam)
+    for (const p of [p0, p1]) for (const s of d ? [-1, 1] : [0]) for (const zz of [z, z + h]) pts.push(this.w(p[0] + nx * s, p[1] + ny * s, zz));
+    const hull = hull2(pts), xs = hull.map(q => q[0]), ys = hull.map(q => q[1]), box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    this.queue(m[0], m[1], z, g => { g.save(); g.beginPath(); hull.forEach((q, j) => j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.closePath(); g.clip(); g._c = null; fn(g); g.restore(); g._c = null; }, Object.assign({ box, top: z + h }, o));
+  }
+};
+/* =============================================================================
  * 10. GAME  loop, clock, camera, hit-stop, shake, slow motion
  * ============================================================================= */
 /** on-screen error box: the fastest way for a person (or model) to see why a game broke */
@@ -2359,7 +2399,7 @@ const SCENE_FIELDS = { view: v => typeof v === 'string' || (!!v && typeof v === 
 const sceneField = (name, s) => k => {
   const v = s[k]; if (v === undefined || v === null) return false;
   if (SCENE_FIELDS[k](v)) return true;
-  warn('scene:' + name + ':' + k, 'scene "' + name + '": its ' + k + ' is ' + (typeof v === 'function' ? 'a function (a method of that name?)' : JSON.stringify(v)) + ', but the engine reads scene.' + k + ' as the scene\'s ' + k + ' option (' + { view: "a view's name or an E.View", views: "a list of views' names", input: "a preset's name or its actions", res: "'ps1' or [w, h]", expand: 'true or { maxW, maxH }', touch: "a list of actions: ['jump']", camera: '{ zoom, start, tall, wheel }' }[k] + '): it is left alone; rename it');
+  warn('scene:' + name + ':' + k, 'scene "' + name + '": its ' + k + ' is ' + (typeof v === 'function' ? 'a function (a method of that name?)' : JSON.stringify(v)) + ', but the engine reads scene.' + k + " as the scene's " + k + ' option (the index says what it takes): it is left alone; rename it');
   return false;
 };
 class Game {
@@ -2474,6 +2514,7 @@ class Game {
     /** the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth
      *  at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count */
     this.alpha = .5; this._acc = this.o.step / 2;
+    if ((this.input._never = this.o.touch === 'never')) this.input.touchEnabled = false;   // (a game that never shows touch controls)
     /** the player's choices (game.settings.volume, game.settings.set('volume', .5), your own from menu.settings), saved
      *  and applied (section 10b) */
     this.settings = new Settings(this, (this.o.menu && this.o.menu.settings) || []);
@@ -2586,6 +2627,7 @@ class Game {
   /** pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused.
    *  The player resumes (Escape, Start, Resume); resume() does it from code */
   pause(reason = 'player') { this.input.stopRumble(); if (this.paused) return false; this.paused = true; this.pauseReason = reason; return true; }
+  _ownRun(kind, ...a) { const L = this._own && this._own[kind]; if (L) for (const f of L.slice()) try { f(...a); } catch (e) { this.fail('hook ' + kind, e); } }
   /** take the game out of pause (and close the pause screen) */
   resume() { this.paused = false; this.pauseReason = null; this._goOn = false; }
   /** a pausable scene in play pauses when the page is hidden, the window loses focus or the controller is unplugged
@@ -2629,6 +2671,7 @@ class Game {
     this.input.names = (this.o.menu && this.o.menu.controls) || null;
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
     this.input._cornerMenu = !!this._corner;   // (on a touch screen the corner's menu button is the touch START)
+    if (this.o.touch === 'never') on(window, 'keydown', () => { this._keyed = true; });   // (a keyboard is there: the notice below goes)
     if (this.o.menu !== false) new Shell(this, { system: true });
   }
   /** full screen by itself on a touch screen (fullscreen: 'tap', the default): at the first tap, and again when a game
@@ -2668,6 +2711,7 @@ class Game {
    *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen (with the
    *  engine's touch buttons it is their START); hidden under an open menu screen (its close button is there) */
   _cornerSync() {
+    if (this.o.touch === 'never' && this._needSync) this._needSync();   // (section 10l)
     const c = this._corner; if (!c) return;
     const sh = this.shell, s = this.scene, I = this.input, fs = this.fullscreen, open = !!(sh && sh.screen);
     const main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
@@ -2968,6 +3012,7 @@ class Game {
     this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
     for (const f of HOOKS.enter) f(this, old);
+    this._ownRun('enter', name, data);
     if (s.enter) s.enter(data);
   }
   /** report an error in game code without stopping the game: logged once per place and message, kept in game.errors
@@ -2986,6 +3031,7 @@ class Game {
     this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(dt);   // (the other players: section 10j)
     this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
+    this._ownRun('input', dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
@@ -3009,6 +3055,7 @@ class Game {
       prune(T, t => t.dead);
     }
     for (const f of HOOKS.step) f(this, dt);
+    this._ownRun('step', dt);
     if (s && s.update) s.update(dt);
     const f = this._follow;
     if (f && f.target) {
@@ -3111,6 +3158,8 @@ const STANDARD_SETTINGS = {
   bindings: { group: 'Controls', type: 'bindings', value: () => ({}), apply: (g, v) => { g.input.bindings = v; } },
   deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, step: .01, apply: (g, v) => { for (const q of g._players || [g.input]) q.deadzone = v; } },
   invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertAimY = !!v; } },
+  invertMoveX: { group: 'Controller', label: 'Invert move left and right', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertMoveX = !!v; } },
+  invertMoveY: { group: 'Controller', label: 'Invert move up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertMoveY = !!v; } },
   glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { for (const q of g._players || [g.input]) q.glyphs = v; } },
   rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { for (const q of g._players || [g.input]) q.rumbleScale = v; } },
   touch: { group: 'Touch', label: 'Touch buttons', type: 'select', value: 'auto', options: [['auto', 'Automatic'], ['on', 'Always'], ['off', 'Hidden']], apply: g => g.input._touchSync() },
@@ -3149,7 +3198,7 @@ class Settings {
     hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});   // (a newer version's values are checked like the rest)
     if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     game.input._settings = this; game.input._onBindings = b => this.set('bindings', b);
-    for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
+    for (const k in STANDARD_SETTINGS) if (!(game.o.touch === 'never' && STANDARD_SETTINGS[k].group === 'Touch')) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));   // (touch: 'never': no Touch group)
     for (const sp of own) this.define(sp && !sp.label && Object.prototype.hasOwnProperty.call(STANDARD_SETTINGS, sp.key) ? Object.assign({ key: sp.key }, STANDARD_SETTINGS[sp.key], sp) : sp);   // (a standard key with no label: the game's fields over the standard ones; with a label it is the game's own)
   }
   /** add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value,
@@ -3813,7 +3862,7 @@ Game.prototype.addPlayer = function (o = {}) {
   const P = this.players; if (P.length >= 4) return null;
   const q = new Input(_pStub(this), Input.DEFAULT), n = P.length + 1;
   Object.assign(q, { player: n, name: 'P' + n, color: E.PLAYER_COLORS[n - 1], pad: typeof o.pad === 'number' ? o.pad : null, half: o.keys ? 'right' : null, device: o.keys ? 'keyboard' : 'gamepad' });
-  for (const k of ['glyphs', 'deadzone', 'invertAimY', 'rumbleScale']) q[k] = this.input[k];   // (the player's settings: button symbols, dead zone, aim, vibration)
+  for (const k of ['glyphs', 'deadzone', 'invertAimY', 'invertMoveX', 'invertMoveY', 'rumbleScale']) q[k] = this.input[k];   // (the player's settings: button symbols, dead zone, aim, the move stick, vibration)
   q.lastDevice = q.device; if (q.pad !== null) { q.tick(0); q.consumeAll(); }   // (the buttons held as it joins, its Start among them, are no presses)
   const I = P[0]; if (q.half && !I.half) { I._full = I.preset; I.half = 'left'; I.use(Input.halfKeys(I._full, 'left')); }   // player 1 moves to the left half
   q.use(_pPreset(this, q));
@@ -4032,6 +4081,49 @@ HOOKS.pause = (sh, acts) => {   // the pause menu's Save and Load, with menu: { 
   acts.push(['Load', () => g.saves.show('load')]);
 };
 
+/* =============================================================================
+ * 10l. MORE INPUT  input.value(a) (how far an action is pressed: a trigger's travel, a stick's push), game.hook (a
+ *    game's own function on the engine's clock), and the notice a game made with touch: 'never' shows on a phone. In a
+ *    section of its own: a kit whose game calls none of them leaves it out
+ * ============================================================================= */
+/** how far action a is pressed, 0 to 1: a gamepad button by its travel (the triggers, even short of a press), a stick's
+ *  direction (PadAxisUp ..., or up / down / left / right on the touch stick) by its push, any other code held 1 */
+Input.prototype.value = function (a) {
+  const m = this.map[a]; if (!m) { this._check(a); return 0; } if (this._suppressed.has(a)) return 0;
+  const PV = this.padValues || [], mv = this.padMove || [0, 0], st = this.stickOn ? this.stick : [0, 0], push = { up: [1, -1], down: [1, 1], left: [0, -1], right: [0, 1] };
+  let v = 0;
+  for (const c of m) {
+    const k = /^Pad(\d+)$/.exec(c), ax = /^Pad(R?)Axis(Up|Down|Left|Right)$/.exec(c), pv = k ? PV[+k[1]] || 0 : 0;
+    if (k) v = Math.max(v, pv);
+    if (ax) { const [i, s] = push[ax[2].toLowerCase()], q = ax[1] ? this.padAim || [0, 0] : mv; v = Math.max(v, clamp(q[i] * s, 0, 1)); }
+    else if (this.held.has(c)) v = Math.max(v, k && pv > 0 ? pv : 1);
+  }
+  if (push[a]) { const [i, s] = push[a]; v = Math.max(v, clamp(st[i] * s, 0, 1)); }
+  return v;
+};
+/** a function of the game's own on the engine's clock: kind 'input' fn(dt) every step, paused or not, after the input
+ *  is read (a host's guard, an idle timer); 'step' fn(dt) every update step in play, before the scene's update (an
+ *  attract mode's watcher); 'enter' fn(name, data) as a scene starts. Returns a function that removes it */
+Game.prototype.hook = function (kind, fn) {
+  const L = (this._own || (this._own = { input: [], step: [], enter: [] }))[kind];
+  if (!L) throw new Error('game.hook("' + kind + '"): the hooks are input, step and enter');
+  L.push(fn); return () => { const i = L.indexOf(fn); if (i >= 0) L.splice(i, 1); };
+};
+/** touch: 'never' on a device with touch alone: "Controller or keyboard required", with Settings, until a controller
+ *  is connected or a key pressed */
+Game.prototype._needSync = function () {
+  const fine = window.matchMedia && matchMedia('(any-pointer: fine)').matches, coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  const need = coarse && !fine && !this._keyed && this.input.padIndex === null, el = this._needEl;
+  if (!need) { if (el) el.style.display = 'none'; return; }
+  if (!el) {
+    const d = this._needEl = document.createElement('div'); d.setAttribute('data-sys', 'need'); d.setAttribute('role', 'alert');
+    d.style.cssText = 'position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:rgba(5,3,12,.88);color:#f4f0ff;font:600 17px/1.45 system-ui,sans-serif';
+    d.innerHTML = '<div><div style="font-size:21px;margin-bottom:8px">Controller or keyboard required</div><div style="opacity:.8;margin-bottom:18px">This game plays with a controller or a keyboard. Connect one, then press any button.</div><button type="button" style="font:inherit;padding:10px 22px;border-radius:10px;border:2px solid #b8a8ff;background:#2a2050;color:#fff;min-width:44px;min-height:44px">Settings</button></div>';
+    d.querySelector('button').onclick = () => this.menu('settings');
+    (this.screen.canvas.parentElement || document.body).appendChild(d);
+  }
+  this._needEl.style.display = this.shell && this.shell.screen ? 'none' : 'flex';   // (Settings open over it: hidden while it is)
+};
 /* =============================================================================
  * 11. HUMANOID RIG
  *    Local frame: f = forward, r = right, z = up. The rig poses itself every step
@@ -5196,6 +5288,8 @@ class TileMap {
      *  camera and the floor drop low (types with cut: true; false turns it off); floors: the baked floor images by
      *  view (floors = {} re-bakes them after floorTex changes) */
     this.floorTex = o.floorTex || (() => [60, 56, 72]); this.cutaway = o.cutaway !== false; this.floors = {};
+    /** floorBudget: the bytes the floor's bakes may hold (64 MB): past it the least recently used go (floorBytes()) */
+    this.floorBudget = 64 << 20;
     /** floorMat: a material (E.MATERIALS id or '#hex pattern') for every floor cell; floorMats: { tag: material } for
      *  the cells with that floor tag, over floorMat (untagged cells have the tag null). Either stands in for floorTex */
     this.floorMat = o.floorMat || null; this.floorMats = o.floorMats || null;
@@ -5525,7 +5619,6 @@ class TileMap {
   _floor(view) {
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale;
     const had = this.floors[key]; if (had) { delete this.floors[key]; return (this.floors[key] = had); }   // (the latest used goes last)
-    const ks = Object.keys(this.floors); for (let k = 0; k < ks.length - 6; k++) delete this.floors[ks[k]];   // seven views' bakes at most, as before: the least recently used goes, not every one
     const T = this.T, W = this.w * T, H = this.h * T, M = view.inv && this.outside !== false ? 96 : 0;   // (M: the ground baked past the edge, in pixels)
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const s = view.p(x, y, 0); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
@@ -5534,7 +5627,9 @@ class TileMap {
     if (!view.inv) ch = 24;
     const f = { x0, y0, w: cw, h: ch, view };   // (x0, y0: its top left on the screen; w, h: its size)
     if (this.chunks && view.inv) f.chunks = new Map(); else Object.assign(f, this._bake(view, f, 0, 0, cw, ch, !!view.inv));
-    return (this.floors[key] = f);
+    this.floors[key] = f;
+    for (const k of Object.keys(this.floors)) { if (k === key || this.floorBytes() <= this.floorBudget) break; delete this.floors[k]; }   // (within floorBudget: the least recently used go first, never this one)
+    return f;
   }
   /* the floor f's pixels bx..bx + bw, by..by + bh baked: { cv, info } (info: the GPU lighting's canvas, when asked for) */
   _bake(view, f, bx, by, bw, bh, info) {
@@ -5597,6 +5692,21 @@ class TileMap {
     const keep = 2 * Math.max(1, i1 - i0 + 3) * Math.max(1, j1 - j0 + 3);   // (never below 2: a low pitch can see no rows, j1 < j0)
     if (f.chunks.size > keep) { const old = [...f.chunks].sort((a, b) => a[1].t - b[1].t); for (let n = f.chunks.size - keep, k = 0; k < n; k++) f.chunks.delete(old[k][0]); }
   }
+  // the zoom moving (a camera that zooms smoothly): the latest bake of the view's angle drawn scaled to the zoom now, if
+  // within 1.25 times either way (no bake a frame); false when there is none
+  _floorScaled(r) {
+    const v = r.view, ks = Object.keys(this.floors);
+    for (let i = ks.length - 1; i >= 0; i--) {
+      const f = this.floors[ks[i]], w = f.view, k = v.scale / w.scale;
+      if (w.id !== v.id || w.yawDeg !== v.yawDeg || w.pitchDeg !== v.pitchDeg || k > 1.25 || k < .8) continue;
+      const sc = { x0: f.x0 * k, y0: f.y0 * k, w: f.w * k, h: f.h * k };
+      if (v.inv && this.outside !== false) { const c = this._outsideCol(v); r.ctx.fillStyle = 'rgb(' + c.map(Math.round).join(',') + ')'; r.ctx._c = null; outsideRects(r, sc, (x, y, ww, hh) => r.ctx.fillRect(x, y, ww, hh)); }
+      const put = (cv, info, x, y, ww, hh) => { const X = (f.x0 + x) * k - r.ix, Y = (f.y0 + y) * k - r.iy; r.ctx.drawImage(cv, X, Y, ww * k, hh * k); if (r.gpu && info) r._iG.drawImage(info, X, Y, ww * k, hh * k); };
+      if (f.chunks) for (const ch of f.chunks.values()) put(ch.cv, ch.info, ch.x, ch.y, ch.w, ch.h); else put(f.cv, f.info, 0, 0, f.cv.width, f.cv.height);
+      return true;
+    }
+    return false;
+  }
   /** the bytes the baked floors hold now (each view's, chunks and the lighting's canvases counted): what a big map's
    *  floor costs in memory */
   floorBytes() {
@@ -5614,7 +5724,10 @@ class TileMap {
   }
   /** draw the baked floor (first thing in draw, after r.sky); walls come from queueWalls(r) */
   drawFloor(r) {
-    r._map = this; const f = this._floor(r.view);
+    r._map = this; const v = r.view, key = v.id + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + v.scale, now = r.game.real;
+    if (!this._fk || this._fk.key !== key) this._fk = { key, at: now };   // (when the view last changed: a zoom moving changes it each frame)
+    if (!this.floors[key] && now - this._fk.at < .25 && this._floorScaled(r)) return;   // the zoom moving: the last bake of this angle, scaled; crisp once it holds
+    const f = this._floor(v);
     if (r.view.inv && this.outside !== false) {   // the ground the bake doesn't reach: the outside color out to the screen's edges, around the bake
       const c = this._outsideCol(r.view), fill = (g, col) => { g.fillStyle = col; g._c = null; outsideRects(r, f, (x, y, w, h) => g.fillRect(x, y, w, h)); };
       fill(r.ctx, 'rgb(' + c.map(Math.round).join(',') + ')'); if (r.gpu) fill(r._iG, 'rgb(0,40,0)');   // (inside it, what a game drew first shows through the map's holes: a chasm's abyss)
@@ -6062,16 +6175,27 @@ class FlowField {
   _cost(i, j, k) { return k > 1 ? k : this.jump ? 1 + Math.max(0, Math.ceil((this._tops[j] - this._tops[i] - this.step) / this.map.T)) : 1; }
   /** can an agent step from cell i to the cell j next to it? */
   _link(i, j) { const dz = this._tops[j] - this._tops[i]; return dz >= 0 ? dz <= Math.max(this.step, this.climb) : -dz <= Math.max(this.step, this.drop); }   // (NaN: false)
-  /** aim the field at a world point; it rebuilds only when the target's cell or the map (map.version) changes */
+  /** aim the field at a world point, or at several (update([[x, y], ...]): each cell leads to the nearest, the heroes a
+   *  horde chases); it rebuilds only when a target's cell or the map (map.version) changes. A map.solid shape standing on
+   *  the floor raises the cells under it to its top (a crate is walked round, a low step climbed) */
   update(x, y) {
-    const m = this.map, T = m.T, W = m.w, H = m.h, tx = Math.floor(x / T), ty = Math.floor(y / T);
-    if (tx === this.tx && ty === this.ty && m.version === this.version) return;
-    this.tx = tx; this.ty = ty; this.version = m.version;
+    const m = this.map, T = m.T, W = m.w, H = m.h, pts = Array.isArray(x) ? x : [[x, y]], cells = pts.map(p => [Math.floor(p[0] / T), Math.floor(p[1] / T)]), key = cells.join(';');
+    const [tx, ty] = cells[0] || [-1, -1];
+    if (key === this._key && m.version === this.version) return;
+    this._key = key; this.tx = tx; this.ty = ty; this.version = m.version;
     const d = this.d, q = this._q, top = this._tops; d.fill(1e9);
     for (let cy = 0, i = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++, i++) { top[i] = this._top(cx, cy); if (this.jump) this._hts[i] = m.height ? m.height(cx, cy) : 0; }
-    if (tx < 0 || ty < 0 || tx >= W || ty >= H || Number.isNaN(top[ty * W + tx])) return;
-    if (this.jump) return this._withJumps(ty * W + tx);
-    let h = 0, t = 0; d[ty * W + tx] = 0; q[t++] = ty * W + tx;
+    for (const sol of m.solids || []) {   // (the cells whose middle a solid's footprint covers, where it stands on their floor)
+      const R = Math.abs(sol.hx * sol.c) + Math.abs(sol.hy * sol.s), Q = Math.abs(sol.hx * sol.s) + Math.abs(sol.hy * sol.c);
+      for (let cy = Math.max(0, Math.floor((sol.y - Q) / T)); cy <= Math.min(H - 1, Math.floor((sol.y + Q) / T)); cy++) for (let cx = Math.max(0, Math.floor((sol.x - R) / T)); cx <= Math.min(W - 1, Math.floor((sol.x + R) / T)); cx++) {
+        const px = (cx + .5) * T - sol.x, py = (cy + .5) * T - sol.y, lx = px * sol.c + py * sol.s, ly = -px * sol.s + py * sol.c, i = cy * W + cx;
+        if (Math.abs(lx) <= sol.hx && Math.abs(ly) <= sol.hy && sol.z <= top[i] + this.step) { top[i] = Math.max(top[i], sol.top); if (this.jump) this._hts[i] = Math.max(this._hts[i], sol.top); }
+      }
+    }
+    const seeds = cells.filter(([cx, cy]) => cx >= 0 && cy >= 0 && cx < W && cy < H && !Number.isNaN(top[cy * W + cx])).map(([cx, cy]) => cy * W + cx);
+    if (!seeds.length) return;
+    if (this.jump) return this._withJumps(seeds);
+    let h = 0, t = 0; for (const i of seeds) if (d[i]) { d[i] = 0; q[t++] = i; }
     while (h < t) {
       const i = q[h++], cx = i % W, cy = (i / W) | 0;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -6081,8 +6205,8 @@ class FlowField {
     }
   }
   /** the field with jump links (a jump of k cells costs k, a climb more, see _cost): Dial's buckets, smallest distance first */
-  _withJumps(ti) {
-    const m = this.map, W = m.w, H = m.h, d = this.d, K = Math.max(2, Math.floor(this.jump / m.T) + 1), B = [[ti]]; d[ti] = 0;
+  _withJumps(seeds) {
+    const m = this.map, W = m.w, H = m.h, d = this.d, K = Math.max(2, Math.floor(this.jump / m.T) + 1), B = [seeds.slice()]; for (const i of seeds) d[i] = 0;
     for (let dist = 0; dist < B.length; dist++) {
       const list = B[dist]; if (!list) continue;
       for (const i of list) {
@@ -9328,6 +9452,7 @@ class Shell {
     const signal = game._abort ? game._abort.signal : undefined;
     addEventListener('keydown', e => { const c = this._cap; if (!c) return; e.preventDefault(); e.stopImmediatePropagation(); if (e.code === 'Escape') this._capEnd('Not changed.'); else if (c.device === 'keys' && !e.repeat) this._capBind(e.code); }, { capture: true, signal });
     addEventListener('pointerdown', e => { const c = this._cap; if (!c || c.device !== 'keys' || e.pointerType !== 'mouse') return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind('Mouse' + e.button); }, { capture: true, signal });
+    addEventListener('wheel', e => { const c = this._cap; if (!c || c.device !== 'keys' || !e.deltaY) return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind(e.deltaY < 0 ? 'WheelUp' : 'WheelDown'); }, { capture: true, signal, passive: false });
     if (!document.getElementById('esh-css')) { const st = document.createElement('style'); st.id = 'esh-css'; st.textContent = SHELL_CSS; document.head.appendChild(st); }
     const r = this.root = this._el('div', 'esh' + (game._corner ? ' esh-cornered' : '')), th = Object.assign({}, SHELL_THEME, o.theme);   // (the top-right column starts below the corner's buttons)
     for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
@@ -9552,7 +9677,7 @@ class Shell {
     if (touch && !first) touchRows();
   }
   _capStart(a, device, name) {
-    this._cap = { a, device, name, prev: this._ctlI().padPrev.slice() };
+    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)) };
     this._status = device === 'pad' ? 'Press a controller button for ' + name + ' (Start cancels).' : 'Press a key or mouse button for ' + name + ' (Escape cancels).';
     this._render();
   }
@@ -9711,7 +9836,8 @@ class Shell {
   _capPad() {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
     const i = I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
-    if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i);
+    const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
+    if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
   }
   /** move the focus (or turn a focused slider or choice), keeping it in view */
   _nav(dir) {
