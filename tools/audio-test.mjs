@@ -11,6 +11,7 @@
 //   3. the audio offset's calibration: taps 40 ms after each click (on the game's clock) find an offset of about 40 ms
 //   4. a crossfade, a stinger on the next bar and a layer brought in play without an error
 //   5. an audio offset of 250 ms (a wireless headset's) still sounds the music's notes, scheduled that much earlier
+//   6. a looped, panned effect sounds on until stopped (its pan set as it plays); a track plays a game's own instrument
 // Usage: node tools/audio-test.mjs [--seconds 180]   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser).
 // Exit code 1 on failure.
 import { chromium } from 'playwright';
@@ -86,6 +87,23 @@ const r5 = await ev(async () => {
   return { at0, at250 };
 });
 check('with a 250 ms audio offset the music still sounds its notes', r5.at0 > 0 && r5.at250 > r5.at0 * .7, JSON.stringify(r5));
+
+// 6. an effect's handle: a looped one sounds on (an engine, rain) until stopped, its pan and volume set as it plays, through
+//    the effects' bus; an instrument of the game's own plays a track's notes (HANDOFF-MATRIX 5.1, 5.2)
+console.log('a looped, panned effect and an instrument of the game\'s own');
+const r6 = await ev(async () => {
+  const g = window.__fx.game, A = g.audio, w = ms => new Promise(r => setTimeout(r, ms)), c = A.ctx, out = {};
+  if (typeof A.instrument !== 'function') return { missing: true };
+  const an = c.createAnalyser(); an.fftSize = 2048; A.bus('master').connect(an); const buf = new Float32Array(an.fftSize), level = () => { an.getFloatTimeDomainData(buf); let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v)); return m; };
+  A.music(null); await w(400); out.quiet = level();
+  const h = A.sfx({ wave: 'saw', freq: 110, dur: .2, vol: .4 }, { loop: true, pan: -.8 }); await w(900); out.looping = level(); out.pan = h.pan;
+  h.set({ pan: .6, vol: .5 }); await w(100); out.pan2 = h.pan; h.stop(); await w(500); out.after = level(); out.playing = h.playing;
+  let calls = 0; A.instrument('pluck', (ctx, bus, time, freq, dur, vol) => { calls++; const o = ctx.createOscillator(), gg = ctx.createGain(); o.frequency.value = freq; gg.gain.setValueAtTime(vol, time); gg.gain.exponentialRampToValueAtTime(.001, time + dur); o.connect(gg); gg.connect(bus); o.start(time); o.stop(time + dur + .05); });
+  A.music({ bpm: 240, steps: 2, loop: true, tracks: [{ wave: 'pluck', notes: 'C4 E4 G4 C5' }] }); await w(1200); A.music(null); out.calls = calls;
+  return out;
+});
+check("sfx(name, { loop, pan }): it sounds on until stop(), its pan set as it plays; a track plays an instrument of the game's own",
+  !r6.missing && r6.looping > .02 && r6.looping > r6.quiet * 4 && r6.pan === -.8 && r6.pan2 === .6 && r6.after < r6.looping / 4 && r6.playing === false && r6.calls >= 3, JSON.stringify(r6));
 
 await browser.close();
 console.log(problems.length ? `\naudio test FAILED (${problems.length}):\n  ${problems.join('\n  ')}` : `\naudio test passed in ${((Date.now() - t0) / 1000).toFixed(0)} s`);

@@ -8173,12 +8173,16 @@ class ChipAudio {
     for (let n = 1; n < N; n++) { const a = 2 / (n * Math.PI) * Math.sin(n * Math.PI * duty); re[n] = a * Math.cos(n * Math.PI * duty); im[n] = a * Math.sin(n * Math.PI * duty); }
     return (this._waves[duty] = this.ctx.createPeriodicWave(re, im));
   }
-  _voice(p, bus, t0, mul = 1) {
+  // one voice at t0 into bus: its sources (a looped one sounds on, at its volume, until they are stopped)
+  _voice(p, bus, t0, mul = 1, loop = false) {
     const c = this.ctx, wave = p.wave || 'square', dur = Math.max(.012, p.dur || .15), vol = p.vol === undefined ? .3 : p.vol, att = p.attack === undefined ? .004 : p.attack;
     const t = t0 + (p.delay || 0), end = t + dur, f0 = Math.max(20, noteFreq(p.freq || 440) * mul), to = p.to ? Math.max(20, noteFreq(p.to) * mul) : 0;
+    const ins = this._ins && this._ins[wave]; if (ins) { ins(c, bus, t, f0, dur, vol); return []; }   // (an instrument of the game's own)
     const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + att);
-    if (p.hold) { g.gain.setValueAtTime(vol, Math.max(t + att, end - .03)); g.gain.linearRampToValueAtTime(0, end); }
+    if (loop) g.gain.setValueAtTime(vol, t + att);   // (held at its volume until stopped)
+    else if (p.hold) { g.gain.setValueAtTime(vol, Math.max(t + att, end - .03)); g.gain.linearRampToValueAtTime(0, end); }
     else g.gain.exponentialRampToValueAtTime(.0005, end);
+    let lfo = null;
     let src;
     if (wave === 'noise') {
       src = c.createBufferSource(); src.buffer = this._noise; src.loop = true;
@@ -8191,28 +8195,42 @@ class ChipAudio {
       src.frequency.setValueAtTime(f0, t);
       if (to) src.frequency.exponentialRampToValueAtTime(to, end);
       if (p.arp) { const st = p.step || .06; for (let k = 0, tt = t; tt < end; tt += st, k++) src.frequency.setValueAtTime(f0 * Math.pow(2, p.arp[p.loop ? k % p.arp.length : Math.min(k, p.arp.length - 1)] / 12), tt); }
-      if (p.vib) { const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = p.vib[0]; lg.gain.value = f0 * p.vib[1]; lfo.connect(lg); lg.connect(src.frequency); lfo.start(t); lfo.stop(end + .05); }
+      if (p.vib) { lfo = c.createOscillator(); const lg = c.createGain(); lfo.frequency.value = p.vib[0]; lg.gain.value = f0 * p.vib[1]; lfo.connect(lg); lg.connect(src.frequency); lfo.start(t); if (!loop) lfo.stop(end + .05); }
       src.connect(g); src.start(t);
     }
-    g.connect(bus); src.stop(end + .05);
+    g.connect(bus); if (!loop) src.stop(end + .05);
+    return lfo ? [src, lfo] : [src];
   }
   /**
    * Play a sound effect: a preset name ('jump', 'coin', 'hit', 'explode', ...), a voice object, or a list of voices.
    * opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03), step: a step of the music playing (it
-   * sounds on that step of the music clock, scheduled with the music: a rhythm game's calls and claps) }
+   * sounds on that step of the music clock, scheduled with the music: a rhythm game's calls and claps), pan: -1 (left)
+   * .. 1 (right), loop: true (it sounds on until stopped: an engine, rain; through the effects' bus, so it follows the
+   * volume and the mute) }. Returns its handle: { stop(fade .03), set({ pan, vol }), playing, pan }: a handle that does
+   * nothing when nothing plays (headless, before the first key, an unknown name)
    */
   sfx(what, o = {}) {
-    if (!this._init() || this.muted) return;
+    const H = { playing: false, pan: clamp(o.pan || 0, -1, 1), stop() {}, set() { return H; } };
+    if (!this._init() || (this.muted && !o.loop)) return H;
     const p = typeof what === 'string' ? this.presets[what] : what;
-    if (!p) { warn('sfx:' + what, 'unknown sound "' + what + '". Presets: ' + Object.keys(this.presets).join(', ') + ' (or audio.define(name, voice))'); return; }
-    if (this.ctx.state !== 'running') return;
-    const now = this.ctx.currentTime;
-    if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
+    if (!p) { warn('sfx:' + what, 'unknown sound "' + what + '". Presets: ' + Object.keys(this.presets).join(', ') + ' (or audio.define(name, voice))'); return H; }
+    if (this.ctx.state !== 'running') return H;
+    const c = this.ctx, now = c.currentTime;
+    if (typeof what === 'string' && !o.loop) { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return H; this._last[what] = now; }
     const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this._rnd() * 2 - 1));
     const C = this.song, at = o.step !== undefined && C && C.anchor ? Math.max(now + .005, C.anchor.ctx + (this._timeOf(C, o.step) - C.anchor.clk) - this.offset) : now + .005;
-    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, at, mul); }
-    catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
+    const live = o.loop || o.pan !== undefined, out = live ? c.createGain() : null, pan = out && c.createStereoPanner ? c.createStereoPanner() : null, srcs = [];   // (a looped or panned one: its own gain and pan before the bus)
+    if (out) { if (pan) { pan.pan.value = H.pan; out.connect(pan); pan.connect(this._sfxBus); } else out.connect(this._sfxBus); }
+    try { for (const v of Array.isArray(p) ? p : [p]) srcs.push(...this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), out || this._sfxBus, at, mul, !!o.loop)); }
+    catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); return H; }
+    H.playing = true;
+    H.stop = (fade = .03) => { if (!H.playing) return; H.playing = false; const t = c.currentTime; if (out) out.gain.setTargetAtTime(0, t, Math.max(.001, fade / 3)); for (const s of srcs) try { s.stop(t + (out ? fade + .05 : 0)); } catch (e) { /* stopped already */ } };
+    H.set = q => { const t = c.currentTime; if (q.pan !== undefined && pan) { H.pan = clamp(q.pan, -1, 1); pan.pan.setTargetAtTime(H.pan, t, .02); } if (q.vol !== undefined && out) out.gain.setTargetAtTime(Math.max(0, q.vol), t, .02); return H; };
+    return H;
   }
+  /** an instrument of the game's own: fn(ctx, bus, time, freq, dur, vol) makes a note's sound (Web Audio, into bus, from
+   *  time); its name is a wave a music track (wave: 'pluck') or a voice takes */
+  instrument(name, fn) { (this._ins || (this._ins = {}))[name] = fn; return fn; }
   /** add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 }) */
   define(name, voice) { this.presets[name] = voice; }
   /**
@@ -9631,8 +9649,9 @@ class Menu {
      *  entries' color; pick: the color of the one under the cursor; dim: disabled entries' color; bg, border: the
      *  window's colors; onPick: called (i, item) on confirm; onCancel: called on cancel; onMove: called (i, item)
      *  when the cursor moves; sound: false silences it; input: the one input it reads (default: every player's, so
-     *  any player moves and picks; the mouse and taps are player 1's) */
-    Object.assign(this, { x: 'center', y: 'center', title: null, box: true, color: '#ffffff', pick: '#ffd36a', dim: '#6a6488', bg: '#141a3a', border: '#e8e4ff', onPick: null, onCancel: null, onMove: null, sound: true, input: null }, o);
+     *  any player moves and picks; the mouse and taps are player 1's); scale: its text and rows that many times (2, 3:
+     *  across a room on a TV); rows: at most that many entries shown, the list scrolling under its cursor (0: all) */
+    Object.assign(this, { x: 'center', y: 'center', title: null, box: true, color: '#ffffff', pick: '#ffd36a', dim: '#6a6488', bg: '#141a3a', border: '#e8e4ff', onPick: null, onCancel: null, onMove: null, sound: true, input: null, scale: 1, rows: 0 }, o);
     this._skip(1);
   }
   _label(it) { return typeof it === 'string' ? it : it.label; }
@@ -9642,21 +9661,23 @@ class Menu {
   get selected() { return this.items[this.i]; }
   // where it sits, from its items and the screen's size (update and draw both: a click picks an entry with no draw yet)
   _layout() {
-    const S = this.game.screen, labels = this.items.map(it => this._label(it)), w = Math.max(E.font.width(this.title || ''), ...labels.map(l => E.font.width(l))) + 22, rowH = E.font.lineHeight() + 2;
-    const h = labels.length * rowH + (this.title ? rowH + 3 : 0) + 8, x = this.x === 'center' ? Math.round((S.W - w) / 2) : this.x, y = this.y === 'center' ? Math.round((S.H - h) / 2) : this.y;
-    const top = y + 5 + (this.title ? rowH + 3 : 0); this._box = { x: x + 3, y: top - 2, w: w - 6, rowH };   // (where the entries are, for a click or tap)
-    return { labels, w, h, x, y, top, rowH };
+    const S = this.game.screen, k = Math.max(1, Math.round(this.scale || 1)), fo = { scale: k }, labels = this.items.map(it => this._label(it)), n = labels.length;
+    const w = Math.max(E.font.width(this.title || '', fo), ...labels.map(l => E.font.width(l, fo))) + 22 * k, rowH = E.font.lineHeight(fo) + 2 * k, vis = this.rows > 0 ? Math.min(n, this.rows) : n;
+    let first = clamp(this._first || 0, 0, Math.max(0, n - vis)); if (this.i < first) first = this.i; else if (this.i >= first + vis) first = this.i - vis + 1; this._first = first;   // (the cursor's row in view)
+    const h = vis * rowH + (this.title ? rowH + 3 * k : 0) + 8 * k, x = this.x === 'center' ? Math.round((S.W - w) / 2) : this.x, y = this.y === 'center' ? Math.round((S.H - h) / 2) : this.y;
+    const top = y + 5 * k + (this.title ? rowH + 3 * k : 0); this._box = { x: x + 3 * k, y: top - 2 * k, w: w - 6 * k, rowH, first, vis };   // (where the entries are, for a click or tap)
+    return { labels, w, h, x, y, top, rowH, k, fo, first, vis };
   }
   /** entry i's box on the screen, [x, y, w, h] in screen pixels: where a click or tap picks it (a test's feed('down') and
-   *  feed('up') there) */
-  rowAt(i) { this._layout(); const b = this._box; return [b.x, b.y + i * b.rowH, b.w, b.rowH]; }
+   *  feed('up') there); null while it is scrolled out of view */
+  rowAt(i) { this._layout(); const b = this._box; return i < b.first || i >= b.first + b.vis ? null : [b.x, b.y + (i - b.first) * b.rowH, b.w, b.rowH]; }
   /** move the cursor (up, down; held keys repeat; the mouse over an entry) and pick (confirm, or a click or tap on an
    *  entry) or cancel; returns true when it picked or cancelled */
   update() {
     if (!this.active || !this.items.length) return false;
     this._layout();
     const P = this.input ? [this.input] : this.game._players || [this.game.input], inp = P[0], any = f => P.some(f), n = this.items.length, old = this.i, b = this._box;
-    const row = p => { if (!b || !p || p[0] < b.x || p[0] >= b.x + b.w) return -1; const k = Math.floor((p[1] - b.y) / b.rowH); return k >= 0 && k < n && !this._off(this.items[k]) ? k : -1; };
+    const row = p => { if (!b || !p || p[0] < b.x || p[0] >= b.x + b.w) return -1; const r = Math.floor((p[1] - b.y) / b.rowH), k = b.first + r; return r >= 0 && r < b.vis && k < n && !this._off(this.items[k]) ? k : -1; };
     if (any(I => I.repeat('up'))) { this.i = (this.i + n - 1) % n; this._skip(-1); }
     if (any(I => I.repeat('down'))) { this.i = (this.i + 1) % n; this._skip(1); }
     if (inp.mouse.t !== this._mt) { this._mt = inp.mouse.t; const k = row(inp.pointer()); if (k >= 0) this.i = k; }   // the mouse moved over an entry
@@ -9670,16 +9691,18 @@ class Menu {
   /** draw it to the overlay */
   draw(r) {
     r.overlay(g => {
-      const { labels, w, h, x, y, top: yy, rowH } = this._layout();
+      const { labels, w, h, x, y, top: yy, rowH, k: K, first, vis } = this._layout(), T = { outline: false, shadow: '#05040a', scale: K };
       if (this.box) E.ui.box(g, x, y, w, h, { bg: this.bg, border: this.border });
-      if (this.title) E.font.text(g, this.title, x + w / 2, y + 5, this.pick, { align: 'center', outline: false, shadow: '#05040a' });
+      if (this.title) E.font.text(g, this.title, x + w / 2, y + 5 * K, this.pick, { align: 'center', outline: false, shadow: '#05040a', scale: K });
       const blink = Math.floor(this.game.real * 3) % 2 === 0;
-      labels.forEach((l, k) => {
-        const sel = k === this.i && this.active, off = this._off(this.items[k]);
-        if (sel) px.rect(g, x + 3, yy + k * rowH - 2, w - 6, rowH, shade(Array.isArray(this.bg) ? this.bg[0] : this.bg, .22));
-        E.font.text(g, l, x + 14, yy + k * rowH, off ? this.dim : sel ? this.pick : this.color, { outline: false, shadow: '#05040a' });
-        if (sel && blink) E.font.text(g, '▸', x + 6, yy + k * rowH, this.pick, false);
+      labels.slice(first, first + vis).forEach((l, r) => {
+        const k = first + r, sel = k === this.i && this.active, off = this._off(this.items[k]);
+        if (sel) px.rect(g, x + 3 * K, yy + r * rowH - 2 * K, w - 6 * K, rowH, shade(Array.isArray(this.bg) ? this.bg[0] : this.bg, .22));
+        E.font.text(g, l, x + 14 * K, yy + r * rowH, off ? this.dim : sel ? this.pick : this.color, T);
+        if (sel && blink) E.font.text(g, '▸', x + 6 * K, yy + r * rowH, this.pick, { scale: K, outline: false });
       });
+      if (first > 0) E.font.text(g, '▲', x + w - 9 * K, yy, this.dim, T);   // (more above and below)
+      if (first + vis < labels.length) E.font.text(g, '▼', x + w - 9 * K, yy + (vis - 1) * rowH, this.dim, T);
     });
   }
 }
@@ -9767,7 +9790,9 @@ class Shell {
   /**
    * new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings',
    * meters: .125, standard: true }): an HTML interface over the game (see the section's header)
-   * - theme: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont)
+   * - theme: CSS variables (ink, paper, accent, muted, danger, line, font: a family, titleFont), and scale: the whole
+   *   interface that many times (a number, or a function of the window) for a TV across a room; tv: true picks one by
+   *   the window's width (14 px text at 875 px, up to 30 at 1,875)
    * - screens: specs ui.show(name) starts from (the pause screen follows game.paused; screens: { pause: false } leaves it out)
    * - settings: settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max,
    *   step, options, value } (kept in game.settings, beside the standard ones)
@@ -9795,6 +9820,9 @@ class Shell {
     if (!document.getElementById('esh-css')) { const st = document.createElement('style'); st.id = 'esh-css'; st.textContent = SHELL_CSS; document.head.appendChild(st); }
     const r = this.root = this._el('div', 'esh' + (game._corner ? ' esh-cornered' : '')), th = Object.assign({}, SHELL_THEME, o.theme);   // (the top-right column starts below the corner's buttons)
     for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
+    if (th.font && /\d|\b(bold|italic|normal|oblique)\b/.test(th.font)) warn('shell:font', 'E.Shell theme.font is a family ("Georgia, serif"), not a CSS shorthand ("' + th.font + '"): the size comes from theme.scale');
+    const K = th.scale !== undefined ? th.scale : o.tv ? () => clamp(innerWidth * .016, 18, 30) / 14 : 1;   // (for ten feet: the whole interface that many times, still filling the window)
+    if (K !== 1) { const fit = () => { const k = Math.max(.25, +(typeof K === 'function' ? K(window) : K) || 1); Object.assign(r.style, { transform: 'scale(' + k + ')', transformOrigin: '0 0', inset: 'auto', left: '0', top: '0', width: 100 / k + 'vw', height: 100 / k + 'vh' }); }; fit(); addEventListener('resize', fit, { signal }); }
     const host = document.body; host.appendChild(r);
     const E2 = (cls, parent = r, tag = 'div') => { const e = this._el(tag, cls); e.hidden = true; parent.appendChild(e); return e; };
     const col = this._el('div', 'esh-col'); r.appendChild(col);
@@ -9815,7 +9843,8 @@ class Shell {
   _menu() { return this._std; }
   /** open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over
    *  o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act,
-   *  primary, disabled }], back (fn for cancel) }. From another screen it stacks (back() returns); shown again, it updates
+   *  primary, disabled }], back (fn for cancel), rows: ['glyphs', 'invertY', '#A heading'] (settings' rows, changed as on
+   *  the settings screen) }. From another screen it stacks (back() returns); shown again, it updates
    *  (the new spec over the old). 'settings' takes its items
    *  - 'title': { name, subtitle, meta: [...], footer }
    *  - 'help': { keys: [[key, what]], sections: [[heading, text]] }
@@ -10061,6 +10090,7 @@ class Shell {
     if (title) add(this._el('h1', '', v(s.name || s.title)), s.subtitle && this._el('div', 'esh-sub', v(s.subtitle)));
     else add(this._el('h2', '', v(s.title) || { pause: this._game._players && this._game._players.length > 1 && this._game.pausedBy ? 'Paused by P' + this._game.pausedBy : 'Paused', settings: 'Settings', controls: 'Controls', help: 'Help', map: 'Map' }[name] || ''));   // (several players: who paused)
     add(v(s.text) && this._el('p', title ? '' : 'esh-m', v(s.text)));
+    for (const key of v(s.rows) || []) add(key[0] === '#' ? this._el('div', 'esh-k esh-sec', key.slice(1)) : this._row(key));   // (setting rows on a screen of the game's own: '#' a heading)
     if (name === 'settings') this._settingsRows(add);
     if (name === 'controls') this._controls(add);
     if (s.keys) { const g = this._el('div', 'esh-grid'); for (const [k, w] of v(s.keys)) g.append(this._el('kbd', '', k), this._el('span', '', w)); add(g); }

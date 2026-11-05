@@ -200,6 +200,13 @@ function matrixHeadless(E, ed) {
     const box = menu.rowAt ? menu.rowAt(2) : null;
     if (box) { MI.feed('down', box[0] + box[2] / 2, box[1] + box[3] / 2); MI.feed('up', box[0] + box[2] / 2, box[1] + box[3] / 2); mg.advance(1 / 120); mg.advance(1 / 120); }
     check(`${ed}: E.Menu's rows come from update: a scripted click on its third entry picks it, with no draw`, picked === 2, 'box ' + JSON.stringify(box) + ', picked ' + picked);
+    // E.Menu at a scale (for a TV) with rows: the list scrolls under its cursor; a click on a shown entry picks it (HANDOFF-MATRIX 6.1)
+    let got = -1; const sg = new E.Game({ headless: true }), SI = sg.input, items = Array.from({ length: 12 }, (_, k) => 'ENTRY ' + k), big = new E.Menu(sg, items, { scale: 2, rows: 4, onPick: i => { got = i; } });
+    sg.start({ update() { big.update(); }, draw(r) { big.draw(r); } }); sg.advance(.05);
+    const h1 = big.rowAt(1) ? big.rowAt(1)[3] : 0; for (let k = 0; k < 6; k++) { SI.tap('down'); sg.advance(1 / 60); }
+    const shown = [0, 6, 3].map(i => !!big.rowAt(i)), b6 = big.rowAt(6) || [0, 0, 0, 0];
+    SI.feed('down', b6[0] + 4, b6[1] + b6[3] / 2); SI.feed('up', b6[0] + 4, b6[1] + b6[3] / 2); sg.advance(1 / 120); sg.advance(1 / 120);
+    check(`${ed}: E.Menu({ scale: 2, rows: 4 }): rows twice as tall, the list scrolled to its cursor, a click on a shown entry picks it`, h1 === 2 * (E.font.lineHeight() + 2) && big.i === 6 && shown.join() === 'false,true,true' && got === 6, JSON.stringify({ h1, i: big.i, shown, got }));
     // new E.Game({ headless: true, draw: true }): draw runs on a stand-in renderer each advance, its error in game.errors
     let draws = 0; const dg = new E.Game({ headless: true, draw: true }), rig = new E.Humanoid({});
     dg.start({ update(dt) { rig.update(dt, { x: 40, y: 40, vx: 30, vy: 0 }); }, draw(r) { draws++; E.px.rect(r.ctx, 0, 0, 4, 4, '#ffffff'); r.actor(40, 40, 0, (g, ox, oy) => rig.draw(g, ox, oy, r.view)); E.font.text(r.ctx, 'HI', 2, 2); if (draws === 3) throw new Error('drawn wrong'); } });
@@ -356,6 +363,9 @@ function matrixFixes(E, ed) {
   check(`${ed}: E.Dialog's voice function hears each letter once`, said.join('') === 'Hi you.', JSON.stringify(said.join('')));
   check(`${ed}: say's voice is that line's, and width sizes the box`, once.join(',') === '0,1' && d._dims().w === 200, once.join(',') + ' w ' + d._dims().w);
   check(`${ed}: audio.bus is null headless, voiceVolume 1`, dg.audio.bus('voice') === null && dg.audio.voiceVolume === 1);
+  // an effect's handle (pan, a loop, stop, set) and an instrument of the game's own: there headless too, doing nothing (HANDOFF-MATRIX 5.1, 5.2)
+  let hs = null; try { hs = dg.audio.sfx('jump', { loop: true, pan: -.5 }); } catch (e) { hs = e.message; }
+  if (ed === 'full') check(`${ed}: audio.sfx(name, { loop, pan }) gives a handle (stop, set) headless; audio.instrument(name, fn) is there`, !!hs && typeof hs.stop === 'function' && typeof hs.set === 'function' && typeof dg.audio.instrument === 'function', typeof hs);
   // a script's tap and hold are no device (prompts keep the player's), and a tap of a held action leaves it held
   const ig = new E.Game({ headless: true }), I = ig.input; ig.start({ update() {}, draw() {} }); ig.advance(.05);
   I.lastDevice = 'keyboard'; I.tap('jump'); I.hold('right'); ig.advance(.05);

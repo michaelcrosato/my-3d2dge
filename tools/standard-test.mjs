@@ -300,6 +300,13 @@ if (!process.argv.includes('--node')) {
       // a game's own E.Shell takes over from the engine's: one interface, the standard menu in it
       const own = await ev(p, () => { const ui = new E.Shell(game, { screens: { help: { keys: [['W', 'Up']] } } }); game.pause(); step(); return [document.querySelectorAll('.esh').length, game.shell === ui, [...document.querySelectorAll('.esh-sh button')].map(b => b.textContent).join()]; });
       check(`${ed}: a game's own E.Shell takes over from the engine's, with the standard menu`, own[0] === 1 && own[1] && /Resume,Settings,Controls/.test(own[2]) && /Help/.test(own[2]), JSON.stringify(own));
+      // for a TV: a screen of the game's own lists setting rows ('#' a heading), a theme scale grows the whole interface (it
+      // still fills the window), and a font shorthand in the theme warns (HANDOFF-MATRIX 6.2, 6.3)
+      const tv = await ev(p, () => { const warned = [], w0 = console.warn; console.warn = (...m) => { warned.push(m.join(' ')); w0(...m); };
+        let ui; try { ui = new E.Shell(game, { theme: { scale: 2, font: 'bold 20px Georgia' }, screens: { dev: { title: 'Dev', rows: ['#Controller', 'glyphs', 'invertY'] } } }); } finally { console.warn = w0; }
+        game.resume(); ui.show('dev'); step(); const rows = [...document.querySelectorAll('.esh-sh .esh-row > span:first-child')].map(s => s.firstChild.textContent), sec = [...document.querySelectorAll('.esh-sh .esh-sec')].map(e => e.textContent);
+        const R = ui.root.getBoundingClientRect(), tf = ui.root.style.transform; ui.hide(); step(); return { rows, sec, tf, w: Math.round(R.width), iw: innerWidth, font: warned.filter(w => /font/.test(w)).length }; });
+      check(`${ed}: E.Shell for a TV: setting rows on a screen of the game's own, a theme scale (filling the window), a font shorthand warned`, tv.rows.join() === 'Button symbols,Invert aim up and down' && tv.sec.includes('Controller') && /scale\(2\)/.test(tv.tf) && Math.abs(tv.w - tv.iw) < 2 && tv.font === 1, JSON.stringify(tv));
       // menu: false: the canvas pause, no screens
       await p.close(); p = await open('{ menu: false }');
       await p.keyboard.press('Enter'); await ev(p, () => step(2)); await p.keyboard.press('Escape'); await ev(p, () => step(2));
