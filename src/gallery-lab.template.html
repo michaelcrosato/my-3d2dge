@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!--
+  my-3D2dge Gallery Lab v{{VERSION}} ({{BUILD}}): a Temporary prototype (src/labs.json; the cc-matrix plan's 3.4). Can a
+  2D game's perspective camera (a light-gun gallery, a first-person corridor) be the mode7 module with two more calls,
+  m7.quad (world polygons sorted with the billboards) and m7.pick (what is under the crosshair, by what was drawn), or does
+  it need a perspective E.View the 2D renderer draws everything through? A shooting gallery at dusk, to judge.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>my-3D2dge · Gallery Lab</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#screen{width:100%;height:100%;display:block;image-rendering:pixelated;cursor:none}
+</style>
+</head>
+<body>
+<!-- @boot Gallery Lab -->
+<canvas id="screen" role="img" aria-label="Gallery Lab"></canvas>
+<!-- @inline engine/my-3d2dge.js -->
+<!-- @inline src/gallery-lab.game.js -->
+</body>
+</html>

@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.89.1 (2026-11-05)
+
+The cc-matrix plan is done: its last two items, prototypes, are Temporary labs for the owner to judge, and the plan is gone (its text: `git show 5f44010:docs/HANDOFF-MATRIX.md`; what wasn't taken: F8 in `docs/FEEDBACK-LOG.md`).
+
+- **Rendering**: the 3D camera's roll (`camera.fixed`'s, and the behind camera's share of a flyer's) leans as `pen.at`'s does, its right side down: it leaned the other way, so the flight kit's camera leaned against the ship's bank.
+- **Tools**: the Gallery Lab (`/gallery-lab`, the plan's 3.4): a light-gun gallery on the mode7 module, with `m7.quad` (world polygons sorted with the billboards) and `m7.pick` (what was drawn under the crosshair) put on its prototype: are they the module's, or does a 2D game need a perspective `E.View`?
+- **Tools**: the Track Lab (`/track-lab`, 7.5): a ribbon track on the 3D engine (a loop, banked bends), its frames as data (`track.at(s)`, `track.toTrack(x, y, z)`) and a craft in its space: is a track the engine's, and in what form?
+- **Tools**: the Fork Lab (`/fork-lab`, 7.5): a pseudo-3D road that forks, the side the car is on choosing the way, several roads drawn in one pass: is a fork `E.Road`'s own (`road.fork`), or a game's?
+- **Tools**: kit3d-test checks a fixed camera's roll against the pen's (their up vectors agree).
+- **Docs**: `docs/HANDOFF-MATRIX.md` deleted, its items landed in v0.86.0 to v0.89.1 or logged (F8.1 to F8.10); the README and F8's entry say where it went; the 3D header says a fixed camera's roll is `pen.at`'s.
+
 ## 0.89.0 (2026-11-05)
 
 The cc-matrix plan's third batch (`docs/HANDOFF-MATRIX.md`, their lines gone): the Humanoid's registries (Part 4), sound (Part 5) and menus and the Shell for a TV (Part 6). Each was reproduced first in the engine's own suites.

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge Vehicle Lab v0.89.0 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
+  my-3D2dge Vehicle Lab v0.89.1 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
   vehicles drive: Rapier's ray-cast vehicle controller (a chassis on four sprung wheels), or a ball Rapier rolls, steered by
   the drive module's arcade handling (what world.vehicle is)? Tab switches between them on the same track. Served, not
   double-clicked (it loads three.js and Rapier from /vendor/).
@@ -28,12 +28,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.89.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.89.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen" role="img" aria-label="Vehicle Lab"></canvas></div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.89.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.89.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -114,7 +114,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.89.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.89.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -10643,7 +10643,7 @@ root.My3D2dge = E;
 <script type="module">
 /* ---- inlined from engine/my-3d2dge-3d.js ---- */
 /*!
-my-3D2dge 3D v0.89.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.89.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -10831,11 +10831,11 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   game.yaw (game.rotateView(45)): the starter's shell binds V and [ ] to them, the engine no key; game.zoom (the wheel,
   a pinch, Settings, where the scene's camera.zoom allows); proj 'persp' | 'ortho'; dist; walls in
   front cut low), 'chase' (behind the target; it swings round behind as the target moves; a click captures the mouse to
-  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own),
-  'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z] (fixed) | follow:
-  true (turning after the target) | rail: [[x, y, z], [x, y, z]] (sliding level with it), fov (framed for 4:3: a taller
-  screen widens it) }]: the target's zone is the camera, cut once it is camera.margin (8) units in (camera.zone,
-  camera.cuts); across a cut ground() keeps the old way while the stick is held)
+  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own,
+  roll as pen.at's), 'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z]
+  (fixed) | follow: true (turning after the target) | rail: [[x, y, z], [x, y, z]] (sliding level with it), fov (framed
+  for 4:3: a taller screen widens it) }]: the target's zone is the camera, cut once it is camera.margin (8) units in
+  (camera.zone, camera.cuts); across a cut ground() keeps the old way while the stick is held)
   camera: { capture: true (a click captures the mouse in any mode; camera.takeMouse(out) -> its [dx, dy] since the last
   call: turn your own camera), near, far (units) }; camera.target also sizes the outlines and centres the sun's shadow
   camera.set(mode), camera.follow(actor), camera.ground(move, out) -> the stick turned to the ground,
@@ -12516,7 +12516,7 @@ class Camera3D {
     cam.position.set(p.x / U + rx * shx * k, p.z / U - shy * k, p.y / U + rz * shx * k);
     cam.up.set(0, 1, 0); if (Math.abs(fy) > .999) cam.up.set(Math.cos(p.yaw), 0, Math.sin(p.yaw));   // (straight down: up on the screen is where it heads)
     cam.lookAt(_v0.set(cam.position.x + fx, cam.position.y + fy, cam.position.z + fz));
-    if (p.roll) cam.rotateZ(p.roll);   // (a fixed pose may lean: a slide, a wall run)
+    if (p.roll) cam.rotateZ(-p.roll);   // (a fixed pose may lean: a slide, a wall run; its right side down, as pen.at's: three's turn about the eye's z is the other way)
     cam.updateMatrixWorld(); cam.updateProjectionMatrix();
     const CV = this.cv; cam.getWorldQuaternion(CV.q);
     CV.right.set(1, 0, 0).applyQuaternion(CV.q); CV.up.set(0, 1, 0).applyQuaternion(CV.q); CV.back.set(0, 0, 1).applyQuaternion(CV.q);

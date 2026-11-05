@@ -329,7 +329,9 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 - **Acted on:** v0.86.0 (the quick ones: the glyphs default, the font's symbols, `Dialog`'s voice, `audio.bus`, the
   rig's `NaN`, the music's offset, input's scripted taps, kept timers, the floor bakes, `window.Mocap`), and the plan
   `docs/HANDOFF-MATRIX.md` (the rest: the hub's Create + Options, headless draws, `E.store`, the floor bake's zoom, a
-  perspective camera, the Humanoid's registries, the TV menus, the 3D engine's bugs, racing tracks).
+  perspective camera, the Humanoid's registries, the TV menus, the 3D engine's bugs, racing tracks): landed in v0.87.0
+  to v0.89.0, its two prototypes (the perspective camera, racing tracks) the Gallery, Track and Fork Labs in v0.89.1,
+  when the plan went (its text: `git show 5f44010:docs/HANDOFF-MATRIX.md`).
 - **Not acted on (yet):**
   - **F8.1** · a headless game that differs from the page · the run's audit asked that `game.go` switch scenes at once
     in tests (21 runs waited out the fade without knowing). **No:** a headless game is the page's twin (principle 5:
