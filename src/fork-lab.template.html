@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!--
+  my-3D2dge Fork Lab v{{VERSION}} ({{BUILD}}): a Temporary prototype (src/labs.json; docs/HANDOFF-MATRIX.md 7.5). Can a
+  pseudo-3D road fork, one road splitting into two that ease apart and the side the car is on choosing the way? E.Road
+  draws one road and its whole scene; this draws several roads in one pass, back to front, to judge whether the fork
+  belongs in E.Road (road.fork) or in the game.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>my-3D2dge · Fork Lab</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#screen{width:100%;height:100%;display:block;image-rendering:pixelated}
+</style>
+</head>
+<body>
+<!-- @boot Fork Lab -->
+<canvas id="screen" role="img" aria-label="Fork Lab"></canvas>
+<!-- @inline engine/my-3d2dge.js -->
+<!-- @inline src/fork-lab.game.js -->
+</body>
+</html>

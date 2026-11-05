@@ -117,6 +117,12 @@ const builds = [
   { template: 'src/asset-lab.template.html', out: 'examples/asset-lab.html', vars: {} },
   // a Temporary prototype (src/labs.json): the 3D engine's vehicles two ways, side by side on one track
   { template: 'src/vehicle-lab.template.html', out: 'examples/vehicle-lab.html', vars: {} },
+  // Temporary prototypes (src/labs.json; docs/HANDOFF-MATRIX.md 3.4, 7.5): a light-gun gallery on the mode7 module
+  { template: 'src/gallery-lab.template.html', out: 'examples/gallery-lab.html', vars: {}, modules: ['mode7'] },
+  // and a racer's ribbon track of its own on the 3D engine (a loop, banked bends, a craft in the track's space)
+  { template: 'src/track-lab.template.html', out: 'examples/track-lab.html', vars: {} },
+  // and a pseudo-3D road that forks (several roads drawn in one pass, back to front)
+  { template: 'src/fork-lab.template.html', out: 'examples/fork-lab.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
