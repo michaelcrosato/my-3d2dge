@@ -5,6 +5,20 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.88.0 (2026-11-05)
+
+Headless tests that see what a player sees, `docs/HANDOFF-MATRIX.md`'s Part 2 (its lines gone): 13 builders found `draw` never ran headless (6 shipped a draw-time crash their suites passed), and the rest of what tripped their tests.
+
+- **Engine**: `new E.Game({ headless: true, draw: true })` draws a frame each `advance` on a stand-in screen (in Node, one whose drawing does nothing; canvas lighting skips its pixels there), so a draw error lands in `game.errors`. The handoff package's template game is made with it, so `node game/test.mjs` draws too.
+- **Engine**: `E.Menu` lays itself out in `update` from the screen's size: a click or tap picks an entry with no draw yet (its rows came from a draw: scripted clicks missed in 9 builds); `menu.rowAt(i)` is entry i's box on the screen, for a test's click.
+- **Engine**: timers made before the first scene live into it (a deep link's timer was cleared by the first scene's entry); a boot step's `game.go(name)` enters that scene when the boot ends (it warned "needs game.start() first" and the first scene started). Both editions.
+- **Engine**: `E.store` keeps a value for the visit where there is no `localStorage` or it is blocked or full (Node, a sandboxed frame such as the AI Hub's: nothing was kept, 16 builds); `set` still returns false then. `E.store.clear()` forgets every key, for tests that make several games in one process. Both editions.
+- **Engine**: a scene's fields the engine reads (`view`, `views`, `input`, `res`, `expand`, `touch`, `camera`), of the wrong type, are left alone and warn once, naming the field and what it should be: a method named `camera()` was taken for the scene's camera options and hid the game's (Gauntletdown's zoom never applied). Both editions (the agent edition reads the first five).
+- **Engine**: the boot screen's finish waits for a page: a headless game that draws has none (it called `clearInterval`, which a bare Node context lacks).
+- **Engine**: the ADVENTURE slice's relic sparkles from its update (its draw spawned the glints with `Math.random`, so drawing changed the game); the SIM slice culls its guests' rigs by the camera, not the last frame's offset (none headless, so the headless proof wasn't the page's).
+- **Tools**: the handoff package's `kits/test.mjs` plays each kit again with draw run every advance: its proof's hash is the same (draw changes nothing) and no draw throws; all 22 kits do. The contract suite holds each of these on both editions (a menu clicked with no draw, a draw error caught, a timer before the first scene, a boot's go, the visit's store, a scene's `camera()` and `views: 'side'`).
+- **Docs**: the API card says what `draw: true` does, that a scene's options include `camera` (and a method so named warns), and that a scene is one object every visit (reset its state in `enter`); the handoff package's README says the same of its headless tests (draw changes nothing, the camera says where the screen is in update, `E.store` in Node, timers before the first scene, a boot's go).
+
 ## 0.87.0 (2026-11-05)
 
 Input for a shared world, `docs/HANDOFF-MATRIX.md`'s 1.1 to 1.4 and 1.10 (their lines gone; 1.2 is a call of its own, D78): what the cc-matrix builders patched into `Input` and the pause.

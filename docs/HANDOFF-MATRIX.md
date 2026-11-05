@@ -79,27 +79,10 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
 
 ## Part 2: headless tests
 
-- **2.1 `draw` never runs headless** (13 runs; 6 shipped a draw-time crash their suites passed; `E.Menu`'s click rows
-  exist only after a draw, which broke scripted input in 9). Two parts: `E.Menu` computes its rows in `update` (no draw
-  needed), and `new E.Game({ headless: true, draw: true })` runs `draw` on a stand-in renderer each frame `advance`
-  takes, so a draw error lands in `game.errors`. Draw must not change state (principle 6): this path proves it.
-- **2.2 Timers made before the first scene** (confirmed: the first `_enter` clears them too; CricketKerfuffle's deep
-  link "never fired"). Keep timers when there was no scene before.
-- **2.3 `game.go` during boot** (confirmed: a boot step's `go` warns "needs game.start() first", misleading, and is
-  dropped; the title starts). Remember it and enter that scene when the boot ends.
-- **2.4 `E.store` with no storage** (confirmed: Node, a sandboxed frame such as the hub's iframe: nothing kept; 16
-  runs). A memory store for the visit when `localStorage` is missing or throws (as `game.saves` and the arcade tables
-  already do). Watch the suites that make several games in one process (contract, standard, agent): give them
-  `E.store.clear()` or a store per game id.
-- **2.5 Scene field names the engine reads** (confirmed: a scene method named `camera()` is taken as the scene's camera
-  option and the zoom never applied, Gauntletdown; `view`, `views`, `input`, `touch`, `res`, `expand` likewise). Warn
-  when one has the wrong type (`camera` a function, `view` not a view), naming the field; list them on the card.
 - **2.6 Slow motion past a scene change** (partly: the engine resets `hitstop` when a scene enters, not `timeScale`; a
   game that set `timeScale` and restored it with a timer the scene change cleared stayed slow). With `{ keep: true }`
   in v0.86.0 such a timer can live; decide whether a scene's entry resets `timeScale` to 1 as it does `hitstop`
   (Emberdeep's speed tool sets it: check it first).
-- **2.7 Scenes are one object for every visit** (AheadOrAlive: "sticky scene state caused more game-breaking bugs than
-  anything else"). Say it on the card: state that starts fresh belongs in `enter()`.
 
 ## Part 3: 2D rendering and cameras
 
@@ -200,5 +183,5 @@ BigBuckHuntOff read as "E.View rounding puts rigs 7 px off": the engine's `E.Vie
 
 ## Order and size
 
-Part 0 (the room) landed in v0.86.1. 1.1 to 1.4 and 1.10 in v0.87.0. Then 2.1 to 2.6, 3.5, 3.6, 7.1 to 7.4 and Part 8 (small to medium each);
+Part 0 (the room) landed in v0.86.1. 1.1 to 1.4 and 1.10 in v0.87.0. 2.1 to 2.5 and 2.7 in v0.88.0. Then 2.6, 3.5, 3.6, 7.1 to 7.4 and Part 8 (small to medium each);
 then 1.5 to 1.9, 3.1 to 3.3, 3.7 to 3.11, Parts 4 to 6 (medium); the prototypes 3.4 and 7.5 last, for the owner.

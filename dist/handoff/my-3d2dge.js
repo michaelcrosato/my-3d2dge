@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.87.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.88.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.87.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.88.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -163,7 +163,7 @@ const mix = (h1, h2, t) => { const a = hex(h1), b = hex(h2); return toHex(a.map(
  *  whose drawing does nothing, so sprites and other images made while a game loads don't stop it */
 const mkCanvas = (w, h) => { if (typeof document === 'undefined') return nullCanvas(w, h); const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 const nullCanvas = (w, h) => {
-  const c = { width: w, height: h }, img = (iw, ih) => ({ width: iw, height: ih, data: new Uint8ClampedArray(Math.max(0, iw * ih * 4)) });
+  const c = { width: w, height: h, standIn: true }, img = (iw, ih) => ({ width: iw, height: ih, data: new Uint8ClampedArray(Math.max(0, iw * ih * 4)) });
   const made = { getImageData: (x, y, iw, ih) => img(iw, ih), createImageData: (iw, ih) => img(iw.width || iw, ih || iw.height), measureText: () => ({ width: 0 }),
     createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), createPattern: () => ({}), canvas: c };
   const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : typeof k === 'string' && k[0] === '_' ? undefined : () => {}, set: (t, k, v) => { t[k] = v; return true; } });   // (the engine's own _ fields: unset)
@@ -297,11 +297,14 @@ const arc = (a, b, g, o = {}) => {
 };
 /** remove items in place: prune(bullets, b => b.dead) */
 const prune = (list, fn) => { let j = 0; for (let i = 0; i < list.length; i++) if (!fn(list[i])) list[j++] = list[i]; list.length = j; return list; };
-/** saved data that survives reloads (localStorage, JSON). Never throws. */
+const STORE_MEM = new Map(), memGet = (k, fallback) => STORE_MEM.has(k) ? JSON.parse(STORE_MEM.get(k)) : fallback;   // (the visit's values, where storage is missing, blocked or full)
+/** saved data that survives reloads (localStorage, JSON). Never throws. Where there is no storage (Node, a sandboxed
+ *  frame such as the AI Hub's) or it is blocked or full, a value is kept for the visit instead */
 const store = {
-  get(key, fallback = null) { try { const v = localStorage.getItem('my3d2dge:' + key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },   // the value saved under key (any JSON), or fallback
-  set(key, value) { try { localStorage.setItem('my3d2dge:' + key, JSON.stringify(value)); return true; } catch (e) { return false; } },   // save value (any JSON) under key; false when storage is blocked
-  remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }   // forget key
+  get(key, fallback = null) { const k = 'my3d2dge:' + key; try { const v = localStorage.getItem(k); if (v !== null) return JSON.parse(v); } catch (e) { return memGet(k, fallback); } return memGet(k, fallback); },   // the value saved under key (any JSON), or fallback
+  set(key, value) { const k = 'my3d2dge:' + key, v = JSON.stringify(value); try { localStorage.setItem(k, v); STORE_MEM.delete(k); return true; } catch (e) { STORE_MEM.set(k, v); return false; } },   // save value (any JSON) under key; false when it lasts for this visit only (no storage, blocked or full)
+  remove(key) { STORE_MEM.delete('my3d2dge:' + key); try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } },   // forget key
+  clear() { STORE_MEM.clear(); try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && k.startsWith('my3d2dge:')) localStorage.removeItem(k); } } catch (e) { /* no storage */ } }   // forget every key (all of this engine's on the page's origin): tests that make several games in one process
 };
 Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng, approachAng, rng, hash2, noise2, bayer, smoothDamp, hex, toHex, shade, mix, mkCanvas, ctx2d, V3, ik3,
   rand, randInt, pick, chance, dist, angleTo, arc, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
@@ -634,9 +637,9 @@ class Screen {
   constructor(canvas, o, signal) {
     /** canvas: the page's canvas (null in a headless game); o: the sizing options (the game's o) */
     this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this._o = o;
-    /** buf: the low-resolution buffer the game draws into (W + 2 by H + 2 pixels; null when headless); ctx: its 2D
-     *  context (r.ctx is the same) */
-    this.buf = canvas ? mkCanvas(8, 8) : null; this.ctx = canvas ? ctx2d(this.buf) : null;
+    /** buf: the low-resolution buffer the game draws into (W + 2 by H + 2 pixels; null when headless, a stand-in when a
+     *  headless game draws: o.draw); ctx: its 2D context (r.ctx is the same) */
+    this.buf = canvas || (o && o.draw) ? mkCanvas(8, 8) : null; this.ctx = this.buf ? ctx2d(this.buf) : null;
     /** W, H: the buffer's size in game pixels; S: the whole-number scale up to the canvas; OX, OY: the letterbox
      *  margins on the canvas, in canvas pixels; dpr: the device pixel ratio used (at most 3) */
     this.W = 320; this.H = 200; this.S = 3; this.OX = 0; this.OY = 0; this.dpr = 1;
@@ -1452,7 +1455,7 @@ class Lighting {
     this.darkness = .9; this.tint = .32; this.screen = false;
     /** casters: this frame's shadow casters from caster(); heats: this frame's heat shimmers from heat() */
     this._casters = []; this._heats = [];
-    if (!game.headless) { this._cv = mkCanvas(8, 8); this._g = this._cv.getContext('2d'); this.refresh(); }   // (a headless game never draws)
+    if (!game.headless || game.o.draw) { this._cv = mkCanvas(8, 8); this._g = this._cv.getContext('2d'); this.refresh(); }   // (a headless game never draws, unless it was made with draw: true)
   }
   /** true when the canvas lighting draws this frame: enabled, or standing in for GPU lighting the game turned on that
    *  can't draw (no WebGPU, still loading, a side view); gpu.fallback = false keeps such a frame unlit */
@@ -2201,7 +2204,7 @@ class Renderer {
       try { game.gpu._render(this); } catch (e) { game.gpu._fail(e); game.screen._present(); }
     } else {
       if (game.lights.on) {
-        game.lights.render(this);
+        if (!g.canvas.standIn) game.lights.render(this);   // (a stand-in screen, headless: no pixels to light)
         if (this._emis.length) {
           const sG = this._sG, cv = g.canvas;
           if (this._emOn) { sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(0, 0, this.bw, this.bh); sG.drawImage(cv, 0, 0); sG.globalCompositeOperation = 'destination-in'; sG.drawImage(this._eCv, 0, 0); sG.globalCompositeOperation = 'source-over'; }
@@ -2248,6 +2251,16 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 
 /** the players' colors: player 1 blue, 2 red, 3 green, 4 yellow (game.players) */
 E.PLAYER_COLORS = ['#4a8aff', '#ff4a4a', '#4ad860', '#ffd040'];
+/* a scene's fields the engine reads (view, views, input, res, expand, touch, camera): one of the wrong type, a method
+   named camera() or views: 'side', is left alone and warns once, by name (it would have shadowed the game's own) */
+const SCENE_FIELDS = { view: v => typeof v === 'string' || (!!v && typeof v === 'object'), views: Array.isArray, input: v => typeof v === 'string' || (!!v && typeof v === 'object'),
+  res: v => typeof v === 'string' || (Array.isArray(v) && v.length === 2), expand: v => typeof v === 'boolean' || (!!v && typeof v === 'object'), touch: Array.isArray, camera: v => v === false || (!!v && typeof v === 'object' && !Array.isArray(v)) };
+const sceneField = (name, s) => k => {
+  const v = s[k]; if (v === undefined || v === null) return false;
+  if (SCENE_FIELDS[k](v)) return true;
+  warn('scene:' + name + ':' + k, 'scene "' + name + '": its ' + k + ' is ' + (typeof v === 'function' ? 'a function (a method of that name?)' : JSON.stringify(v)) + ', but the engine reads scene.' + k + ' as the scene\'s ' + k + ' option (' + { view: "a view's name or an E.View", views: "a list of views' names", input: "a preset's name or its actions", res: "'ps1' or [w, h]", expand: 'true or { maxW, maxH }', touch: "a list of actions: ['jump']", camera: '{ zoom, start, tall, wheel }' }[k] + '): it is left alone; rename it');
+  return false;
+};
 class Game {
   /**
    * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
@@ -2260,6 +2273,7 @@ class Game {
    *   under it (a 3D world, engine/my-3d2dge-3d.js)
    * - headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default):
    *   scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold
+   * - draw: true (headless): draw runs each advance on a stand-in renderer, its errors in game.errors
    * - loop: false makes a game in a page that runs only by advance()
    * - menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out)
    * - fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it
@@ -2326,7 +2340,7 @@ class Game {
       frame: (list, o = {}) => { this._framed = list && list.length ? { list, margin: o.margin === undefined ? 24 : o.margin, zoom: o.zoom === undefined ? [.5, 1] : o.zoom } : null; this.cam.snap = true; } };
     /** particles: dust, sparks, debris and text in the world; lights: canvas lighting (lights.enabled, lights.add in
      *  draw); r: the renderer handed to draw(r) (null when headless) */
-    this.particles = new Particles(this); this.lights = new Lighting(this); this.r = this.headless ? null : new Renderer(this);
+    this.particles = new Particles(this); this.lights = new Lighting(this); this.r = this.headless && !o.draw ? null : new Renderer(this);   // (draw: true, headless: a stand-in renderer)
     /** fps: frames drawn per second over the last half second of real time; hz: the display's refresh rate, measured;
      *  drawEvery: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw (a frame's cost,
      *  or refreshes missed: its GPU behind): every other refresh is drawn, evenly, instead of random ones missed (the
@@ -2437,7 +2451,7 @@ class Game {
   /** a split screen's viewports ({ i, x, y, w, h, cam, focus(x, y, z), follow(target, { z }): game.splitScreen), or []
    *  on one screen */
   get viewports() { return this._split ? this._split.vps : []; }
-  _camera() { const s = this.scene; return (s && s.camera) || this.o.camera || null; }
+  _camera() { const s = this.scene, c = s && s.camera; return (c && typeof c === 'object' ? c : null) || this.o.camera || null; }   // (a method named camera() is no camera: sceneField warns)
   _zoomStart() { const c = this._camera(); if (!c) return 1; return clamp(+(this.upright && c.tall !== undefined ? c.tall : c.start) || 1, .5, 3); }
   // the camera's zoom: the game's (_zoomBase), times the player's where the scene allows it, snapped to twentieths (each
   // zoom is a view, its own baked floor, walls and props)
@@ -2746,7 +2760,9 @@ class Game {
       }
       if (live && o.min && now() - t0 < o.min * 1000) { requestAnimationFrame(next); return; }
       if (live) BOOT._step(n + 1, n + 1, 'Warming up');
-      this._booting = false; this.start(h); res(this);
+      this._booting = false; const bg = this._bootGo; this._bootGo = null;
+      if (bg && h.scenes && h.scenes[bg.name]) Object.assign(h, { scene: bg.name, data: bg.data }); else if (bg) warn('go:' + bg.name, 'game.go("' + bg.name + '") in a boot step: no such scene. Scenes: ' + Object.keys(h.scenes || {}).join(', '));
+      this.start(h); res(this);
     };
     next();
     return this;
@@ -2771,13 +2787,15 @@ class Game {
   }
   /**
    * run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and
-   * headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
+   * headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). A headless game made
+   * with draw: true draws one frame each advance, on a stand-in renderer, so a draw error lands in game.errors (a test
+   * that catches what a player would see break). Returns the updates run
    */
   advance(seconds = this.o.step, o = {}) {
     if (!this.scene && !this._next) throw new Error('game.advance() needs a started game: game.start({ update, draw }) first');
     this._acc += Math.max(0, seconds);
     const n = this._steps(); this.stats.steps = n;
-    if (o.draw && !this.headless) try { this._frame(); } catch (e) { this.fail('draw', e); }
+    if (this.r && (this.headless ? this.o.draw : o.draw)) try { this._frame(); } catch (e) { this.fail('draw', e); }
     return n;
   }
   /**
@@ -2813,6 +2831,7 @@ class Game {
    * scene's camera places, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
    */
   go(name, data, o = {}) {
+    if (this._booting) { this._bootGo = { name, data }; return; }   // (a boot step's go: that scene, when the boot ends)
     if (!this.scenes) { warn('go:noscenes', 'game.go() needs game.start({ scenes: {...}, scene }) first'); return; }
     if (!this.scenes[name]) { warn('go:' + name, 'game.go("' + name + '"): no such scene. Scenes: ' + Object.keys(this.scenes).join(', ')); return; }
     let fade = o.fade === undefined ? this.fadeTime : o.fade, kind = null;
@@ -2835,13 +2854,15 @@ class Game {
     const old = this.scene;
     if (old && old.exit) old.exit();
     if (old && old._propWas !== undefined) { E.style.propSize = old._propWas; old._propWas = undefined; }
-    this.scene = s; this.sceneName = name; this.paused = false; prune(this._timers, t => !t.keep); this.hitstop = 0;
+    this.scene = s; this.sceneName = name; this.paused = false; if (old) prune(this._timers, t => !t.keep); this.hitstop = 0;   // (timers made before the first scene live into it)
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = this._framed = null;
-    if (s.view) this.setView(s.view);
-    if (s.views) this.views = s.views;
-    if (s.input) this.input.use(s.input);
-    if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
-    if (s.touch) this.input.touchButtons(s.touch);
+    const ok = sceneField(name, s);
+    if (ok('view')) this.setView(s.view);
+    if (ok('views')) this.views = s.views;
+    if (ok('input')) this.input.use(s.input);
+    if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
+    if (ok('touch')) this.input.touchButtons(s.touch);
+    ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
     this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
@@ -2939,7 +2960,7 @@ class Game {
     if (T) this.r.overlay(g => { T(g, fl, this.r, F); g._c = null; });
     else if (fl > 0) this.r.overlay(g => { const r = this.r, c = F.kind === 'white' ? '#ffffff' : '#000000'; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r._fadePattern(fl, c), 'repeat'); else { g.fillStyle = c; g.globalAlpha = Math.round(fl * 16) / 16; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; });
     this.r._finish();
-    if (!BOOT.played && !this._booting && (this._drawn = (this._drawn || 0) + 1) >= 2) BOOT._finish();   // play has begun (two frames drawn under the boot screen: the caches are warm)
+    if (!this.headless && !BOOT.played && !this._booting && (this._drawn = (this._drawn || 0) + 1) >= 2) BOOT._finish();   // play has begun (two frames drawn under the boot screen: the caches are warm; a headless game's has none)
   }
 }
 E.Game = Game;
@@ -9055,10 +9076,21 @@ class Menu {
   _skip(dir) { for (let k = 0; k < this.items.length && this._off(this.items[this.i]); k++) this.i = (this.i + dir + this.items.length) % this.items.length; }
   /** the entry under the cursor */
   get selected() { return this.items[this.i]; }
+  // where it sits, from its items and the screen's size (update and draw both: a click picks an entry with no draw yet)
+  _layout() {
+    const S = this.game.screen, labels = this.items.map(it => this._label(it)), w = Math.max(E.font.width(this.title || ''), ...labels.map(l => E.font.width(l))) + 22, rowH = E.font.lineHeight() + 2;
+    const h = labels.length * rowH + (this.title ? rowH + 3 : 0) + 8, x = this.x === 'center' ? Math.round((S.W - w) / 2) : this.x, y = this.y === 'center' ? Math.round((S.H - h) / 2) : this.y;
+    const top = y + 5 + (this.title ? rowH + 3 : 0); this._box = { x: x + 3, y: top - 2, w: w - 6, rowH };   // (where the entries are, for a click or tap)
+    return { labels, w, h, x, y, top, rowH };
+  }
+  /** entry i's box on the screen, [x, y, w, h] in screen pixels: where a click or tap picks it (a test's feed('down') and
+   *  feed('up') there) */
+  rowAt(i) { this._layout(); const b = this._box; return [b.x, b.y + i * b.rowH, b.w, b.rowH]; }
   /** move the cursor (up, down; held keys repeat; the mouse over an entry) and pick (confirm, or a click or tap on an
    *  entry) or cancel; returns true when it picked or cancelled */
   update() {
     if (!this.active || !this.items.length) return false;
+    this._layout();
     const P = this.input ? [this.input] : this.game._players || [this.game.input], inp = P[0], any = f => P.some(f), n = this.items.length, old = this.i, b = this._box;
     const row = p => { if (!b || !p || p[0] < b.x || p[0] >= b.x + b.w) return -1; const k = Math.floor((p[1] - b.y) / b.rowH); return k >= 0 && k < n && !this._off(this.items[k]) ? k : -1; };
     if (any(I => I.repeat('up'))) { this.i = (this.i + n - 1) % n; this._skip(-1); }
@@ -9074,13 +9106,9 @@ class Menu {
   /** draw it to the overlay */
   draw(r) {
     r.overlay(g => {
-      const labels = this.items.map(it => this._label(it)), w = Math.max(E.font.width(this.title || ''), ...labels.map(l => E.font.width(l))) + 22, rowH = E.font.lineHeight() + 2;
-      const h = labels.length * rowH + (this.title ? rowH + 3 : 0) + 8;
-      const x = this.x === 'center' ? Math.round((r.W - w) / 2) : this.x, y = this.y === 'center' ? Math.round((r.H - h) / 2) : this.y;
+      const { labels, w, h, x, y, top: yy, rowH } = this._layout();
       if (this.box) E.ui.box(g, x, y, w, h, { bg: this.bg, border: this.border });
-      let yy = y + 5;
-      if (this.title) { E.font.text(g, this.title, x + w / 2, yy, this.pick, { align: 'center', outline: false, shadow: '#05040a' }); yy += rowH + 3; }
-      this._box = { x: x + 3, y: yy - 2, w: w - 6, rowH };   // where the entries are, for a click or tap
+      if (this.title) E.font.text(g, this.title, x + w / 2, y + 5, this.pick, { align: 'center', outline: false, shadow: '#05040a' });
       const blink = Math.floor(this.game.real * 3) % 2 === 0;
       labels.forEach((l, k) => {
         const sel = k === this.i && this.active, off = this._off(this.items[k]);
@@ -10356,7 +10384,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.87.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.88.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10571,7 +10599,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.87.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.88.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -10931,7 +10959,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.87.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.88.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11157,7 +11185,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.87.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.88.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11708,7 +11736,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.87.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.88.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11891,7 +11919,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.87.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.88.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12300,7 +12328,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.87.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.88.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12505,7 +12533,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.87.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.88.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12872,7 +12900,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.87.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.88.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13079,7 +13107,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.87.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.88.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13239,7 +13267,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.87.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.88.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13420,7 +13448,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.87.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.88.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13747,7 +13775,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.87.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.88.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13901,7 +13929,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.87.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.88.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14109,7 +14137,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.87.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.88.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14550,7 +14578,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.87.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.88.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

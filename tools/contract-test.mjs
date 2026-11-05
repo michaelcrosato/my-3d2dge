@@ -32,7 +32,12 @@
 //                  joints; a standard setting's default from the game (glyphs: playstation), reaching a player who joins;
 //                  E.Dialog's voice per letter, say's voice, its width; audio.bus headless; a script's tap and hold are no
 //                  device, a tap leaves a hold held, feed('move') is a mouse move, a script's pad codes stay held with no
-//                  pad; a kept timer outlives a scene; the floor bakes keep the latest used
+//                  pad; a kept timer outlives a scene; the floor bakes keep the latest used. Its input (Part 1): the
+//                  host's Create + Options (scripted, and on a stubbed gamepad: no join), a live pause, a layout change
+//                  that keeps the keys held, DEFAULT's halves and a preset's own, the attract mode woken by player 2.
+//                  Its headless tests (Part 2): a menu clicked with no draw, draw: true's stand-in and its errors, a
+//                  timer before the first scene, a boot step's go, the visit's store, a scene's fields of the wrong
+//                  type, timeScale across a scene change
 //   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
 //                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map;
 //                  in Chromium, r.pick on a body drawn from its kept image (r.actor's every) the box it has redrawn
@@ -125,6 +130,7 @@ for (const [ed, file] of EDITIONS) {
   shellHeadless(E, ed);
   matrixFixes(E, ed);
   matrixInput(E, ed);
+  matrixHeadless(E, ed);
 }
 
 // the matrix run's input (docs/HANDOFF-MATRIX.md, Part 1): the host's Create + Options, a world that steps under the
@@ -180,6 +186,44 @@ function matrixInput(E, ed) {
     const was = cab.phase; p2.tap('start'); ag.advance(1 / 120);
     check(`${ed}: the arcade's attract mode wakes on any player's input (player 2's Start)`, was === 'demo' && cab.attract(1 / 60) === 'title', was + ' -> ' + cab.phase);
   }
+}
+
+// the matrix run's headless tests (docs/HANDOFF-MATRIX.md, Part 2): a menu's rows without a draw, draw run headless on a
+// stand-in renderer, timers and a go() before the first scene, a store for the visit, a scene's fields of the wrong type
+function matrixHeadless(E, ed) {
+  if (ed === 'full') {
+    // E.Menu's rows come from update (a scripted click picks an entry with no draw); menu.rowAt(i) is where entry i is
+    let picked = -1; const mg = new E.Game({ headless: true }), MI = mg.input, menu = new E.Menu(mg, ['ONE', 'TWO', 'THREE'], { onPick: i => { picked = i; } });
+    mg.start({ update() { menu.update(); }, draw(r) { menu.draw(r); } }); mg.advance(.05);
+    const box = menu.rowAt ? menu.rowAt(2) : null;
+    if (box) { MI.feed('down', box[0] + box[2] / 2, box[1] + box[3] / 2); MI.feed('up', box[0] + box[2] / 2, box[1] + box[3] / 2); mg.advance(1 / 120); mg.advance(1 / 120); }
+    check(`${ed}: E.Menu's rows come from update: a scripted click on its third entry picks it, with no draw`, picked === 2, 'box ' + JSON.stringify(box) + ', picked ' + picked);
+    // new E.Game({ headless: true, draw: true }): draw runs on a stand-in renderer each advance, its error in game.errors
+    let draws = 0; const dg = new E.Game({ headless: true, draw: true }), rig = new E.Humanoid({});
+    dg.start({ update(dt) { rig.update(dt, { x: 40, y: 40, vx: 30, vy: 0 }); }, draw(r) { draws++; E.px.rect(r.ctx, 0, 0, 4, 4, '#ffffff'); r.actor(40, 40, 0, (g, ox, oy) => rig.draw(g, ox, oy, r.view)); E.font.text(r.ctx, 'HI', 2, 2); if (draws === 3) throw new Error('drawn wrong'); } });
+    dg.advance(.05); dg.advance(.05); dg.advance(.05); dg.advance(.05);
+    check(`${ed}: new E.Game({ headless: true, draw: true }) draws each advance on a stand-in renderer, a draw error in game.errors`, draws === 4 && !!dg.r && dg.errors.some(e => e.where === 'draw' && /drawn wrong/.test(e.message)), `draws ${draws}, errors ${JSON.stringify(dg.errors.map(e => e.where + ': ' + e.message))}`);
+  }
+  // timers made before the first scene live into it
+  const tg = new E.Game({ headless: true }), fired = []; tg.after(.1, () => fired.push('before'));
+  tg.start({ scenes: { a: { update() {} } }, scene: 'a' }); tg.advance(.2);
+  check(`${ed}: a timer made before the first scene fires in it`, fired.includes('before'), JSON.stringify(fired));
+  // game.go during the boot: that scene, when the boot ends (not the first)
+  const warned = [], EW = load(ed === 'full' ? 'engine/my-3d2dge.js' : 'engine/my-3d2dge-agent.js', { console: { log() {}, info() {}, error() {}, warn: m => warned.push(String(m)) } });
+  const bg = new EW.Game({ headless: true });
+  bg.start({ scenes: { title: { update() {} }, battle: { update() {} } }, scene: 'title', boot: { steps: [['Reading the link', g => g.go('battle', { from: 'link' })]] } }); bg.advance(.05);
+  check(`${ed}: game.go in a boot step enters that scene when the boot ends`, bg.sceneName === 'battle' && !warned.some(w => /needs game.start/.test(w)), bg.sceneName + ' ' + warned.join(' | '));
+  // E.store with no storage (Node, a sandboxed frame): a memory store for the visit; E.store.clear() forgets it
+  E.store.set('ct-visit', { n: 3 }); const kept = E.store.get('ct-visit', null); if (E.store.clear) E.store.clear();
+  check(`${ed}: E.store with no storage keeps a value for the visit; clear() forgets it`, kept && kept.n === 3 && E.store.get('ct-visit', 'gone') === 'gone', JSON.stringify(kept));
+  // a scene's fields the engine reads, of the wrong type, warn by name (a method named camera() is no camera)
+  const sg = new EW.Game({ headless: true }); warned.length = 0;
+  sg.start({ scenes: { a: { update() {}, camera() { return 1; }, views: 'side', touch: 'jump' } }, scene: 'a' }); sg.advance(.05);
+  check(`${ed}: a scene field of the wrong type warns, naming it (${ed === 'full' ? 'camera a function, views and touch not lists' : 'views not a list'})`, (ed === 'full' ? ['camera', 'views', 'touch'] : ['views']).every(k => warned.some(w => w.includes('"a"') && w.includes('its ' + k))), warned.join(' | ').slice(0, 300));
+  // slow motion: game.timeScale outlives a scene change (a game's speed: Emberdeep's, the sim's), hitstop doesn't
+  const sl = new E.Game({ headless: true }); sl.start({ scenes: { a: { update() {} }, b: { update() {} } }, scene: 'a' }); sl.advance(.05);
+  sl.timeScale = .5; sl.hitstop = 1; sl.go('b', null, { fade: 0 }); sl.advance(1 / 120);
+  check(`${ed}: game.timeScale outlives a scene change, hitstop ends with it`, sl.sceneName === 'b' && sl.timeScale === .5 && sl.hitstop === 0, [sl.sceneName, sl.timeScale, sl.hitstop].join());
 }
 
 // the cc-matrix run's patches, in the engine now (docs/HANDOFF-MATRIX.md): each was made by builders again and again

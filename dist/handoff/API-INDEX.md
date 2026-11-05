@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.87.0)
+# my-3D2dge API index (v0.88.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -50,60 +50,60 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - 108 The engine object (E = My3D2dge)
 - 119 Math
-- 194 Pixel primitives
-- 213 Sprite frames, turns and swaps
-- 219 Views (projections); E.View: view
-- 246 Screen; game.screen
-- 268 Input; E.Input: input
-- 353 Pixel fonts
-- 364 Lighting; game.lights
-- 383 Particles; E.Particles: game.particles
-- 403 Renderer; r
-- 451 Game; E.Game: game
-- 564 Standard features; settings, fullscreen
-- 581 10c. Boot
-- 586 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 603 10e. Paths; E.Path: path
-- 613 10g. Weather
-- 617 10k. Save slots; E.Saves: saves
-- 640 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 713 Blob rig; E.Blob: blob
-- 733 Tile map; E.TileMap: map
-- 796 Materials
-- 817 Flow field; E.FlowField: flow
-- 835 Texture helpers for floortex functions
-- 846 Platform map; E.PlatformMap: level
-- 880 Platformer; E.Platformer: hero
-- 921 Body; E.Body: body
-- 941 Actions; E.Action: action
-- 963 17c. Mover; E.Mover: mover
-- 1002 17d. Perception; E.Suspicion: suspicion
-- 1019 Bullets; E.Bullets: shots
-- 1039 Spatial hash; E.SpatialHash: grid
-- 1049 Audio; game.audio
-- 1082 Backdrops; E.Backdrop: backdrop
-- 1090 21c. Props
-- 1095 21e. Shapes
-- 1107 Ui; E.Dialog: talk, E.Menu: menu
-- 1165 21d. Shell; E.Shell: shell
-- 1194 Gpu lighting (webgpu); game.gpu
-- 1215 Sessions
-- 1224 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1259 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1304 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1342 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1423 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1434 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1493 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1516 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1545 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1577 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1594 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1623 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1642 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1650 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1679 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1725 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 195 Pixel primitives
+- 214 Sprite frames, turns and swaps
+- 220 Views (projections); E.View: view
+- 247 Screen; game.screen
+- 269 Input; E.Input: input
+- 354 Pixel fonts
+- 365 Lighting; game.lights
+- 384 Particles; E.Particles: game.particles
+- 404 Renderer; r
+- 452 Game; E.Game: game
+- 566 Standard features; settings, fullscreen
+- 583 10c. Boot
+- 588 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 605 10e. Paths; E.Path: path
+- 615 10g. Weather
+- 619 10k. Save slots; E.Saves: saves
+- 642 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 715 Blob rig; E.Blob: blob
+- 735 Tile map; E.TileMap: map
+- 798 Materials
+- 819 Flow field; E.FlowField: flow
+- 837 Texture helpers for floortex functions
+- 848 Platform map; E.PlatformMap: level
+- 882 Platformer; E.Platformer: hero
+- 923 Body; E.Body: body
+- 943 Actions; E.Action: action
+- 965 17c. Mover; E.Mover: mover
+- 1004 17d. Perception; E.Suspicion: suspicion
+- 1021 Bullets; E.Bullets: shots
+- 1041 Spatial hash; E.SpatialHash: grid
+- 1051 Audio; game.audio
+- 1084 Backdrops; E.Backdrop: backdrop
+- 1092 21c. Props
+- 1097 21e. Shapes
+- 1109 Ui; E.Dialog: talk, E.Menu: menu
+- 1168 21d. Shell; E.Shell: shell
+- 1197 Gpu lighting (webgpu); game.gpu
+- 1218 Sessions
+- 1227 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1262 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1307 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1345 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1426 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1437 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1496 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1519 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1548 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1580 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1597 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1626 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1645 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1653 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1682 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1728 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -112,7 +112,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.87.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.88.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -180,10 +180,11 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.sameLevel(a, b, tol = HEIGHTS.level)`: within tol (default E.HEIGHTS.level, 8) of the same height: sameLevel(hero, guard)
 - `E.shade(h, a)`: shade('#336699', -0.3) darker, (+0.3) lighter. Hue-shifted like painted pixel art: darker drifts cool, lighter drifts warm
 - `E.smoothDamp(cur, target, vel, st, dt)`: critically damped follow: [next, nextVelocity] = smoothDamp(cur, target, vel, smoothTime, dt); settles in about smoothTime seconds without overshoot
-- `E.store`: saved data that survives reloads (localStorage, JSON). Never throws.
+- `E.store`: saved data that survives reloads (localStorage, JSON). Never throws. Where there is no storage (Node, a sandboxed frame such as the AI Hub's) or it is blocked or full, a value is kept for the visit instead
+- `E.store.clear()`: forget every key (all of this engine's on the page's origin): tests that make several games in one process
 - `E.store.get(key, fallback = null)`: the value saved under key (any JSON), or fallback
 - `E.store.remove(key)`: forget key
-- `E.store.set(key, value)`: save value (any JSON) under key; false when storage is blocked
+- `E.store.set(key, value)`: save value (any JSON) under key; false when it lasts for this visit only (no storage, blocked or full)
 - `E.targets(from, list, o = {})`: the things in list that `from` can reach, nearest first, each as { target, d (ground distance), dz, angle (from -> it) }: melee auto-aim, lock-on, takedowns, interaction prompts. o: { range, arc (half angle around facing, radians; default all round), facing (default from.facing), dz (most height difference, default E.HEIGHTS.level), sight: map (only those its eyes see), filter: t => bool }. A target's r adds to the range
 - `E.toHex(c)`: [r, g, b] -> '#rrggbb'
 - `E.toHsl(h)`: a color's hue (degrees), saturation and lightness (0..1): toHsl('#e05a3a') -> [h, s, l]
@@ -254,7 +255,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.screen.H = 200`, `game.screen.W = 320`: the buffer's size in game pixels
 - `game.screen.OX = 0`, `game.screen.OY = 0`: the letterbox margins on the canvas, in canvas pixels
 - `game.screen.S = 3`: the whole-number scale up to the canvas
-- `game.screen.buf`: the low-resolution buffer the game draws into (W + 2 by H + 2 pixels; null when headless)
+- `game.screen.buf`: the low-resolution buffer the game draws into (W + 2 by H + 2 pixels; null when headless, a stand-in when a headless game draws: o.draw)
 - `game.screen.canvas`: the page's canvas (null in a headless game); o: the sizing options (the game's o)
 - `game.screen.ctx`: its 2D context (r.ctx is the same)
 - `game.screen.dpr = 1`: the device pixel ratio used (at most 3)
@@ -455,6 +456,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.Game({ expand })`: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there)
 - `new E.Game({ bg })`: the color behind everything, or null: the canvas is clear, and the game draws its HUD and menus over a picture under it (a 3D world, engine/my-3d2dge-3d.js)
 - `new E.Game({ headless })`: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold
+- `new E.Game({ draw })`: true (headless): draw runs each advance on a stand-in renderer, its errors in game.errors
 - `new E.Game({ loop })`: false makes a game in a page that runs only by advance()
 - `new E.Game({ menu })`: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out)
 - `new E.Game({ fullscreen })`: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false
@@ -467,7 +469,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.H`: the screen's height in game pixels (W is its width)
 - `game.W`: internal buffer size in pixels (HUD layout)
 - `game.addPlayer(o = {})` †: a player in now: { pad: index } (a gamepad) or { keys: 'right' } (the keyboard's right half; player 1 takes the left). Returns its input (null when four play already)
-- `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
+- `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). A headless game made with draw: true draws one frame each advance, on a stand-in renderer, so a draw error lands in game.errors (a test that catches what a player would see break). Returns the updates run
 - `game.after(seconds, fn, o = {})`: run fn once after `seconds` of game time. Cleared on scene change, unless { keep: true } (a site's clock, a watcher of the whole game: it outlives scenes, as a kept tween does). Returns { cancel() }
 - `game.allowJoin(o = {})` †: let players join, up to max (2..4): Start on a gamepad no one holds, or 2 on the keyboard (o.keys: false not); onJoin (input, number) as each does. allowJoin(false) closes it (the names split and join are String's and Array's)
 - `game.back()`: a step back, as a phone's back gesture asks for (the engine calls it for one; a back button of the game's own can): the open menu screen goes back one; else the scene's own back() takes it (it returns true when it did); else a scene in play pauses into the menu, and a paused one goes on. Returns false where there is nowhere to go (a title)
@@ -1138,6 +1140,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `talk.width = 0`: the box's width in pixels (320 at most by default, the screen's less 12 at most)
 - `new E.Menu(game, items, o = {}) → menu`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
 - `menu.draw(r)`: draw it to the overlay
+- `menu.rowAt(i)` †: entry i's box on the screen, [x, y, w, h] in screen pixels: where a click or tap picks it (a test's feed('down') and feed('up') there)
 - `menu.selected`: the entry under the cursor
 - `menu.update()`: move the cursor (up, down; held keys repeat; the mouse over an entry) and pick (confirm, or a click or tap on an entry) or cancel; returns true when it picked or cancelled
 - `menu.active = true`: false stops it reading input

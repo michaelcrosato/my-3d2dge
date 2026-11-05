@@ -14,7 +14,8 @@
 (() => {
 const E = My3D2dge;
 const game = new E.Game({ canvas: 'screen', res: 'snes', expand: true, view: 'iso', views: ['iso', 'threequarter'],   // expand: full screen at any shape (the HUD anchors to r.W, r.H)
-  menu: { controls: { jump: 'Jump and climb', attack: false, dash: false, skill: false } } });   // (this game uses moves and jump only)
+  menu: { controls: { jump: 'Jump and climb', attack: false, dash: false, skill: false } },   // (this game uses moves and jump only)
+  draw: true });   // (headless too: game/test.mjs draws every advance on a stand-in, so a draw error shows in game.errors)
 const ui = new E.Shell(game);   // the HTML HUD (it keeps the standard pause menu); headless, it draws nothing
 const ROOF = 32;
 const map = new E.TileMap({

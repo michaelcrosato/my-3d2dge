@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.87.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.88.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -378,7 +378,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.87.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.88.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -538,10 +538,12 @@ const hears = (lis, noise, map) => {
   return k;
 };
 const prune = (list, fn) => { let j = 0; for (let i = 0; i < list.length; i++) if (!fn(list[i])) list[j++] = list[i]; list.length = j; return list; };
+const STORE_MEM = new Map(), memGet = (k, fallback) => STORE_MEM.has(k) ? JSON.parse(STORE_MEM.get(k)) : fallback;   // (no storage, or blocked or full: a value kept for the visit)
 const store = {
-  get(key, fallback = null) { try { const v = localStorage.getItem('my3d2dge:' + key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
-  set(key, value) { try { localStorage.setItem('my3d2dge:' + key, JSON.stringify(value)); return true; } catch (e) { return false; } },
-  remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }
+  get(key, fallback = null) { const k = 'my3d2dge:' + key; try { const v = localStorage.getItem(k); if (v !== null) return JSON.parse(v); } catch (e) { return memGet(k, fallback); } return memGet(k, fallback); },
+  set(key, value) { const k = 'my3d2dge:' + key, v = JSON.stringify(value); try { localStorage.setItem(k, v); STORE_MEM.delete(k); return true; } catch (e) { STORE_MEM.set(k, v); return false; } },   // false: kept for this visit only
+  remove(key) { STORE_MEM.delete('my3d2dge:' + key); try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } },
+  clear() { STORE_MEM.clear(); try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && k.startsWith('my3d2dge:')) localStorage.removeItem(k); } } catch (e) { /* no storage */ } }   // every key (tests making several games)
 };
 Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, rng, hash2, noise2, smoothDamp, hex, toHex, toHsl, hsl, shade, mix, tones, ramp,
   mkCanvas, ctx2d, V3, ik3, rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, sees, hears, HEIGHTS, prune, store });
@@ -1229,6 +1231,14 @@ if (typeof window !== 'undefined' && window.addEventListener) {
   window.addEventListener('error', ev => { if (ev && (ev.error || ev.message)) E.showError('script error (the game could not start, or crashed outside update/draw)', ev.error || (ev.message + ' (line ' + ev.lineno + ')')); });
   window.addEventListener('unhandledrejection', ev => E.showError('unhandled promise rejection', ev.reason));
 }
+// a scene's fields the engine reads (view, views, input, res, expand): one of the wrong type is left alone and warns, by name
+const SCENE_FIELDS = { view: v => typeof v === 'string' || (!!v && typeof v === 'object'), views: Array.isArray, input: v => typeof v === 'string' || (!!v && typeof v === 'object'), res: v => typeof v === 'string' || (Array.isArray(v) && v.length === 2), expand: v => typeof v === 'boolean' || (!!v && typeof v === 'object') };
+const sceneField = (name, s) => k => {
+  const v = s[k]; if (v === undefined || v === null) return false;
+  if (SCENE_FIELDS[k](v)) return true;
+  warn('scene:' + name + ':' + k, 'scene "' + name + '": its ' + k + ' is ' + (typeof v === 'function' ? 'a function (a method of that name?)' : JSON.stringify(v)) + ', but the engine reads scene.' + k + " as the scene's " + k + ' option: it is left alone; rename it');
+  return false;
+};
 class Game {
   // headless (or no DOM: Node): no screen, renderer, sound or DOM input; drive it with advance(). loop: false runs only by advance().
   // The standard features (9b): fullscreen: 'tap' (a phone's first tap) | 'button' | false; corner: false hides the corner's
@@ -1443,7 +1453,9 @@ class Game {
       }
       if (live && o.min && now() - t0 < o.min * 1000) { requestAnimationFrame(next); return; }
       if (live) BOOT._step(n + 1, n + 1, 'Warming up');
-      this._booting = false; this.start(h); res(this);
+      this._booting = false; const bg = this._bootGo; this._bootGo = null;
+      if (bg && h.scenes && h.scenes[bg.name]) Object.assign(h, { scene: bg.name, data: bg.data }); else if (bg) warn('go:' + bg.name, 'game.go("' + bg.name + '") in a boot step: no such scene');
+      this.start(h); res(this);
     };
     next();
     return this;
@@ -1486,6 +1498,7 @@ class Game {
   }
   // switch scene (fades through black unless o.fade is 0): game.go('play', { level: 2 })
   go(name, data, o = {}) {
+    if (this._booting) { this._bootGo = { name, data }; return; }   // (a boot step's go: that scene, when the boot ends)
     if (!this.scenes) { warn('go:noscenes', 'game.go() needs game.start({ scenes: {...}, scene }) first'); return; }
     if (!this.scenes[name]) { warn('go:' + name, 'game.go("' + name + '"): no such scene. Scenes: ' + Object.keys(this.scenes).join(', ')); return; }
     const fade = o.fade === undefined ? this.fadeTime : o.fade;
@@ -1495,13 +1508,14 @@ class Game {
   _enter(name, data) {
     const s = this.scenes[name];
     if (!s) throw new Error('scene "' + name + '" does not exist. Scenes: ' + Object.keys(this.scenes).join(', '));
-    if (this.scene && this.scene.exit) this.scene.exit();
-    this.scene = s; this.sceneName = name; this.paused = false; prune(this._timers, t => !t.keep); this.hitstop = 0;
+    const old = this.scene; if (old && old.exit) old.exit();
+    this.scene = s; this.sceneName = name; this.paused = false; if (old) prune(this._timers, t => !t.keep); this.hitstop = 0;   // (timers made before the first scene live into it)
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null;
-    if (s.view) this.setView(s.view);
-    if (s.views) this.views = s.views;
-    if (s.input) this.input.use(s.input);
-    if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
+    const ok = sceneField(name, s);
+    if (ok('view')) this.setView(s.view);
+    if (ok('views')) this.views = s.views;
+    if (ok('input')) this.input.use(s.input);
+    if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();
     if (s.enter) s.enter(data);
   }

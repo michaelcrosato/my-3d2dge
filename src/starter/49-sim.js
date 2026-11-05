@@ -284,7 +284,7 @@ const SIM = (() => {
     if (!auto) say('DAY ' + day.n + ': TOOK $' + Math.round(ledger.in) + ', SPENT $' + Math.round(ledger.out), ledger.in >= ledger.out ? '#a8ffb0' : '#ffb0a0');
     day.n++; ledger = { in: 0, out: 0 };
   }
-  const onScreen = (u, m = 40) => { const q = game.view.p(u.x, u.y, 0), x = q[0] - game.screen.ix, y = q[1] - game.screen.iy; return x > -m && y > -m && x < game.W + m && y < game.H + m * 1.5; };
+  const onScreen = (u, m = 40) => { const q = game.view.p(u.x, u.y, 0), x = q[0] - game.cam.x, y = q[1] - game.cam.y; return x > -m && y > -m && x < game.W + m && y < game.H + m * 1.5; };   // (by the camera, which steps: the screen's offset is the last frame drawn's, none headless)
   function panelButton(id) {
     const s = picked; if (!s || !s.K) return;
     if (id === 'up') s.price = Math.min(20, s.price + 1); else if (id === 'down') s.price = Math.max(0, s.price - 1); else if (id === 'demolish') demolish(s); else if (id === 'close') picked = null;
