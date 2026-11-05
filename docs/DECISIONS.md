@@ -1436,3 +1436,23 @@ An entry:
   A hit-stop is a moment's freeze: it ends with its scene, as before. The contract suite holds both.
 - **Answered:** no: a reversible call, made at once, flagged in the pull request
 - **Landed in:** v0.87.0
+
+## D80 · 2026-11-05 · The six kits' own budgets 1,500 tokens higher, for the matrix plan's engine
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context), under D69 (a kit that can't get there
+  without losing what it plays keeps a budget of its own by a logged decision)
+- **Call:** RPG 242,500, SHOOTER 225,500, ADVENTURE 211,500, SIM 211,500, RTS 209,500, BRAWLER 208,500 (each 1,500 over its
+  D69 budget). `docs/HANDOFF-MATRIX.md` gave every kit about 2,650 tokens back first (its Part 0, v0.86.1: the fonts as
+  digit rows), meant for what its other parts add. What they add to the core itself used that up: the host's chord, a
+  layout change that keeps the keys held and a preset's halves (Part 1), a headless game's draws, menus laid out in
+  update, the visit's store, timers and a boot's go, scene fields checked (Part 2), and then the floor that follows a
+  smooth zoom, CSS colours, flow fields round solid shapes and to several targets (Part 3): about 3,000 tokens in a
+  tile-map kit. What a game opts into went into sections of the diet instead (input.value, game.hook, the touch-free
+  notice: 10l; r.queueSpan: 9b), so a kit whose game never calls them doesn't carry them. These six were 35 to 600 tokens
+  from their budgets; the other fifteen are under 200,000 (the largest, METROIDVANIA, 198,117).
+- **Why:** the plan's rule ("make room before adding ... not new raises") was for the card's lines, which still fit the
+  card's own budget. The core's fixes are what a kit's builder hits (a kit is how most builders start: CSS colours
+  drawing magenta was 3.11's report; the zoom's floor 3.1's, four builders' one change), so leaving them out of the
+  kits would leave the bugs there. The rest of the plan's additions go in diet sections where they are opt-in.
+- **Answered:** no: a reversible call, made at once, flagged in the pull request
+- **Landed in:** v0.88.0
