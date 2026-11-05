@@ -1474,3 +1474,16 @@ An entry:
   The other fifteen kits stay under 200,000 (the largest, METROIDVANIA, 199,865: the next addition to the core must make room).
 - **Answered:** no: a reversible call, made at once, flagged in the pull request
 - **Landed in:** v0.89.0
+
+## D82 · 2026-11-05 · The API index's budget 64,000, on the owner's word
+
+- **Principle:** 1 (agent-readable: the manual and the index have measured budgets), under D17, D18, D22, D28, D50 and D57
+- **Call:** the API index's budget (`API-INDEX.md`) is 64,000 cl100k tokens, from 60,000. v0.89.0's doc comments (the
+  Humanoid's registries, an effect's handle and loops, instruments, the menus and the Shell for a TV: about 730 tokens)
+  took it to 59,934, and the modules suite, which adds a fixture module to a copy of the repository, found it 108 over.
+  While the comments were being cut to fit, the owner said: "don't worry about the api index size, 370 tokens is
+  nothing, we deal in the 100K and 1M in tokens sometimes billions in a day". The comments stay as written.
+- **Why:** the index is where a builder greps for a name, and its lines are the engine's own doc comments; cutting them
+  to keep a few hundred tokens of margin costs more than it saves. 64,000 leaves room for the next versions' names.
+- **Answered:** yes: the owner's word (2026-11-05)
+- **Landed in:** v0.89.0
