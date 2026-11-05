@@ -528,7 +528,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.fullscreen`: full screen: game.fullscreen.toggle(), .on, .supported
 - `game.gpu = null` †: the WebGPU lighting after enableGPU(), or null
 - `game.headless`: true for a game with no display (o.headless, or no DOM: Node)
-- `game.hitstop = 0`: seconds of hit-stop left (freeze)
+- `game.hitstop = 0`: seconds of hit-stop left (freeze: a scene's entry ends it)
 - `game.hz = 60`: the display's refresh rate, measured
 - `game.input`: keyboard, mouse, gamepad and touch, read as actions (pressed, down, move, ...)
 - `game.lights` †: canvas lighting (lights.enabled, lights.add in draw)
@@ -555,7 +555,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.stats.actors`: actors drawn
 - `game.stats.culled`: actors skipped off screen
 - `game.time = 0`: game seconds since start (it stops during pause and hit-stop, and slows with timeScale)
-- `game.timeScale = 1`: game speed, 1 normal, .25 slow motion, 0 stopped
+- `game.timeScale = 1`: game speed, 1 normal, .25 slow motion, 0 stopped (it outlives a scene change: a game's speed setting; restore a slow motion with a kept timer)
 - `game.view`: the view the game draws in now (the chosen one, with zoom and turn: read it, change it with setView)
 - `game.views`: views this game is designed for (view cycling and the checker use it). null = every view
 - `game.yaw = 0` †: its turn in degrees on top of the view (rotateView)

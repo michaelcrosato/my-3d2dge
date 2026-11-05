@@ -77,13 +77,6 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
 - **1.9 Move-stick inversion** (the brief asks every game for invert X and Y toggles for a known pad fault): standard
   Controller settings `invertMoveX`, `invertMoveY` (off), beside `invertY` (aim).
 
-## Part 2: headless tests
-
-- **2.6 Slow motion past a scene change** (partly: the engine resets `hitstop` when a scene enters, not `timeScale`; a
-  game that set `timeScale` and restored it with a timer the scene change cleared stayed slow). With `{ keep: true }`
-  in v0.86.0 such a timer can live; decide whether a scene's entry resets `timeScale` to 1 as it does `hitstop`
-  (Emberdeep's speed tool sets it: check it first).
-
 ## Part 3: 2D rendering and cameras
 
 - **3.1 The floor bake follows the zoom** (four Opus builders made it their one change; three more got stuck on it;
@@ -183,5 +176,5 @@ BigBuckHuntOff read as "E.View rounding puts rigs 7 px off": the engine's `E.Vie
 
 ## Order and size
 
-Part 0 (the room) landed in v0.86.1. 1.1 to 1.4 and 1.10 in v0.87.0. 2.1 to 2.5 and 2.7 in v0.88.0. Then 2.6, 3.5, 3.6, 7.1 to 7.4 and Part 8 (small to medium each);
+Part 0 (the room) landed in v0.86.1. 1.1 to 1.4 and 1.10 in v0.87.0. Part 2 in v0.88.0 (2.6 a call: D79). Then 3.5, 3.6, 7.1 to 7.4 and Part 8 (small to medium each);
 then 1.5 to 1.9, 3.1 to 3.3, 3.7 to 3.11, Parts 4 to 6 (medium); the prototypes 3.4 and 7.5 last, for the owner.

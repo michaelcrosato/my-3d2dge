@@ -1422,3 +1422,17 @@ An entry:
   `paused` true and the world stepping is the smallest change that keeps every standard screen as it is.
 - **Answered:** no: a reversible call, made at once, flagged in the pull request
 - **Landed in:** v0.87.0
+
+## D79 · 2026-11-05 · `game.timeScale` outlives a scene change (`hitstop` doesn't)
+
+- **Principle:** 6 (the game's clocks are the game's: time from `dt` and its clocks only)
+- **Call:** a scene's entry ends a hit-stop (as before) but leaves `game.timeScale` as it is. The cc-matrix run's
+  report (`docs/HANDOFF-MATRIX.md` 2.6): a game set `timeScale` for a slow motion and restored it with a timer that
+  the scene change cleared, so it stayed slow. Since v0.86.0 such a timer can be kept (`{ keep: true }`), and the
+  card, the index and the handoff README say to.
+- **Why:** `timeScale` is also a game's speed, not a moment's effect: Emberdeep's speed tool and a balance run set it
+  (`TUNE.gameSpeed`, 4x runs; its level's exit puts its base speed back), the SIM kit's 1x, 2x and 4x, the kits'
+  proofs. A reset on entry would undo them at every scene, while a slow motion's restore is one kept timer.
+  A hit-stop is a moment's freeze: it ends with its scene, as before. The contract suite holds both.
+- **Answered:** no: a reversible call, made at once, flagged in the pull request
+- **Landed in:** v0.88.0

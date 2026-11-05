@@ -2319,7 +2319,7 @@ class Game {
     this.views = this.o.views || null;
     /** time: game seconds since start (it stops during pause and hit-stop, and slows with timeScale); real: seconds
      *  the game has stepped through, pauses and hit-stop included (blinking HUD, notes); hitstop: seconds of
-     *  hit-stop left (freeze); timeScale: game speed, 1 normal, .25 slow motion, 0 stopped; reduceMotion: the player
+     *  hit-stop left (freeze: a scene's entry ends it); timeScale: game speed, 1 normal, .25 slow motion, 0 stopped (it outlives a scene change: a game's speed setting; restore a slow motion with a kept timer); reduceMotion: the player
      *  asked for less motion (prefers-reduced-motion): shake and flashes are softened */
     this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this._shakeAmt = 0; this.reduceMotion = !this.headless && !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
     /** camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen

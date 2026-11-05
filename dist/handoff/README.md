@@ -88,7 +88,7 @@ lands in `game.errors`, as it would on a player's screen.
 - `game.go('play')` fades for `game.fadeTime` (.22 s) before the new scene enters: advance past it, or set
   `game.fadeTime = 0` in a test.
 - A scene change clears `game.after` and `game.every` timers (`{ keep: true }` outlives it); those made before the first
-  scene live into it. A boot step's `game.go(name)` enters that scene when the boot ends.
+  scene live into it. It ends a hit-stop; `game.timeScale` stays (restore a slow motion with a kept timer). A boot step's `game.go(name)` enters that scene when the boot ends.
 - Draw changes nothing, and nothing your update or input relies on (a click target, what is on screen) may be made only
   in `draw`: `E.Menu`'s rows come from its update (`menu.rowAt(i)` is entry i's box, for a test's click), and the camera
   (`game.cam`) says where the screen is in update.
