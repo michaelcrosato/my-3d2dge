@@ -219,10 +219,11 @@ const FPS_PAGE = QUICK.split('<script type="module">')[0] + `<script type="modul
 const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: [320, 240], bg: null, menu: false });
 const LEVEL = { rows: ['############', '#..........#', '#..........#', '#..........#', '#..........#', '############'], legend: {}, colors: { base: '#8a8478' } };
 let world;
-game.start({ scenes: { s: { update(dt) { world.step(dt); }, draw(r) { world.draw(r); } } }, scene: 's', boot: { steps: [['3D', () => E.World3D.init(game)], ['level', () => {
+const EYE = { x: 24, y: 48, z: 16, yaw: 0, pitch: -.12, fov: 70 };
+game.start({ scenes: { s: { update(dt) { world.camera.fixed = EYE; world.step(dt); }, draw(r) { world.draw(r); } } }, scene: 's', boot: { steps: [['3D', () => E.World3D.init(game)], ['level', () => {
   world = new E.World3D(game, { level: LEVEL, fog: false, sky: '#5a7ab0', overlay: { fov: 60 }, camera: { mode: 'fixed' },
     onDraw: w => { w.overlay.pen.box(14, 5, -4, 8, 3, 3, '#ff30ff'); } });
-  world.camera.fixed = { x: 24, y: 48, z: 14, yaw: 0, pitch: -.1 }; world.filter = { look: 'cel' }; world.prepare(); }]] } });
+  world.camera.set('fixed'); world.camera.fixed = EYE; world.filter.look = 'cel'; world.prepare(); }]] } });
 window.__fps = { game, get world() { return world; } };
 </script></body></html>`;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json' };
@@ -532,7 +533,7 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
       const rows = await page.evaluate(() => __veh.stacked()); await page.waitForTimeout(1200);
       const png2 = want === 'webgl' ? await page.screenshot() : Buffer.from((await page.evaluate(() => __readFrame(1))).split(',')[1], 'base64');
       writeFileSync(join(OUT, 'split-rows-' + want + '.png'), png2); pictures++;
-      const S2 = decodePNG(png2), magenta = (y0, y1) => { let m = 0; for (let y = y0; y < y1; y += 2) for (let x = 0; x < S2.w; x += 2) { const j = (y * S2.w + x) * 4, r = S2.rgba[j], g = S2.rgba[j + 1], b = S2.rgba[j + 2]; if (r > 110 && b > 110 && g < r * .6 && g < b * .6) m++; } return m; };
+      const S2 = decodePNG(png2), magenta = (y0, y1) => { let m = 0; for (let y = y0; y < y1; y += 2) for (let x = 0; x < S2.w; x += 2) { const j = (y * S2.w + x) * 4, r = S2.rgba[j], g = S2.rgba[j + 1], b = S2.rgba[j + 2]; if (r > 45 && b > 60 && g < Math.min(r, b) * .4) m++; } return m; };
       const top = magenta(0, S2.h >> 1), bottom = magenta(S2.h >> 1, S2.h);
       if (!(bottom > 40 && bottom > top * 3)) fail(`${label}: a stacked split screen (viewports ${JSON.stringify(rows.viewports)}): viewport 1, behind the magenta car, belongs below: ${top} magenta pixels on top, ${bottom} below`);
       await page.evaluate(() => { __veh.game.splitScreen(0); });
@@ -560,7 +561,7 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
       const A = decodePNG(png); let lit = 0, n = 0, gun = 0;
       for (let y = 0; y < A.h; y += 3) for (let x = 0; x < A.w; x += 3) {
         const j = (y * A.w + x) * 4, r = A.rgba[j], g = A.rgba[j + 1], b = A.rgba[j + 2]; n++;
-        if (r + g + b > 90) lit++; if (r > 110 && b > 110 && g < r * .6 && g < b * .6) gun++;
+        if (r + g + b > 90) lit++; if (r > 45 && b > 60 && g < Math.min(r, b) * .4) gun++;
       }
       if (lit < n / 3 || gun < 20) fail(`${label}: ${lit} of ${n} pixels lit (a third: the hall, filtered), ${gun} of the overlay's magenta gun (check-output/kit3d/fps-cel-${want}.png)`);
     } catch (e) { fail(`${label}: ` + e.message.split('\n')[0]); }
