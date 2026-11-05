@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.85.3 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.86.1 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and 21 working games and an animation lab.
@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.85.3)
+# my-3D2dge API card (v0.86.1)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -139,7 +139,7 @@ game.start({ scene: 'title', scenes: {
           enter(data) { /* build the level */ }, exit() {}, update(dt) {}, draw(r) {} }
 } });
 ```
-`game.go(name, data)` switches before the next step, through a short dithered fade (`game.fadeTime`; `{ fade: 0 }` cuts; `{ fade: 'wipe' | 'iris' | 'mosaic' | 'swirl' | 'dissolve' | 'white', seconds: .4, at: hero }` a transition, a plain fade under reduce motion); timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `propSize` are applied on entry. A scene's `back()` takes a phone's back gesture first (return true when it went back somewhere: a sub-menu closed).
+`game.go(name, data)` switches after a short dithered fade (`game.fadeTime`: a test advances past it; `{ fade: 0 }` cuts; `{ fade: 'wipe' | 'iris' | 'mosaic' | 'swirl' | 'dissolve' | 'white', seconds: .4, at: hero }` a transition, a plain fade under reduce motion); timers (but `after(s, fn, { keep: true })`) and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `propSize` are applied on entry. A scene's `back()` takes a phone's back gesture first (return true when it went back somewhere: a sub-menu closed).
 
 ## Motion and timing: tweens, scripts, paths, weather
 - Tweens (Phaser's): `game.tween(door, { y: 40 }, .5, { ease: 'outBack', delay, repeat, yoyo, onDone, keep })` eases numbers on game time: paused with the game, slowed by `timeScale`, ended by a scene change unless `keep`. Returns `{ done, cancel() }`. `E.ease` has Penner's set: `linear`, `inSine` `outSine` `inOutSine`, `inQuad` `outQuad` `inOutQuad`, the same for `Cubic`, `Back`, `Elastic`, `Bounce`.
@@ -161,7 +161,7 @@ game.script(function* () {
 With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling, a screen filter: clean, scanlines or CRT, the frame rate: Auto, 60 or Full, and its readout), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap and each game started by a tap, a top-right button, the menu; turning it off is remembered), a **menu button** at the top right (on a touch screen it stays in play: it is the touch START), a **way out** of every menu screen (close, back, a sideways swipe), the **back gesture** stepping back in the game (`game.back()`: a menu screen closes, play pauses) before it leaves the page, **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling, zooming or pull to refresh on the canvas).
 - Adjust: `new E.Game({ menu: { items: [['Restart', fn]], settings: [{ key: 'hints', label: 'Hints', value: true }, { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }], controls: { attack: 'Sword', skill: false }, quit: 'title' } })`, then read `game.settings.hints`. Leave parts out: `menu: false` (your own pause), `fullscreen: 'button' | false`, `corner: false`, `backGesture: false`, `autoPause: false`. `game.cornerArea()`: where the corner's buttons cover the screen (or null): keep a HUD clear of it.
 - Save slots (`game.saves`): three slots and an autosave, each with its place, level and time played. `game.saves.write = () => ({ data, place, level })` and `read = save => {...}`; then `save(slot)` (0, 1, 2 or `'auto'`), `load(slot)`, `copy(a, b)`, `erase(slot)`, `autosave()`, `list()`, `latest()` (a title's Continue). `menu: { saves: true }` (or `{ slots, version, migrate(data, from) }`) puts Save (while `saves.canSave`: a save point) and Load in the pause menu, and `saves.show('save' | 'load')` opens the screen from your own menu. Blocked storage keeps them for the visit.
-- Prompts: `game.input.label('jump')` is that action's key or button on the player's device, after rebinding ('Space', 'A', '✕'). A canvas title's OPTIONS: `game.menu('settings')`. From code: `game.settings.set(key, v)`, `game.fullscreen.toggle()` (from a key, click or tap), `game.pause(reason)`, `game.resume()`.
+- Prompts: `game.input.label('jump')` is that action's key or button on the player's device, after rebinding ('Space', 'A', '✕'). PlayStation symbols by default: `settings: [{ key: 'glyphs', value: 'playstation' }]` (a standard key without a label sets its default). A canvas title's OPTIONS: `game.menu('settings')`. From code: `game.settings.set(key, v)`, `game.fullscreen.toggle()` (from a key, click or tap), `game.pause(reason)`, `game.resume()`.
 - **Boot**: heavy setup in steps behind a boot screen, and a report for any error before play: `game.start({ scenes, scene, boot: { title, steps: [['Building the city', () => { map = build(); }]] } })` (`AI_GUIDE.md`, Boot).
 
 ## Input: `game.input`
@@ -172,7 +172,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - Players (two to four on one machine): `game.players` is `[game.input, ...]`, each an input with this API, its `player` number, `name` (`'P2'`), `color` (`E.PLAYER_COLORS`) and device. `game.allowJoin({ max: 2, onJoin: (input, n) => {} })` lets them in: Start on a free gamepad, or 2 on the keyboard (player 2 takes its right half: arrows, `.` `/` `,` and the numpad; player 1 keeps WASD with F G H); `game.addPlayer({ pad: 0 })` or `({ keys: 'right' })`, `game.removePlayer(p)`. Prompts, the pause (P2 PAUSED), a lost controller and the Controls screen are per player. One screen: `cam.frame(heroes)`. Split: `game.splitScreen(2, { follow: [h1, h2], layout: 'auto' })` (`'columns'`, `'rows'`, `'grid'`; up to 4) draws the scene once per viewport (`r.viewport` is `{ i, x, y, w, h }`), then `scene.hud(r)` once over the whole screen; `game.viewports[i].follow(t)` or `.focus(x, y)`.
 - `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
 - Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`, `lastDevice` (the index has the rest). The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same.
-- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one; `steer = 'drag'`: a finger anywhere steers, no stick drawn (`stickOn`: a finger is on it). `zones = [{ x0, y0, x1, y1, act }]` (fractions of the canvas): a finger in one holds its act until it lifts, no stick (a pinball's halves, a rhythm game's lanes). Gestures (a mouse or one finger, screen pixels): `box()` → `{ x0, y0, x1, y1, done }` (a left drag; on touch a long press, then a drag), `longPress()`, `doubleTap()`, `pan()` → `[dx, dy]` (a finger's drag on open ground, a middle or right drag), `zoomPoint()`; `feed('down' | 'move' | 'up', x, y, { touch, button, id })` plays a pointer in a test. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one; `steer = 'drag'`: a finger anywhere steers, no stick drawn (`stickOn`: a finger is on it). `zones = [{ x0, y0, x1, y1, act }]` (fractions of the canvas): a finger in one holds its act until it lifts, no stick (a pinball's halves, a rhythm game's lanes). Gestures (a mouse or one finger, screen pixels): `box()` → `{ x0, y0, x1, y1, done }` (a left drag; on touch a long press, then a drag), `longPress()`, `doubleTap()`, `pan()` → `[dx, dy]` (a finger's drag on open ground, a middle or right drag), `zoomPoint()`; `feed('down' | 'move' | 'up', x, y, { touch, button, id })` plays a pointer in a test. `bindButtons(root)` wires `[data-act]` elements.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
@@ -188,14 +188,14 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - Sprites from strings (for coins, bullets, ships, icons, NES-style enemies): `const COIN = E.sprite(['.yy.', 'yYYy', '.yy.'], { y: '#f0b020', Y: '#fff0a0' }, scale)`. `.` and space are transparent. Frames: `const walk = E.anim([f1, f2, f3], 8, { pingpong })` (or one sheet: `E.anim(sheet, 8, { frames: 4 })`), drawn with `r.sprite(x, y, z, walk, { t })`. `r.sprite(..., { rot: angle, scale })` turns and scales in whole pixels (cached in 16 steps a turn; `steps: 32`); `E.recolor(spr, { '#3a8a4a': '#8a3a4a' })` swaps a palette.
 - Font (5x7 proportional with lower case; `font: 'tiny'` for 3x5): `E.font.text(g, str, x, y, color, { outline, shadow, gradient, scale, align, wrap, font })`, `E.font.title(g, str, x, y, { scale, colors, outline, depth, depthColor, align })`, `E.font.width(str, opts)`, `E.font.lineHeight(opts)`, `E.font.wrap(str, maxW, opts)`. Glyphs: ASCII plus `♥ ★ ← → ↑ ↓ • × ♪ ▸ ©`.
 - UI (inside `r.overlay(g => ...)`): `E.ui.box(g, x, y, w, h, { bg, border, gradient, alpha })` (a gradient window like Final Fantasy; `bg` can be `[top, bottom]`, `gradient: false` for flat, `alpha: .6` for a see-through HUD panel), `E.ui.bar(g, x, y, w, h, 0..1, color)`, `E.ui.hearts(g, x, y, hp, max)` (half hearts allowed), `rig.drawPortrait(g, x, y, size, { zoom: 3, turn: .6, bg, frame, cape: false, weapon: false, tint: '#808080' })` (character close-up; it stays upright while the rig kneels or lies down; `tint` greys out a KO'd hero).
-- Dialog: `const talk = new E.Dialog(game)`; `talk.say(['Line one.', 'Page two.'], { name: 'ELDER', portrait: elderRig, onDone, choices: ['YES', 'NO'], onChoice(i) })` (choices show on the last page: the keys, or a tap or click on one, pick); in update `if (talk.update(dt)) return;` (true while a modal box is open: play waits); in draw `talk.draw(r)`. `portrait` takes a Humanoid (live close-up; `portraitSize: 40`, `portraitOpts: { zoom, turn }`) or a function `(g, x, y, size) => {...}`. Radio chatter during play: `talk.say('Enemy fighters ahead!', { name, portrait, auto: 2.5, modal: false })` turns its pages and closes by itself while the game keeps running. Per line: `place: 'top' | 'middle' | 'bottom'`, `y` (pixels) and `alpha` (see-through box). A portrait's mouth moves while its text types. `new E.Dialog(game, { speed, lines, color, nameColor, voice, bg, border, vars })`; `talk.close()`, `talk.open`. Markup in the text: `{c=#ffd36a}gold{/c}` a color, `{w=.5}` a pause, `{s=12}slowly{/s}` letters a second, `{shake}..{/shake}`, `{wave}..{/wave}`, `{$name}` a value from `say(text, { vars })` or `talk.vars`; text without markup is as it was.
+- Dialog: `const talk = new E.Dialog(game)`; `talk.say(['Line one.', 'Page two.'], { name: 'ELDER', portrait: elderRig, onDone, choices: ['YES', 'NO'], onChoice(i) })` (choices show on the last page: the keys, or a tap or click on one, pick); in update `if (talk.update(dt)) return;` (true while a modal box is open: play waits); in draw `talk.draw(r)`. `portrait` takes a Humanoid (live close-up; `portraitSize: 40`, `portraitOpts: { zoom, turn }`) or a function `(g, x, y, size) => {...}`. Radio chatter during play: `talk.say('Enemy fighters ahead!', { name, portrait, auto: 2.5, modal: false })` turns its pages and closes by itself while the game keeps running. Per line: `place: 'top' | 'middle' | 'bottom'`, `y` (pixels) and `alpha` (see-through box). `new E.Dialog(game, { speed, lines, color, nameColor, voice, width, bg, border, vars })` (`voice`: a sound, or `(ch, i, talk) => {}` per letter); `talk.close()`, `talk.open`. Markup in the text: `{c=#ffd36a}gold{/c}` a color, `{w=.5}` a pause, `{s=12}slowly{/s}` letters a second, `{shake}..{/shake}`, `{wave}..{/wave}`, `{$name}` a value from `say(text, { vars })` or `talk.vars`.
 - Menu: `const menu = new E.Menu(game, ['START', { label: 'LOAD', disabled: true }], { x: 'center', y: 100, title, onPick(i, item), onCancel })`; `menu.update(dt)`; `menu.draw(r)`. Keys, d-pad and sticks move it; a click or tap on an entry picks it (so a phone can leave a title), and the mouse over one moves the cursor. A tap on a dialog box turns its page as confirm does.
 - HTML screens and HUD: `const ui = new E.Shell(game, { theme, settings, screens: { pause, help } })`; `ui.show('title' | 'results' | 'map' | ..., spec)`; each step `ui.hud({ objective, status, bars, prompt, minimap })` (`minimap: { map, fog, camera: true, markers, onClick(x, y) }`); `ui.toast(title, text)`.
 
 ## Sound: `game.audio` (chip synth, no files, starts after the first key press)
 - `sfx(name, { vol, pitch })`. Presets: `jump jump2 land step coin pickup key powerup oneup heal hit hurt stomp bump swing whoosh punch kick shoot laser charge explode boom door secret warp die select confirm cancel pause text blip`.
 - Custom: `sfx({ wave: 'square' | 'pulse' | 'pulse12' | 'triangle' | 'saw' | 'sine' | 'noise', freq: 440 or 'A4', to: 880, dur: .2, vol: .3, arp: [0, 4, 7], step: .05, vib: [8, .03] })`, or `audio.define('zap', voice)`.
-- Music: `music('title' | 'adventure' | 'dungeon' | 'boss' | 'victory')` (built in; any other name warns and plays nothing), or your own `{ bpm: 120, steps: 4, tracks: [{ wave: 'square', vol: .15, notes: 'C5 - E5 - G5 . . . | ...' }, { wave: 'triangle', notes: '...' }, { wave: 'drums', notes: 'k . h . s . h .' }] }`. Tokens: a note (`C4`, `F#3`, `Bb2`), `-` holds, `.` rests, `|` is ignored; drums `k s h o c t`. `music(null)` stops. `mute()`, `setVolume(0..1)` (or set `audio.musicVolume`, `sfxVolume`, then `audio.applyVolume()`), `duck(on)` (quieter music under your own pause or map screen).
+- Music: `music('title' | 'adventure' | 'dungeon' | 'boss' | 'victory')` (built in; any other name warns and plays nothing), or your own `{ bpm: 120, steps: 4, tracks: [{ wave: 'square', vol: .15, notes: 'C5 - E5 - G5 . . . | ...' }, { wave: 'triangle', notes: '...' }, { wave: 'drums', notes: 'k . h . s . h .' }] }`. Tokens: a note (`C4`, `F#3`, `Bb2`), `-` holds, `.` rests, `|` is ignored; drums `k s h o c t`. `music(null)` stops. `mute()`, `setVolume(0..1)` (or set `audio.musicVolume`, `sfxVolume`, then `audio.applyVolume()`), `duck(on)` (quieter music under your own pause or map screen). Your own Web Audio connects to `audio.bus('sfx' | 'music' | 'voice')`, under the volume and mute.
 - The music clock (the full engine): a song's place is game time, headless too, and the sound follows it. `music(song, { sync: true })` pauses with the game (else it plays on); `audio.pos` → `{ t, step, beat, bar, at, loop, bpm, layers, playing }`; `at(step, fn)`, `onBeat(fn)` (on the update step); `tempo(bpm)`; `layer(name or index, vol, fade)` (a track's `name`, `on: false` starts it silent: the chase's drums in by layers); `music(song, { fade: 1 })` crossfades; `sting(song, { at: 'bar' })` over the music; `sfx(voice, { step })` on a step of the music. `settings.audioOffset` (ms, Settings, Sound: Calibrate) sets `audio.offset`; `audio.calibrate()` → `{ tap(), result, done, stop() }`.
 
 ## Levels
@@ -291,7 +291,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 **Feel numbers** (world units per second, tile = 16): walk 70-90, run 95-140, jump 250-320 with gravity 800, fall cap 330, dash 200-260, bullets 250-320 (player) and 70-120 (enemy), enemy walk 25-45. Hit feedback: `game.hitFx` (Effects).
 
 ## More: animation and examples outside this card
-The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubusercontent.com/michaelcrosato/my-3d2dge/main/<path>`) holds more to take from. Its files are large: search them and take only what the game needs.
+The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubusercontent.com/michaelcrosato/my-3d2dge/main/<path>`) holds more to take from. Its files are large: search them and take only what the game needs. Real 3D (`E.World3D`: first person, racing, flight) is there: `engine/my-3d2dge-3d.js`.
 - **Motion clips**: 325 curated and 2,548 motion-capture takes that play on any Humanoid: find one in `src/mocap/catalogs/`, cut a small set with `tools/anim-set.mjs`, then `Mocap.drive(rig, lib)` (`AI_GUIDE.md`, Where to find more; `docs/MOCAP.md`).
 - **Objects and materials** (full engine): `r.shape('barrel', x, y, 0, { facing })` draws a still object from any view and facing, `map.solid(...)` makes it solid; `E.MATERIALS` dresses floors (`floorMat`), walls (`face`, `roof`) and platform tiles (`mat`). `docs/ASSETS.md` is the card: the format, the library, writing one and checking it with `node tools/asset-sheet.mjs`.
 - **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 29 monster, boss and dummy bodies, 3 heroes (one a living book, one a scythed beast) and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
@@ -341,7 +341,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.85.3</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.86.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -369,7 +369,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.85.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.86.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -450,7 +450,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.85.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.86.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1144,7 +1144,7 @@ class Input {
      *  thumb moves before the stick counts (0..0.5); steer: 'stick' (a stick drawn under the thumb) or 'drag' (a finger
      *  anywhere on the screen but the buttons steers by drag(), with no stick drawn: a shooter's ship that follows the
      *  thumb); padAxes: the gamepad's raw axes */
-    this.touchEnabled = true; this.stickSide = 'left'; this.steer = 'stick'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
+    this.touchEnabled = true; this.stickSide = 'left'; this.steer = 'stick'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set(); this._holds = new Set();
     /** zones: areas of the screen a finger holds an action down in, [{ x0, y0, x1, y1, act }] (fractions of the canvas,
      *  0..1; the first that holds the finger wins), or null: a pinball's two halves, a rhythm game's lanes. A finger
      *  landing in one presses act until it lifts (several fingers, several zones), and starts no stick */
@@ -1192,7 +1192,7 @@ class Input {
     on(window, 'blur', () => all(q => q.clear()));
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
-    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
+    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { if (this.lastDevice !== 'mouse' && this.lastDevice !== 'keyboard' && Math.hypot(e.clientX - this.mouse.cx, e.clientY - this.mouse.cy) > 3) this.lastDevice = 'mouse'; this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
     on(el, 'pointerdown', e => {
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
       if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
@@ -1377,10 +1377,14 @@ class Input {
   }
   /** press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down()
    *  are true in the next step, released() in the one after */
-  tap(a) { if (!this.map[a]) { this._check(a); return; } this._tapCode('Act:' + a); }
+  tap(a) { if (!this.map[a]) { this._check(a); return; } const d = this.lastDevice; this._tapCode('Act:' + a); this.lastDevice = d; }   // (a script's tap is no device: prompts keep the player's)
   _tapCode(c) { this.press(c); this._taps.add(c); }
   /** hold an action down (on) or let it go (false), as its key would */
-  hold(a, on = true) { if (!this.map[a]) { this._check(a); return; } if (on) this.press('Act:' + a); else this.release('Act:' + a); }
+  hold(a, on = true) {
+    if (!this.map[a]) { this._check(a); return; }
+    const c = 'Act:' + a, d = this.lastDevice; if (on) { this._holds.add(c); this.press(c); } else { this._holds.delete(c); this.release(c); }
+    this.lastDevice = d;   // (no device either; and a tap of a held action leaves it held)
+  }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
   /** is the action held right now? */
   down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } if (this._suppressed.has(a)) return false; for (const c of m) if (this.held.has(c)) return true; return false; }
@@ -1414,7 +1418,7 @@ class Input {
   _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._down = null; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
-    this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
+    this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
     this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._zoneOf.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
@@ -1472,7 +1476,7 @@ class Input {
     if (z) { this._zoneDown('fed' + (o.id || 0), z); return; }   // (a finger in a zone: its act, no gesture)
     if (o.touch && type === 'up' && this._zoneOf.has('fed' + (o.id || 0))) { this._zoneUp('fed' + (o.id || 0)); return; }
     if (type === 'down') { this._fed = [x, y]; if (!o.touch) this.press('Mouse' + (o.button || 0)); this._gesture('down', x, y, { touch: !!o.touch, button: o.button || 0, id: 'fed' }); }
-    else if (type === 'move') this._gesture('move', x, y);
+    else if (type === 'move') { if (!o.touch) { this.mouse.t = this.clock; this.mouse.active = true; } this._gesture('move', x, y); }   // (menus hover by mouse.t, as a real move)
     else if (type === 'up') {
       if (this._fed && Math.hypot(x - this._fed[0], y - this._fed[1]) < 4 && !(o.button > 0)) this._click = [x, y];
       if (!o.touch) this.release('Mouse' + (o.button || 0)); this._fed = null; this._gesture('up', x, y);
@@ -1516,8 +1520,7 @@ class Input {
     this.padLost = false;
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
       if (!p && this.padIndex !== null) { this.padLost = this.lastDevice === 'gamepad'; this.stopRumble(); }   // unplugged while in use
-      this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); });
-      for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c);
+      if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
       this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
       this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
       if (this.aimSource === 'pad') this.aimSource = 'move';
@@ -1534,7 +1537,7 @@ class Input {
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
     // a tap is held for the one step after it (its release comes the step after that)
-    for (const c of this._tapsDue) this.release(c);
+    for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed()/released()
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
@@ -1673,60 +1676,31 @@ Input.SHMUP = {
 E.Input = Input;
 
 /* =============================================================================
- * 6. PIXEL FONT  3x5 glyphs for in-world numbers and labels
+ * 6. PIXEL FONTS  the 5x7 text font (the default) and the 3x5 one for in-world numbers and labels
  * ============================================================================= */
-const GLYPHS = {
-  '0': '111101101101111', '1': '010110010010111', '2': '111001111100111', '3': '111001111001111', '4': '101101111001001',
-  '5': '111100111001111', '6': '111100111101111', '7': '111001010010010', '8': '111101111101111', '9': '111101111001111',
-  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100',
-  G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101010', K: '101101110101101', L: '100100100100111',
-  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', Q: '010101101110011', R: '110101110101101',
-  S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101',
-  Y: '101101010010010', Z: '111001010100111', '+': '000010111010000', '-': '000000111000000', '!': '010010010000010',
-  '.': '000000000000010', ':': '000010000010000', '/': '001001010100100', ' ': '000000000000000', 'x': '000101010101000',
-  '?': '111001010000010', ',': '000000000010100', "'": '010010000000000', '"': '101101000000000', '(': '001010010010001',
-  ')': '100010010010100', '%': '101001010100101', '*': '000101010101000', '=': '000111000111000', '<': '001010100010001',
-  '>': '100010001010100', '#': '101111101111101', '&': '010101010101011', '_': '000000000000111', ';': '000010000010100',
-  '[': '110100100100110', ']': '011001001001011', '$': '011110111011110', '^': '010101000000000', '@': '111101111100011',
-  '~': '000011110000000', '♥': '101111111010000', '♡': '101101101010000', '★': '010111010101000', '•': '000010111010000',
-  '←': '000010111010000', '→': '000010111010000', '↑': '010111010010010', '↓': '010010010111010', '©': '111101101101111'
-};
-GLYPHS['←'] = '000100111100000'; GLYPHS['→'] = '000001111001000';
-/* 5x7 proportional font with lower case and descenders: the default ('normal'). Rows are 7 above the baseline and up to 2 below */
-const G57 = {
-  "A": '.###.|#...#|#...#|#####|#...#|#...#|#...#', "B": '####.|#...#|#...#|####.|#...#|#...#|####.', "C": '.###.|#...#|#....|#....|#....|#...#|.###.', "D": '####.|#...#|#...#|#...#|#...#|#...#|####.', "E": '#####|#....|#....|####.|#....|#....|#####', "F": '#####|#....|#....|####.|#....|#....|#....',
-  "G": '.###.|#...#|#....|#.###|#...#|#...#|.####', "H": '#...#|#...#|#...#|#####|#...#|#...#|#...#', "I": '###|.#.|.#.|.#.|.#.|.#.|###', "J": '..###|...#.|...#.|...#.|...#.|#..#.|.##..', "K": '#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#', "L": '#....|#....|#....|#....|#....|#....|#####',
-  "M": '#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#', "N": '#...#|#...#|##..#|#.#.#|#..##|#...#|#...#', "O": '.###.|#...#|#...#|#...#|#...#|#...#|.###.', "P": '####.|#...#|#...#|####.|#....|#....|#....', "Q": '.###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#', "R": '####.|#...#|#...#|####.|#.#..|#..#.|#...#',
-  "S": '.####|#....|#....|.###.|....#|....#|####.', "T": '#####|..#..|..#..|..#..|..#..|..#..|..#..', "U": '#...#|#...#|#...#|#...#|#...#|#...#|.###.', "V": '#...#|#...#|#...#|#...#|#...#|.#.#.|..#..', "W": '#...#|#...#|#...#|#.#.#|#.#.#|#.#.#|.#.#.', "X": '#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#',
-  "Y": '#...#|#...#|.#.#.|..#..|..#..|..#..|..#..', "Z": '#####|....#|...#.|..#..|.#...|#....|#####', "a": '.....|.....|.###.|....#|.####|#...#|.####', "b": '#....|#....|####.|#...#|#...#|#...#|####.', "c": '.....|.....|.###.|#....|#....|#....|.###.', "d": '....#|....#|.####|#...#|#...#|#...#|.####',
-  "e": '.....|.....|.###.|#...#|#####|#....|.###.', "f": '..##|.#..|####|.#..|.#..|.#..|.#..', "g": '.....|.....|.####|#...#|#...#|#...#|.####|....#|.###.', "h": '#....|#....|####.|#...#|#...#|#...#|#...#', "i": '#|.|#|#|#|#|#', "j": '..#|...|..#|..#|..#|..#|..#|#.#|.#.',
-  "k": '#...|#...|#..#|#.#.|##..|#.#.|#..#', "l": '#.|#.|#.|#.|#.|#.|.#', "m": '.....|.....|##.#.|#.#.#|#.#.#|#.#.#|#.#.#', "n": '.....|.....|####.|#...#|#...#|#...#|#...#', "o": '.....|.....|.###.|#...#|#...#|#...#|.###.', "p": '.....|.....|####.|#...#|#...#|#...#|####.|#....|#....',
-  "q": '.....|.....|.####|#...#|#...#|#...#|.####|....#|....#', "r": '....|....|#.##|##..|#...|#...|#...', "s": '.....|.....|.####|#....|.###.|....#|####.', "t": '.#..|.#..|####|.#..|.#..|.#..|..##', "u": '.....|.....|#...#|#...#|#...#|#...#|.####', "v": '.....|.....|#...#|#...#|#...#|.#.#.|..#..',
-  "w": '.....|.....|#...#|#...#|#.#.#|#.#.#|.#.#.', "x": '.....|.....|#...#|.#.#.|..#..|.#.#.|#...#', "y": '.....|.....|#...#|#...#|#...#|#...#|.####|....#|.###.', "z": '.....|.....|#####|...#.|..#..|.#...|#####', "0": '.###.|#...#|#..##|#.#.#|##..#|#...#|.###.', "1": '..#..|.##..|..#..|..#..|..#..|..#..|.###.',
-  "2": '.###.|#...#|....#|...#.|..#..|.#...|#####', "3": '####.|....#|....#|.###.|....#|....#|####.', "4": '...#.|..##.|.#.#.|#..#.|#####|...#.|...#.', "5": '#####|#....|####.|....#|....#|#...#|.###.', "6": '.###.|#....|#....|####.|#...#|#...#|.###.', "7": '#####|....#|...#.|..#..|.#...|.#...|.#...',
-  "8": '.###.|#...#|#...#|.###.|#...#|#...#|.###.', "9": '.###.|#...#|#...#|.####|....#|....#|.###.', "!": '#|#|#|#|#|.|#', "\"": '#.#|#.#|...|...|...|...|...', "#": '.#.#.|.#.#.|#####|.#.#.|#####|.#.#.|.#.#.', "$": '..#..|.####|#.#..|.###.|..#.#|####.|..#..',
-  "%": '##..#|##..#|...#.|..#..|.#...|#..##|#..##', "&": '.##..|#..#.|#.#..|.#...|#.#.#|#..#.|.##.#', "'": '#|#|.|.|.|.|.', "(": '..#|.#.|#..|#..|#..|.#.|..#', ")": '#..|.#.|..#|..#|..#|.#.|#..', "*": '.....|#.#.#|.###.|#####|.###.|#.#.#|.....',
-  "+": '.....|..#..|..#..|#####|..#..|..#..|.....', ",": '..|..|..|..|..|.#|.#|#.', "-": '....|....|....|####|....|....|....', ".": '.|.|.|.|.|.|#', "/": '....#|....#|...#.|..#..|.#...|#....|#....', ":": '.|.|#|.|.|#|.',
-  ";": '..|..|.#|..|..|.#|.#|#.', "<": '...#|..#.|.#..|#...|.#..|..#.|...#', "=": '.....|.....|#####|.....|#####|.....|.....', ">": '#...|.#..|..#.|...#|..#.|.#..|#...', "?": '.###.|#...#|....#|...#.|..#..|.....|..#..', "@": '.###.|#...#|#.###|#.#.#|#.###|#....|.####',
-  "[": '###|#..|#..|#..|#..|#..|###', "\\": '#....|#....|.#...|..#..|...#.|....#|....#', "]": '###|..#|..#|..#|..#|..#|###', "^": '..#..|.#.#.|#...#|.....|.....|.....|.....', "_": '.....|.....|.....|.....|.....|.....|#####', "`": '#.|.#|..|..|..|..|..',
-  "{": '..##|.#..|.#..|#...|.#..|.#..|..##', "|": '#|#|#|#|#|#|#', "}": '##..|..#.|..#.|...#|..#.|..#.|##..', "~": '.....|.....|.#...|#.#.#|...#.|.....|.....', "♥": '.....|.#.#.|#####|#####|.###.|..#..|.....', "★": '..#..|..#..|#####|.###.|.#.#.|#...#|.....',
-  "←": '.....|..#..|.#...|#####|.#...|..#..|.....', "→": '.....|..#..|...#.|#####|...#.|..#..|.....', "↑": '..#..|.###.|#.#.#|..#..|..#..|..#..|.....', "↓": '.....|..#..|..#..|..#..|#.#.#|.###.|..#..', "•": '...|...|.#.|###|.#.|...|...', "©": '.###.|#...#|#.#.#|#.#..|#.#.#|#...#|.###.',
-  "×": '.....|#...#|.#.#.|..#..|.#.#.|#...#|.....', "▸": '#...|##..|###.|####|###.|##..|#...', "♪": '..##.|..#.#|..#..|..#..|.##..|###..|.#...'
-};
-const parseFont = (src, h) => {
+// Both fonts are tables of glyphs: each entry a character, then one digit for each row of its pixels, top to bottom, the
+// row's pixels being the digit's bits from the left. The 3x5 ('tiny', upper case, for in-world numbers and labels): five
+// octal digits, so '075557' is 0 drawn as 7 = ###, 5 = #.#, #.#, #.#, ###. The 5x7 ('normal', the default): its width,
+// then a base-32 digit a row (0-9 then a-v, 5 bits), seven above the baseline and up to two below, so 'A5ehhvhhh' is A,
+// 5 wide, e = .###., h = #...#, h, v = #####, h, h, h. The 5x7 is proportional with lower case and descenders; beside
+// ASCII it draws every symbol input.label() returns (✕ ○ □ △ and the arrows), ✓ ✗ · • … – — ° ² ³ × € £ ¢ ¡ ¿ ’ “ ”,
+// ▲ ▼ ◀ ▶ ◂ ▸ ● ■ ★ ♥ ♪ © and the accented letters of the Latin alphabets (é à ç ñ ü ö ß ..., a capital five rows tall
+// under its accent); any other character draws as ?. It is the agent edition's table. To see glyphs as rows of # and .:
+// node tools/font.mjs <characters> [--tiny]
+const GLYPHS = "075557 126227 271747 371717 455711 574717 674757 771222 875757 975717 A25755 B65656 C34443 D65556 E74647 F74644 G34553 H55755 I72227 J11152 K55655 L44447 M57755 N65555 O25552 P65644 Q25563 R65655 S34216 T72222 U55557 V55552 W55775 X55255 Y55222 Z71247 +02720 -00700 !22202 .00002 :02020 /11244 x05250 ?71202 ,00024 '22000 \"55000 (12221 )42224 %51245 *05250 =07070 <12421 >42124 #57575 &25253 _00007 ;02024 [64446 ]31113 $36736 ^25000 @75743 ~03600 ♥57720 ♡55520 ★27250 •02720 ←04740 →01710 ↑27222 ↓22272 ©75557 ✕05250 ○02520 □07570 △02570 ✓01520 ·00200 –00700 —00700 ▲02700 ▼07200 ▶46764 ◀13731 ▸46764 ◂13731 °25200 −00700";
+const G57 = "05ehjlphe 154c4444e 25eh1248v 35u11e11u 4526aiv22 55vgu11he 65egguhhe 75v124888 85ehhehhe 95ehhf11e A5ehhvhhh B5uhhuhhu C5ehggghe D5uhhhhhu E5vgguggv F5vgguggg G5ehgnhhf H5hhhvhhh I37222227 J572222ic K5hikokih L5ggggggv M5hrllhhh N5hhpljhh O5ehhhhhe P5uhhuggg Q5ehhhlid R5uhhukih S5fgge11u T5v444444 U5hhhhhhe V5hhhhha4 W5hhhllla X5hha4ahh Y5hha4444 Z5v1248gv a500e1fhf b5gguhhhu c500eggge d511fhhhf e500ehvge f434f4444 g500fhhhf1e h5gguhhhh i11011111 j3101111152 k4889aca9 l22222221 m500qllll n500uhhhh o500ehhhe p500uhhhugg q500fhhhf11 r400bc888 s500fge1u t444f4443 u500hhhhf v500hhha4 w500hhlla x500ha4ah y500hhhhf1e z500v248v !11111101 \"35500000 #5aavavaa $54fke5u4 %5pp248jj &5cik8lid '11100000 (31244421 )34211124 *50level0 +5044v440 ,200000112 -4000f000 .10000001 /511248gg :10010010 ;200100112 <41248421 =500v0v00 >48421248 ?5eh12404 @5ehnlngf [37444447 \\5gg84211 ]37111117 ^54ah0000 _5000000v `22100000 {43448443 |11111111 }4c22122c ~5008l200 ♥50avve40 ★544veah0 ←5048v840 →5042v240 ↑54el4440 ↓50444le4 •30027200 ©5ehlklhe ×50ha4ah0 ▸48cefec8 ♪56544cs8 ✕50ha4ah0 ○50ehhhe0 □50vhhhv0 △504aahv0 ✓50012k80 ✗50ha4ah0 ◂4137f731 ◀4137f731 ▶48cefec8 ◄4137f731 ►48cefec8 ▲5004ev00 ▼500ve400 ●50evvve0 ■50vvvvv0 ·10001000 –4000f000 —5000v000 …5000000l ’21120000 ‘21220000 “45aa0000 ”455a0000 °32520000 ²36127000 ³37317000 €578u8u87 £5698s88v ¢504ekke4 ¡11011111 ¿54048ghe ß5ciimhhm á524e1fhf é524ehvge í31222222 ó524ehhhe ú524hhhhf ý524hhhhf1e Á524ehvhh É524vgugv Í31272227 Ó524ehhhe Ú524hhhhe Ý524ha444 à584e1fhf è584ehvge ì34222222 ò584ehhhe ù584hhhhf À584ehvhh È584vgugv Ì34272227 Ò584ehhhe Ù584hhhhe â54ae1fhf ê54aehvge î32522222 ô54aehhhe û54ahhhhf Â54aehvhh Ê54avgugv Î32572227 Ô54aehhhe Û54ahhhhe ä5a0e1fhf ë5a0ehvge ï35022222 ö5a0ehhhe ü5a0hhhhf ÿ5a0hhhhf1e Ä5a0ehvhh Ë5a0vgugv Ï35072227 Ö5a0ehhhe Ü5a0hhhhe ã59me1fhf õ59mehhhe ñ59muhhhh Ã59mehvhh Õ59mehhhe Ñ59mhpljh ç500eggge4c Ç5ehggghe4c −5000v000";
+const parseFont = (src, mono) => {   // -> { char: { w, runs: [[x, y, n] ...] } }, the lit pixels of each row in runs
   const out = {};
-  for (const ch in src) {
-    const rows = typeof src[ch] === 'string' && src[ch].includes('|') ? src[ch].split('|') : null;
-    let w, runs = [];
-    if (rows) { w = rows[0].length; rows.forEach((r, y) => { for (let x = 0; x < r.length;) { if (r[x] !== '#') { x++; continue; } let n = 1; while (r[x + n] === '#') n++; runs.push([x, y, n]); x += n; } }); }
-    else { w = 3; const bits = src[ch]; for (let k = 0; k < bits.length; k++) if (bits[k] === '1') runs.push([k % 3, (k / 3) | 0, 1]); }   // 3x5 bit strings
-    out[ch] = { w, runs };
+  for (const e of src.split(' ')) {
+    const w = mono || +e[1], rows = e.slice(mono ? 1 : 2), runs = [];
+    for (let y = 0; y < rows.length; y++) { const v = parseInt(rows[y], 32); for (let x = 0; x < w;) { if (!(v >> (w - 1 - x) & 1)) { x++; continue; } let n = 1; while (x + n < w && v >> (w - 1 - x - n) & 1) n++; runs.push([x, y, n]); x += n; } }
+    out[e[0]] = { w, runs };
   }
-  void h; return out;
+  return out;
 };
 const FONTS = {
   normal: { glyphs: parseFont(G57), h: 7, desc: 2, gap: 1, space: 3, upper: false },
-  tiny: { glyphs: parseFont(GLYPHS), h: 5, desc: 0, gap: 2, space: 3, upper: true, mono: 3 }
+  tiny: { glyphs: parseFont(GLYPHS, 3), h: 5, desc: 0, gap: 2, space: 3, upper: true, mono: 3 }
 };
 /**
  * Pixel fonts. 'normal' (default) is a 5x7 proportional font with lower case; 'tiny' is the 3x5 upper-case font.
@@ -2999,12 +2973,14 @@ class Game {
    * opts: { z: extra height to look at (default 16), lead: look ahead in the facing / moving direction }. follow(null) stops.
    */
   follow(target, o = {}) { this._follow = target ? { target, z: o.z === undefined ? 16 : o.z, lead: o.lead || 0 } : null; this.cam.snap = true; }
-  /** mouse position on the ground (world units), or null */
+  /** the mouse's point on the ground: [x, y] in world units (an array, not { x, y }), or null with no mouse over the
+   *  canvas */
   mouseGround() { const m = this.input.mouseScreen(); return m ? this.view.toGround(m[0], m[1]) : null; }
-  /** run fn once after `seconds` of game time. Cleared on scene change. Returns { cancel() } */
-  after(seconds, fn) { const t = { at: this.time + seconds, fn, every: 0, dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
-  /** run fn every `seconds` of game time. Cleared on scene change. Returns { cancel() } */
-  every(seconds, fn) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
+  /** run fn once after `seconds` of game time. Cleared on scene change, unless { keep: true } (a site's clock, a
+   *  watcher of the whole game: it outlives scenes, as a kept tween does). Returns { cancel() } */
+  after(seconds, fn, o = {}) { const t = { at: this.time + seconds, fn, every: 0, dead: false, keep: !!o.keep }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
+  /** run fn every `seconds` of game time. Cleared on scene change, unless { keep: true }. Returns { cancel() } */
+  every(seconds, fn, o = {}) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false, keep: !!o.keep }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
   _camStep(dt) {
     const c = this.cam; let fx = c.tx, fy = c.ty, fz = c.tz;
     if (c.room) {
@@ -3220,7 +3196,7 @@ class Game {
     const old = this.scene;
     if (old && old.exit) old.exit();
     if (old && old._propWas !== undefined) { E.style.propSize = old._propWas; old._propWas = undefined; }
-    this.scene = s; this.sceneName = name; this.paused = false; this._timers.length = 0; this.hitstop = 0;
+    this.scene = s; this.sceneName = name; this.paused = false; prune(this._timers, t => !t.keep); this.hitstop = 0;
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = this._framed = null;
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
@@ -3333,7 +3309,11 @@ E.Game = Game;
  * 10b. STANDARD FEATURES  what every game gets without writing it, so a game's code goes to the game:
  *    - game.settings: the player's choices (display, sound, comfort, controls), saved per game (a version, every value
  *      checked when it loads, a bad one falls back to its default), applied at once. A game adds its own with
- *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints.
+ *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints;
+ *      one with a standard key and no label changes that setting, its other fields kept: { key: 'glyphs', value:
+ *      'playstation', options: [['playstation', 'PlayStation'], ['xbox', 'Xbox']] } shows PlayStation symbols unless the
+ *      player picks Xbox (game.settings.set('glyphs', 'xbox') switches); one with a label of its own is the game's, in the
+ *      standard one's place (a map's 'zoom'). The controller's settings reach every player, and one who joins later.
  *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there, and a game
  *      started by a tap does again; turning it off (the corner's button, the menu) is the player's choice, kept.
  *    - the back gesture: a phone's back steps back in the game (game.back(): a menu screen closes, play pauses) before it
@@ -3368,10 +3348,10 @@ const STANDARD_SETTINGS = {
   shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
   flashes: { group: 'Comfort', label: 'Screen flashes', type: 'slider', value: 1 },
   bindings: { group: 'Controls', type: 'bindings', value: () => ({}), apply: (g, v) => { g.input.bindings = v; } },
-  deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, step: .01, apply: (g, v) => { g.input.deadzone = v; } },
-  invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { g.input.invertAimY = !!v; } },
-  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { g.input.glyphs = v; } },
-  rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { g.input.rumbleScale = v; } },
+  deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, step: .01, apply: (g, v) => { for (const q of g._players || [g.input]) q.deadzone = v; } },
+  invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertAimY = !!v; } },
+  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { for (const q of g._players || [g.input]) q.glyphs = v; } },
+  rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { for (const q of g._players || [g.input]) q.rumbleScale = v; } },
   touch: { group: 'Touch', label: 'Touch buttons', type: 'select', value: 'auto', options: [['auto', 'Automatic'], ['on', 'Always'], ['off', 'Hidden']], apply: g => g.input._touchSync() },
   hand: { group: 'Touch', label: 'Buttons on', type: 'select', value: 'right', options: [['right', 'Right'], ['left', 'Left']], apply: g => g.input._touchSync() },
   touchSize: { group: 'Touch', label: 'Button size', type: 'slider', value: 62, min: 44, max: 88, step: 2, unit: ' px', apply: g => g.input._touchSync() },
@@ -3409,7 +3389,7 @@ class Settings {
     if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     game.input._settings = this; game.input._onBindings = b => this.set('bindings', b);
     for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
-    for (const sp of own) this.define(sp);
+    for (const sp of own) this.define(sp && !sp.label && Object.prototype.hasOwnProperty.call(STANDARD_SETTINGS, sp.key) ? Object.assign({ key: sp.key }, STANDARD_SETTINGS[sp.key], sp) : sp);   // (a standard key with no label: the game's fields over the standard ones; with a label it is the game's own)
   }
   /** add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value,
    *  label]] or [value], help, group: 'Game', apply(game, value) }. Its saved value is loaded (when it is a valid one) and
@@ -4070,6 +4050,7 @@ Game.prototype.addPlayer = function (o = {}) {
   const P = this.players; if (P.length >= 4) return null;
   const q = new Input(_pStub(this), Input.DEFAULT), n = P.length + 1;
   Object.assign(q, { player: n, name: 'P' + n, color: E.PLAYER_COLORS[n - 1], pad: typeof o.pad === 'number' ? o.pad : null, half: o.keys ? 'right' : null, device: o.keys ? 'keyboard' : 'gamepad' });
+  for (const k of ['glyphs', 'deadzone', 'invertAimY', 'rumbleScale']) q[k] = this.input[k];   // (the player's settings: button symbols, dead zone, aim, vibration)
   q.lastDevice = q.device; if (q.pad !== null) { q.tick(0); q.consumeAll(); }   // (the buttons held as it joins, its Start among them, are no presses)
   const I = P[0]; if (q.half && !I.half) { I._full = I.preset; I.half = 'left'; I.use(Input.halfKeys(I._full, 'left')); }   // player 1 moves to the left half
   q.use(_pPreset(this, q));
@@ -4419,8 +4400,8 @@ class Humanoid {
     }
     this._spW = approach(this._spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
     if (speed > 3 && !s.run) {
-      const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
-      this._mv[0] = lerp(this._mv[0], (s.vx * c + s.vy * sn) / speed, k); this._mv[1] = lerp(this._mv[1], (-s.vx * sn + s.vy * c) / speed, k);
+      const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10), vx = +s.vx || 0, vy = +s.vy || 0;   // (vx alone, or a NaN, is no move on that axis: never a NaN gait)
+      this._mv[0] = lerp(this._mv[0], (vx * c + vy * sn) / speed, k); this._mv[1] = lerp(this._mv[1], (-vx * sn + vy * c) / speed, k);
     }
     this.phase += dt * speed / (o.stride * o.size * this._strideK() * Math.max(.4, Math.min(1, this._spW)));
     this._dashW = approach(this._dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
@@ -5780,8 +5761,8 @@ class TileMap {
   }
   _floor(view) {
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale;
-    if (this.floors[key]) return this.floors[key];
-    if (Object.keys(this.floors).length > 6) this.floors = {};
+    const had = this.floors[key]; if (had) { delete this.floors[key]; return (this.floors[key] = had); }   // (the latest used goes last)
+    const ks = Object.keys(this.floors); for (let k = 0; k < ks.length - 6; k++) delete this.floors[ks[k]];   // seven views' bakes at most, as before: the least recently used goes, not every one
     const T = this.T, W = this.w * T, H = this.h * T, M = view.inv && this.outside !== false ? 96 : 0;   // (M: the ground baked past the edge, in pixels)
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const s = view.p(x, y, 0); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
@@ -5850,7 +5831,7 @@ class TileMap {
       r.ctx.drawImage(ch.cv, X, Y); if (gpu && ch.info) r._iG.drawImage(ch.info, X, Y);
     }
     ring: for (let j = Math.max(0, j0 - 1); j <= Math.min(ny - 1, j1 + 1); j++) for (let i = Math.max(0, i0 - 1); i <= Math.min(nx - 1, i1 + 1); i++) if (!f.chunks.has(j * nx + i)) { get(i, j); break ring; }
-    const keep = 2 * (i1 - i0 + 3) * (j1 - j0 + 3);
+    const keep = 2 * Math.max(1, i1 - i0 + 3) * Math.max(1, j1 - j0 + 3);   // (never below 2: a low pitch can see no rows, j1 < j0)
     if (f.chunks.size > keep) { const old = [...f.chunks].sort((a, b) => a[1].t - b[1].t); for (let n = f.chunks.size - keep, k = 0; k < n; k++) f.chunks.delete(old[k][0]); }
   }
   /** the bytes the baked floors hold now (each view's, chunks and the lighting's canvases counted): what a big map's
@@ -7906,9 +7887,9 @@ class ChipAudio {
    *  rule); until then, and where there is no Web Audio, every call is silently skipped */
   constructor(game, signal) {
     /** game: the game it plays for; ctx: the Web Audio context, made at the first sound (null before, or where there
-     *  is none); volume: master volume 0..1; sfxVolume, musicVolume: 0..1 for effects and music; muted: true while
-     *  mute() is on */
-    this._game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
+     *  is none); volume: master volume 0..1; sfxVolume, musicVolume, voiceVolume: 0..1 for effects, music and the voice
+     *  bus (bus('voice')); muted: true while mute() is on */
+    this._game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.voiceVolume = 1; this.muted = false;
     /** presets: the named sound effects, sfx(name) plays one and define(name, voice) adds one; song: the music
      *  playing (null for none); failed: why there is no sound (a message), or null; ducked: true while duck(true)
      *  holds the music down */
@@ -7929,6 +7910,7 @@ class ChipAudio {
       this._master = c.createGain(); this._master.connect(c.destination);
       this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
       this._musBus = c.createGain(); this._musBus.connect(this._master);
+      this._voiceBus = c.createGain(); this._voiceBus.connect(this._master);   // (bus('voice'): a game's babble or speech)
       this.applyVolume();
       const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this._rnd() * 2 - 1;
       this._noise = nb;
@@ -7941,7 +7923,15 @@ class ChipAudio {
   /** true once the browser lets the game make sound */
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
   /** apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it) */
-  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
+  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); this._voiceBus.gain.value = this.voiceVolume; }
+  /** a bus for a sound of the game's own (Web Audio nodes it makes on audio.ctx: a babble voice, a loop, an instrument)
+   *  to connect to, so it follows the volume, the mute and the player's settings: 'sfx', 'music', 'voice' (its level is
+   *  voiceVolume) or 'master'. Returns a GainNode, or null where there is no sound (headless, no Web Audio) */
+  bus(name = 'sfx') {
+    if (!['sfx', 'music', 'voice', 'master'].includes(name)) warn('bus:' + name, 'audio.bus("' + name + '"): no such bus (sfx, music, voice, master): the sfx bus');
+    if (this._game.headless || !this._init()) return null;
+    return name === 'master' ? this._master : name === 'music' ? this._musBus : name === 'voice' ? this._voiceBus : this._sfxBus;
+  }
   /** set the master volume, 0..1 */
   setVolume(v) { this.volume = clamp(v, 0, 1); this.applyVolume(); }
   /** toggle (or set) mute; returns the new state */
@@ -8129,12 +8119,14 @@ class ChipAudio {
     if (this._stings.length) this._stings = this._stings.filter(S => { const live = this._clockNow(S) < S.end + .5; if (!live) try { S.bus.disconnect(); } catch (e) { /* gone */ } return live; });
     if (!this.song && !this._fading.length && !this._stings.length) { clearInterval(this._timer); this._timer = null; }
   }
-  // a song's notes for the next 150 ms of its clock, each at the sound's time its anchor maps it to (less the offset)
+  // a song's notes for the next 150 ms of its clock and the offset's more (each is sounded the offset early, so a 250 ms offset
+  // needs its notes 400 ms ahead, or they would fall in the past and be skipped), each at the sound's time its anchor maps it
+  // to (less the offset)
   _ahead(C) {
     const c = this.ctx, now = this._clockNow(C);
     if (!C.anchor) { C.anchor = { ctx: c.currentTime + .05, clk: now }; C.next = Math.max(C.next, Math.floor(this._stepAt(C, now) + .5)); }
     for (let n = 0; n < 64; n++) {
-      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 || (!C.loop && k >= C.len)) break;
+      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 + Math.max(0, this.offset) || (!C.loop && k >= C.len)) break;
       const at = C.anchor.ctx + (t - C.anchor.clk) - this.offset, p = k % C.len;
       if (at > c.currentTime - .03) for (const tr of C.tracks) this._note(tr, p % tr.tokens.length, Math.max(at, c.currentTime), C.spb, tr.gain);
       C.next++;
@@ -9245,15 +9237,17 @@ function markup(s, vars) {
   return had ? { text, fx, wait } : null;
 }
 class Dialog {
-  /** new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border, vars }): a dialog box that types
+  /** new E.Dialog(game, { speed, lines, place, color, nameColor, voice, width, bg, border, vars }): a dialog box that types
    *  its text; say() opens it, update(dt) and draw(r) run it */
   constructor(game, o = {}) {
     /** game: its game */
     this.game = game;
     /** speed: letters typed per second; lines: text lines per page; place: 'bottom' | 'top' | 'middle'; color: the
      *  text's color; nameColor: the speaker's name's color; voice: the sound effect each letter blips ('text'; null
-     *  for silence); bg, border: the box's colors; vars: the values {$name} in the text reads (say's vars first) */
-    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', bg: '#141a3a', border: '#e8e4ff', vars: null }, o);
+     *  for silence), or a function (letter, index, dialog) called once for each letter as it types (a babble voice:
+     *  Animalese; dialog.name is the speaker); width: the box's width in pixels (320 at most by default, the screen's
+     *  less 12 at most); bg, border: the box's colors; vars: the values {$name} in the text reads (say's vars first) */
+    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', width: 0, bg: '#141a3a', border: '#e8e4ff', vars: null }, o);
     /** open: true while it shows; pages: the text wrapped into pages of lines; i: the page shown; shown: letters
      *  typed so far on it; choice: the choice under the cursor */
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
@@ -9263,7 +9257,7 @@ class Dialog {
   // the choices' box, over the box's right end
   _cbox(d) { const w = Math.max(...this.choices.map(c => E.font.width(c))) + 20, h = this.choices.length * d.lh + 7; return { x: d.x + d.w - w - 2, y: d.y - h - 2, w, h }; }
   _dims() {
-    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
+    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, this.width || 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
     const pl = this._place || this.place; let x = Math.round((W - w) / 2), y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
     const t = this._y === undefined && pl === 'bottom' && this.game.input.touchArea && this.game.input.touchArea();
     if (t && x + w > t.x0 && x < t.x1 && y + h > t.y0) {   // clear of the touch buttons: beside them where it fits, else above them
@@ -9276,14 +9270,14 @@ class Dialog {
    * opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size),
    *         portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself,
    *         modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha,
-   *         vars: the values {$name} reads }
+   *         vars: the values {$name} reads, voice: this call's (a sound effect, null, or a function per letter) }
    * choices: ['YES', 'NO'], shown on the last page (picked by the keys, or a tap or click on one); onChoice(i) gets the
    * one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
    */
   say(text, o = {}) {
     /** portrait: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size
      *  in pixels; pOpts: its options ({ zoom, turn, bg }) */
-    this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {};
+    this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {}; this._voice = o.voice;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
     const d = this._dims(), pages = [], fxs = [];
     for (const t of Array.isArray(text) ? text : [text]) {
@@ -9327,7 +9321,9 @@ class Dialog {
       const sp = (mk.fx[n] && mk.fx[n].s) || this.speed, u = Math.min(t, (n + 1 - this.shown) / sp);
       this.shown = Math.min(len, this.shown + u * sp); t -= u; if (n + 1 - this.shown < 1e-6) this.shown = n + 1;
     }
-    if (this.voice && Math.floor(this.shown) > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(this.voice);
+    const vo = this._voice !== undefined ? this._voice : this.voice, now = Math.floor(this.shown);   // (say's voice, for that call, else the box's)
+    if (typeof vo === 'function') { if (now > prev) { const tx = this._page.join(''); for (let n = prev; n < now; n++) try { vo(tx[n], n, this); } catch (e) { this.game.fail('dialog voice', e); } } }
+    else if (vo && now > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(vo);
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {   // pages turn and the box closes by itself
       this._wait = 0;
@@ -10722,7 +10718,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.85.3: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.86.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10940,7 +10936,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/click.js ---- */
 /*!
-my-3D2dge module CLICK v0.85.3: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.86.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11303,7 +11299,7 @@ E.Click = Click;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.85.3: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.86.1: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11532,7 +11528,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.85.3: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.86.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12086,7 +12082,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.85.3: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.86.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12272,7 +12268,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.85.3: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.86.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12684,7 +12680,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.85.3: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.86.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12892,7 +12888,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!
-my-3D2dge module PHYSICS v0.85.3: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.86.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13262,7 +13258,7 @@ E.Physics = Physics;
 <script>
 /* ---- inlined from engine/modules/rhythm.js ---- */
 /*!
-my-3D2dge module RHYTHM v0.85.3: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.86.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13472,7 +13468,7 @@ E.Rhythm = Rhythm;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.85.3: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.86.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13635,7 +13631,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.85.3: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.86.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13819,7 +13815,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.85.3: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.86.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14149,7 +14145,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/songs.js ---- */
 /*!
-my-3D2dge module SONGS v0.85.3: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.86.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14306,7 +14302,7 @@ E.Songbook = Songbook;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.85.3: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.86.1: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14517,7 +14513,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.85.3: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.86.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14961,7 +14957,7 @@ E.tooltip = (r, x, y, lines) => {
 <script>
 /* ---- inlined from engine/modules/terrain.js ---- */
 /*!
-my-3D2dge module TERRAIN v0.85.3: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.86.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

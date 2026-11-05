@@ -5,7 +5,8 @@
  *   const clip = lib.clip('Dance_Loop');               // { name, dur, loop, tags, desc, keys }
  *   const pose = lib.sample(clip, t);                  // Float32Array: every body point's f r z (mm), in-betweened
  *   const man = new Mocap.Mannequin(lib, { height: 34 });  man.draw(g, ox, oy, view, pose, facing)
- *   Mocap.drive(humanoid, lib)  then each step  humanoid.mocap = pose: the rig plays it at its own build.
+ *   Mocap.drive(humanoid, lib)  then each step  humanoid.mocap = pose: the rig plays it at its own build. (Mocap is also
+ *     window.Mocap.)
  *     humanoid.mocapW (0..1) fades it in and out over the rig's own animation; humanoid.mocapMask = 'upper' plays
  *     only the chest, head and arms over the rig's own legs (an interaction while walking); humanoid.mocapBlade = true
  *     while the clip holds a sword (the blade follows the fist).
@@ -263,3 +264,5 @@ function drive(rig, lib) {
 
 return { load, Mannequin, drive, LEGEND: MR.LEGEND };
 })();
+// also window.Mocap (a top-level const is no property of window: a game that looked for window.Mocap found nothing, and its clips silently never played)
+if (typeof globalThis !== 'undefined') globalThis.Mocap = Mocap;

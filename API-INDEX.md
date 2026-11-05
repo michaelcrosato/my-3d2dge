@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.85.3)
+# my-3D2dge API index (v0.86.1)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -55,7 +55,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 219 Views (projections); E.View: view
 - 246 Screen; game.screen
 - 268 Input; E.Input: input
-- 353 Pixel font
+- 353 Pixel fonts
 - 364 Lighting; game.lights
 - 383 Particles; E.Particles: game.particles
 - 403 Renderer; r
@@ -81,29 +81,29 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 1017 Bullets; E.Bullets: shots
 - 1037 Spatial hash; E.SpatialHash: grid
 - 1047 Audio; game.audio
-- 1079 Backdrops; E.Backdrop: backdrop
-- 1087 21c. Props
-- 1092 21e. Shapes
-- 1104 Ui; E.Dialog: talk, E.Menu: menu
-- 1161 21d. Shell; E.Shell: shell
-- 1190 Gpu lighting (webgpu); game.gpu
-- 1211 Sessions
-- 1220 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1255 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1300 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1338 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1419 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1430 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1489 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1512 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1541 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1573 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1590 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1619 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1638 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1646 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1675 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1721 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 1080 Backdrops; E.Backdrop: backdrop
+- 1088 21c. Props
+- 1093 21e. Shapes
+- 1105 Ui; E.Dialog: talk, E.Menu: menu
+- 1163 21d. Shell; E.Shell: shell
+- 1192 Gpu lighting (webgpu); game.gpu
+- 1213 Sessions
+- 1222 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1257 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1302 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1340 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1421 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1432 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1491 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1514 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1543 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1575 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1592 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1621 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1640 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1648 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1677 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1723 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -112,7 +112,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.85.3"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.86.1"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -350,7 +350,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.touchEnabled = true` †: false turns the touch stick off
 - `input.zones = null` †: areas of the screen a finger holds an action down in, [{ x0, y0, x1, y1, act }] (fractions of the canvas, 0..1; the first that holds the finger wins), or null: a pinball's two halves, a rhythm game's lanes. A finger landing in one presses act until it lifts (several fingers, several zones), and starts no stick
 
-## 6. Pixel font
+## 6. Pixel fonts
 
 - `E.font`: Pixel fonts. 'normal' (default) is a 5x7 proportional font with lower case; 'tiny' is the 3x5 upper-case font. text(g, str, x, y, color, opts) where opts is an outline color, false, or { font: 'normal' | 'tiny', outline: '#0b0814' | false, shadow: '#000' (1 px drop shadow), gradient: ['#fff', '#8ad'] (top to bottom), scale: 1, align: 'left' | 'center' | 'right', wrap: maxWidthPx, lineGap } '\n' starts a new line. Returns { w, h } of the drawn block. title(...) draws big logo text.
 - `E.font.default` †: the font used when none is named: 'normal' (5 x 7) or 'tiny' (3 x 5)
@@ -467,13 +467,13 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.W`: internal buffer size in pixels (HUD layout)
 - `game.addPlayer(o = {})` †: a player in now: { pad: index } (a gamepad) or { keys: 'right' } (the keyboard's right half; player 1 takes the left). Returns its input (null when four play already)
 - `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
-- `game.after(seconds, fn)`: run fn once after `seconds` of game time. Cleared on scene change. Returns { cancel() }
+- `game.after(seconds, fn, o = {})`: run fn once after `seconds` of game time. Cleared on scene change, unless { keep: true } (a site's clock, a watcher of the whole game: it outlives scenes, as a kept tween does). Returns { cancel() }
 - `game.allowJoin(o = {})` †: let players join, up to max (2..4): Start on a gamepad no one holds, or 2 on the keyboard (o.keys: false not); onJoin (input, number) as each does. allowJoin(false) closes it (the names split and join are String's and Array's)
 - `game.back()`: a step back, as a phone's back gesture asks for (the engine calls it for one; a back button of the game's own can): the open menu screen goes back one; else the scene's own back() takes it (it returns true when it did); else a scene in play pauses into the menu, and a paused one goes on. Returns false where there is nowhere to go (a title)
 - `game.cornerArea()` †: where the corner's buttons (menu and full screen, top right; the touch START) cover the screen, in screen pixels { x0, y0, x1, y1 } (r.W and r.H's space), or null while none show: keep a HUD clear of it
 - `game.dispose()`: end the game for good: stop the loop and remove everything the engine added to the page (its listeners on the window, the document, the canvas and the buttons, the touch controls, the GPU lighting's canvas) and close the sound. Tests and tools that make many games call it; the canvas stays
 - `game.enableGPU(o = {})` †: turn on WebGPU lighting: where it can't draw (no WebGPU, a side view) the canvas lighting stands in, with its own ambient (game.lights.ambient) and the same lights. opts: { map, bands, ambient, fallback, ... }
-- `game.every(seconds, fn)`: run fn every `seconds` of game time. Cleared on scene change. Returns { cancel() }
+- `game.every(seconds, fn, o = {})`: run fn every `seconds` of game time. Cleared on scene change, unless { keep: true }. Returns { cancel() }
 - `game.fail(where, e)`: report an error in game code without stopping the game: logged once per place and message, kept in game.errors and shown on the error panel (the engine reports its own callbacks' errors this way): game.fail('power ' + id, err)
 - `game.flash(color = '#ffffff', seconds = .12, strength = 1)`: flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning. Shorter when reduceMotion, dimmer by the player's settings.flashes
 - `game.focus(x, y, z = 0)`: camera follows this world point. Side-scrollers: game.focus(x, 0, z)
@@ -482,7 +482,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.go(name, data, o = {})`: switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 (a cut) or another number of seconds; opts.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or 'dissolve', each way taking opts.seconds (.4), round opts.at (iris and swirl: a world point { x, y, z }, which each scene's camera places, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
 - `game.hitFx(x, y, z, o = {})`: everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound, a damage number and a rumble on a gamepad. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit', rumble: true })
 - `game.menu(name)`: open the menu (the corner's menu button and the touch START do it): a pausable scene (or a game started without scenes) pauses on its pause screen; any other scene, a title, waits under the settings. menu('settings') or menu('controls') opens that screen. Without a menu (menu: false, or the agent edition) it pauses a scene in play. Returns true when a menu opened
-- `game.mouseGround()`: mouse position on the ground (world units), or null
+- `game.mouseGround()`: the mouse's point on the ground: [x, y] in world units (an array, not { x, y }), or null with no mouse over the canvas
 - `game.nextView(dir = 1)`: cycle through game.views (or every view): bind it to a key for players who like to switch
 - `game.note(text, seconds = 1.2)`, `game.shownNote`: a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1). game.shownNote is the one showing, { text, end } (end in game.real seconds), or null: a game that draws it its own way takes it and sets shownNote to null
 - `game.onView(f)` †: call f(view) whenever the view changes (re-bake caches, move HUD)
@@ -1050,6 +1050,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.songs: title, adventure, dungeon, boss, victory`: ready-made chiptune loops (original compositions). game.audio.music('adventure')
 - `game.audio.applyVolume()`: apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it)
 - `game.audio.at(step, fn)` †: call fn(step) on the update step the music reaches step (counted from its start, on as it loops); the song's change cancels it. Returns { cancel() }
+- `game.audio.bus(name = 'sfx')`: a bus for a sound of the game's own (Web Audio nodes it makes on audio.ctx: a babble voice, a loop, an instrument) to connect to, so it follows the volume, the mute and the player's settings: 'sfx', 'music', 'voice' (its level is voiceVolume) or 'master'. Returns a GainNode, or null where there is no sound (headless, no Web Audio)
 - `game.audio.calibrate()` †: the audio offset's calibration: a click on each beat (100 bpm, the first of a bar higher) as the music; tap(time) on each one heard (an event's timeStamp, or nothing: this update step). After 8 taps, result is the offset to set (ms: settings.audioOffset) and done is true; taps go on refining it. stop() puts the music back
 - `game.audio.define(name, voice)`: add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 })
 - `game.audio.duck(on = true)`: quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused
@@ -1069,7 +1070,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.audio.drift = 0` †: what is heard against the game's clock at the last frame (seconds: the sound follows the clock, so it stays near 0)
 - `game.audio.ducked = false`: true while duck(true) holds the music down
 - `game.audio.failed = null`: why there is no sound (a message), or null
-- `game.audio.musicVolume = .5`, `game.audio.sfxVolume = 1`: 0..1 for effects and music
+- `game.audio.musicVolume = .5`, `game.audio.sfxVolume = 1`, `game.audio.voiceVolume = 1`: 0..1 for effects, music and the voice bus (bus('voice'))
 - `game.audio.muted = false`: true while mute() is on
 - `game.audio.offset = 0` †: seconds the music sounds early, for speakers and headphones that lag (settings.audioOffset)
 - `game.audio.presets`: the named sound effects, sfx(name) plays one and define(name, voice) adds one
@@ -1103,12 +1104,12 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 21. Ui
 
-- `new E.Dialog(game, o = {}) → talk`: new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border, vars }): a dialog box that types its text; say() opens it, update(dt) and draw(r) run it
+- `new E.Dialog(game, o = {}) → talk`: new E.Dialog(game, { speed, lines, place, color, nameColor, voice, width, bg, border, vars }): a dialog box that types its text; say() opens it, update(dt) and draw(r) run it
 - `talk.choiceAt(i)` †: where choice i is on the screen while the choices show: [x, y] (its middle, for a test's tap), else null
 - `talk.close()`: close it now (and forget pending presses, so the same press doesn't also attack)
 - `talk.draw(r)`: draw it (anywhere in draw: it goes to the overlay)
 - `talk.pageLen`: the letters on the page shown
-- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself, modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha, vars: the values {$name} reads } choices: ['YES', 'NO'], shown on the last page (picked by the keys, or a tap or click on one); onChoice(i) gets the one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
+- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself, modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha, vars: the values {$name} reads, voice: this call's (a sound effect, null, or a function per letter) } choices: ['YES', 'NO'], shown on the last page (picked by the keys, or a tap or click on one); onChoice(i) gets the one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
 - `talk.typing`: true while the page is still typing
 - `talk.update(dt)`: type and turn pages (confirm finishes the line, then turns the page); returns true while open and modal, so gameplay can wait: if (talk.update(dt)) return;
 - `talk.auto`: seconds each page stays after typing
@@ -1131,7 +1132,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `talk.shown = 0`: letters typed so far on it
 - `talk.speed = 50`: letters typed per second
 - `talk.vars = null`: the values {$name} in the text reads (say's vars first)
-- `talk.voice = 'text'`: the sound effect each letter blips ('text'; null for silence)
+- `talk.voice = 'text'`: the sound effect each letter blips ('text'; null for silence), or a function (letter, index, dialog) called once for each letter as it types (a babble voice: Animalese; dialog.name is the speaker)
+- `talk.width = 0`: the box's width in pixels (320 at most by default, the screen's less 12 at most)
 - `new E.Menu(game, items, o = {}) → menu`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
 - `menu.draw(r)`: draw it to the overlay
 - `menu.selected`: the entry under the cursor
