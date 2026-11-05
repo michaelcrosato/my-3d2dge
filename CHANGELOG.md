@@ -5,6 +5,31 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.86.1 (2026-11-05)
+
+Room in the budgets, `docs/HANDOFF-MATRIX.md`'s Part 0 (its line gone): every kit is about 2,650 tokens lighter, for what the plan's other parts add.
+
+- **Engine**: the full engine's pixel fonts are tables of digit rows: the 5x7 is the agent edition's table (a glyph's width, then a base-32 digit a row), the 3x5 five octal digits a glyph; they were rows of `#` and `.` (about 25 tokens a glyph) and bit strings. Every glyph draws the same pixels as before (in fewer `fillRect` calls: a row's lit pixels are one run). Each kit gives back about 2,650 tokens (adventure 209,998 to 207,306; rpg 240,859 to 238,221).
+- **Tools**: `node tools/font.mjs Aé✕ [--tiny]` prints glyphs as rows of `#` and `.` (`--all` every one), and `--encode <char> <rows>` gives the entry for a new glyph; the contract suite holds the 5x7 to the agent edition's table and every glyph of both fonts to its pixels at v0.86.0.
+- **Docs**: `docs/HANDOFF-MATRIX.md` without its Part 0 and Part 9 (it landed in v0.85.3): the card's lines to come take their room from it (its rules say so); README lists `tools/font.mjs`.
+
+## 0.86.0 (2026-11-04)
+
+What 96 builders patched into the engine again and again (the cc-matrix run of Nov 3 and 4, on v0.85.2: 79 changed the engine), the quick ones in it now; the rest is a plan (`docs/HANDOFF-MATRIX.md`), and every bug in it was checked against the code first.
+
+- **Engine**: the 5x7 font draws every symbol `input.label()` returns (✕ ○ □ △ for a PlayStation pad, − for a Nintendo one), ✓ ✗ · … – — ° ² ³ € £ ¢ ¡ ¿ ’ ‘ “ ” ◀ ▶ ▲ ▼ ● ■, and the accented letters of the Latin alphabets (á é í ó ú ý à è ì ò ù â ê î ô û ä ë ï ö ü ÿ ã õ ñ ç ß, the capitals five rows tall under the accent); they printed as `?`. The 3x5 font has the face buttons too. The agent edition's font has the same glyphs, pixel for pixel.
+- **Engine**: a game sets a standard setting's default: `menu: { settings: [{ key: 'glyphs', value: 'playstation', options: [...] }] }` changes that setting (its other fields kept) instead of replacing it (one with a label of its own still is the game's own, in its place); 53 builds edited the engine to make PlayStation symbols the default. The controller's settings (symbols, dead zone, aim, vibration) reach every player, and a player who joins takes them.
+- **Engine**: `E.Dialog`'s `voice` may be a function, called once for each letter as it types (a babble voice, Animalese); `say(text, { voice })` sets one line's; `width` sizes the box (28 builds patched the voice in).
+- **Engine**: `audio.bus('sfx' | 'music' | 'voice' | 'master')`: a GainNode for a game's own Web Audio, so it follows the volume, the mute and the settings, and a voice bus under the master (`audio.voiceVolume`); 35 builds patched a bus in.
+- **Engine**: a rig moved with `vx` and no `vy` (or a `NaN`) no longer turns its move direction into `NaN` for good, which drew the rig nowhere and made it unhittable.
+- **Engine**: the music schedules its notes ahead by the audio offset too: with an offset past about 230 ms (the 150 to 250 the setting suggests for wireless headphones) every note fell in the past and was skipped, and the music was silent.
+- **Engine**: a script's `input.tap` and `input.hold` are no device: prompts keep the keys or buttons the player used last (they turned to touch labels); a tap of an action held with `hold` leaves it held; `input.feed('move')` is a mouse move to menus (their hover reads `mouse.t`); a real mouse move turns prompts from a pad's or touch's to the keyboard and mouse; with no pad connected, a script's pad codes stay held.
+- **Engine**: `game.after(s, fn, { keep: true })` and `game.every(s, fn, { keep: true })` outlive a scene change, as kept tweens and scripts do (a scene change cleared every timer: a slow motion restored by one stayed on).
+- **Engine**: a tile map keeps its seven most recently used floor bakes and lets the oldest go, instead of dropping all of them when a seventh view or zoom came; a low pitch that sees no rows no longer makes the chunked floor's trim negative.
+- **Mocap**: the clip player is `window.Mocap` too (a top-level `const` is no property of `window`: a game that looked for it found nothing, and its clips silently never played).
+- **Docs**: the API card names the glyphs default, `Dialog`'s voice and width, `audio.bus`, the fade a test advances past, kept timers and where the 3D engine is; its budget is 21,100 (D77). The handoff package's README says how to get the 3D engine (it is not in the package; three builders thought there was none), and what trips a headless test: the fade, the timers, `draw`, `E.store`, a script's taps. `mouseGround()` says it returns `[x, y]`.
+- **Tools**: the contract suite holds each of these (the matrix checks, on both editions), and the audio suite plays a song with a 250 ms offset and counts its notes.
+
 ## 0.85.3 (2026-11-05)
 
 The test suites' own failures, on main since v0.85.2 at least (`docs/HANDOFF-MATRIX.md`'s Part 9, found on the cc-matrix run's way): two were one engine bug, a phone's first tap going full screen; one the test's; and a 3D warm-up that missed a shadow.

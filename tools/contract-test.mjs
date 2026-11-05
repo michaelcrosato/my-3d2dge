@@ -26,6 +26,13 @@
 //                  adding, polygons, the ground below, normals, a circle's hit, a ray, a walker on slopes, steps and
 //                  walls, falling and landing, a physics ball resting on it; in Chromium only the chunks a change
 //                  touched are drawn again
+//   the matrix     what 96 builders patched into the engine (cc-matrix, v0.85.2; docs/HANDOFF-MATRIX.md): the font draws
+//                  every symbol input.label() returns and the accented letters, from the agent edition's table of digit
+//                  rows, every glyph of both fonts as at v0.86.0; a rig moved with vx alone keeps finite
+//                  joints; a standard setting's default from the game (glyphs: playstation), reaching a player who joins;
+//                  E.Dialog's voice per letter, say's voice, its width; audio.bus headless; a script's tap and hold are no
+//                  device, a tap leaves a hold held, feed('move') is a mouse move, a script's pad codes stay held with no
+//                  pad; a kept timer outlives a scene; the floor bakes keep the latest used
 //   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
 //                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map;
 //                  in Chromium, r.pick on a body drawn from its kept image (r.actor's every) the box it has redrawn
@@ -116,6 +123,67 @@ for (const [ed, file] of EDITIONS) {
   physicsToys(E, ed);   // (and the physics and terrain modules)
   rpgs(E, ed);
   shellHeadless(E, ed);
+  matrixFixes(E, ed);
+}
+
+// the cc-matrix run's patches, in the engine now (docs/HANDOFF-MATRIX.md): each was made by builders again and again
+function matrixFixes(E, ed) {
+  // the 5x7 font draws every face button label() returns, the marks prompts use and the accented letters (not '?')
+  const draw = s => { const calls = []; const g = { fillStyle: '', globalAlpha: 1, fillRect(x, y, w, h) { calls.push(x + ',' + y + ',' + w + ',' + h); }, save() {}, restore() {} }; E.font.text(g, s, 0, 0, '#ffffff', false); return calls.sort().join(';'); };
+  const q = draw('?'), I0 = new E.Game({ headless: true }).input, labels = new Set();
+  for (const fam of ['xbox', 'playstation', 'nintendo', 'generic']) { I0.glyphs = fam; for (let i = 0; i < 18; i++) labels.add(I0.codeLabel('Pad' + i)); }
+  const want = [...labels].join('') + '✓·…–—°€◀▶▲▼éèàçñüöäßÉÜÑ¿¡';
+  const miss = [...new Set(want)].filter(c => c.trim() && draw(c) === q && c !== '?');
+  check(`${ed}: the font draws every symbol label() returns, the marks and the accents (not '?')`, !miss.length, 'drawn as ?: ' + miss.join(' '));
+  if (ed === 'full') { const t = E.font._f('tiny'); check(`${ed}: the 3x5 font draws the face buttons`, ['✕', '○', '□', '△'].every(c => t.glyphs[c])); }
+  // the fonts as rows of digits (HANDOFF-MATRIX 0.1: a glyph spelled in # and . cost every kit about 25 tokens): the full
+  // engine's 5x7 table is the agent edition's, and every glyph of both fonts draws the pixels it drew at v0.86.0
+  const fnv = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
+  const drawIn = (F, s, font) => { const lit = new Set(); const g = { fillStyle: '', globalAlpha: 1, fillRect(x, y, w, h) { for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) lit.add((x + i) + ',' + (y + j)); }, save() {}, restore() {} }; F.font.text(g, s, 0, 0, '#ffffff', { outline: false, font }); return [...lit].sort().join(';'); };   // (the pixels lit, not the calls: a row's runs may merge)
+  const FULL = ed === 'full' ? E : load('engine/my-3d2dge.js'), keysOf = font => Object.keys(FULL.font._f({ font }).glyphs).filter(c => c !== ' ').sort();
+  const print = (F, font) => fnv(keysOf(font).map(c => c + ':' + F.font.width(c, { font }) + ':' + drawIn(F, c, font)).join('|'));
+  if (ed === 'full') {
+    const table = src => (src.match(/"((?:[^"\\]|\\.){400,})"\.split\(" "\)/) || [])[1];
+    const fullSrc = readFileSync(join(root, 'engine/my-3d2dge.js'), 'utf8'), agentTable = table(readFileSync(join(root, 'engine/my-3d2dge-agent.js'), 'utf8'));
+    check(`${ed}: the 5x7 font is the agent edition's table (a base-32 digit a row), not rows of # and .`, !!agentTable && fullSrc.includes('"' + agentTable + '"') && !/'[.#]{3,5}\|[.#]{3,5}\|/.test(fullSrc), 'the full engine spells its glyphs as rows of # and .');
+    check(`${ed}: every glyph of the 5x7 and 3x5 fonts draws as it did at v0.86.0`, print(E, 'normal') === 'a1fc4152' && print(E, 'tiny') === '72d9f4af' && keysOf('normal').length === 189 && keysOf('tiny').length === 89, print(E, 'normal') + ' ' + print(E, 'tiny'));
+  } else check(`${ed}: every glyph of the 5x7 font draws as the full engine's`, print(E, 'normal') === print(FULL, 'normal'));
+  // a rig moved with vx alone (no vy) walks: its joints stay finite, and so after a NaN
+  const rig = new E.Humanoid({}); for (let i = 0; i < 30; i++) rig.update(1 / 120, { x: 0, y: 0, vx: 40 }); rig.update(1 / 120, { x: 0, y: 0, vx: NaN, vy: 20 });
+  check(`${ed}: a rig moved with vx alone keeps finite joints`, Object.values(rig.J).every(p => p.every(Number.isFinite)) && rig._mv.every(Number.isFinite), JSON.stringify(rig._mv));
+  // a game sets a standard setting's default: PlayStation symbols unless the player picks Xbox; a player who joins shows them
+  const sg = new E.Game({ headless: true, menu: { settings: [{ key: 'glyphs', value: 'playstation', options: [['playstation', 'PlayStation'], ['xbox', 'Xbox']] }] } }), sp = sg.settings.spec('glyphs');
+  check(`${ed}: menu.settings with a standard key sets that setting's default, its other fields kept`, sg.settings.glyphs === 'playstation' && sg.input.glyphs === 'playstation' && sp.group === 'Controller' && sp.label === 'Button symbols' && sp.options.length === 2 && sg.input.label('jump', 'gamepad') === '△', JSON.stringify({ v: sg.settings.glyphs, group: sp.group, label: sg.input.label('jump', 'gamepad') }));
+  check(`${ed}: a game that sets nothing keeps the standard default`, new E.Game({ headless: true }).settings.glyphs === 'auto');
+  if (sg.addPlayer) {
+    const p2 = sg.addPlayer({ pad: 1 }); const joined = p2.glyphs; sg.settings.set('glyphs', 'xbox');
+    check(`${ed}: a player who joins shows the chosen symbols, and a change reaches every player`, joined === 'playstation' && p2.glyphs === 'xbox' && sg.input.glyphs === 'xbox', joined + ' ' + p2.glyphs);
+  }
+  // E.Dialog: a voice may be a function, once per letter typed; say's voice is that line's; width sizes the box
+  const dg = new E.Game({ headless: true }); dg.start({ update() {}, draw() {} }); dg.advance(.05);
+  const said = [], d = new E.Dialog(dg, { voice: ch => said.push(ch), width: 200 }); d.say('Hi you.', { name: 'ELDER' }); for (let i = 0; i < 120; i++) d.update(1 / 120);
+  const once = []; d.say('Ok', { voice: (ch, i) => once.push(i) }); for (let i = 0; i < 60; i++) d.update(1 / 120);
+  check(`${ed}: E.Dialog's voice function hears each letter once`, said.join('') === 'Hi you.', JSON.stringify(said.join('')));
+  check(`${ed}: say's voice is that line's, and width sizes the box`, once.join(',') === '0,1' && d._dims().w === 200, once.join(',') + ' w ' + d._dims().w);
+  check(`${ed}: audio.bus is null headless, voiceVolume 1`, dg.audio.bus('voice') === null && dg.audio.voiceVolume === 1);
+  // a script's tap and hold are no device (prompts keep the player's), and a tap of a held action leaves it held
+  const ig = new E.Game({ headless: true }), I = ig.input; ig.start({ update() {}, draw() {} }); ig.advance(.05);
+  I.lastDevice = 'keyboard'; I.tap('jump'); I.hold('right'); ig.advance(.05);
+  check(`${ed}: a script's tap and hold leave lastDevice as it was`, I.lastDevice === 'keyboard', I.lastDevice);
+  I.tap('right'); ig.advance(.05); check(`${ed}: a tap of a held action leaves it held`, I.down('right')); I.hold('right', false); ig.advance(.05);
+  check(`${ed}: let go, it is up`, !I.down('right'));
+  if (I.feed) { const t0 = I.mouse.t; I.feed('move', 40, 40); ig.advance(1 / 60); check(`${ed}: feed('move') is a mouse move (mouse.t, which menus hover by)`, I.mouse.t !== t0); }
+  if (ed === 'full') { I.press('PadAxisUp'); ig.advance(.05); check(`${ed}: with no pad, a script's pad code stays held`, I.held.has('PadAxisUp')); I.release('PadAxisUp'); }
+  // a timer kept outlives the scene; one not kept ends with it
+  const tg = new E.Game({ headless: true }), fired = []; tg.start({ scenes: { a: { update() {} }, b: { update() {} } }, scene: 'a' }); tg.advance(.05);
+  tg.after(.3, () => fired.push('kept'), { keep: true }); tg.after(.3, () => fired.push('cleared')); tg.every(.1, () => fired.push('every'), { keep: true });
+  tg.go('b', null, { fade: 0 }); tg.advance(.45);
+  check(`${ed}: game.after(s, fn, { keep: true }) outlives a scene change; one not kept is cleared`, fired.includes('kept') && !fired.includes('cleared') && fired.filter(f => f === 'every').length >= 3, JSON.stringify(fired));
+  // the floor's bakes: at most seven views, the least recently used let go (not every one)
+  const fm = new E.TileMap({ rows: ['....', '....'], legend: {} }), V = n => new E.View('lru' + n, 'v', 20 + n, 45, 1, 1), vs = [0, 1, 2, 3, 4, 5, 6, 7].map(V);
+  for (const v of vs.slice(0, 7)) fm._floor(v); fm._floor(vs[0]); fm._floor(vs[7]);
+  const keys = Object.keys(fm.floors);
+  check(`${ed}: the floor bakes keep the latest used (seven at most)`, keys.length === 7 && keys.some(k => k.startsWith('lru0:')) && !keys.some(k => k.startsWith('lru1:')), keys.join(' '));
 }
 
 // every fenced example in API.md and API-INDEX.md runs: a snippet in Node, in a headless game when it uses one it

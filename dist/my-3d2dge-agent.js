@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.85.3: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.86.1: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -128,7 +128,7 @@ Game: new E.Game({ canvas: 'screen', res, expand, view, views, input, bg })
   camera: follow(obj, { z: 16, lead }) once, or focus(x, y, z) every update; cam.bounds = v => map.bounds(v);
     cam.room = [w, h] for screen-by-screen rooms (cam.moving is true while it slides); cam.smooth = .18 (0 = locked)
   juice: hitFx(x, y, z, { power: 1, damage, angle, color, sound }), freeze(s), shake(n), flash(color, s), timeScale = .25
-  timers in game time: after(s, fn), every(s, fn) -> { cancel() }, cleared on scene change
+  timers in game time: after(s, fn), every(s, fn) -> { cancel() }, cleared on scene change unless { keep: true }
   also: setView(id), nextView() (cycles views), note(text, s), mouseGround() -> [x, y] or null
   fields: W, H, time, real, paused, input, audio, particles, view, cam, errors
 Input (game.input): down(a) held, pressed(a) this step only, released(a), repeat(a, delay .3, rate .08) for menus,
@@ -140,7 +140,8 @@ Input (game.input): down(a) held, pressed(a) this step only, released(a), repeat
   SHMUP: fire (Space, Z, J, click), bomb (X, K, right click)
   label('jump') -> its key or button on the device in use, for prompts: 'Space', 'A', '✕'
 Standard, with no code: game.settings (saved per game: volume music effects sound motion shake flashes scale deadzone
-  glyphs; set(key, v) checks, saves, applies; yours: new E.Game({ menu: { settings: [{ key: 'hints', value: true }] } })),
+  glyphs; set(key, v) checks, saves, applies; yours (or a standard one's default: { key: 'glyphs', value: 'playstation' }):
+  new E.Game({ menu: { settings: [{ key: 'hints', value: true }] } })),
   game.fullscreen (a phone's first tap, a top-right button; toggle() from a key or click), and a pausable scene pausing
   when the page is hidden or the controller unplugs (pause(reason), resume(), pauseReason). Don't build your own. Leave
   out: fullscreen: 'button' | false, corner: false, autoPause: false. The full engine adds the menu screens.
@@ -163,7 +164,7 @@ Pixels (g is a canvas context from r.queue, r.overlay or r.actor): E.px.rect(g, 
 Sprites: const COIN = E.sprite(['.yy.', 'yYYy', '.yy.'], { y: '#f0b020', Y: '#fff0a0' }, scale); '.' and ' ' are clear
 Text: E.font.text(g, str, x, y, color, { outline: '#0b0814' | false, shadow, gradient: [top, bottom], scale, align, wrap: px })
   -> { w, h }; E.font.title(g, str, x, y, { scale: 3, colors: [top, ..., bottom], depth, align }); E.font.width(str, opts),
-  lineHeight(opts), wrap(str, px). A 5x7 font with lower case and ♥ ★ ← → ↑ ↓ • × ♪ ▸ ©
+  lineHeight(opts), wrap(str, px). A 5x7 font with lower case, accents and every symbol label() returns (✕ ○ □ △)
 UI (draw inside r.overlay): E.ui.box(g, x, y, w, h, { bg, border, alpha }), E.ui.bar(g, x, y, w, h, 0..1, color),
   E.ui.hearts(g, x, y, hp, max) (halves allowed)
   const talk = new E.Dialog(game); talk.say(['Page one.', 'Page two.'], { name: 'ELDER', choices: ['YES', 'NO'],
@@ -377,7 +378,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.85.3', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.86.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -751,7 +752,7 @@ class Input {
   constructor(screen, map, signal) {
     this.screen = screen; this.use(map);
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {}; this._rk = {};
-    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set();
+    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set(); this._holds = new Set();
     this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this.padPrev = []; this.padIndex = null; this.padId = ''; this.deadzone = .18;
     this.lastDevice = 'keyboard'; this.glyphs = 'auto'; this.padLost = false;   // label() follows the device used last; glyphs: 'auto' | 'xbox' | 'playstation' | 'nintendo' | 'generic'
     const el = screen.canvas; if (!el) return;
@@ -784,8 +785,8 @@ class Input {
     for (const a of this._codes[code] || []) if (!this.down(a)) this._freshUp.add(a);
   }
   // scripted input (tests, bots): tap(a) presses an action for one step; hold(a, on) holds it down or lets it go
-  tap(a) { if (!this.map[a]) { this._check(a); return; } const c = 'Act:' + a; this.press(c); this._taps.add(c); }
-  hold(a, on = true) { if (!this.map[a]) { this._check(a); return; } if (on) this.press('Act:' + a); else this.release('Act:' + a); }
+  tap(a) { if (!this.map[a]) { this._check(a); return; } const c = 'Act:' + a, d = this.lastDevice; this.press(c); this._taps.add(c); this.lastDevice = d; }   // (a script's tap is no device)
+  hold(a, on = true) { if (!this.map[a]) { this._check(a); return; } const c = 'Act:' + a, d = this.lastDevice; if (on) { this._holds.add(c); this.press(c); } else { this._holds.delete(c); this.release(c); } this.lastDevice = d; }   // (nor a hold; a tap leaves a hold held)
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + ". Add your own with new E.Game({ input: { ...E.Input.DEFAULT, " + a + ": ['KeyQ'] } })"); }
   down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } for (const c of m) if (this.held.has(c)) return true; return false; }
   pressed(a) { if (!this.map[a]) this._check(a); return this._now.has(a); }
@@ -800,7 +801,7 @@ class Input {
   buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this._pt[a]; return t !== undefined && !this._used[a] && this.clock - t <= win; }
   consume(a) { this._used[a] = true; }
   consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); }
-  clear() { this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; }
+  clear() { this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; }
   anyPressed() { return this._now.size > 0; }
   move() {
     let x = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), y = (this.down('down') ? 1 : 0) - (this.down('up') ? 1 : 0);
@@ -837,7 +838,7 @@ class Input {
       p.buttons.forEach((b, i) => { if (b.pressed && !this.padPrev[i]) this.press('Pad' + i); if (!b.pressed && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = b.pressed; });
       [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5].forEach((on, i) => { const c = ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'][i]; if (on) this.press(c); else this.release(c); });
     }
-    for (const c of this._tapsDue) this.release(c);   // a tap is held for the one step after it
+    for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);   // a tap is held for the one step after it (a hold() of the same action stays)
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed() / released()
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
@@ -863,7 +864,7 @@ const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift',
 
 // ---- 6. FONT: 5x7 proportional pixel font with lower case. Glyph data: char, width, then one base-32 digit per row (bit 1 << (w - 1 - x) = pixel x) ----
 const F = { g: {}, h: 7, desc: 2, gap: 1, space: 3 };
-for (const e of "05ehjlphe 154c4444e 25eh1248v 35u11e11u 4526aiv22 55vgu11he 65egguhhe 75v124888 85ehhehhe 95ehhf11e A5ehhvhhh B5uhhuhhu C5ehggghe D5uhhhhhu E5vgguggv F5vgguggg G5ehgnhhf H5hhhvhhh I37222227 J572222ic K5hikokih L5ggggggv M5hrllhhh N5hhpljhh O5ehhhhhe P5uhhuggg Q5ehhhlid R5uhhukih S5fgge11u T5v444444 U5hhhhhhe V5hhhhha4 W5hhhllla X5hha4ahh Y5hha4444 Z5v1248gv a500e1fhf b5gguhhhu c500eggge d511fhhhf e500ehvge f434f4444 g500fhhhf1e h5gguhhhh i11011111 j3101111152 k4889aca9 l22222221 m500qllll n500uhhhh o500ehhhe p500uhhhugg q500fhhhf11 r400bc888 s500fge1u t444f4443 u500hhhhf v500hhha4 w500hhlla x500ha4ah y500hhhhf1e z500v248v !11111101 \"35500000 #5aavavaa $54fke5u4 %5pp248jj &5cik8lid '11100000 (31244421 )34211124 *50level0 +5044v440 ,200000112 -4000f000 .10000001 /511248gg :10010010 ;200100112 <41248421 =500v0v00 >48421248 ?5eh12404 @5ehnlngf [37444447 \\5gg84211 ]37111117 ^54ah0000 _5000000v `22100000 {43448443 |11111111 }4c22122c ~5008l200 ♥50avve40 ★544veah0 ←5048v840 →5042v240 ↑54el4440 ↓50444le4 •30027200 ©5ehlklhe ×50ha4ah0 ▸48cefec8 ♪56544cs8".split(" ")) {
+for (const e of "05ehjlphe 154c4444e 25eh1248v 35u11e11u 4526aiv22 55vgu11he 65egguhhe 75v124888 85ehhehhe 95ehhf11e A5ehhvhhh B5uhhuhhu C5ehggghe D5uhhhhhu E5vgguggv F5vgguggg G5ehgnhhf H5hhhvhhh I37222227 J572222ic K5hikokih L5ggggggv M5hrllhhh N5hhpljhh O5ehhhhhe P5uhhuggg Q5ehhhlid R5uhhukih S5fgge11u T5v444444 U5hhhhhhe V5hhhhha4 W5hhhllla X5hha4ahh Y5hha4444 Z5v1248gv a500e1fhf b5gguhhhu c500eggge d511fhhhf e500ehvge f434f4444 g500fhhhf1e h5gguhhhh i11011111 j3101111152 k4889aca9 l22222221 m500qllll n500uhhhh o500ehhhe p500uhhhugg q500fhhhf11 r400bc888 s500fge1u t444f4443 u500hhhhf v500hhha4 w500hhlla x500ha4ah y500hhhhf1e z500v248v !11111101 \"35500000 #5aavavaa $54fke5u4 %5pp248jj &5cik8lid '11100000 (31244421 )34211124 *50level0 +5044v440 ,200000112 -4000f000 .10000001 /511248gg :10010010 ;200100112 <41248421 =500v0v00 >48421248 ?5eh12404 @5ehnlngf [37444447 \\5gg84211 ]37111117 ^54ah0000 _5000000v `22100000 {43448443 |11111111 }4c22122c ~5008l200 ♥50avve40 ★544veah0 ←5048v840 →5042v240 ↑54el4440 ↓50444le4 •30027200 ©5ehlklhe ×50ha4ah0 ▸48cefec8 ♪56544cs8 ✕50ha4ah0 ○50ehhhe0 □50vhhhv0 △504aahv0 ✓50012k80 ✗50ha4ah0 ◂4137f731 ◀4137f731 ▶48cefec8 ◄4137f731 ►48cefec8 ▲5004ev00 ▼500ve400 ●50evvve0 ■50vvvvv0 ·10001000 –4000f000 —5000v000 …5000000l ’21120000 ‘21220000 “45aa0000 ”455a0000 °32520000 ²36127000 ³37317000 €578u8u87 £5698s88v ¢504ekke4 ¡11011111 ¿54048ghe ß5ciimhhm á524e1fhf é524ehvge í31222222 ó524ehhhe ú524hhhhf ý524hhhhf1e Á524ehvhh É524vgugv Í31272227 Ó524ehhhe Ú524hhhhe Ý524ha444 à584e1fhf è584ehvge ì34222222 ò584ehhhe ù584hhhhf À584ehvhh È584vgugv Ì34272227 Ò584ehhhe Ù584hhhhe â54ae1fhf ê54aehvge î32522222 ô54aehhhe û54ahhhhf Â54aehvhh Ê54avgugv Î32572227 Ô54aehhhe Û54ahhhhe ä5a0e1fhf ë5a0ehvge ï35022222 ö5a0ehhhe ü5a0hhhhf ÿ5a0hhhhf1e Ä5a0ehvhh Ë5a0vgugv Ï35072227 Ö5a0ehhhe Ü5a0hhhhe ã59me1fhf õ59mehhhe ñ59muhhhh Ã59mehvhh Õ59mehhhe Ñ59mhpljh ç500eggge4c Ç5ehggghe4c −5000v000".split(" ")) {
   const w = +e[1], runs = [];
   for (let y = 0; y < e.length - 2; y++) { const v = parseInt(e[y + 2], 32); for (let x = 0; x < w;) { if (!(v >> (w - 1 - x) & 1)) { x++; continue; } let n = 1; while (x + n < w && v >> (w - 1 - x - n) & 1) n++; runs.push([x, y, n]); x += n; } }
   F.g[e[0]] = { w, runs };
@@ -1337,8 +1338,8 @@ class Game {
   // keep the camera on an object: follow(hero, { z: 16, lead: 0 }); follow(null) stops
   follow(target, o = {}) { this._follow = target ? { target, z: o.z === undefined ? 16 : o.z, lead: o.lead || 0 } : null; this.cam.snap = true; }
   mouseGround() { const m = this.input.mouseScreen(); return m ? this.view.toGround(m[0], m[1]) : null; }
-  after(seconds, fn) { const t = { at: this.time + seconds, fn, every: 0, dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
-  every(seconds, fn) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
+  after(seconds, fn, o = {}) { const t = { at: this.time + seconds, fn, every: 0, dead: false, keep: !!o.keep }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
+  every(seconds, fn, o = {}) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false, keep: !!o.keep }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
   _camStep(dt) {
     const c = this.cam; let fx = c.tx, fy = c.ty, fz = c.tz;
     if (c.room) {
@@ -1490,7 +1491,7 @@ class Game {
     const s = this.scenes[name];
     if (!s) throw new Error('scene "' + name + '" does not exist. Scenes: ' + Object.keys(this.scenes).join(', '));
     if (this.scene && this.scene.exit) this.scene.exit();
-    this.scene = s; this.sceneName = name; this.paused = false; this._timers.length = 0; this.hitstop = 0;
+    this.scene = s; this.sceneName = name; this.paused = false; prune(this._timers, t => !t.keep); this.hitstop = 0;
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null;
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
@@ -1596,7 +1597,7 @@ class Settings {
     const raw = store.get(this._key, null); hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});
     if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
-    for (const sp of own) this.define(sp);
+    for (const sp of own) this.define(sp && !sp.label && Object.prototype.hasOwnProperty.call(STANDARD_SETTINGS, sp.key) ? Object.assign({ key: sp.key }, STANDARD_SETTINGS[sp.key], sp) : sp);   // (a standard key with no label: the game's fields over the standard ones; with a label it is the game's own)
   }
   // add a setting { key, label, type, value, min, max, step, options, group: 'Game', apply(game, v) }: its saved value loads and applies
   define(sp) {
@@ -1848,8 +1849,8 @@ class Humanoid {
     const speed = s.run ? s.run * o.speedRef : Math.hypot(s.vx || 0, s.vy || 0);
     this._spW = approach(this._spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
     if (speed > 3 && !s.run) {
-      const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
-      this._mv[0] = lerp(this._mv[0], (s.vx * c + s.vy * sn) / speed, k); this._mv[1] = lerp(this._mv[1], (-s.vx * sn + s.vy * c) / speed, k);
+      const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10), vx = +s.vx || 0, vy = +s.vy || 0;   // (vx alone, or a NaN, is no move on that axis: never a NaN gait)
+      this._mv[0] = lerp(this._mv[0], (vx * c + vy * sn) / speed, k); this._mv[1] = lerp(this._mv[1], (-vx * sn + vy * c) / speed, k);
     }
     this.phase += dt * speed / (o.stride * o.size * Math.max(.4, Math.min(1, this._spW)));
     this._dashW = approach(this._dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
@@ -2606,8 +2607,8 @@ class TileMap {
   }
   _floor(view) {
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale;
-    if (this.floors[key]) return this.floors[key];
-    if (Object.keys(this.floors).length > 6) this.floors = {};
+    const had = this.floors[key]; if (had) { delete this.floors[key]; return (this.floors[key] = had); }   // (the latest used goes last)
+    const ks = Object.keys(this.floors); for (let k = 0; k < ks.length - 6; k++) delete this.floors[ks[k]];   // seven views' bakes at most, as before: the least recently used goes, not every one
     const T = this.T, W = this.w * T, H = this.h * T, out = !!view.inv && this.outside !== false, M = out ? 96 : 0, oc = out && this._outsideCol(view);
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const s = view.p(x, y, 0); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
@@ -3315,7 +3316,7 @@ const DRUMS = {
 };
 class ChipAudio {
   constructor(game, signal) {
-    this._game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
+    this._game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.voiceVolume = 1; this.muted = false;
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
@@ -3329,6 +3330,7 @@ class ChipAudio {
       this._master = c.createGain(); this._master.connect(c.destination);
       this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
       this._musBus = c.createGain(); this._musBus.connect(this._master);
+      this._voiceBus = c.createGain(); this._voiceBus.connect(this._master);   // (bus('voice'): a game's babble or speech)
       this.applyVolume();
       const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this._rnd() * 2 - 1;
       this._noise = nb;
@@ -3340,7 +3342,15 @@ class ChipAudio {
   }
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
   /** apply volume, musicVolume, sfxVolume and mute after setting them directly */
-  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
+  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); this._voiceBus.gain.value = this.voiceVolume; }
+  /** a bus for a sound of the game's own (Web Audio nodes it makes on audio.ctx: a babble voice, a loop, an instrument)
+   *  to connect to, so it follows the volume, the mute and the player's settings: 'sfx', 'music', 'voice' (its level is
+   *  voiceVolume) or 'master'. Returns a GainNode, or null where there is no sound (headless, no Web Audio) */
+  bus(name = 'sfx') {
+    if (!['sfx', 'music', 'voice', 'master'].includes(name)) warn('bus:' + name, 'audio.bus("' + name + '"): no such bus (sfx, music, voice, master): the sfx bus');
+    if (this._game.headless || !this._init()) return null;
+    return name === 'master' ? this._master : name === 'music' ? this._musBus : name === 'voice' ? this._voiceBus : this._sfxBus;
+  }
   setVolume(v) { this.volume = clamp(v, 0, 1); this.applyVolume(); }
   mute(on = !this.muted) { this.muted = on; this.applyVolume(); return on; }
   // quiet the music (to 35%) under a game's own pause or map screen; the engine also ducks it while game.paused
@@ -3516,16 +3526,16 @@ function markup(s, vars) {
 class Dialog {
   constructor(game, o = {}) {
     this.game = game;
-    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', bg: '#141a3a', border: '#e8e4ff', vars: null }, o);
+    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', width: 0, bg: '#141a3a', border: '#e8e4ff', vars: null }, o);
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
   _dims() {
-    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
+    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, this.width || 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
     const pl = this._place || this.place, y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
     return { x: Math.round((W - w) / 2), y, w, h, lh, tx, P };
   }
   say(text, o = {}) {
-    this.portrait = typeof o.portrait === 'function' ? o.portrait : null; this._pSize = o.portraitSize || 40;
+    this.portrait = typeof o.portrait === 'function' ? o.portrait : null; this._pSize = o.portraitSize || 40; this._voice = o.voice;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;
     const d = this._dims(), pages = [], fxs = [];
     for (const t of Array.isArray(text) ? text : [text]) {
@@ -3554,7 +3564,9 @@ class Dialog {
       const sp = (mk.fx[n] && mk.fx[n].s) || this.speed, u = Math.min(t, (n + 1 - this.shown) / sp);
       this.shown = Math.min(len, this.shown + u * sp); t -= u; if (n + 1 - this.shown < 1e-6) this.shown = n + 1;
     }
-    if (this.voice && Math.floor(this.shown) > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(this.voice);
+    const vo = this._voice !== undefined ? this._voice : this.voice, now = Math.floor(this.shown);   // (say's voice, for that call, else the box's)
+    if (typeof vo === 'function') { if (now > prev) { const tx = this._page.join(''); for (let n = prev; n < now; n++) try { vo(tx[n], n, this); } catch (e) { this.game.fail('dialog voice', e); } } }
+    else if (vo && now > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(vo);
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {
       this._wait = 0;

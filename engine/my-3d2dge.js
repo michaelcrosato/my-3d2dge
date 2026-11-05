@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.85.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.86.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.85.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.86.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -774,7 +774,7 @@ class Input {
      *  thumb moves before the stick counts (0..0.5); steer: 'stick' (a stick drawn under the thumb) or 'drag' (a finger
      *  anywhere on the screen but the buttons steers by drag(), with no stick drawn: a shooter's ship that follows the
      *  thumb); padAxes: the gamepad's raw axes */
-    this.touchEnabled = true; this.stickSide = 'left'; this.steer = 'stick'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
+    this.touchEnabled = true; this.stickSide = 'left'; this.steer = 'stick'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set(); this._holds = new Set();
     /** zones: areas of the screen a finger holds an action down in, [{ x0, y0, x1, y1, act }] (fractions of the canvas,
      *  0..1; the first that holds the finger wins), or null: a pinball's two halves, a rhythm game's lanes. A finger
      *  landing in one presses act until it lifts (several fingers, several zones), and starts no stick */
@@ -822,7 +822,7 @@ class Input {
     on(window, 'blur', () => all(q => q.clear()));
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
-    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
+    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { if (this.lastDevice !== 'mouse' && this.lastDevice !== 'keyboard' && Math.hypot(e.clientX - this.mouse.cx, e.clientY - this.mouse.cy) > 3) this.lastDevice = 'mouse'; this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
     on(el, 'pointerdown', e => {
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
       if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
@@ -1007,10 +1007,14 @@ class Input {
   }
   /** press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down()
    *  are true in the next step, released() in the one after */
-  tap(a) { if (!this.map[a]) { this._check(a); return; } this._tapCode('Act:' + a); }
+  tap(a) { if (!this.map[a]) { this._check(a); return; } const d = this.lastDevice; this._tapCode('Act:' + a); this.lastDevice = d; }   // (a script's tap is no device: prompts keep the player's)
   _tapCode(c) { this.press(c); this._taps.add(c); }
   /** hold an action down (on) or let it go (false), as its key would */
-  hold(a, on = true) { if (!this.map[a]) { this._check(a); return; } if (on) this.press('Act:' + a); else this.release('Act:' + a); }
+  hold(a, on = true) {
+    if (!this.map[a]) { this._check(a); return; }
+    const c = 'Act:' + a, d = this.lastDevice; if (on) { this._holds.add(c); this.press(c); } else { this._holds.delete(c); this.release(c); }
+    this.lastDevice = d;   // (no device either; and a tap of a held action leaves it held)
+  }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
   /** is the action held right now? */
   down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } if (this._suppressed.has(a)) return false; for (const c of m) if (this.held.has(c)) return true; return false; }
@@ -1044,7 +1048,7 @@ class Input {
   _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._down = null; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
-    this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
+    this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
     this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._zoneOf.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
@@ -1102,7 +1106,7 @@ class Input {
     if (z) { this._zoneDown('fed' + (o.id || 0), z); return; }   // (a finger in a zone: its act, no gesture)
     if (o.touch && type === 'up' && this._zoneOf.has('fed' + (o.id || 0))) { this._zoneUp('fed' + (o.id || 0)); return; }
     if (type === 'down') { this._fed = [x, y]; if (!o.touch) this.press('Mouse' + (o.button || 0)); this._gesture('down', x, y, { touch: !!o.touch, button: o.button || 0, id: 'fed' }); }
-    else if (type === 'move') this._gesture('move', x, y);
+    else if (type === 'move') { if (!o.touch) { this.mouse.t = this.clock; this.mouse.active = true; } this._gesture('move', x, y); }   // (menus hover by mouse.t, as a real move)
     else if (type === 'up') {
       if (this._fed && Math.hypot(x - this._fed[0], y - this._fed[1]) < 4 && !(o.button > 0)) this._click = [x, y];
       if (!o.touch) this.release('Mouse' + (o.button || 0)); this._fed = null; this._gesture('up', x, y);
@@ -1146,8 +1150,7 @@ class Input {
     this.padLost = false;
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
       if (!p && this.padIndex !== null) { this.padLost = this.lastDevice === 'gamepad'; this.stopRumble(); }   // unplugged while in use
-      this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); });
-      for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c);
+      if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
       this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
       this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
       if (this.aimSource === 'pad') this.aimSource = 'move';
@@ -1164,7 +1167,7 @@ class Input {
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
     // a tap is held for the one step after it (its release comes the step after that)
-    for (const c of this._tapsDue) this.release(c);
+    for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed()/released()
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
@@ -1303,60 +1306,31 @@ Input.SHMUP = {
 E.Input = Input;
 
 /* =============================================================================
- * 6. PIXEL FONT  3x5 glyphs for in-world numbers and labels
+ * 6. PIXEL FONTS  the 5x7 text font (the default) and the 3x5 one for in-world numbers and labels
  * ============================================================================= */
-const GLYPHS = {
-  '0': '111101101101111', '1': '010110010010111', '2': '111001111100111', '3': '111001111001111', '4': '101101111001001',
-  '5': '111100111001111', '6': '111100111101111', '7': '111001010010010', '8': '111101111101111', '9': '111101111001111',
-  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100',
-  G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101010', K: '101101110101101', L: '100100100100111',
-  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', Q: '010101101110011', R: '110101110101101',
-  S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101',
-  Y: '101101010010010', Z: '111001010100111', '+': '000010111010000', '-': '000000111000000', '!': '010010010000010',
-  '.': '000000000000010', ':': '000010000010000', '/': '001001010100100', ' ': '000000000000000', 'x': '000101010101000',
-  '?': '111001010000010', ',': '000000000010100', "'": '010010000000000', '"': '101101000000000', '(': '001010010010001',
-  ')': '100010010010100', '%': '101001010100101', '*': '000101010101000', '=': '000111000111000', '<': '001010100010001',
-  '>': '100010001010100', '#': '101111101111101', '&': '010101010101011', '_': '000000000000111', ';': '000010000010100',
-  '[': '110100100100110', ']': '011001001001011', '$': '011110111011110', '^': '010101000000000', '@': '111101111100011',
-  '~': '000011110000000', '♥': '101111111010000', '♡': '101101101010000', '★': '010111010101000', '•': '000010111010000',
-  '←': '000010111010000', '→': '000010111010000', '↑': '010111010010010', '↓': '010010010111010', '©': '111101101101111'
-};
-GLYPHS['←'] = '000100111100000'; GLYPHS['→'] = '000001111001000';
-/* 5x7 proportional font with lower case and descenders: the default ('normal'). Rows are 7 above the baseline and up to 2 below */
-const G57 = {
-  "A": '.###.|#...#|#...#|#####|#...#|#...#|#...#', "B": '####.|#...#|#...#|####.|#...#|#...#|####.', "C": '.###.|#...#|#....|#....|#....|#...#|.###.', "D": '####.|#...#|#...#|#...#|#...#|#...#|####.', "E": '#####|#....|#....|####.|#....|#....|#####', "F": '#####|#....|#....|####.|#....|#....|#....',
-  "G": '.###.|#...#|#....|#.###|#...#|#...#|.####', "H": '#...#|#...#|#...#|#####|#...#|#...#|#...#', "I": '###|.#.|.#.|.#.|.#.|.#.|###', "J": '..###|...#.|...#.|...#.|...#.|#..#.|.##..', "K": '#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#', "L": '#....|#....|#....|#....|#....|#....|#####',
-  "M": '#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#', "N": '#...#|#...#|##..#|#.#.#|#..##|#...#|#...#', "O": '.###.|#...#|#...#|#...#|#...#|#...#|.###.', "P": '####.|#...#|#...#|####.|#....|#....|#....', "Q": '.###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#', "R": '####.|#...#|#...#|####.|#.#..|#..#.|#...#',
-  "S": '.####|#....|#....|.###.|....#|....#|####.', "T": '#####|..#..|..#..|..#..|..#..|..#..|..#..', "U": '#...#|#...#|#...#|#...#|#...#|#...#|.###.', "V": '#...#|#...#|#...#|#...#|#...#|.#.#.|..#..', "W": '#...#|#...#|#...#|#.#.#|#.#.#|#.#.#|.#.#.', "X": '#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#',
-  "Y": '#...#|#...#|.#.#.|..#..|..#..|..#..|..#..', "Z": '#####|....#|...#.|..#..|.#...|#....|#####', "a": '.....|.....|.###.|....#|.####|#...#|.####', "b": '#....|#....|####.|#...#|#...#|#...#|####.', "c": '.....|.....|.###.|#....|#....|#....|.###.', "d": '....#|....#|.####|#...#|#...#|#...#|.####',
-  "e": '.....|.....|.###.|#...#|#####|#....|.###.', "f": '..##|.#..|####|.#..|.#..|.#..|.#..', "g": '.....|.....|.####|#...#|#...#|#...#|.####|....#|.###.', "h": '#....|#....|####.|#...#|#...#|#...#|#...#', "i": '#|.|#|#|#|#|#', "j": '..#|...|..#|..#|..#|..#|..#|#.#|.#.',
-  "k": '#...|#...|#..#|#.#.|##..|#.#.|#..#', "l": '#.|#.|#.|#.|#.|#.|.#', "m": '.....|.....|##.#.|#.#.#|#.#.#|#.#.#|#.#.#', "n": '.....|.....|####.|#...#|#...#|#...#|#...#', "o": '.....|.....|.###.|#...#|#...#|#...#|.###.', "p": '.....|.....|####.|#...#|#...#|#...#|####.|#....|#....',
-  "q": '.....|.....|.####|#...#|#...#|#...#|.####|....#|....#', "r": '....|....|#.##|##..|#...|#...|#...', "s": '.....|.....|.####|#....|.###.|....#|####.', "t": '.#..|.#..|####|.#..|.#..|.#..|..##', "u": '.....|.....|#...#|#...#|#...#|#...#|.####', "v": '.....|.....|#...#|#...#|#...#|.#.#.|..#..',
-  "w": '.....|.....|#...#|#...#|#.#.#|#.#.#|.#.#.', "x": '.....|.....|#...#|.#.#.|..#..|.#.#.|#...#', "y": '.....|.....|#...#|#...#|#...#|#...#|.####|....#|.###.', "z": '.....|.....|#####|...#.|..#..|.#...|#####', "0": '.###.|#...#|#..##|#.#.#|##..#|#...#|.###.', "1": '..#..|.##..|..#..|..#..|..#..|..#..|.###.',
-  "2": '.###.|#...#|....#|...#.|..#..|.#...|#####', "3": '####.|....#|....#|.###.|....#|....#|####.', "4": '...#.|..##.|.#.#.|#..#.|#####|...#.|...#.', "5": '#####|#....|####.|....#|....#|#...#|.###.', "6": '.###.|#....|#....|####.|#...#|#...#|.###.', "7": '#####|....#|...#.|..#..|.#...|.#...|.#...',
-  "8": '.###.|#...#|#...#|.###.|#...#|#...#|.###.', "9": '.###.|#...#|#...#|.####|....#|....#|.###.', "!": '#|#|#|#|#|.|#', "\"": '#.#|#.#|...|...|...|...|...', "#": '.#.#.|.#.#.|#####|.#.#.|#####|.#.#.|.#.#.', "$": '..#..|.####|#.#..|.###.|..#.#|####.|..#..',
-  "%": '##..#|##..#|...#.|..#..|.#...|#..##|#..##', "&": '.##..|#..#.|#.#..|.#...|#.#.#|#..#.|.##.#', "'": '#|#|.|.|.|.|.', "(": '..#|.#.|#..|#..|#..|.#.|..#', ")": '#..|.#.|..#|..#|..#|.#.|#..', "*": '.....|#.#.#|.###.|#####|.###.|#.#.#|.....',
-  "+": '.....|..#..|..#..|#####|..#..|..#..|.....', ",": '..|..|..|..|..|.#|.#|#.', "-": '....|....|....|####|....|....|....', ".": '.|.|.|.|.|.|#', "/": '....#|....#|...#.|..#..|.#...|#....|#....', ":": '.|.|#|.|.|#|.',
-  ";": '..|..|.#|..|..|.#|.#|#.', "<": '...#|..#.|.#..|#...|.#..|..#.|...#', "=": '.....|.....|#####|.....|#####|.....|.....', ">": '#...|.#..|..#.|...#|..#.|.#..|#...', "?": '.###.|#...#|....#|...#.|..#..|.....|..#..', "@": '.###.|#...#|#.###|#.#.#|#.###|#....|.####',
-  "[": '###|#..|#..|#..|#..|#..|###', "\\": '#....|#....|.#...|..#..|...#.|....#|....#', "]": '###|..#|..#|..#|..#|..#|###', "^": '..#..|.#.#.|#...#|.....|.....|.....|.....', "_": '.....|.....|.....|.....|.....|.....|#####', "`": '#.|.#|..|..|..|..|..',
-  "{": '..##|.#..|.#..|#...|.#..|.#..|..##', "|": '#|#|#|#|#|#|#', "}": '##..|..#.|..#.|...#|..#.|..#.|##..', "~": '.....|.....|.#...|#.#.#|...#.|.....|.....', "♥": '.....|.#.#.|#####|#####|.###.|..#..|.....', "★": '..#..|..#..|#####|.###.|.#.#.|#...#|.....',
-  "←": '.....|..#..|.#...|#####|.#...|..#..|.....', "→": '.....|..#..|...#.|#####|...#.|..#..|.....', "↑": '..#..|.###.|#.#.#|..#..|..#..|..#..|.....', "↓": '.....|..#..|..#..|..#..|#.#.#|.###.|..#..', "•": '...|...|.#.|###|.#.|...|...', "©": '.###.|#...#|#.#.#|#.#..|#.#.#|#...#|.###.',
-  "×": '.....|#...#|.#.#.|..#..|.#.#.|#...#|.....', "▸": '#...|##..|###.|####|###.|##..|#...', "♪": '..##.|..#.#|..#..|..#..|.##..|###..|.#...'
-};
-const parseFont = (src, h) => {
+// Both fonts are tables of glyphs: each entry a character, then one digit for each row of its pixels, top to bottom, the
+// row's pixels being the digit's bits from the left. The 3x5 ('tiny', upper case, for in-world numbers and labels): five
+// octal digits, so '075557' is 0 drawn as 7 = ###, 5 = #.#, #.#, #.#, ###. The 5x7 ('normal', the default): its width,
+// then a base-32 digit a row (0-9 then a-v, 5 bits), seven above the baseline and up to two below, so 'A5ehhvhhh' is A,
+// 5 wide, e = .###., h = #...#, h, v = #####, h, h, h. The 5x7 is proportional with lower case and descenders; beside
+// ASCII it draws every symbol input.label() returns (✕ ○ □ △ and the arrows), ✓ ✗ · • … – — ° ² ³ × € £ ¢ ¡ ¿ ’ “ ”,
+// ▲ ▼ ◀ ▶ ◂ ▸ ● ■ ★ ♥ ♪ © and the accented letters of the Latin alphabets (é à ç ñ ü ö ß ..., a capital five rows tall
+// under its accent); any other character draws as ?. It is the agent edition's table. To see glyphs as rows of # and .:
+// node tools/font.mjs <characters> [--tiny]
+const GLYPHS = "075557 126227 271747 371717 455711 574717 674757 771222 875757 975717 A25755 B65656 C34443 D65556 E74647 F74644 G34553 H55755 I72227 J11152 K55655 L44447 M57755 N65555 O25552 P65644 Q25563 R65655 S34216 T72222 U55557 V55552 W55775 X55255 Y55222 Z71247 +02720 -00700 !22202 .00002 :02020 /11244 x05250 ?71202 ,00024 '22000 \"55000 (12221 )42224 %51245 *05250 =07070 <12421 >42124 #57575 &25253 _00007 ;02024 [64446 ]31113 $36736 ^25000 @75743 ~03600 ♥57720 ♡55520 ★27250 •02720 ←04740 →01710 ↑27222 ↓22272 ©75557 ✕05250 ○02520 □07570 △02570 ✓01520 ·00200 –00700 —00700 ▲02700 ▼07200 ▶46764 ◀13731 ▸46764 ◂13731 °25200 −00700";
+const G57 = "05ehjlphe 154c4444e 25eh1248v 35u11e11u 4526aiv22 55vgu11he 65egguhhe 75v124888 85ehhehhe 95ehhf11e A5ehhvhhh B5uhhuhhu C5ehggghe D5uhhhhhu E5vgguggv F5vgguggg G5ehgnhhf H5hhhvhhh I37222227 J572222ic K5hikokih L5ggggggv M5hrllhhh N5hhpljhh O5ehhhhhe P5uhhuggg Q5ehhhlid R5uhhukih S5fgge11u T5v444444 U5hhhhhhe V5hhhhha4 W5hhhllla X5hha4ahh Y5hha4444 Z5v1248gv a500e1fhf b5gguhhhu c500eggge d511fhhhf e500ehvge f434f4444 g500fhhhf1e h5gguhhhh i11011111 j3101111152 k4889aca9 l22222221 m500qllll n500uhhhh o500ehhhe p500uhhhugg q500fhhhf11 r400bc888 s500fge1u t444f4443 u500hhhhf v500hhha4 w500hhlla x500ha4ah y500hhhhf1e z500v248v !11111101 \"35500000 #5aavavaa $54fke5u4 %5pp248jj &5cik8lid '11100000 (31244421 )34211124 *50level0 +5044v440 ,200000112 -4000f000 .10000001 /511248gg :10010010 ;200100112 <41248421 =500v0v00 >48421248 ?5eh12404 @5ehnlngf [37444447 \\5gg84211 ]37111117 ^54ah0000 _5000000v `22100000 {43448443 |11111111 }4c22122c ~5008l200 ♥50avve40 ★544veah0 ←5048v840 →5042v240 ↑54el4440 ↓50444le4 •30027200 ©5ehlklhe ×50ha4ah0 ▸48cefec8 ♪56544cs8 ✕50ha4ah0 ○50ehhhe0 □50vhhhv0 △504aahv0 ✓50012k80 ✗50ha4ah0 ◂4137f731 ◀4137f731 ▶48cefec8 ◄4137f731 ►48cefec8 ▲5004ev00 ▼500ve400 ●50evvve0 ■50vvvvv0 ·10001000 –4000f000 —5000v000 …5000000l ’21120000 ‘21220000 “45aa0000 ”455a0000 °32520000 ²36127000 ³37317000 €578u8u87 £5698s88v ¢504ekke4 ¡11011111 ¿54048ghe ß5ciimhhm á524e1fhf é524ehvge í31222222 ó524ehhhe ú524hhhhf ý524hhhhf1e Á524ehvhh É524vgugv Í31272227 Ó524ehhhe Ú524hhhhe Ý524ha444 à584e1fhf è584ehvge ì34222222 ò584ehhhe ù584hhhhf À584ehvhh È584vgugv Ì34272227 Ò584ehhhe Ù584hhhhe â54ae1fhf ê54aehvge î32522222 ô54aehhhe û54ahhhhf Â54aehvhh Ê54avgugv Î32572227 Ô54aehhhe Û54ahhhhe ä5a0e1fhf ë5a0ehvge ï35022222 ö5a0ehhhe ü5a0hhhhf ÿ5a0hhhhf1e Ä5a0ehvhh Ë5a0vgugv Ï35072227 Ö5a0ehhhe Ü5a0hhhhe ã59me1fhf õ59mehhhe ñ59muhhhh Ã59mehvhh Õ59mehhhe Ñ59mhpljh ç500eggge4c Ç5ehggghe4c −5000v000";
+const parseFont = (src, mono) => {   // -> { char: { w, runs: [[x, y, n] ...] } }, the lit pixels of each row in runs
   const out = {};
-  for (const ch in src) {
-    const rows = typeof src[ch] === 'string' && src[ch].includes('|') ? src[ch].split('|') : null;
-    let w, runs = [];
-    if (rows) { w = rows[0].length; rows.forEach((r, y) => { for (let x = 0; x < r.length;) { if (r[x] !== '#') { x++; continue; } let n = 1; while (r[x + n] === '#') n++; runs.push([x, y, n]); x += n; } }); }
-    else { w = 3; const bits = src[ch]; for (let k = 0; k < bits.length; k++) if (bits[k] === '1') runs.push([k % 3, (k / 3) | 0, 1]); }   // 3x5 bit strings
-    out[ch] = { w, runs };
+  for (const e of src.split(' ')) {
+    const w = mono || +e[1], rows = e.slice(mono ? 1 : 2), runs = [];
+    for (let y = 0; y < rows.length; y++) { const v = parseInt(rows[y], 32); for (let x = 0; x < w;) { if (!(v >> (w - 1 - x) & 1)) { x++; continue; } let n = 1; while (x + n < w && v >> (w - 1 - x - n) & 1) n++; runs.push([x, y, n]); x += n; } }
+    out[e[0]] = { w, runs };
   }
-  void h; return out;
+  return out;
 };
 const FONTS = {
   normal: { glyphs: parseFont(G57), h: 7, desc: 2, gap: 1, space: 3, upper: false },
-  tiny: { glyphs: parseFont(GLYPHS), h: 5, desc: 0, gap: 2, space: 3, upper: true, mono: 3 }
+  tiny: { glyphs: parseFont(GLYPHS, 3), h: 5, desc: 0, gap: 2, space: 3, upper: true, mono: 3 }
 };
 /**
  * Pixel fonts. 'normal' (default) is a 5x7 proportional font with lower case; 'tiny' is the 3x5 upper-case font.
@@ -2629,12 +2603,14 @@ class Game {
    * opts: { z: extra height to look at (default 16), lead: look ahead in the facing / moving direction }. follow(null) stops.
    */
   follow(target, o = {}) { this._follow = target ? { target, z: o.z === undefined ? 16 : o.z, lead: o.lead || 0 } : null; this.cam.snap = true; }
-  /** mouse position on the ground (world units), or null */
+  /** the mouse's point on the ground: [x, y] in world units (an array, not { x, y }), or null with no mouse over the
+   *  canvas */
   mouseGround() { const m = this.input.mouseScreen(); return m ? this.view.toGround(m[0], m[1]) : null; }
-  /** run fn once after `seconds` of game time. Cleared on scene change. Returns { cancel() } */
-  after(seconds, fn) { const t = { at: this.time + seconds, fn, every: 0, dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
-  /** run fn every `seconds` of game time. Cleared on scene change. Returns { cancel() } */
-  every(seconds, fn) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
+  /** run fn once after `seconds` of game time. Cleared on scene change, unless { keep: true } (a site's clock, a
+   *  watcher of the whole game: it outlives scenes, as a kept tween does). Returns { cancel() } */
+  after(seconds, fn, o = {}) { const t = { at: this.time + seconds, fn, every: 0, dead: false, keep: !!o.keep }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
+  /** run fn every `seconds` of game time. Cleared on scene change, unless { keep: true }. Returns { cancel() } */
+  every(seconds, fn, o = {}) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false, keep: !!o.keep }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
   _camStep(dt) {
     const c = this.cam; let fx = c.tx, fy = c.ty, fz = c.tz;
     if (c.room) {
@@ -2850,7 +2826,7 @@ class Game {
     const old = this.scene;
     if (old && old.exit) old.exit();
     if (old && old._propWas !== undefined) { E.style.propSize = old._propWas; old._propWas = undefined; }
-    this.scene = s; this.sceneName = name; this.paused = false; this._timers.length = 0; this.hitstop = 0;
+    this.scene = s; this.sceneName = name; this.paused = false; prune(this._timers, t => !t.keep); this.hitstop = 0;
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = this._framed = null;
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
@@ -2963,7 +2939,11 @@ E.Game = Game;
  * 10b. STANDARD FEATURES  what every game gets without writing it, so a game's code goes to the game:
  *    - game.settings: the player's choices (display, sound, comfort, controls), saved per game (a version, every value
  *      checked when it loads, a bad one falls back to its default), applied at once. A game adds its own with
- *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints.
+ *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints;
+ *      one with a standard key and no label changes that setting, its other fields kept: { key: 'glyphs', value:
+ *      'playstation', options: [['playstation', 'PlayStation'], ['xbox', 'Xbox']] } shows PlayStation symbols unless the
+ *      player picks Xbox (game.settings.set('glyphs', 'xbox') switches); one with a label of its own is the game's, in the
+ *      standard one's place (a map's 'zoom'). The controller's settings reach every player, and one who joins later.
  *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there, and a game
  *      started by a tap does again; turning it off (the corner's button, the menu) is the player's choice, kept.
  *    - the back gesture: a phone's back steps back in the game (game.back(): a menu screen closes, play pauses) before it
@@ -2998,10 +2978,10 @@ const STANDARD_SETTINGS = {
   shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
   flashes: { group: 'Comfort', label: 'Screen flashes', type: 'slider', value: 1 },
   bindings: { group: 'Controls', type: 'bindings', value: () => ({}), apply: (g, v) => { g.input.bindings = v; } },
-  deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, step: .01, apply: (g, v) => { g.input.deadzone = v; } },
-  invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { g.input.invertAimY = !!v; } },
-  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { g.input.glyphs = v; } },
-  rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { g.input.rumbleScale = v; } },
+  deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, step: .01, apply: (g, v) => { for (const q of g._players || [g.input]) q.deadzone = v; } },
+  invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertAimY = !!v; } },
+  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { for (const q of g._players || [g.input]) q.glyphs = v; } },
+  rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { for (const q of g._players || [g.input]) q.rumbleScale = v; } },
   touch: { group: 'Touch', label: 'Touch buttons', type: 'select', value: 'auto', options: [['auto', 'Automatic'], ['on', 'Always'], ['off', 'Hidden']], apply: g => g.input._touchSync() },
   hand: { group: 'Touch', label: 'Buttons on', type: 'select', value: 'right', options: [['right', 'Right'], ['left', 'Left']], apply: g => g.input._touchSync() },
   touchSize: { group: 'Touch', label: 'Button size', type: 'slider', value: 62, min: 44, max: 88, step: 2, unit: ' px', apply: g => g.input._touchSync() },
@@ -3039,7 +3019,7 @@ class Settings {
     if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     game.input._settings = this; game.input._onBindings = b => this.set('bindings', b);
     for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
-    for (const sp of own) this.define(sp);
+    for (const sp of own) this.define(sp && !sp.label && Object.prototype.hasOwnProperty.call(STANDARD_SETTINGS, sp.key) ? Object.assign({ key: sp.key }, STANDARD_SETTINGS[sp.key], sp) : sp);   // (a standard key with no label: the game's fields over the standard ones; with a label it is the game's own)
   }
   /** add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value,
    *  label]] or [value], help, group: 'Game', apply(game, value) }. Its saved value is loaded (when it is a valid one) and
@@ -3700,6 +3680,7 @@ Game.prototype.addPlayer = function (o = {}) {
   const P = this.players; if (P.length >= 4) return null;
   const q = new Input(_pStub(this), Input.DEFAULT), n = P.length + 1;
   Object.assign(q, { player: n, name: 'P' + n, color: E.PLAYER_COLORS[n - 1], pad: typeof o.pad === 'number' ? o.pad : null, half: o.keys ? 'right' : null, device: o.keys ? 'keyboard' : 'gamepad' });
+  for (const k of ['glyphs', 'deadzone', 'invertAimY', 'rumbleScale']) q[k] = this.input[k];   // (the player's settings: button symbols, dead zone, aim, vibration)
   q.lastDevice = q.device; if (q.pad !== null) { q.tick(0); q.consumeAll(); }   // (the buttons held as it joins, its Start among them, are no presses)
   const I = P[0]; if (q.half && !I.half) { I._full = I.preset; I.half = 'left'; I.use(Input.halfKeys(I._full, 'left')); }   // player 1 moves to the left half
   q.use(_pPreset(this, q));
@@ -4049,8 +4030,8 @@ class Humanoid {
     }
     this._spW = approach(this._spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
     if (speed > 3 && !s.run) {
-      const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
-      this._mv[0] = lerp(this._mv[0], (s.vx * c + s.vy * sn) / speed, k); this._mv[1] = lerp(this._mv[1], (-s.vx * sn + s.vy * c) / speed, k);
+      const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10), vx = +s.vx || 0, vy = +s.vy || 0;   // (vx alone, or a NaN, is no move on that axis: never a NaN gait)
+      this._mv[0] = lerp(this._mv[0], (vx * c + vy * sn) / speed, k); this._mv[1] = lerp(this._mv[1], (-vx * sn + vy * c) / speed, k);
     }
     this.phase += dt * speed / (o.stride * o.size * this._strideK() * Math.max(.4, Math.min(1, this._spW)));
     this._dashW = approach(this._dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
@@ -5410,8 +5391,8 @@ class TileMap {
   }
   _floor(view) {
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale;
-    if (this.floors[key]) return this.floors[key];
-    if (Object.keys(this.floors).length > 6) this.floors = {};
+    const had = this.floors[key]; if (had) { delete this.floors[key]; return (this.floors[key] = had); }   // (the latest used goes last)
+    const ks = Object.keys(this.floors); for (let k = 0; k < ks.length - 6; k++) delete this.floors[ks[k]];   // seven views' bakes at most, as before: the least recently used goes, not every one
     const T = this.T, W = this.w * T, H = this.h * T, M = view.inv && this.outside !== false ? 96 : 0;   // (M: the ground baked past the edge, in pixels)
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const s = view.p(x, y, 0); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
@@ -5480,7 +5461,7 @@ class TileMap {
       r.ctx.drawImage(ch.cv, X, Y); if (gpu && ch.info) r._iG.drawImage(ch.info, X, Y);
     }
     ring: for (let j = Math.max(0, j0 - 1); j <= Math.min(ny - 1, j1 + 1); j++) for (let i = Math.max(0, i0 - 1); i <= Math.min(nx - 1, i1 + 1); i++) if (!f.chunks.has(j * nx + i)) { get(i, j); break ring; }
-    const keep = 2 * (i1 - i0 + 3) * (j1 - j0 + 3);
+    const keep = 2 * Math.max(1, i1 - i0 + 3) * Math.max(1, j1 - j0 + 3);   // (never below 2: a low pitch can see no rows, j1 < j0)
     if (f.chunks.size > keep) { const old = [...f.chunks].sort((a, b) => a[1].t - b[1].t); for (let n = f.chunks.size - keep, k = 0; k < n; k++) f.chunks.delete(old[k][0]); }
   }
   /** the bytes the baked floors hold now (each view's, chunks and the lighting's canvases counted): what a big map's
@@ -7536,9 +7517,9 @@ class ChipAudio {
    *  rule); until then, and where there is no Web Audio, every call is silently skipped */
   constructor(game, signal) {
     /** game: the game it plays for; ctx: the Web Audio context, made at the first sound (null before, or where there
-     *  is none); volume: master volume 0..1; sfxVolume, musicVolume: 0..1 for effects and music; muted: true while
-     *  mute() is on */
-    this._game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
+     *  is none); volume: master volume 0..1; sfxVolume, musicVolume, voiceVolume: 0..1 for effects, music and the voice
+     *  bus (bus('voice')); muted: true while mute() is on */
+    this._game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.voiceVolume = 1; this.muted = false;
     /** presets: the named sound effects, sfx(name) plays one and define(name, voice) adds one; song: the music
      *  playing (null for none); failed: why there is no sound (a message), or null; ducked: true while duck(true)
      *  holds the music down */
@@ -7559,6 +7540,7 @@ class ChipAudio {
       this._master = c.createGain(); this._master.connect(c.destination);
       this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
       this._musBus = c.createGain(); this._musBus.connect(this._master);
+      this._voiceBus = c.createGain(); this._voiceBus.connect(this._master);   // (bus('voice'): a game's babble or speech)
       this.applyVolume();
       const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this._rnd() * 2 - 1;
       this._noise = nb;
@@ -7571,7 +7553,15 @@ class ChipAudio {
   /** true once the browser lets the game make sound */
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
   /** apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it) */
-  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
+  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); this._voiceBus.gain.value = this.voiceVolume; }
+  /** a bus for a sound of the game's own (Web Audio nodes it makes on audio.ctx: a babble voice, a loop, an instrument)
+   *  to connect to, so it follows the volume, the mute and the player's settings: 'sfx', 'music', 'voice' (its level is
+   *  voiceVolume) or 'master'. Returns a GainNode, or null where there is no sound (headless, no Web Audio) */
+  bus(name = 'sfx') {
+    if (!['sfx', 'music', 'voice', 'master'].includes(name)) warn('bus:' + name, 'audio.bus("' + name + '"): no such bus (sfx, music, voice, master): the sfx bus');
+    if (this._game.headless || !this._init()) return null;
+    return name === 'master' ? this._master : name === 'music' ? this._musBus : name === 'voice' ? this._voiceBus : this._sfxBus;
+  }
   /** set the master volume, 0..1 */
   setVolume(v) { this.volume = clamp(v, 0, 1); this.applyVolume(); }
   /** toggle (or set) mute; returns the new state */
@@ -7759,12 +7749,14 @@ class ChipAudio {
     if (this._stings.length) this._stings = this._stings.filter(S => { const live = this._clockNow(S) < S.end + .5; if (!live) try { S.bus.disconnect(); } catch (e) { /* gone */ } return live; });
     if (!this.song && !this._fading.length && !this._stings.length) { clearInterval(this._timer); this._timer = null; }
   }
-  // a song's notes for the next 150 ms of its clock, each at the sound's time its anchor maps it to (less the offset)
+  // a song's notes for the next 150 ms of its clock and the offset's more (each is sounded the offset early, so a 250 ms offset
+  // needs its notes 400 ms ahead, or they would fall in the past and be skipped), each at the sound's time its anchor maps it
+  // to (less the offset)
   _ahead(C) {
     const c = this.ctx, now = this._clockNow(C);
     if (!C.anchor) { C.anchor = { ctx: c.currentTime + .05, clk: now }; C.next = Math.max(C.next, Math.floor(this._stepAt(C, now) + .5)); }
     for (let n = 0; n < 64; n++) {
-      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 || (!C.loop && k >= C.len)) break;
+      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 + Math.max(0, this.offset) || (!C.loop && k >= C.len)) break;
       const at = C.anchor.ctx + (t - C.anchor.clk) - this.offset, p = k % C.len;
       if (at > c.currentTime - .03) for (const tr of C.tracks) this._note(tr, p % tr.tokens.length, Math.max(at, c.currentTime), C.spb, tr.gain);
       C.next++;
@@ -8875,15 +8867,17 @@ function markup(s, vars) {
   return had ? { text, fx, wait } : null;
 }
 class Dialog {
-  /** new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border, vars }): a dialog box that types
+  /** new E.Dialog(game, { speed, lines, place, color, nameColor, voice, width, bg, border, vars }): a dialog box that types
    *  its text; say() opens it, update(dt) and draw(r) run it */
   constructor(game, o = {}) {
     /** game: its game */
     this.game = game;
     /** speed: letters typed per second; lines: text lines per page; place: 'bottom' | 'top' | 'middle'; color: the
      *  text's color; nameColor: the speaker's name's color; voice: the sound effect each letter blips ('text'; null
-     *  for silence); bg, border: the box's colors; vars: the values {$name} in the text reads (say's vars first) */
-    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', bg: '#141a3a', border: '#e8e4ff', vars: null }, o);
+     *  for silence), or a function (letter, index, dialog) called once for each letter as it types (a babble voice:
+     *  Animalese; dialog.name is the speaker); width: the box's width in pixels (320 at most by default, the screen's
+     *  less 12 at most); bg, border: the box's colors; vars: the values {$name} in the text reads (say's vars first) */
+    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', width: 0, bg: '#141a3a', border: '#e8e4ff', vars: null }, o);
     /** open: true while it shows; pages: the text wrapped into pages of lines; i: the page shown; shown: letters
      *  typed so far on it; choice: the choice under the cursor */
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
@@ -8893,7 +8887,7 @@ class Dialog {
   // the choices' box, over the box's right end
   _cbox(d) { const w = Math.max(...this.choices.map(c => E.font.width(c))) + 20, h = this.choices.length * d.lh + 7; return { x: d.x + d.w - w - 2, y: d.y - h - 2, w, h }; }
   _dims() {
-    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
+    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, this.width || 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
     const pl = this._place || this.place; let x = Math.round((W - w) / 2), y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
     const t = this._y === undefined && pl === 'bottom' && this.game.input.touchArea && this.game.input.touchArea();
     if (t && x + w > t.x0 && x < t.x1 && y + h > t.y0) {   // clear of the touch buttons: beside them where it fits, else above them
@@ -8906,14 +8900,14 @@ class Dialog {
    * opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size),
    *         portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself,
    *         modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha,
-   *         vars: the values {$name} reads }
+   *         vars: the values {$name} reads, voice: this call's (a sound effect, null, or a function per letter) }
    * choices: ['YES', 'NO'], shown on the last page (picked by the keys, or a tap or click on one); onChoice(i) gets the
    * one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
    */
   say(text, o = {}) {
     /** portrait: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size
      *  in pixels; pOpts: its options ({ zoom, turn, bg }) */
-    this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {};
+    this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {}; this._voice = o.voice;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
     const d = this._dims(), pages = [], fxs = [];
     for (const t of Array.isArray(text) ? text : [text]) {
@@ -8957,7 +8951,9 @@ class Dialog {
       const sp = (mk.fx[n] && mk.fx[n].s) || this.speed, u = Math.min(t, (n + 1 - this.shown) / sp);
       this.shown = Math.min(len, this.shown + u * sp); t -= u; if (n + 1 - this.shown < 1e-6) this.shown = n + 1;
     }
-    if (this.voice && Math.floor(this.shown) > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(this.voice);
+    const vo = this._voice !== undefined ? this._voice : this.voice, now = Math.floor(this.shown);   // (say's voice, for that call, else the box's)
+    if (typeof vo === 'function') { if (now > prev) { const tx = this._page.join(''); for (let n = prev; n < now; n++) try { vo(tx[n], n, this); } catch (e) { this.game.fail('dialog voice', e); } } }
+    else if (vo && now > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(vo);
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {   // pages turn and the box closes by itself
       this._wait = 0;

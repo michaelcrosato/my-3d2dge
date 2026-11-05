@@ -10,6 +10,7 @@
 //   2. a synced song pauses with the game: its place holds while paused (real time passing), and goes on after
 //   3. the audio offset's calibration: taps 40 ms after each click (on the game's clock) find an offset of about 40 ms
 //   4. a crossfade, a stinger on the next bar and a layer brought in play without an error
+//   5. an audio offset of 250 ms (a wireless headset's) still sounds the music's notes, scheduled that much earlier
 // Usage: node tools/audio-test.mjs [--seconds 180]   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser).
 // Exit code 1 on failure.
 import { chromium } from 'playwright';
@@ -73,6 +74,18 @@ const r4 = await ev(async () => {
   return { title: A.song.src.title, bpm: A.pos.bpm, fading: A.song && A.pos.playing };
 });
 check('a layer, a stinger on the next bar, a crossfade and a tempo change play without an error', r4.title === 'Over the Wall' && r4.bpm === 190 && r4.fading && !errors.length, JSON.stringify(r4) + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
+
+// 5. a wireless headset's audio offset (250 ms): each note is sounded that much early, so it is scheduled that much
+//    further ahead, and none falls in the past and is skipped (counted by the oscillators the notes make, offset 0 against 250)
+console.log('an audio offset of 250 ms');
+const r5 = await ev(async () => {
+  const g = window.__fx.game, A = g.audio, w = ms => new Promise(r => setTimeout(r, ms)), S = My3D2dge.Songbook, c = A.ctx, made = { n: 0 }, osc = c.createOscillator.bind(c);
+  c.createOscillator = () => { made.n++; return osc(); };
+  const count = async off => { A.offset = off; A.music(null); A.music(Object.assign({}, S.get('stepup'), { loop: true })); await w(300); made.n = 0; await w(1500); return made.n; };
+  const at0 = await count(0), at250 = await count(.25); A.offset = 0; A.music(null); c.createOscillator = osc;
+  return { at0, at250 };
+});
+check('with a 250 ms audio offset the music still sounds its notes', r5.at0 > 0 && r5.at250 > r5.at0 * .7, JSON.stringify(r5));
 
 await browser.close();
 console.log(problems.length ? `\naudio test FAILED (${problems.length}):\n  ${problems.join('\n  ')}` : `\naudio test passed in ${((Date.now() - t0) / 1000).toFixed(0)} s`);

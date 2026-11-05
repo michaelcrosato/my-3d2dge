@@ -1389,3 +1389,20 @@ An entry:
   they so desire after they have cloned it"); the wording, the places and the check are the agent's, made at once as
   reversible calls
 - **Landed in:** v0.85.2
+
+## D77 · 2026-11-04 · The API card's budget 21,100: the matrix run's most repeated patches belong on it
+
+- **Principle:** 1 (agent-readable: the manual has a measured budget)
+- **Call:** the API card's budget is 21,100 tokens (from 21,000, D59), until the owner's review pass. 96 builders made
+  games on the handoff package (v0.85.2) in the cc-matrix run of Nov 3 and 4, and 79 changed the engine, most of them
+  the same few lines: the button symbols' default (53 builds), the audio bus (35), a per-letter voice for E.Dialog
+  (28). Those are in the engine now, and a builder reads the card, not the source: its prompt line names the glyphs
+  default, the Dialog line its voice and width, the sound line `audio.bus`, the scenes line the fade a test advances
+  past and the timers that outlive a scene, and the More section where the 3D engine is. Cut to the bone (a portrait's
+  mouth and markup's "as it was" went), they still came to 28 tokens past 21,000.
+- **Why:** these are what the builders could not find and patched in, over and over; a card that leaves them out sends
+  the next builder to patch them again. The rest of the matrix's findings go to `docs/HANDOFF-MATRIX.md`, whose
+  card changes are to come with cuts of their own.
+- **Answered:** no: a reversible call, made at once, flagged in the pull request
+- **Landed in:** v0.86.0
+

@@ -1,4 +1,4 @@
-# my-3D2dge handoff package (v0.85.3)
+# my-3D2dge handoff package (v0.86.1)
 
 Everything a coding agent needs to build, run, test and check a game on the full my-3D2dge engine, in one folder of text
 files. You don't need the engine's repository, and you don't need to read the engine's source below its header.
@@ -29,6 +29,12 @@ lacks.
    "market stall"` searches it and the store (`src/assets/sets/`: about a thousand objects, materials and sprites,
    each with where it came from), and `node tools/asset-sheet.mjs mine.js#stool` draws one you wrote, to look at
    before you use it.
+7. **A game in real 3D** (first person, a light gun, a racer on banked roads, flight, a dungeon crawled in 3D, fixed
+   cameras): the 2D views have no perspective camera, but the engine has a 3D add-on, `World3D` (three.js r182 and
+   Rapier 0.19.3 under the 2D engine, which keeps the HUD, menus and sound). It is not in this folder: take
+   `engine/my-3d2dge-3d.js` (its header is its manual), `vendor/` and the 3D kit closest to your game
+   (`src/starter3d/`) from the repository, github.com/michaelcrosato/my-3d2dge, and see them play at
+   my-3d2dge.vercel.app/3d.
 
 ## What is here
 
@@ -65,7 +71,8 @@ node tools/filmstrip.mjs game/index.html --steps "wait:800 press:Enter wait:500 
 ```
 
 Open `game/index.html` in a browser to play (or serve the folder: `npx serve`). To hand a single file to a person, inline
-the two scripts into the page.
+the two scripts into the page, writing every `</script` inside them as `<\/script` (the agent edition's header has one,
+and the page would end there).
 
 ## Testing a game without a browser
 
@@ -76,5 +83,11 @@ the two scripts into the page.
 - `game.debug = { snapshot() { return {...} }, teleport(x, y, z) {...} }` is your game's handle: tests read it, and
   `tools/check.mjs` and `tools/replay.mjs` print it.
 - `game.stop()`, `game.start()` and `game.dispose()` stop, resume and end a game.
+- `game.go('play')` fades for `game.fadeTime` (.22 s) before the new scene enters: advance past it, or set
+  `game.fadeTime = 0` in a test.
+- A scene change clears `game.after` and `game.every` timers: `game.after(s, fn, { keep: true })` outlives scenes.
+- `draw` never runs headless, so nothing your input relies on (a menu's click targets) may be made only in `draw`.
+- `E.store` keeps nothing in Node, which has no `localStorage`.
+- A script's `tap` and `hold` are no device: `input.label()` keeps showing the keys or buttons the player used last.
 
 The same inputs give the same game on every machine and at every refresh rate: the clock is an exact fixed step.

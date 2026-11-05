@@ -28,7 +28,7 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | The look below the PS1/N64 bar | taken up | F2, F3, F4, F6; since v0.59.0: F7 | reached: three games at 6/10. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up (F2.2, F3.2, F4.2). `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up objects, foliage, materials and contact shadows (done in v0.35.0 to v0.38.0, the plan folded into `docs/ASSETS.md` and `docs/ASSET-IMPORT.md`; the judge's re-run, F6: 5/10 with the core library's shapes, D36); the hero's x-ray dither and three-quarter walls stacking into flat planes are still open. **Taken up in v0.56.0**: the x-ray (F2.2, F3.2): in the smooth style a translucent tint with an outline, shown only when something taller than the knees hides the body; grass, crates and barrels don't hide by default (D46, `docs/HANDOFF-NEXT.md`, phase 4). **Taken up in v0.57.0**: wall faces take the shapes' light, with lit top edges and corner creases, so iso's two faces differ and a pillar stands off the wall behind it (F4.2); a ground view's floor runs past the map into one colour, so no view shows a void (F6.2) (D47, `docs/HANDOFF-NEXT.md`, phase 5). **Since v0.59.0:** F7, one source (F7.2): 3, 6, 5, 7 and 7, two era runs at the bar |
 | `E.Shell` unused, the interface drawn on the canvas | taken up | F2, F3, F4, F6 | reached: three games with modern interfaces skipped it. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up (F4.3). **Taken up in v0.55.0**: the STEALTH slice's and the template game's HUDs are `E.Shell`'s HTML (the objective with its distance, health, status, a takedown prompt, toasts, the results); `AI_GUIDE.md` says when a HUD is HTML (`docs/HANDOFF-NEXT.md`, phase 3) |
 | Climbing any wall and gliding written by the game (`E.Mover` climbs ledges) | taken up | F3, F4, F6 | reached: three games wrote their own (F6.4). The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up. **Taken up in v0.58.0**: `E.Mover` climbs any wall, opt-in (`climbAny`: take hold on the ground or in the air, climb up and along as the screen shows it, round corners, climb jumps, pull up, let go; `map.wall` finds the face); the STEALTH slice's hero climbs any wall and the template's hero is a Mover that climbs its roof (D48, `docs/HANDOFF-NEXT.md`, phase 6). **Taken up in v0.59.0**: `E.Mover` glides, opt-in (`glide`: sink, steer, updrafts with `lift`, no fall damage; a glider at a wall takes hold), and climbing, climb jumps, gliding and sprinting spend stamina (`staminaMax`); the template's hero glides off its roof under a sail, with a stamina bar (D48, `docs/HANDOFF-NEXT.md`, phase 7) |
-| Not verified on physical phones or native GPUs | no | F1 | a game heads to production (principle 10) |
+| Not verified on physical phones or native GPUs | no | F1, F8 | a game heads to production (principle 10) |
 | Saves, checkpoints and objectives written by the game | watch | F1 | three sources write the same checkpoint or objective code |
 | Music written by the game for stealth and chases | watch | F1 | two more sources: built-in `stealth` and `chase` songs |
 | Production hardening asked of every game (PWA, wake lock, folds, physical devices, other gamepad mappings) | deferred | F5 | a game heads to production (principle 10) |
@@ -42,6 +42,12 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | What the cards point to, not in the handoff package (the genres' slices, the 3D engine) | taken up | F7 | the next change to the handoff package: it carries the slices and the 3D engine, or its cards say where the kits are (F7.3). **Taken up in v0.85.0**: the package carries every 2D kit's game readable (`kits/`: a page that plays each, their table, a headless test), its README starts an agent from its genre's kit, and its pages say the 3D engine and its kits are on the site and in the repository (D73) |
 | A genre module the card names, unused (the game writes its own) | watch | F7 | a second source writes what its genre's module does (F7.4); since v0.85.0 the handoff package carries the kits, each built on its genre's modules (D73) |
 | The benchmark's own measures (what counts as drawn, the views the check shows, one bar for every brief) | deferred | F7 | the next change to the benchmark (F7.5) |
+| A headless game that differs from the page (`game.go` switching at once in tests) | no | F8 | never: the same inputs give the same state with any renderer or none (principle 5); tests advance past the fade or set `game.fadeTime = 0` |
+| Maps beyond a height field (voxels and floors over floors, hex floors with picking) | deferred | F8 | a second source asks; the grid module's hex grids and 3D's levels meanwhile |
+| Rigs beyond the Humanoid and the Blob in the core (four legs, wings, serpents) | deferred | F8 | a second source asks; Emberdeep's crawlers, serpent and Watcher are its own |
+| The 3D engine's level as data that changes in play, a headless stand-in for it, a crawler's cells | deferred | F8 | a second source asks, or the CRAWLER kit needs a secret wall |
+| Cinematic cameras (shots along a rail with line of sight) | deferred | F8 | a second source asks |
+| Perception's tuning (suspicion that never decays while seen) | watch | F8 | a second stealth game tunes it by hand |
 
 ## Sources
 
@@ -305,3 +311,42 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     road isn't drawn; and the judge holds every brief to the PS1/N64 bar, a 1980 source too. **Deferred:** the next
     change to the benchmark: a measure of drawn that a dark screen passes (its colours, its spread), the check saying
     when a game sets no `views`, and the briefs saying the look they want.
+
+### F8 · 2026-11-04 · the cc-matrix run: 96 builds of 24 plans (Opus xhigh and medium, Sonnet medium, Haiku medium)
+
+- **Builder:** Claude Code headless, run by the owner's cc-matrix dashboard (`~/dev/cc-matrix`): 24 plans by Opus 5.5
+  at max effort, each built four times, by Opus 5.5 at xhigh and medium, Sonnet 5.5 and Haiku 5.5 at medium, on
+  Nov 3 and 4. Each brief a spiritual successor to a game, a film or a show (The Wire, Time Crisis, Wipeout HD, Big
+  Buck Hunter, NBA Jam, Eye of the Beholder ...), controller first, for a TV, with an attract mode and the AI Hub's
+  multiplayer. Weighed Opus first, then Sonnet; Haiku cut features and said so.
+- **Handed:** the handoff package v0.85.2 from GitHub (its README, the cards, the engine readable, the kits).
+- **Built:** 96 games, every one starting headless without an error (the run's audit, `~/dev/cc-matrix/audit.json`);
+  the median Opus build about 1.7 MB. 79 changed the engine (all 48 Opus, 20 Sonnet, 11 Haiku), most the same few
+  lines over and over: measured by diffing each build's copy against v0.85.2 (`docs/HANDOFF-MATRIX.md`, Where this
+  comes from). What they liked most, nearly all of them: headless play (`game.advance`, `game.debug`).
+- **Acted on:** v0.86.0 (the quick ones: the glyphs default, the font's symbols, `Dialog`'s voice, `audio.bus`, the
+  rig's `NaN`, the music's offset, input's scripted taps, kept timers, the floor bakes, `window.Mocap`), and the plan
+  `docs/HANDOFF-MATRIX.md` (the rest: the hub's Create + Options, headless draws, `E.store`, the floor bake's zoom, a
+  perspective camera, the Humanoid's registries, the TV menus, the 3D engine's bugs, racing tracks).
+- **Not acted on (yet):**
+  - **F8.1** · a headless game that differs from the page · the run's audit asked that `game.go` switch scenes at once
+    in tests (21 runs waited out the fade without knowing). **No:** a headless game is the page's twin (principle 5:
+    the same inputs, the same state, with any renderer or none), so a replay or a test proves what a player sees. The
+    card and the handoff README now say to advance past the fade (`game.fadeTime`) or set it to 0.
+  - **F8.2** · maps beyond a height field · DragonQuiltBuilders (Opus xhigh and medium) built a voxel world and its own
+    renderer ("the engine map is a height field"); Brigantime (Opus medium) asked for hex TileMap floors with picking.
+    **Deferred:** a second source asks (the x-ray's exact boxes they also hit are in the plan, 3.8).
+  - **F8.3** · rigs beyond the Humanoid and the Blob · Brigantime (Opus xhigh): four-legged, winged and serpentine rigs
+    with named moves, "a monster-heavy game has to build its whole bestiary". **Deferred:** a second source asks.
+  - **F8.4** · the 3D engine's level as data that changes in play · EyeOfTheBoltHolder (Opus xhigh: secret walls,
+    trapdoors; Opus medium: a crawler's cells, doors and wall features), Skiller7 (Opus medium: a headless stand-in for
+    `World3D`'s level, rays and projection). **Deferred:** a second source asks, or the CRAWLER kit needs one.
+  - **F8.5** · cinematic cameras · Skiller7 (Opus xhigh): shots along a rail with line-of-sight checks. **Deferred.**
+  - **F8.6** · perception's tuning · Bentou2 (Opus xhigh): `E.Suspicion` never decays while the target is seen, so a
+    faint exposure still builds up. **Watch.**
+  - **F8.7** · the 50 ms frame cap · SnipeoutHD, Skiller7, EyeOfTheBoltHolder: under software rendering game time
+    crawls, so tests had to wait on state. **No:** by design (a frame past 50 ms gives up its time); the plan's card
+    line (Part 8) says to wait on state.
+  - **F8.8** · real devices · the goal checks asked for a real pad, sound heard and a person playing, which no headless
+    run can give. **No** for the engine (principle 10); the run's own fix is cc-matrix's.
+

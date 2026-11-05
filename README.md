@@ -320,7 +320,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps (STEALTH kit) |
 | Everything else of the era, by recipe (`AI_GUIDE.md`, Genre recipes) | as each says | twin-stick shooters (Robotron, Smash TV), Bomberman, Gauntlet, Frogger, Breakout, Lemmings, Sokoban, Sonic without the loops, the cinematic platformer (Prince of Persia, Flashback), top-down racing and driving, visual novels, light guns, the indoor corridor shooter (Doom, GoldenEye) on the 3D engine: each a recipe on the kit closest to it |
 
-How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the To check cards and the Vehicle Lab, and the calls made without the owner): `docs/HANDOFF-REVIEW.md`.
+How the engine grows by genre (which system goes where, what every kit has, the traps): `docs/KITS.md`. What the genre plan left for the owner's review (the To check cards and the Vehicle Lab, and the calls made without the owner): `docs/HANDOFF-REVIEW.md`. What 96 builders patched, hit and asked for (the cc-matrix run on v0.85.2), checked against the code, and the plan for it: `docs/HANDOFF-MATRIX.md`.
 
 ## Build and check
 
@@ -362,6 +362,7 @@ npm run test:motion               # game.go's transitions and the weather, filme
 npm run test:modules              # the path every engine module takes, proven with a fixture module in a copy of the repository
 npm run test:views                # the mode7 and road modules' views, filmed twice (the same pixels), and a frame of each within a phone's budget
 node tools/replay.mjs session.json --shots 600   # replay a recorded session (a bug report) headless, with pictures
+node tools/font.mjs Aé✕ [--tiny]  # the pixel fonts' glyphs as rows of # and . (the engine holds a digit a row); --encode <char> <rows> for a new one
 npm run bench -- --brief assassins-creed --dry-run   # the North Star's measures: a fresh agent, a brief, the handoff package (a real run spends money: ask first)
 npm run character:check -- codex   # one playable character: the character test and its character sheet (check-output/sheet-codex.png)
 node tools/ed-balance.mjs --character codex --to 5   # the autopilot plays a hero against the Wanderer, depth by depth
@@ -385,13 +386,13 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.85.3**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.86.1**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
 - `DOCTRINE.md`: what the engine optimizes (good ideas found per unit of time and tokens) and its ten principles for an engine built for AI coding agents, then how each applies here, what was grandfathered when it was adopted, and which check holds it. `docs/DECISIONS.md` logs every deviation, exception and call made without an answer, and is never cleaned up.
 - `docs/FEEDBACK-LOG.md`: the points from builders' feedback that we did not act on, counted by theme so patterns show. What we act on goes into a plan (`docs/HANDOFF-*.md`), then the changelog.
-- `API.md`: the API card, under its budget of 21,000 tokens (D50, D54, D58, D59). It is embedded in every single-file edition.
+- `API.md`: the API card, under its budget of 21,100 tokens (D50, D54, D58, D59, D77). It is embedded in every single-file edition.
 - `engine/modules/README.md`: engine modules, general systems in files of their own that load after the core (a kit carries the ones its slice names): how one is written, its manual and its budget, and how it is tested.
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 9,000 tokens, with three complete example games.
 - `API-INDEX.md`: every public name in the engine, one line each (signature, units, defaults, what it does), with the height rules at the top. Written by `tools/api-index.mjs` from the engine; search it.
