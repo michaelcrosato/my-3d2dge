@@ -4464,7 +4464,7 @@ const RACING = (() => {
     { name: 'TOK', kart: '#30b8e0', rig: { hat: { style: 'band', color: '#ffffff' }, colors: { cloth: '#30b8e0', pants: '#1a3a5a', hair: '#1a1a1a' } } },
     { name: 'ROOK', kart: '#5a5a6a', rig: { hood: true, colors: { cloth: '#3a3a48', pants: '#22222c', hair: '#1a1a1a' } } }
   ];
-  const rigOf = c => new E.Humanoid(Object.assign({ size: .85, weapon: null }, c.rig));   // (made afresh each race: a rig's blinks draw on Math.random, so a race replays exactly)
+  const rigOf = c => new E.Humanoid(Object.assign({ size: .85, weapon: null }, c.rig));   // (made afresh each race: a rig takes its own stream from one draw of Math.random, so a race replays exactly)
   const SONG = { bpm: 152, steps: 4, tracks: [
     { wave: 'square', vol: .06, notes: 'E5 . G5 B5 . G5 E5 . | F5 . A5 C6 . A5 F5 . | G5 . B5 D6 . B5 G5 . | A5 . F5 D5 . E5 F5 .' },
     { wave: 'triangle', vol: .26, notes: 'E3 E3 B2 B2 E3 E3 B2 B2 | F3 F3 C3 C3 F3 F3 C3 C3 | G3 G3 D3 D3 G3 G3 D3 D3 | A2 A2 E3 E3 D3 D3 B2 B2' },
@@ -4632,7 +4632,7 @@ const RACING = (() => {
     const into = ((R._d - OFF + LEN) % LEN) > LEN - 90;   // (just before it: turn in)
     if (!on && !into) return drive.call(race, R, dt);
     const q = on ? SHORT.at(d + 40) : SHORT.at(10), a = Math.atan2(q.y - v.y, q.x - v.x), diff = E.angDiff(v.angle, a); R.cuts = (R.cuts || 0) + (on ? dt : 0);
-    return { steer: E.clamp(diff * 2.6, -1, 1), gas: 1, brake: Math.abs(diff) > .8 && v.speed > 140 ? 1 : 0 };
+    return { steer: E.clamp(diff * 2.6, -1, 1), gas: on || v.speed < 180 ? 1 : 0, brake: (Math.abs(diff) > .8 && v.speed > 140) || (!on && v.speed > 220) ? 1 : 0 };   // (off a boost it slows for the turn in: it ran past)
   }
   /** the bot (tools/kits-test.mjs): a race with every kart driven by its driver (yours over the shortcut each lap) to the
    *  end; then a race for two in a split screen, both players holding the gas a while */
