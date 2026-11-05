@@ -39,7 +39,9 @@ check(s.id === 'chest' && s.mocap && s.finite, 'the stash opens: he plays Chest_
 const toChest = await page.evaluate(() => { const h = __ed.ED.hero, c = __ed.ED.L.things.find(t => t.kind === 'stash'); return Math.abs(My3D2dge.angDiff(h.facing, Math.atan2(c.y - h.y, c.x - h.x))); });
 check(toChest < .5, 'he turns to the chest (' + toChest.toFixed(2) + ' rad off)');
 await page.evaluate(() => __ed.UI.closeAll());
-await page.keyboard.down('KeyS'); await wait(450); await page.keyboard.up('KeyS'); await wait(300);
+await page.keyboard.down('KeyS'); await wait(450); await page.keyboard.up('KeyS');
+// (on the game's state, not the clock: a busy machine gives the game fewer frames in the same wall time)
+await page.waitForFunction(() => { const k = __ed.ED.hero.HCL; return !k || k.out; }, null, { timeout: 4000 }).catch(() => {});
 s = await state();
 check(s.id === null || s.out, 'walking off takes the body back (' + s.id + ', out ' + s.out + ')');
 await page.evaluate(() => { const h = __ed.ED.hero, w = __ed.ED.L.waystone; h.x = w.x + 16; h.y = w.y + 4; __ed.UI.open('waystone'); });

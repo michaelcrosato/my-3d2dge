@@ -1435,4 +1435,4 @@ An entry:
   proofs. A reset on entry would undo them at every scene, while a slow motion's restore is one kept timer.
   A hit-stop is a moment's freeze: it ends with its scene, as before. The contract suite holds both.
 - **Answered:** no: a reversible call, made at once, flagged in the pull request
-- **Landed in:** v0.88.0
+- **Landed in:** v0.87.0

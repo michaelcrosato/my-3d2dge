@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge Vehicle Lab v0.88.0 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
+  my-3D2dge Vehicle Lab v0.87.0 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
   vehicles drive: Rapier's ray-cast vehicle controller (a chassis on four sprung wheels), or a ball Rapier rolls, steered by
   the drive module's arcade handling (what world.vehicle is)? Tab switches between them on the same track. Served, not
   double-clicked (it loads three.js and Rapier from /vendor/).
@@ -28,12 +28,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.88.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.87.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen" role="img" aria-label="Vehicle Lab"></canvas></div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.88.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.87.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -114,7 +114,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.88.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.87.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1086,6 +1086,10 @@ class Input {
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
   consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; }
+  /** the page went full screen or back: the keys and mouse buttons let go (one held through the change may never come up),
+   *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
+   *  first tap, the one that went full screen, is a JUMP */
+  _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._down = null; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
@@ -2547,8 +2551,8 @@ class Game {
     on(window, 'blur', () => this._autoPause('focus'));
     on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
     on(window, 'pagehide', () => this._autoPause('focus'));
-    // held keys and the stick let go as the screen changes; a tap that has landed (the one that went full screen) still counts
-    const fsChange = () => { const I = this.input, c = I._click; I.clear(); I._click = c; if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
+    // held keys let go as the screen changes; a finger on the glass goes on, and a tap that has landed (the one that went full screen) counts
+    const fsChange = () => { this.input._refit(); if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
     on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
     on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one, or a game started by it)
       if (e.pointerType === 'mouse') return;
@@ -10421,7 +10425,7 @@ root.My3D2dge = E;
 <script type="module">
 /* ---- inlined from engine/my-3d2dge-3d.js ---- */
 /*!
-my-3D2dge 3D v0.88.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.87.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -13553,7 +13557,9 @@ Object.assign(World3D.prototype, {
     const capes = this.capes.mesh, cd = capes.geometry.drawRange.count, cv = capes.visible; capes.geometry.setDrawRange(0, 6); capes.visible = true;
     const ovHid = []; if (this.overlay) this.overlay.scene.traverse(x => { if (!x.visible) { ovHid.push(x); x.visible = true; } });
     const ovOn = this.overlay && this.overlay.on; if (this.overlay) this.overlay.on = true;
+    const culled = []; this.scene.traverse(x => { if (x.isMesh && x.frustumCulled) { culled.push(x); x.frustumCulled = false; } });   // (every caster in every light's shadow too: a torch's culls what lies outside it, whose shadow pipeline was then built mid-game, the first time a torch came near)
     this._render(cam);
+    for (const x of culled) x.frustumCulled = true;
     for (const x of ovHid) x.visible = false; if (this.overlay) this.overlay.on = ovOn;
     capes.geometry.setDrawRange(0, cd); capes.visible = cv;
     this._shadowLights.forEach((L, i) => { L.castShadow = sh[i][0]; L.intensity = sh[i][1]; }); this._glowLights.forEach((L, i) => { L.intensity = gl[i]; }); this._userLights.forEach((L, i) => { L.intensity = ul[i]; }); this._spots.forEach((L, i) => { L.castShadow = sp[i][0]; L.intensity = sp[i][1]; });

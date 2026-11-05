@@ -94,10 +94,6 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
   the 3D engine (the README does now). Then a light-gun gallery on the mode7 module as a Temporary lab: `m7.pick(x, y)`
   (the billboard or shape under the crosshair, by its drawn box), `m7.wall`/`m7.quad` (world polygons sorted with the
   billboards), shapes with their params (3.5), lights; or a perspective `E.View`. The owner picks.
-- **3.5 `m7.shape` ignores `params` and `mats`** (confirmed: `engine/modules/mode7.js` 102-108 passes only `view`,
-  `facing`, `size` to `E.shapeSprite`, and its cache key leaves them out). Pass them through and key on them.
-- **3.6 Mode 7's view cache is keyed on the raw pitch** (confirmed: `m7.view`, mode7.js 111-114; a bobbing camera made
-  120 views and 120 shape rasterizations in 120 frames; OperationWolfpack rounded it). Round the pitch to whole degrees.
 - **3.7 `E.Road` scales x by W/2 and y by H/2** (confirmed: `engine/modules/road.js` 80; the up-to-across ratio is .56 at
   427x240 and 1.78 upright, so a wide screen squashes the world; OutBloom and DenshaDeHalo wrote square projections).
   One focal length, behind an option first (`square: true`), then the default with the ROAD kit retuned, filmed
@@ -148,33 +144,13 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
 
 ## Part 7: the 3D engine
 
-- **7.1 The cel filter blacks out the first-person overlay** (confirmed in Chromium: with the output in sRGB, three r182
-  renders through a hidden buffer; the filter pass bypasses it, and the overlay's render copies the stale buffer over
-  the filtered picture, `engine/my-3d2dge-3d.js` near 3253; Skiller7). Draw the overlay inside the filter pass. The
-  "post filters black without a GPU" report is this same bug (without the overlay they draw on SwiftShader).
-- **7.2 Split screen stacks its viewports from the bottom** (confirmed in the code: near line 2955 the viewport's y is
-  turned to a bottom-left origin, but three r182's WebGPURenderer takes it from the top on both backends; viewport 0,
-  the top one in the 2D layout and in `world.project`, draws at the bottom; Crackmania's patch is `y = Math.round(vp.y
-  * sw)`). Side-by-side splits are fine, and they are all `kit3d-test` checks: add a stacked one, on WebGL 2 and WebGPU.
-- **7.3 `</script>` in the headers** (confirmed: `engine/my-3d2dge-3d.js` 18 and 22-24, `engine/my-3d2dge-agent.js` 19;
-  a builder who inlines the file into a page ends the page there; the repo's build escapes it). Say it beside each
-  header's page skeleton (the handoff README says it now).
-- **7.4 Handedness** ("text planes come out mirrored" was the builder's own three.js meshes, built in engine
-  coordinates): one header line: the engine's axes are left-handed (y south), so a mesh's winding and rotations flip.
 - **7.5 A racer's track** (**prototype**; 7 of 8 WipeoutHD and TrackMania builders wrote their own track physics;
   ribbon tracks, loops and branches asked 12 times). A ribbon track with loops and any banking, its own colliders, and
   queries in track space (along, across, up); and a road (`E.Road`) that branches at a junction or runs several
   tracks (OutBloom, DenshaDeHalo forked road.js for it). Each as a Temporary lab first.
 
-## Part 8: the card's "Common mistakes" (cheap)
-
-`mouseGround()` is `[x, y]`; a scene's field names the engine reads (2.5); colours are `'#rrggbb'` (3.11); a sprite's
-pixel is a screen pixel (3.2); `settings.reset(group)` takes a group; `particles.explosion()` adds hit-stop;
-`E.font.text` outlines by default; a frame past 50 ms gives up its time, so a slow browser's test waits on state, not
-on the clock. And the Mode 7 header: billboards are flat at the foot's scale, so hit-test the drawn box (what
-BigBuckHuntOff read as "E.View rounding puts rigs 7 px off": the engine's `E.View` is exact).
-
 ## Order and size
 
-Part 0 (the room) landed in v0.86.1. 1.1 to 1.4 and 1.10 in v0.87.0. Part 2 in v0.88.0 (2.6 a call: D79). Then 3.5, 3.6, 7.1 to 7.4 and Part 8 (small to medium each);
-then 1.5 to 1.9, 3.1 to 3.3, 3.7 to 3.11, Parts 4 to 6 (medium); the prototypes 3.4 and 7.5 last, for the owner.
+Landed: Part 9 (the suites' own failures) in v0.85.3, Part 0 (the room) in v0.86.1, and in v0.87.0 1.1 to 1.4, 1.10,
+Part 2, 3.5, 3.6, 7.1 to 7.4 and Part 8. Then 1.5 to 1.9, 3.1 to 3.3, 3.7 to 3.11, Parts 4 to 6 (medium); the prototypes
+3.4 and 7.5 last, for the owner.
