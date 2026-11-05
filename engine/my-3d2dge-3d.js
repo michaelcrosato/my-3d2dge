@@ -187,11 +187,11 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   game.yaw (game.rotateView(45)): the starter's shell binds V and [ ] to them, the engine no key; game.zoom (the wheel,
   a pinch, Settings, where the scene's camera.zoom allows); proj 'persp' | 'ortho'; dist; walls in
   front cut low), 'chase' (behind the target; it swings round behind as the target moves; a click captures the mouse to
-  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own),
-  'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z] (fixed) | follow:
-  true (turning after the target) | rail: [[x, y, z], [x, y, z]] (sliding level with it), fov (framed for 4:3: a taller
-  screen widens it) }]: the target's zone is the camera, cut once it is camera.margin (8) units in (camera.zone,
-  camera.cuts); across a cut ground() keeps the old way while the stick is held)
+  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own,
+  roll as pen.at's), 'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z]
+  (fixed) | follow: true (turning after the target) | rail: [[x, y, z], [x, y, z]] (sliding level with it), fov (framed
+  for 4:3: a taller screen widens it) }]: the target's zone is the camera, cut once it is camera.margin (8) units in
+  (camera.zone, camera.cuts); across a cut ground() keeps the old way while the stick is held)
   camera: { capture: true (a click captures the mouse in any mode; camera.takeMouse(out) -> its [dx, dy] since the last
   call: turn your own camera), near, far (units) }; camera.target also sizes the outlines and centres the sun's shadow
   camera.set(mode), camera.follow(actor), camera.ground(move, out) -> the stick turned to the ground,
@@ -1872,7 +1872,7 @@ class Camera3D {
     cam.position.set(p.x / U + rx * shx * k, p.z / U - shy * k, p.y / U + rz * shx * k);
     cam.up.set(0, 1, 0); if (Math.abs(fy) > .999) cam.up.set(Math.cos(p.yaw), 0, Math.sin(p.yaw));   // (straight down: up on the screen is where it heads)
     cam.lookAt(_v0.set(cam.position.x + fx, cam.position.y + fy, cam.position.z + fz));
-    if (p.roll) cam.rotateZ(p.roll);   // (a fixed pose may lean: a slide, a wall run)
+    if (p.roll) cam.rotateZ(-p.roll);   // (a fixed pose may lean: a slide, a wall run; its right side down, as pen.at's: three's turn about the eye's z is the other way)
     cam.updateMatrixWorld(); cam.updateProjectionMatrix();
     const CV = this.cv; cam.getWorldQuaternion(CV.q);
     CV.right.set(1, 0, 0).applyQuaternion(CV.q); CV.up.set(0, 1, 0).applyQuaternion(CV.q); CV.back.set(0, 0, 1).applyQuaternion(CV.q);

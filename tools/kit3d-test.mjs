@@ -30,7 +30,7 @@
 //      split screen draws two views through world.cameras (check-output/kit3d/split-<backend>.png: read it), side by side
 //      and stacked (viewport 0 on top, as the 2D layout has it: split-rows-<backend>.png)
 //   3e. first person with the cel filter, on both backends: the filtered hall and the overlay's gun are both drawn
-//      (check-output/kit3d/fps-cel-<backend>.png)
+//      (check-output/kit3d/fps-cel-<backend>.png); a fixed camera's roll leans the way pen.at's does (its right side down)
 //   4. on an emulated phone held upright (390 x 844 at 3x, touch): every kit starts, the 3D picture lies exactly under the
 //      game's, the touch buttons are there
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
@@ -224,7 +224,7 @@ game.start({ scenes: { s: { update(dt) { world.camera.fixed = EYE; world.step(dt
   world = new E.World3D(game, { level: LEVEL, fog: false, sky: '#5a7ab0', overlay: { fov: 60 }, camera: { mode: 'fixed' },
     onDraw: w => { w.overlay.pen.box(14, 5, -4, 8, 3, 3, '#ff30ff'); } });
   world.camera.set('fixed'); world.camera.fixed = EYE; world.filter.look = 'cel'; world.prepare(); }]] } });
-window.__fps = { game, get world() { return world; } };
+window.__fps = { game, eye: EYE, get world() { return world; } };
 </script></body></html>`;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json' };
 const server = createServer((req, res) => {
@@ -544,7 +544,8 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
   if (seen.webgl && seen.webgpu && seen.webgl !== seen.webgpu) fail(`vehicles: not the same on both backends: ${seen.webgl} on WebGL 2, ${seen.webgpu} on WebGPU`);
 }
 
-/* 3e. first person under a filter, on both backends: the world and the overlay's gun both on screen (not black) */
+/* 3e. first person under a filter, on both backends: the world and the overlay's gun both on screen (not black); a fixed
+ * camera's roll leans the way the pen's does */
 {
   const { decodePNG } = await import('./asset-lib.mjs');
   for (const want of ['webgl', 'webgpu']) {
@@ -564,6 +565,15 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
         if (r + g + b > 90) lit++; if (r > 45 && b > 60 && g < Math.min(r, b) * .4) gun++;
       }
       if (lit < n / 3 || gun < 20) fail(`${label}: ${lit} of ${n} pixels lit (a third: the hall, filtered), ${gun} of the overlay's magenta gun (check-output/kit3d/fps-cel-${want}.png)`);
+      if (want === 'webgl') {   // camera.fixed's roll leans the way pen.at's does, its right side down (the Track Lab found them opposite)
+        const lean = await page.evaluate(async () => {
+          const w = __fps.world, eye = __fps.eye, f0 = w.stats.frames; eye.roll = .5;
+          await new Promise(r => { const t = () => w.stats.frames > f0 + 1 ? r() : requestAnimationFrame(t); t(); });
+          const e = w.camera.cam.matrixWorld.elements, up = [e[4], e[6], e[5]], M = w.pen.at(0, 0, 0, eye.yaw, 1, eye.pitch, eye.roll).M; w.pen.at(); eye.roll = 0;
+          return up[0] * M[2] + up[1] * M[5] + up[2] * M[8];   // (the camera's up in engine axes against the pen's)
+        });
+        if (!(lean > .99)) fail(`camera.fixed's roll leans the other way from pen.at's: their up vectors' dot ${lean.toFixed(2)} (1 when they agree)`);
+      }
     } catch (e) { fail(`${label}: ` + e.message.split('\n')[0]); }
     for (const e of errors) fail(`${label}: ` + e);
     await page.close();

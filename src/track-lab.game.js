@@ -103,7 +103,7 @@ const play = {
     const f = craft.f;
     if (cam === 'behind') {   // behind the craft in the track's frame: upside down with it through the loop
       const c = add(add([craft.x, craft.y, craft.z], f.t, -42), f.u, 14), look = norm(sub(add([craft.x, craft.y, craft.z], f.t, 30), c)), [yaw, pitch, roll] = ypr(look, f.u);
-      world.camera.fixed = { x: c[0], y: c[1], z: c[2], yaw, pitch, roll: -roll, fov: 72 };   // (camera.fixed's roll leans the other way from pen.at's: a finding)
+      world.camera.fixed = { x: c[0], y: c[1], z: c[2], yaw, pitch, roll, fov: 72 };
     } else { const c = [520, 900, 120], d = norm(sub([craft.x, craft.y, craft.z], c)), [yaw, pitch] = ypr(d, [0, 0, 1]); world.camera.fixed = { x: c[0], y: c[1], z: c[2], yaw, pitch, roll: 0, fov: 60 }; }
     world.step(dt);
   },
