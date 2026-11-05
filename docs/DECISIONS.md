@@ -1456,3 +1456,34 @@ An entry:
   kits would leave the bugs there. The rest of the plan's additions go in diet sections where they are opt-in.
 - **Answered:** no: a reversible call, made at once, flagged in the pull request
 - **Landed in:** v0.88.0
+
+## D81 · 2026-11-05 · The card's budget 21,300, and the six kits' own 800 higher, for the matrix plan's Parts 4 to 6
+
+- **Principle:** 1 (agent-readable: the manual and the kits have measured budgets), under D69 and D77
+- **Call:** the API card's budget is 21,300 (from 21,100, D77), and the six kits' own budgets 800 tokens higher than D80's:
+  RPG 243,300, SHOOTER 226,300, ADVENTURE 212,300, SIM 212,300, RTS 210,300, BRAWLER 209,300. `docs/HANDOFF-MATRIX.md`'s
+  rule was that the card's lines and what its parts add come out of the room Part 0 made, not new raises. That held
+  through Parts 1 to 3 for the card: its new lines (the host's chord, live menus, draw: true, scene fields, the common
+  mistakes, pixels per unit, colours, flow fields, the hooks, the analog values) were paid for by cutting the card's
+  module lines and standard features to a line each (about 500 tokens). Parts 4 to 6 add the Humanoid's registries, an
+  effect's handle and instruments, a menu's scale and rows, a TV's Shell and the font's characters (about 130 tokens on
+  the card, about 800 in a tile-map kit: the rig, the menu and the sound are the core every kit carries). What is left
+  to cut is what a builder reads to make a good game (the look target, the genre playbook, the characters' options).
+- **Why:** 37 builds patched the Humanoid, 35 an audio bus, 36 runs asked for readable menus on a TV; leaving them off the
+  card sends the next builder to the source again, and leaving them out of the kits leaves a kit's builder without them.
+  The other fifteen kits stay under 200,000 (the largest, METROIDVANIA, 199,865: the next addition to the core must make room).
+- **Answered:** no: a reversible call, made at once, flagged in the pull request
+- **Landed in:** v0.89.0
+
+## D82 · 2026-11-05 · The API index's budget 64,000, on the owner's word
+
+- **Principle:** 1 (agent-readable: the manual and the index have measured budgets), under D17, D18, D22, D28, D50 and D57
+- **Call:** the API index's budget (`API-INDEX.md`) is 64,000 cl100k tokens, from 60,000. v0.89.0's doc comments (the
+  Humanoid's registries, an effect's handle and loops, instruments, the menus and the Shell for a TV: about 730 tokens)
+  took it to 59,934, and the modules suite, which adds a fixture module to a copy of the repository, found it 108 over.
+  While the comments were being cut to fit, the owner said: "don't worry about the api index size, 370 tokens is
+  nothing, we deal in the 100K and 1M in tokens sometimes billions in a day". The comments stay as written.
+- **Why:** the index is where a builder greps for a name, and its lines are the engine's own doc comments; cutting them
+  to keep a few hundred tokens of margin costs more than it saves. 64,000 leaves room for the next versions' names.
+- **Answered:** yes: the owner's word (2026-11-05)
+- **Landed in:** v0.89.0

@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.88.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.89.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -379,7 +379,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.88.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.89.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1853,7 +1853,8 @@ class Humanoid {
     this.C = Object.assign({}, HUMAN_COLORS, o.colors || {});
     const C = this.C;
     C.clothLt = C.clothLt || shade(C.cloth, .25);
-    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this._mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
+    this._rnd = rng(o.seed !== undefined ? o.seed : Math.floor(Math.random() * 2147483647) + 1);   // (its own stream: o.seed, else one draw of Math.random; its blinks never draw from Math.random)
+    this.t = this._rnd() * 10; this.phase = 0; this._spW = 0; this._mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
     this._theta = 1.2; this.atkZ = 10; this.reach = 7; this._twist = 0; this.spin = 0; this._atkLean = 0;
     this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {};
     this.capeL = null; this._airW = 0; this._pointW = 0; this._kicking = false;
@@ -1895,7 +1896,7 @@ class Humanoid {
     this._pointW = approach(this._pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
     this._aimA = approach(this._aimA || 0, s.aim || 0, dt * 14);
     if (s.attack) this._kicking = !!s.attack.spec.kick;
-    this.blink -= dt; if (this.blink < -.12) this.blink = 2 + Math.random() * 3;
+    this.blink -= dt; if (this.blink < -.12) this.blink = 2 + this._rnd() * 3;
     this.sqV += (-260 * this.sq - 15 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.3, .3);
     const A = s.attack; let tLean = 0, tTwist = 0, tLunge = 0, tHop = 0, tCrouch = 0, armT = A ? 1 : 0;
     this.spin = 0;

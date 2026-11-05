@@ -71,37 +71,6 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
   (the billboard or shape under the crosshair, by its drawn box), `m7.wall`/`m7.quad` (world polygons sorted with the
   billboards), shapes with their params (3.5), lights; or a perspective `E.View`. The owner picks.
 
-## Part 4: the Humanoid
-
-- **4.1 Open registries** (37 builds changed the rig: weapons in 12, hats in 13). The weapon list is closed
-  (`['sword', 'gun', 'staff']` in the constructor). `E.Humanoid.weapon(id, { length, rest, grip, draw })`,
-  `E.Humanoid.hat(id, draw)`, a draw hook with the projected joints (`o.draw: { under, over }`) for outfits and
-  accessories, named held poses as data (`E.Humanoid.pose(id, (J, w) => ...)`, blended by weight), and a whole-body
-  tilt and roll for dives, falls and acrobatics (Europhoria, Olympiyikes). Every built-in weapon, hat and pose moves
-  onto the same registries (the proof that they are enough).
-- **4.2 `Math.random` in the rig** (confirmed: one call in the constructor, one in the blink): give each rig its own
-  stream (a seed in its options, else a counter), so a headless run's rig state is the same twice. TideCrisis reseeded
-  every rig's clock by hand.
-
-## Part 5: sound
-
-- **5.1 Effects with pan and length:** `sfx(name, { pan, loop })` returning `{ stop(), set({ pan, vol }) }`, and
-  continuous loops (an engine, rain) that follow the bus.
-- **5.2 Instruments of a game's own** (9 builds extended the synth): `audio.instrument(name, (ctx, bus, time, freq,
-  dur, vol) => ...)`, usable as a music track's `wave`.
-
-## Part 6: menus and the Shell for a TV
-
-- **6.1 `E.Menu` at scale 1 with no scrolling** (TV readability came up in 36 runs; four builds wrote their own menu).
-  `new E.Menu(game, items, { scale, rows })` with the list scrolling under its cursor, the mouse hovering, the rows
-  from `update` (2.1).
-- **6.2 The Shell's 14 px text:** a theme scale for ten feet (`new E.Shell(game, { theme: { scale } })`, or `tv: true`:
-  OutBloom's `clamp(18px, 1.6vw, 30px)`); `theme.font` is a family, not a CSS shorthand (two runs' menus came out tiny):
-  warn on a shorthand.
-- **6.3 Settings rows on any Shell screen** (8 builds): a screen of the game's own lists setting keys as rows
-  (`rows: ['glyphs', 'invertY']`), drawn and changed as the settings screen's are.
-- **6.4 The font's characters on the card**, and what it does with any other (`?`), so a game knows before it prints.
-
 ## Part 7: the 3D engine
 
 - **7.5 A racer's track** (**prototype**; 7 of 8 WipeoutHD and TrackMania builders wrote their own track physics;
@@ -112,5 +81,5 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
 ## Order and size
 
 Landed: Part 9 (the suites' own failures) in v0.85.3, Part 0 (the room) in v0.86.1, and in v0.87.0 1.1 to 1.4, 1.10,
-Part 2, 3.5, 3.6, 7.1 to 7.4 and Part 8; in v0.88.0 1.5 to 1.9, 3.1 to 3.3 and 3.7 to 3.11 (3.7's default: F8.9). Then
-Parts 4 to 6 (medium); the prototypes 3.4 and 7.5 last, for the owner.
+Part 2, 3.5, 3.6, 7.1 to 7.4 and Part 8; in v0.88.0 1.5 to 1.9, 3.1 to 3.3 and 3.7 to 3.11 (3.7's default: F8.9); in v0.89.0 Parts 4 to 6
+(the built-in poses: F8.10). Left: the prototypes 3.4 and 7.5, as Temporary labs for the owner.

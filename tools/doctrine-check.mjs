@@ -71,8 +71,8 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   const MODULE_BUDGET = 1500, MODULE_BUDGETS = { grid: 2500, fight: 2500, strategy: 2500, physics: 2500 };
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
-    ['the API card (API.md)', read('API.md'), 21100, 3.1],   // (D8, D20, D50, D54, D58, D59, D77: until the owner's review pass)
-    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 60000, 3.25],   // (D17, D18, D22, D28, D50, D57: until the owner's review pass)
+    ['the API card (API.md)', read('API.md'), 21300, 3.1],   // (D8, D20, D50, D54, D58, D59, D77, D81: until the owner's review pass)
+    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 64000, 3.25],   // (D17, D18, D22, D28, D50, D57; D82: 64,000, the owner's word)
     ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 8000, 2.9],   // (D27; 8,000 for the genre plan's M13 and M14: D60)
     ['the asset card (docs/ASSETS.md)', read('docs/ASSETS.md'), 4000, 3.1],   // (D30)
     ...[...allModules().values()].map(m => [`module ${m.name}'s manual`, m.manual, MODULE_BUDGETS[m.name] || MODULE_BUDGET, 2.9])
@@ -181,7 +181,7 @@ if (opt('baseline')) {
 {
   let count = null;
   try { const { countTokens } = await import('gpt-tokenizer/encoding/cl100k_base'); count = countTokens; } catch (e) { /* optional */ }
-  const KIT = 200000, KIT2D = { rpg: 242500, shooter: 225500, adventure: 211500, sim: 211500, rts: 209500, brawler: 208500 };   // (D69; D80: the matrix plan's engine, past Part 0's room)   // (a 2D kit; the six that can't get there without losing what they play: D69)
+  const KIT = 200000, KIT2D = { rpg: 243300, shooter: 226300, adventure: 212300, sim: 212300, rts: 210300, brawler: 209300 };   // (D69; D80, D81: the matrix plan's engine, past Part 0's room)   // (a 2D kit; the six that can't get there without losing what they play: D69)
   const KIT3D = { action: 241039, platformer: 235846, shooter: 310823, horror: 256000, racing: 252000, flight: 254000, crawler: 250000 };   // (a 3D kit: D51, the horror kit's D61, the racing and flight kits' D64; back from D63 by the 3D diet: D70; the crawler's D72)
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');

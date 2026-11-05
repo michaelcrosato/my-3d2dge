@@ -132,6 +132,7 @@ for (const [ed, file] of EDITIONS) {
   matrixInput(E, ed);
   matrixHeadless(E, ed);
   if (ed === 'full') matrixInput2(E, ed);   // (additions of the full engine's)
+  matrixRig(E, ed);
 }
 
 // the matrix run's input (docs/HANDOFF-MATRIX.md, Part 1): the host's Create + Options, a world that steps under the
@@ -199,6 +200,13 @@ function matrixHeadless(E, ed) {
     const box = menu.rowAt ? menu.rowAt(2) : null;
     if (box) { MI.feed('down', box[0] + box[2] / 2, box[1] + box[3] / 2); MI.feed('up', box[0] + box[2] / 2, box[1] + box[3] / 2); mg.advance(1 / 120); mg.advance(1 / 120); }
     check(`${ed}: E.Menu's rows come from update: a scripted click on its third entry picks it, with no draw`, picked === 2, 'box ' + JSON.stringify(box) + ', picked ' + picked);
+    // E.Menu at a scale (for a TV) with rows: the list scrolls under its cursor; a click on a shown entry picks it (HANDOFF-MATRIX 6.1)
+    let got = -1; const sg = new E.Game({ headless: true }), SI = sg.input, items = Array.from({ length: 12 }, (_, k) => 'ENTRY ' + k), big = new E.Menu(sg, items, { scale: 2, rows: 4, onPick: i => { got = i; } });
+    sg.start({ update() { big.update(); }, draw(r) { big.draw(r); } }); sg.advance(.05);
+    const h1 = big.rowAt(1) ? big.rowAt(1)[3] : 0; for (let k = 0; k < 6; k++) { SI.tap('down'); sg.advance(1 / 60); }
+    const shown = [0, 6, 3].map(i => !!big.rowAt(i)), b6 = big.rowAt(6) || [0, 0, 0, 0];
+    SI.feed('down', b6[0] + 4, b6[1] + b6[3] / 2); SI.feed('up', b6[0] + 4, b6[1] + b6[3] / 2); sg.advance(1 / 120); sg.advance(1 / 120);
+    check(`${ed}: E.Menu({ scale: 2, rows: 4 }): rows twice as tall, the list scrolled to its cursor, a click on a shown entry picks it`, h1 === 2 * (E.font.lineHeight() + 2) && big.i === 6 && shown.join() === 'false,true,true' && got === 6, JSON.stringify({ h1, i: big.i, shown, got }));
     // new E.Game({ headless: true, draw: true }): draw runs on a stand-in renderer each advance, its error in game.errors
     let draws = 0; const dg = new E.Game({ headless: true, draw: true }), rig = new E.Humanoid({});
     dg.start({ update(dt) { rig.update(dt, { x: 40, y: 40, vx: 30, vy: 0 }); }, draw(r) { draws++; E.px.rect(r.ctx, 0, 0, 4, 4, '#ffffff'); r.actor(40, 40, 0, (g, ox, oy) => rig.draw(g, ox, oy, r.view)); E.font.text(r.ctx, 'HI', 2, 2); if (draws === 3) throw new Error('drawn wrong'); } });
@@ -283,6 +291,38 @@ function matrixInput2(E, ed) {
   check(`${ed}: invertMoveX and invertMoveY (Controller settings) turn the move stick round`, !!sp && sp.group === 'Controller' && mv[0] < -.5 && mv[1] > .5 && mg.input.down('left') && mg.input.down('down'), JSON.stringify({ mv, sp: sp && sp.group }));
 }
 
+// the matrix run's Humanoid (docs/HANDOFF-MATRIX.md, Part 4): weapons, hats and held poses of a game's own on the rig's
+// registries (the built-in weapons and hats on them too), draw hooks with the projected joints, a whole-body tilt and
+// roll, and its own random stream
+function matrixRig(E, ed) {
+  const H = E.Humanoid, warned = [], EW = load(ed === 'full' ? 'engine/my-3d2dge.js' : 'engine/my-3d2dge-agent.js', { console: { log() {}, info() {}, error() {}, warn: m => warned.push(String(m)) } });
+  // 4.2 the rig's own random stream: a blink never draws from Math.random; a seed gives the same rig twice
+  let calls = 0, on = false; const M = Object.create(Math); M.random = () => { if (on) calls++; return Math.random(); };
+  const EM = load(ed === 'full' ? 'engine/my-3d2dge.js' : 'engine/my-3d2dge-agent.js', { globals: { Math: M } }), rg = new EM.Humanoid({}); on = true;   // (the engine's own Math, counted)
+  for (let i = 0; i < 1200; i++) rg.update(1 / 120, { x: 0, y: 0 }); on = false;
+  const a = new H({ seed: 7 }), b = new H({ seed: 7 }); for (let i = 0; i < 900; i++) { a.update(1 / 120, { x: 0, y: 0 }); b.update(1 / 120, { x: 0, y: 0 }); }
+  check(`${ed}: a rig's blinks draw from its own stream, not Math.random; { seed } gives the same rig twice`, calls === 0 && a.t === b.t && a.blink === b.blink, JSON.stringify({ calls, t: [a.t, b.t] }));
+  if (ed !== 'full') return;   // (the rest is the full engine's: the agent edition's rig is its own)
+  // 4.1 the registries: the built-in weapons and hats are on them; a game's own are drawn and known
+  const reg = H.weapons && H.hats ? [Object.keys(H.weapons).join(), Object.keys(H.hats).join()] : null;
+  check(`${ed}: E.Humanoid.weapons and hats hold the built-ins (sword, gun, staff; cap, band, crown, helmet, pointed)`, !!reg && ['sword', 'gun', 'staff'].every(w => reg[0].includes(w)) && ['cap', 'band', 'crown', 'helmet', 'pointed'].every(h => reg[1].includes(h)), JSON.stringify(reg));
+  const drew = [];
+  try {
+    EW.Humanoid.weapon('axe', { length: 9, rest: [.4, .3, -.8], draw: w => drew.push('axe ' + w.style + ' ' + (typeof w.at === 'function')) });
+    EW.Humanoid.hat('horns', h => drew.push('horns ' + typeof h.at));
+    EW.Humanoid.pose('salute', (J, w) => { J.handR = [J.handR[0] * (1 - w), J.handR[1] * (1 - w), J.handR[2] * (1 - w) + 20 * w]; });
+  } catch (e) { drew.push('threw ' + e.message); }
+  const rig = new EW.Humanoid({ weapon: 'axe', hat: 'horns', draw: { under: (g, Q) => drew.push('under ' + !!(Q && Q.head)), over: (g, Q) => drew.push('over ' + !!(Q && Q.handR)) } });
+  const cl = new EW.Humanoid({ weapon: 'axe', style: 'classic' });
+  const dg = new EW.Game({ headless: true, draw: true }); dg.start({ update(dt) { rig.update(dt, { x: 40, y: 40, pose: 'salute' }); cl.update(dt, { x: 80, y: 40 }); }, draw(r) { r.actor(40, 40, 0, (g, ox, oy) => rig.draw(g, ox, oy, r.view)); r.actor(80, 40, 0, (g, ox, oy) => cl.draw(g, ox, oy, r.view)); } }); dg.advance(.5);
+  const tip = rig.tip(), hand = rig.hand('R'), L = Math.hypot(tip[0] - hand[0], tip[1] - hand[1], tip[2] - hand[2]);
+  check(`${ed}: a game's own weapon, hat and held pose: drawn (HD and classic), its tip at its length, the pose held, no warning`, ['axe hd true', 'axe classic true', 'horns function', 'under true', 'over true'].every(k => drew.includes(k)) && Math.abs(L - 9 * rig.o.size) < 1e-6 && rig.J.handR[2] > 15 && !warned.some(w => /weapon|hat/.test(w)), JSON.stringify({ drew: [...new Set(drew)], L, hz: rig.J.handR[2], warned }));
+  // a whole-body tilt (a dive) and roll (a cartwheel's lean), about the feet
+  const t0 = new H({}), t1 = new H({}); t0.update(1 / 120, { x: 0, y: 0 }); t1.update(1 / 120, { x: 0, y: 0, tilt: Math.PI / 2, roll: 0 });
+  const t2 = new H({}); t2.update(1 / 120, { x: 0, y: 0, roll: Math.PI / 2 });
+  check(`${ed}: state.tilt lays the body forward (a dive: the head ahead at the hips' height), roll on its side`, Math.abs(t1.J.head[0] - t0.J.head[2]) < 1 && Math.abs(t1.J.head[2]) < 1.5 && Math.abs(Math.abs(t2.J.head[1]) - t0.J.head[2]) < 1, JSON.stringify({ up: t0.J.head, tilt: t1.J.head, roll: t2.J.head }));
+}
+
 // the cc-matrix run's patches, in the engine now (docs/HANDOFF-MATRIX.md): each was made by builders again and again
 function matrixFixes(E, ed) {
   // the 5x7 font draws every face button label() returns, the marks prompts use and the accented letters (not '?')
@@ -323,6 +363,9 @@ function matrixFixes(E, ed) {
   check(`${ed}: E.Dialog's voice function hears each letter once`, said.join('') === 'Hi you.', JSON.stringify(said.join('')));
   check(`${ed}: say's voice is that line's, and width sizes the box`, once.join(',') === '0,1' && d._dims().w === 200, once.join(',') + ' w ' + d._dims().w);
   check(`${ed}: audio.bus is null headless, voiceVolume 1`, dg.audio.bus('voice') === null && dg.audio.voiceVolume === 1);
+  // an effect's handle (pan, a loop, stop, set) and an instrument of the game's own: there headless too, doing nothing (HANDOFF-MATRIX 5.1, 5.2)
+  let hs = null; try { hs = dg.audio.sfx('jump', { loop: true, pan: -.5 }); } catch (e) { hs = e.message; }
+  if (ed === 'full') check(`${ed}: audio.sfx(name, { loop, pan }) gives a handle (stop, set) headless; audio.instrument(name, fn) is there`, !!hs && typeof hs.stop === 'function' && typeof hs.set === 'function' && typeof dg.audio.instrument === 'function', typeof hs);
   // a script's tap and hold are no device (prompts keep the player's), and a tap of a held action leaves it held
   const ig = new E.Game({ headless: true }), I = ig.input; ig.start({ update() {}, draw() {} }); ig.advance(.05);
   I.lastDevice = 'keyboard'; I.tap('jump'); I.hold('right'); ig.advance(.05);

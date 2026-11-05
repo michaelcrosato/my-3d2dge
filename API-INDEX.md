@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.88.0)
+# my-3D2dge API index (v0.89.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -67,43 +67,43 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 621 10g. Weather
 - 625 10k. Save slots; E.Saves: saves
 - 648 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 721 Blob rig; E.Blob: blob
-- 741 Tile map; E.TileMap: map
-- 805 Materials
-- 826 Flow field; E.FlowField: flow
-- 844 Texture helpers for floortex functions
-- 855 Platform map; E.PlatformMap: level
-- 889 Platformer; E.Platformer: hero
-- 930 Body; E.Body: body
-- 950 Actions; E.Action: action
-- 972 17c. Mover; E.Mover: mover
-- 1011 17d. Perception; E.Suspicion: suspicion
-- 1028 Bullets; E.Bullets: shots
-- 1048 Spatial hash; E.SpatialHash: grid
-- 1058 Audio; game.audio
-- 1091 Backdrops; E.Backdrop: backdrop
-- 1099 21c. Props
-- 1104 21e. Shapes
-- 1116 Ui; E.Dialog: talk, E.Menu: menu
-- 1175 21d. Shell; E.Shell: shell
-- 1204 Gpu lighting (webgpu); game.gpu
-- 1225 Sessions
-- 1234 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1269 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1314 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1352 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1433 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1444 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1503 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1526 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1555 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1587 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1604 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1633 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1652 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1660 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1689 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1735 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 727 Blob rig; E.Blob: blob
+- 747 Tile map; E.TileMap: map
+- 811 Materials
+- 832 Flow field; E.FlowField: flow
+- 850 Texture helpers for floortex functions
+- 861 Platform map; E.PlatformMap: level
+- 895 Platformer; E.Platformer: hero
+- 936 Body; E.Body: body
+- 956 Actions; E.Action: action
+- 978 17c. Mover; E.Mover: mover
+- 1017 17d. Perception; E.Suspicion: suspicion
+- 1034 Bullets; E.Bullets: shots
+- 1054 Spatial hash; E.SpatialHash: grid
+- 1064 Audio; game.audio
+- 1098 Backdrops; E.Backdrop: backdrop
+- 1106 21c. Props
+- 1111 21e. Shapes
+- 1123 Ui; E.Dialog: talk, E.Menu: menu
+- 1184 21d. Shell; E.Shell: shell
+- 1213 Gpu lighting (webgpu); game.gpu
+- 1234 Sessions
+- 1243 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1278 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1323 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1361 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1442 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1453 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1512 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1535 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1564 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1596 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1613 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1642 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1661 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1669 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1698 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1744 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -112,7 +112,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.88.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.89.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -673,7 +673,13 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `combo.moves`: the Attacks
 - `combo.step = -1`: the index of the current hit (-1 before the first)
 - `combo.window`: seconds after a hit ends that a press still chains
-- `new E.Humanoid(o = {}) → rig`: new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style, color }); hood: true (drawn in colors.hair)
+- `new E.Humanoid(o = {}) → rig`: new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style, color }; E.Humanoid.hat adds one); weapon: 'sword' | 'gun' | 'staff' (E.Humanoid.weapon adds one); hood: true (drawn in colors.hair); draw: { under(g, Q, rig), over(g, Q, rig) } the game's own drawing before and after the body (Q: the joints on screen, [x, y, depth]: outfits, accessories); seed: its own random stream (blinks, its clock)
+- `E.Humanoid.hat(id, draw)` †: a hat of the game's own: draw(h) with h.at(forward, right, up) a point round the head on screen, h.r its radius there, h.c its color (o.hat.color), h.dk a darker one, h.g, h.rig
+- `E.Humanoid.hats` †: the hats a Humanoid may wear, by id: the built-ins (cap, band, crown, helmet, pointed) and a game's own
+- `E.Humanoid.pose(id, fn)` †: a held pose of the game's own: fn(J, w, rig) moves the joints (the rig's frame: forward, right, up) toward the pose by w, 0..1, which eases in and out as state.pose names it or not (blended over the rig's solve)
+- `E.Humanoid.poses` †: the held poses of a game's own, by id (the built-in poses are the rig's own solve: state.pose names either)
+- `E.Humanoid.weapon(id, spec)` †: a weapon of the game's own (or a built-in replaced): { length: the tip's distance from the hand (a number, or rig => one; tip() and the swing's trail), rest: [forward, right, up] the way it points held at rest, blade: true (a swing smears along it), draw(w): its drawing in both styles (w.style, w.at(t), w.push(depth, fn), w.u: rig._weaponDraw) }
+- `E.Humanoid.weapons` †: the weapons a Humanoid may hold, by id: the built-ins (sword, gun, staff) and a game's own
 - `rig.debug(r)` †: skeleton overlay for debugging, draws straight into the buffer
 - `rig.draw(g, ox, oy, view)`: draw into g with (ox, oy) = projected position of the rig's root
 - `rig.drawPortrait(g, x, y, size = 40, o = {})` †: a close-up bust for dialog boxes and menus, drawn live from the rig (blinks, hair and hats included): rig.drawPortrait(g, x, y, 40, { zoom: 3, turn: .6, bg: '#1a2050', frame: true }) // inside r.overlay(g => ...) zoom: pixels per world unit (3 = face fills the frame), turn: 0 = facing you, .6 = three-quarter. The bust stays upright while the rig kneels or lies down (upright: false shows the real pose); cape: false hides the cape; tint: '#808080' greys it out (a KO'd party member).
@@ -684,7 +690,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `rig.land(strength = 1)` †: a heavy landing: knees bend deep and spring back over a moment; strength 1 or more drops a hand to the ground (a three-point landing), .3-.6 is a soft one. Call it on the step the body lands
 - `rig.solvePose()`: set the joints J from the rig's state this step (update and setPose call it); a clip player may wrap it on one rig: const base = rig.solvePose; rig.solvePose = function () { base.call(this); ...move J... }
 - `rig.tip()`: world position of the weapon tip (sword tip, gun muzzle, staff orb)
-- `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll), pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die' | 'block', stance: 'guard' | 'ready', down: 0..1, vz (with climb: the climbing speed), land: k (a heavy landing), expr: 'smile' | 'shout' | 'angry' | 'wince', run: 0..1 (run in place)
+- `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll), pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die' | 'block' or one of E.Humanoid.pose's, tilt (radians: the whole body forward about the feet, a dive) and roll (sideways), stance: 'guard' | 'ready', down: 0..1, vz (with climb: the climbing speed), land: k (a heavy landing), expr: 'smile' | 'shout' | 'angry' | 'wince', run: 0..1 (run in place)
 - `rig.worldOffset(p)`: where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it) sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint
 - `rig.C`: its colors (skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye, ...), the defaults with o.colors over them; change one and it shows at the next draw
 - `rig.J`: its joints this step in its own frame ({ hipL, kneeL, footL, shC, head, handR, ... }; rig.worldOffset(J.handR) gives one in the world)
@@ -1065,6 +1071,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.audio.calibrate()` †: the audio offset's calibration: a click on each beat (100 bpm, the first of a bar higher) as the music; tap(time) on each one heard (an event's timeStamp, or nothing: this update step). After 8 taps, result is the offset to set (ms: settings.audioOffset) and done is true; taps go on refining it. stop() puts the music back
 - `game.audio.define(name, voice)`: add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 })
 - `game.audio.duck(on = true)`: quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused
+- `game.audio.instrument(name, fn)` †: an instrument of the game's own: fn(ctx, bus, time, freq, dur, vol) makes a note's sound (Web Audio, into bus, from time); its name is a wave a music track (wave: 'pluck') or a voice takes
 - `game.audio.layer(track, vol = 1, fade = .5)` †: a track's volume as the song plays, 0..1, faded over fade seconds: layers of one song (the chase's drums in when the guards see you, out when they lose you). track: its index in song.tracks, or its name
 - `game.audio.music(song, o = {})`: Loop a song (or play once with { loop: false }). song = { bpm: 120, steps: 4, tracks: [ { wave: 'square', vol: .2, notes: 'C5 - E5 - G5 - . . | ...' }, one token per step { wave: 'triangle', notes: 'C3 . C3 . G2 . G2 .' }, { wave: 'drums', notes: 'k . h . s . h . k k h . s . h .' } ] } tokens: C4 F#3 Bb2 = note, '-' holds the previous note, '.' = rest, '|' is ignored (bar lines). steps = steps per beat (4 = sixteenth notes). Each track loops on its own length within the song's (len: steps, else its longest track's); a track may have a name, and on: false starts it silent (a layer that audio.layer brings in). THE MUSIC CLOCK: a song starts at the game's time and where it is is game time (audio.pos, headless too: the same steps hear the same beats); the sound follows that clock. o: { loop, sync: true (it pauses with the game, on game.time; else it plays on through a pause, on game.real), fade: seconds (a crossfade from the song playing), restart: true (again from its start, though it is the one playing) }. E.songs has ready-made loops: title, adventure, dungeon, boss, victory.
 - `game.audio.mute(on = !this.muted)`: toggle (or set) mute; returns the new state
@@ -1072,7 +1079,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.audio.pos` †: where the music is, on the game's clock (headless too): { t: seconds since it started, step (from 0, counting on as it loops), beat, bar (four beats), at (the step in its loop), loop (times round), bpm, layers (each track's volume), playing }
 - `game.audio.ready`: true once the browser lets the game make sound
 - `game.audio.setVolume(v)`: set the master volume, 0..1
-- `game.audio.sfx(what, o = {})`: Play a sound effect: a preset name ('jump', 'coin', 'hit', 'explode', ...), a voice object, or a list of voices. opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03), step: a step of the music playing (it sounds on that step of the music clock, scheduled with the music: a rhythm game's calls and claps) }
+- `game.audio.sfx(what, o = {})`: Play a sound effect: a preset name ('jump', 'coin', 'hit', 'explode', ...), a voice object, or a list of voices. opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03), step: a step of the music playing (it sounds on that step of the music clock, scheduled with the music: a rhythm game's calls and claps), pan: -1 (left) .. 1 (right), loop: true (it sounds on until stopped: an engine, rain; through the effects' bus, so it follows the volume and the mute) }. Returns its handle: { stop(fade .03), set({ pan, vol }), playing, pan }: a handle that does nothing when nothing plays (headless, before the first key, an unknown name)
 - `game.audio.sting(song, o = {})` †: play a short song once over the music (a goal's jingle): o.at 'now', 'beat' or 'bar' (on the music's next beat or bar), o.duck (the music's volume under it, .4)
 - `game.audio.stopMusic(fade)`: stop the music (it fades out over fade seconds, .06 by default)
 - `game.audio.tempo(bpm)` †: change the music's tempo as it plays (hurry up!): where it is stays, the steps after come at the new bpm
@@ -1147,7 +1154,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `talk.width = 0`: the box's width in pixels (320 at most by default, the screen's less 12 at most)
 - `new E.Menu(game, items, o = {}) → menu`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
 - `menu.draw(r)`: draw it to the overlay
-- `menu.rowAt(i)` †: entry i's box on the screen, [x, y, w, h] in screen pixels: where a click or tap picks it (a test's feed('down') and feed('up') there)
+- `menu.rowAt(i)` †: entry i's box on the screen, [x, y, w, h] in screen pixels: where a click or tap picks it (a test's feed('down') and feed('up') there); null while it is scrolled out of view
 - `menu.selected`: the entry under the cursor
 - `menu.update()`: move the cursor (up, down; held keys repeat; the mouse over an entry) and pick (confirm, or a click or tap on an entry) or cancel; returns true when it picked or cancelled
 - `menu.active = true`: false stops it reading input
@@ -1163,6 +1170,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `menu.onMove = null`: called (i, item) when the cursor moves
 - `menu.onPick = null`: called (i, item) on confirm
 - `menu.pick = '#ffd36a'`: the color of the one under the cursor
+- `menu.rows = 0` †: at most that many entries shown, the list scrolling under its cursor (0: all)
+- `menu.scale = 1` †: its text and rows that many times (2, 3: across a room on a TV)
 - `menu.sound = true`: false silences it
 - `menu.title = null`: a heading, or null
 - `menu.x = 'center'`, `menu.y = 'center'`: where it sits, 'center' or pixels
@@ -1175,7 +1184,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 ## 21d. Shell
 
 - `new E.Shell(game, o = {}) → shell`: new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings', meters: .125, standard: true }): an HTML interface over the game (see the section's header)
-- `new E.Shell({ theme })`: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont)
+- `new E.Shell({ theme })`: CSS variables (ink, paper, accent, muted, danger, line, font: a family, titleFont), and scale: the whole interface that many times (a number, or a function of the window) for a TV across a room; tv: true picks one by the window's width (14 px text at 875 px, up to 30 at 1,875)
 - `new E.Shell({ screens })`: specs ui.show(name) starts from (the pause screen follows game.paused; screens: { pause: false } leaves it out)
 - `new E.Shell({ settings })`: settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max, step, options, value } (kept in game.settings, beside the standard ones)
 - `new E.Shell({ store, meters })`: store: where an older version saved them; meters: meters per world unit for distances
@@ -1192,7 +1201,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `shell.hud({ minimap })` †: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick(x, y) (the world point clicked), fog (an E.Fog: unseen cells black, seen ones dim), camera: true (the ground the screen shows) }
 - `shell.screen` †: the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays
 - `shell.settings` †: the player's settings: game.settings (the standard ones and the game's own, by key)
-- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old). 'settings' takes its items
+- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel), rows: ['glyphs', 'invertY', '#A heading'] (settings' rows, changed as on the settings screen) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old). 'settings' takes its items
 - `shell.show('title')` †: { name, subtitle, meta: [...], footer }
 - `shell.show('help')` †: { keys: [[key, what]], sections: [[heading, text]] }
 - `shell.show('results')` †: { emblem, stats: [[value, label]], medals: [[label, earned]] }
