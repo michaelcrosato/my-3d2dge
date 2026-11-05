@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.86.1: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.87.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -378,7 +378,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.86.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.87.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -752,7 +752,7 @@ class Input {
   constructor(screen, map, signal) {
     this.screen = screen; this.use(map);
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {}; this._rk = {};
-    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set(); this._holds = new Set();
+    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set(); this._holds = new Set(); this._freshCodes = new Set();
     this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this.padPrev = []; this.padIndex = null; this.padId = ''; this.deadzone = .18;
     this.lastDevice = 'keyboard'; this.glyphs = 'auto'; this.padLost = false;   // label() follows the device used last; glyphs: 'auto' | 'xbox' | 'playstation' | 'nintendo' | 'generic'
     const el = screen.canvas; if (!el) return;
@@ -768,15 +768,20 @@ class Input {
     addEventListener('pointerup', e => this.release('Mouse' + e.button));
   }
   use(map) {
-    if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
     const stick = { up: 'PadAxisUp', down: 'PadAxisDown', left: 'PadAxisLeft', right: 'PadAxisRight' };   // the left stick past halfway, as the d-pad
-    this.map = {}; for (const a in map) this.map[a] = [...new Set([...map[a], ...(a === 'start' || a === 'pause' ? ['Act:menu'] : []), ...(stick[a] ? [stick[a]] : []), 'Act:' + a])];   // (Act:menu: a touch START)
+    this.map = {}; for (const a in map) if (Array.isArray(map[a])) this.map[a] = [...new Set([...map[a], ...(a === 'start' || a === 'pause' ? ['Act:menu'] : []), ...(stick[a] ? [stick[a]] : []), 'Act:' + a])];   // (Act:menu: a touch START)
     this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
+    if (this.held) {   // in play: a key held stays held (down in the new layout, not pressed again); a press no step has seen yet counts in it
+      for (const a in this.map) this._used[a] = true;
+      this._now.clear(); this._fresh.clear(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {};
+      for (const c of this._freshCodes) for (const a of this._codes[c] || []) { this._pt[a] = this.clock; this._used[a] = false; this._rk[a] = -1; this._fresh.add(a); }
+    }
     return this;
   }
   press(code) {
-    if (this.held.has(code)) return; this.held.add(code);
+    if (this.held.has(code) || (code === 'Pad9' && this.held.has('Pad8'))) return;   // (Create + Options is the host's: the AI Hub opens its bar on it)
+    this.held.add(code); this._freshCodes.add(code);
     this.lastDevice = code.startsWith('Pad') ? 'gamepad' : code.startsWith('Act:') ? 'touch' : code.startsWith('Mouse') ? 'mouse' : 'keyboard';
     for (const a of this._codes[code] || []) { this._pt[a] = this.clock; this._used[a] = false; this._rk[a] = -1; this._fresh.add(a); }
   }
@@ -800,7 +805,7 @@ class Input {
   }
   buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this._pt[a]; return t !== undefined && !this._used[a] && this.clock - t <= win; }
   consume(a) { this._used[a] = true; }
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); }
   clear() { this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; }
   anyPressed() { return this._now.size > 0; }
   move() {
@@ -841,7 +846,7 @@ class Input {
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);   // a tap is held for the one step after it (a hold() of the same action stays)
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed() / released()
-    const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
+    const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n; this._freshCodes.clear();
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
   }
 }

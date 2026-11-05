@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge Vehicle Lab v0.86.1 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
+  my-3D2dge Vehicle Lab v0.87.0 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
   vehicles drive: Rapier's ray-cast vehicle controller (a chassis on four sprung wheels), or a ball Rapier rolls, steered by
   the drive module's arcade handling (what world.vehicle is)? Tab switches between them on the same track. Served, not
   double-clicked (it loads three.js and Rapier from /vendor/).
@@ -28,12 +28,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.86.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.87.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen" role="img" aria-label="Vehicle Lab"></canvas></div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.86.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.87.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -114,7 +114,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.86.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.87.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -784,7 +784,7 @@ class Input {
     /** held: the key and button codes down right now ('KeyD', 'Mouse0', 'Pad0', 'Act:jump'); clock: seconds of input
      *  time (the steps' dt added up) */
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {};
-    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._rk = {};
+    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._rk = {}; this._freshCodes = new Set();
     this._suppressed = new Set();
     /** mouse: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last
      *  moved */
@@ -881,15 +881,16 @@ class Input {
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
    *  (bindings, set by rebind() and the Controls screen) are laid over it. Every preset (E.Input.DEFAULT, PLATFORMER,
-   *  THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel) */
+   *  THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel).
+   *  The keys held stay held (down() in the new layout, not pressed() again), and a press no step has seen counts in it */
   use(map) {
-    if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
     const B = this.bindings || {};
     /** map: each action's codes ({ jump: ['Space', 'Pad0', 'Act:jump'] }); every action also answers to 'Act:<name>'
      *  (DOM buttons with data-act, tap, hold) */
     this.map = {};
     for (const a in map) {
+      if (!Array.isArray(map[a])) continue;   // (a preset's halves: Input.halfKeys)
       let codes = map[a].slice(); const b = B[a];
       if (b && this.rebindable(a, map)) for (const k of ['keys', 'pad']) if (Array.isArray(b[k])) codes = codes.filter(c => padCode(c) !== (k === 'pad') || FIXED_CODES.has(c)).concat(b[k]);
       if (a === 'start' || a === 'pause') codes.push('Act:menu');   // (the touch START)
@@ -899,6 +900,11 @@ class Input {
     this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
     /** preset: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own) */
     this.preset = map;
+    if (this.held) {   // in play: a key held stays held (down in the new layout, not pressed again); a press no step has seen yet counts in it
+      for (const a in this.map) this._used[a] = true;
+      this._now.clear(); this._fresh.clear(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {};
+      for (const c of this._freshCodes) for (const a of this._codes[c] || []) { this._pt[a] = this.clock; this._used[a] = false; this._rk[a] = -1; this._fresh.add(a); }
+    }
     return this;
   }
   /** can the player rebind action a? Every action but the menu's (start, pause, confirm, cancel: they are how a player
@@ -1028,7 +1034,8 @@ class Input {
   /** press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input,
    *  tests, bots */
   press(code) {
-    if (this.held.has(code)) return; this.held.add(code);
+    if (this.held.has(code) || (code === 'Pad9' && this.held.has('Pad8'))) return;   // (Create + Options is the host's: the AI Hub opens its bar on it, so Options while Create is held is no press)
+    this.held.add(code); this._freshCodes.add(code);
     if (code.startsWith('Pad')) { this.lastDevice = 'gamepad'; this.aimSource = 'pad'; }
     else if (code.startsWith('Act:')) this.lastDevice = 'touch';
     else this.lastDevice = code.startsWith('Mouse') ? 'mouse' : 'keyboard';
@@ -1075,11 +1082,7 @@ class Input {
     for (const a of this._codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._clickAt = this._click = null; }
-  /** the page went full screen or back: the keys and mouse buttons let go (one held through the change may never come up),
-   *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
-   *  first tap, the one that went full screen, is a JUMP */
-  _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._down = null; }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
@@ -1204,7 +1207,7 @@ class Input {
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed()/released()
-    const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
+    const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n; this._freshCodes.clear();
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
@@ -2524,8 +2527,8 @@ class Game {
     on(window, 'blur', () => this._autoPause('focus'));
     on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
     on(window, 'pagehide', () => this._autoPause('focus'));
-    // held keys let go as the screen changes; a finger on the glass goes on, and a tap that has landed (the one that went full screen) counts
-    const fsChange = () => { this.input._refit(); if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
+    // held keys and the stick let go as the screen changes; a tap that has landed (the one that went full screen) still counts
+    const fsChange = () => { const I = this.input, c = I._click; I.clear(); I._click = c; if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
     on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
     on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one, or a game started by it)
       if (e.pointerType === 'mouse') return;
@@ -3685,11 +3688,13 @@ const KEY_HALVES = {   // each half's moves, its buttons in order (the preset's 
     start: ['Digit2', 'Enter', 'NumpadEnter'], pause: ['Digit2', 'Backspace'], confirm: ['Period', 'Enter', 'NumpadEnter'], cancel: ['Slash', 'Backspace'] }
 };
 /** a preset for half a keyboard ('left' or 'right'): its moves and menu keys, the preset's other actions on its buttons
- *  in order, and the preset's gamepad codes (Input.halfKeys(Input.SHMUP, 'right') -> fire on . and Numpad 1, bomb on /) */
+ *  in order, and the preset's gamepad codes (Input.halfKeys(Input.SHMUP, 'right') -> fire on . and Numpad 1, bomb on /).
+ *  A preset's own halves come first: preset.halves = { left: { pass: ['KeyR'] }, right: { pass: ['KeyL'] } } (an action
+ *  a menu reads beside confirm would take confirm's F otherwise) */
 Input.halfKeys = (preset, side) => {
-  const P = typeof preset === 'string' ? Input[preset.toUpperCase()] || Input.DEFAULT : preset || Input.DEFAULT, H = KEY_HALVES[side] || KEY_HALVES.left, out = {};
+  const P = typeof preset === 'string' ? Input[preset.toUpperCase()] || Input.DEFAULT : preset || Input.DEFAULT, H = KEY_HALVES[side] || KEY_HALVES.left, own = (P.halves && P.halves[side]) || {}, out = {};
   let k = 0;
-  for (const a in P) out[a] = (H[a] || H.buttons[k++] || []).concat(P[a].filter(c => padCode(c)));
+  for (const a in P) if (Array.isArray(P[a])) out[a] = (own[a] || H[a] || H.buttons[k++] || []).concat(P[a].filter(c => padCode(c)));
   return out;
 };
 const _pStub = game => Object.create(game.screen, { canvas: { value: null } });   // (another player's input: the screen's sizes, no listeners of its own)
@@ -3783,7 +3788,7 @@ HOOKS.input.push((game, dt) => {
   for (const p of pads) {   // Start on a pad no one holds: player 1's own once it plays on it (the press that just woke it joins)
     if (!p || p.connected === false || P.some(q => q.pad === p.index) || (was[0] === 'gamepad' && was[1] === p.index)) continue;
     const on = !!(p.buttons[9] && p.buttons[9].pressed), prev = (game._joinPrev || (game._joinPrev = {}))[p.index]; game._joinPrev[p.index] = on;
-    if (!on || prev || P.length >= J.max) continue;
+    if (!on || prev || P.length >= J.max || (p.buttons[8] && p.buttons[8].pressed)) continue;   // (Create + Options is the host's)
     if (I.padIndex === p.index) { I.consumeAll(); [I.lastDevice, , I.aimSource] = was; game._p1 = was; }   // (that Start was the joiner's: player 1 neither pauses nor turns to the pad)
     game.addPlayer({ pad: p.index });
   }
@@ -10382,7 +10387,7 @@ root.My3D2dge = E;
 <script type="module">
 /* ---- inlined from engine/my-3d2dge-3d.js ---- */
 /*!
-my-3D2dge 3D v0.86.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.87.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -13510,9 +13515,7 @@ Object.assign(World3D.prototype, {
     const capes = this.capes.mesh, cd = capes.geometry.drawRange.count, cv = capes.visible; capes.geometry.setDrawRange(0, 6); capes.visible = true;
     const ovHid = []; if (this.overlay) this.overlay.scene.traverse(x => { if (!x.visible) { ovHid.push(x); x.visible = true; } });
     const ovOn = this.overlay && this.overlay.on; if (this.overlay) this.overlay.on = true;
-    const culled = []; this.scene.traverse(x => { if (x.isMesh && x.frustumCulled) { culled.push(x); x.frustumCulled = false; } });   // (every caster in every light's shadow too: a torch's culls what lies outside it, whose shadow pipeline was then built mid-game, the first time a torch came near)
     this._render(cam);
-    for (const x of culled) x.frustumCulled = true;
     for (const x of ovHid) x.visible = false; if (this.overlay) this.overlay.on = ovOn;
     capes.geometry.setDrawRange(0, cd); capes.visible = cv;
     this._shadowLights.forEach((L, i) => { L.castShadow = sh[i][0]; L.intensity = sh[i][1]; }); this._glowLights.forEach((L, i) => { L.intensity = gl[i]; }); this._userLights.forEach((L, i) => { L.intensity = ul[i]; }); this._spots.forEach((L, i) => { L.castShadow = sp[i][0]; L.intensity = sp[i][1]; });

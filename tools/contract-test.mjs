@@ -78,7 +78,7 @@ const failures = [];
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; else { failures.push(name + (detail ? ': ' + detail : '')); console.log('  FAIL ' + name + (detail ? ': ' + detail : '')); } };
 /** the engine loaded in Node with its modules, as a game's scripts would load it (a context of its own per call) */
-const load = file => loadEngine(EDITIONS.find(e => e[1] === file)[0]);
+const load = (file, o) => loadEngine(EDITIONS.find(e => e[1] === file)[0], o);
 
 // the fenced examples of the cards and the index (```js name ... ```; a name starting full- is the full engine's only), and
 // of each module's manual on the editions it loads after (x.editions)
@@ -124,6 +124,52 @@ for (const [ed, file] of EDITIONS) {
   rpgs(E, ed);
   shellHeadless(E, ed);
   matrixFixes(E, ed);
+  matrixInput(E, ed);
+}
+
+// the matrix run's input (docs/HANDOFF-MATRIX.md, Part 1): the host's Create + Options, a world that steps under the
+// menu, a layout change that keeps the keys held, a half keyboard's own layout, the attract mode woken by any player
+function matrixInput(E, ed) {
+  const scene = (o = {}) => Object.assign({ pausable: true, update() {} }, o);
+  // Create + Options is the host's (the AI Hub opens its bar on it): Options while Create is held is no press
+  const hg = new E.Game({ headless: true }), HI = hg.input; hg.start({ scenes: { play: scene() }, scene: 'play' }); hg.advance(.05);
+  HI.press('Pad8'); HI.press('Pad9'); hg.advance(.05);
+  const chord = { paused: hg.paused, start: HI.down('start') || HI.down('pause') };
+  HI.release('Pad8'); hg.advance(.05); const after = hg.paused;   // (Create let go first, Options still held: still nothing)
+  HI.release('Pad9'); hg.advance(.05); HI.press('Pad9'); hg.advance(.05); const alone = hg.paused; HI.release('Pad9');
+  check(`${ed}: Options while Create is held (the host's chord) is no pause and no Start; alone it pauses`, !chord.paused && !chord.start && !after && alone, JSON.stringify({ chord, after, alone }));
+  if (ed === 'full') {   // a pad no player holds: Create + Options joins no one
+    const btn = () => ({ pressed: false, value: 0 }), pad = i => ({ index: i, id: 'pad ' + i, connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) }), pads = [pad(0), pad(1)];
+    const EP = load('engine/my-3d2dge.js', { globals: { navigator: { getGamepads: () => pads } } }), jg = new EP.Game({ headless: true });
+    jg.start({ scenes: { play: scene() }, scene: 'play' }); jg.allowJoin({ max: 2 }); pads[0].buttons[0].pressed = true; jg.advance(.05); pads[0].buttons[0].pressed = false; jg.advance(.05);
+    pads[1].buttons[8].pressed = pads[1].buttons[9].pressed = true; jg.advance(.05); const n1 = jg.players.length;
+    pads[1].buttons[8].pressed = false; jg.advance(.05); const n2 = jg.players.length;
+    pads[1].buttons[9].pressed = false; jg.advance(.05); pads[1].buttons[9].pressed = true; jg.advance(.05);
+    check(`${ed}: Create + Options on a free pad joins no one; Options alone joins`, n1 === 1 && n2 === 1 && jg.players.length === 2 && !jg.paused, [n1, n2, jg.players.length, jg.paused].join());
+  }
+  // input.use() keeps the keys held: down in the new layout with no second press, and a press not yet seen counts there
+  let edges = 0; const ug = new E.Game({ headless: true }), UI = ug.input; ug.start({ update() { if (UI.pressed('right')) edges++; }, draw() {} }); ug.advance(.05);
+  UI.press('KeyD'); ug.advance(.05); UI.use('PLATFORMER'); ug.advance(.05);
+  const across = [UI.down('right'), edges]; UI.press('Space'); UI.use('DEFAULT'); UI.use('PLATFORMER'); ug.advance(1 / 120);
+  check(`${ed}: input.use() keeps a held key held (down, not pressed again) and a press not yet seen`, across[0] && across[1] === 1 && UI.pressed('jump'), JSON.stringify({ across, jump: UI.pressed('jump') }));
+  UI.release('KeyD'); UI.release('Space');
+  // a half keyboard: DEFAULT's halves as documented, and a preset's own (preset.halves) for actions a menu reads too
+  if (ed === 'full') {
+    const keys = h => Object.entries(h).map(([a, c]) => a + ':' + c.filter(x => !/^Pad/.test(x)).join('/')).join(' ');
+    const L = keys(E.Input.halfKeys('DEFAULT', 'left')), R = keys(E.Input.halfKeys('DEFAULT', 'right'));
+    check(`${ed}: DEFAULT's halves are as documented (WASD with F G H R; the arrows with . / , L)`, L === 'up:KeyW down:KeyS left:KeyA right:KeyD attack:KeyF dash:KeyG skill:KeyH jump:KeyR start:Digit1 pause:Escape/Digit1 confirm:KeyF cancel:KeyG'
+      && R === 'up:ArrowUp down:ArrowDown left:ArrowLeft right:ArrowRight attack:Period/Numpad1 dash:Slash/Numpad2 skill:Comma/Numpad3 jump:KeyL/Numpad4 start:Digit2/Enter/NumpadEnter pause:Digit2/Backspace confirm:Period/Enter/NumpadEnter cancel:Slash/Backspace', L + ' | ' + R);
+    const M = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], alt: ['KeyQ', 'Pad2'], info: ['KeyE', 'Pad3'], start: ['Enter'], pause: ['Escape'], confirm: ['Enter', 'Pad0'], cancel: ['Escape', 'Pad1'],
+      halves: { left: { alt: ['KeyR'], info: ['KeyT'] }, right: { alt: ['KeyL'], info: ['Semicolon'] } } };
+    let threw = '', hl = {}, hr = {}; try { new E.Game({ headless: true }).input.use(M); hl = E.Input.halfKeys(M, 'left'); hr = E.Input.halfKeys(M, 'right'); } catch (e) { threw = e.message; }
+    check(`${ed}: a preset's halves give its actions their keys on each half (its pads kept), and use() takes such a preset`, !threw && String(hl.alt) === 'KeyR,Pad2' && String(hl.info) === 'KeyT,Pad3' && String(hl.confirm) === 'KeyF,Pad0' && String(hr.alt) === 'KeyL,Pad2' && !('halves' in hl), threw || keys(hl) + ' | ' + keys(hr));
+    // the arcade's attract mode wakes on any player's input
+    const ag = new E.Game({ headless: true }); ag.start({ update() {}, draw() {} }); ag.advance(.05);
+    const cab = new E.Arcade(ag, { id: 'ct-attract-' + ed, idle: .5, demo: 9 }), p2 = ag.addPlayer({ pad: 1 });
+    for (let i = 0; i < 60; i++) { ag.advance(1 / 60); cab.attract(1 / 60); }
+    const was = cab.phase; p2.tap('start'); ag.advance(1 / 120);
+    check(`${ed}: the arcade's attract mode wakes on any player's input (player 2's Start)`, was === 'demo' && cab.attract(1 / 60) === 'title', was + ' -> ' + cab.phase);
+  }
 }
 
 // the cc-matrix run's patches, in the engine now (docs/HANDOFF-MATRIX.md): each was made by builders again and again

@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.87.0 (2026-11-05)
+
+Input for a shared world, `docs/HANDOFF-MATRIX.md`'s 1.1, 1.3, 1.4 and 1.10 (their lines gone): what the cc-matrix builders patched into `Input` and the pause.
+
+- **Engine**: Create + Options is the host's (the AI Hub opens its corner bar on it): Options (`Pad9`) while Create (`Pad8`) is held is no press, so no pause, no Start and no join on a free pad (20 builds patched it); alone, Options pauses as before. Both editions.
+- **Engine**: `input.use(preset)` keeps the keys held: down in the new layout, not pressed again, and a press no step has seen yet counts in it (it let go of every key, so a key held into a scene with its own `input` read up until pressed again, and a press on the step a layout changed was lost). Both editions.
+- **Engine**: a preset's own halves for two on one keyboard: `preset.halves = { left: { pass: ['KeyR'] }, right: { pass: ['KeyL'] } }` gives those actions their keys (their pads kept); an action a menu reads beside `confirm` took confirm's F. `use()` takes such a preset. DEFAULT's halves are as before.
+- **Engine**: the arcade module's attract mode wakes on any player's input and on a player joining (it heard player 1 only).
+- **Tools**: the contract suite holds each (the host's chord on a scripted pad and on a stubbed gamepad, a layout change, DEFAULT's halves as documented and a preset's own, player 2 waking the attract mode); `tools/engine-lib.mjs`'s `load` takes a page's own globals (a stubbed `navigator`).
+- **Docs**: the API card names a preset's `halves` and the host's chord; `docs/HANDOFF-MATRIX.md` without 1.1, 1.3, 1.4 and 1.10.
+
 ## 0.86.1 (2026-11-05)
 
 Room in the budgets, `docs/HANDOFF-MATRIX.md`'s Part 0 (its line gone): every kit is about 2,650 tokens lighter, for what the plan's other parts add.

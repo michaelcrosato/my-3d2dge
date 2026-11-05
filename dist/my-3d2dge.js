@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.86.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.87.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.86.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.87.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -750,7 +750,7 @@ class Input {
     /** held: the key and button codes down right now ('KeyD', 'Mouse0', 'Pad0', 'Act:jump'); clock: seconds of input
      *  time (the steps' dt added up) */
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {};
-    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._rk = {};
+    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._rk = {}; this._freshCodes = new Set();
     this._suppressed = new Set();
     /** mouse: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last
      *  moved */
@@ -847,15 +847,16 @@ class Input {
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
    *  (bindings, set by rebind() and the Controls screen) are laid over it. Every preset (E.Input.DEFAULT, PLATFORMER,
-   *  THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel) */
+   *  THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel).
+   *  The keys held stay held (down() in the new layout, not pressed() again), and a press no step has seen counts in it */
   use(map) {
-    if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
     const B = this.bindings || {};
     /** map: each action's codes ({ jump: ['Space', 'Pad0', 'Act:jump'] }); every action also answers to 'Act:<name>'
      *  (DOM buttons with data-act, tap, hold) */
     this.map = {};
     for (const a in map) {
+      if (!Array.isArray(map[a])) continue;   // (a preset's halves: Input.halfKeys)
       let codes = map[a].slice(); const b = B[a];
       if (b && this.rebindable(a, map)) for (const k of ['keys', 'pad']) if (Array.isArray(b[k])) codes = codes.filter(c => padCode(c) !== (k === 'pad') || FIXED_CODES.has(c)).concat(b[k]);
       if (a === 'start' || a === 'pause') codes.push('Act:menu');   // (the touch START)
@@ -865,6 +866,11 @@ class Input {
     this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
     /** preset: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own) */
     this.preset = map;
+    if (this.held) {   // in play: a key held stays held (down in the new layout, not pressed again); a press no step has seen yet counts in it
+      for (const a in this.map) this._used[a] = true;
+      this._now.clear(); this._fresh.clear(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {};
+      for (const c of this._freshCodes) for (const a of this._codes[c] || []) { this._pt[a] = this.clock; this._used[a] = false; this._rk[a] = -1; this._fresh.add(a); }
+    }
     return this;
   }
   /** can the player rebind action a? Every action but the menu's (start, pause, confirm, cancel: they are how a player
@@ -994,7 +1000,8 @@ class Input {
   /** press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input,
    *  tests, bots */
   press(code) {
-    if (this.held.has(code)) return; this.held.add(code);
+    if (this.held.has(code) || (code === 'Pad9' && this.held.has('Pad8'))) return;   // (Create + Options is the host's: the AI Hub opens its bar on it, so Options while Create is held is no press)
+    this.held.add(code); this._freshCodes.add(code);
     if (code.startsWith('Pad')) { this.lastDevice = 'gamepad'; this.aimSource = 'pad'; }
     else if (code.startsWith('Act:')) this.lastDevice = 'touch';
     else this.lastDevice = code.startsWith('Mouse') ? 'mouse' : 'keyboard';
@@ -1041,11 +1048,7 @@ class Input {
     for (const a of this._codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._clickAt = this._click = null; }
-  /** the page went full screen or back: the keys and mouse buttons let go (one held through the change may never come up),
-   *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
-   *  first tap, the one that went full screen, is a JUMP */
-  _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._down = null; }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
@@ -1170,7 +1173,7 @@ class Input {
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed()/released()
-    const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
+    const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n; this._freshCodes.clear();
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
@@ -2490,8 +2493,8 @@ class Game {
     on(window, 'blur', () => this._autoPause('focus'));
     on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
     on(window, 'pagehide', () => this._autoPause('focus'));
-    // held keys let go as the screen changes; a finger on the glass goes on, and a tap that has landed (the one that went full screen) counts
-    const fsChange = () => { this.input._refit(); if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
+    // held keys and the stick let go as the screen changes; a tap that has landed (the one that went full screen) still counts
+    const fsChange = () => { const I = this.input, c = I._click; I.clear(); I._click = c; if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
     on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
     on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one, or a game started by it)
       if (e.pointerType === 'mouse') return;
@@ -3651,11 +3654,13 @@ const KEY_HALVES = {   // each half's moves, its buttons in order (the preset's 
     start: ['Digit2', 'Enter', 'NumpadEnter'], pause: ['Digit2', 'Backspace'], confirm: ['Period', 'Enter', 'NumpadEnter'], cancel: ['Slash', 'Backspace'] }
 };
 /** a preset for half a keyboard ('left' or 'right'): its moves and menu keys, the preset's other actions on its buttons
- *  in order, and the preset's gamepad codes (Input.halfKeys(Input.SHMUP, 'right') -> fire on . and Numpad 1, bomb on /) */
+ *  in order, and the preset's gamepad codes (Input.halfKeys(Input.SHMUP, 'right') -> fire on . and Numpad 1, bomb on /).
+ *  A preset's own halves come first: preset.halves = { left: { pass: ['KeyR'] }, right: { pass: ['KeyL'] } } (an action
+ *  a menu reads beside confirm would take confirm's F otherwise) */
 Input.halfKeys = (preset, side) => {
-  const P = typeof preset === 'string' ? Input[preset.toUpperCase()] || Input.DEFAULT : preset || Input.DEFAULT, H = KEY_HALVES[side] || KEY_HALVES.left, out = {};
+  const P = typeof preset === 'string' ? Input[preset.toUpperCase()] || Input.DEFAULT : preset || Input.DEFAULT, H = KEY_HALVES[side] || KEY_HALVES.left, own = (P.halves && P.halves[side]) || {}, out = {};
   let k = 0;
-  for (const a in P) out[a] = (H[a] || H.buttons[k++] || []).concat(P[a].filter(c => padCode(c)));
+  for (const a in P) if (Array.isArray(P[a])) out[a] = (own[a] || H[a] || H.buttons[k++] || []).concat(P[a].filter(c => padCode(c)));
   return out;
 };
 const _pStub = game => Object.create(game.screen, { canvas: { value: null } });   // (another player's input: the screen's sizes, no listeners of its own)
@@ -3749,7 +3754,7 @@ HOOKS.input.push((game, dt) => {
   for (const p of pads) {   // Start on a pad no one holds: player 1's own once it plays on it (the press that just woke it joins)
     if (!p || p.connected === false || P.some(q => q.pad === p.index) || (was[0] === 'gamepad' && was[1] === p.index)) continue;
     const on = !!(p.buttons[9] && p.buttons[9].pressed), prev = (game._joinPrev || (game._joinPrev = {}))[p.index]; game._joinPrev[p.index] = on;
-    if (!on || prev || P.length >= J.max) continue;
+    if (!on || prev || P.length >= J.max || (p.buttons[8] && p.buttons[8].pressed)) continue;   // (Create + Options is the host's)
     if (I.padIndex === p.index) { I.consumeAll(); [I.lastDevice, , I.aimSource] = was; game._p1 = was; }   // (that Start was the joiner's: player 1 neither pauses nor turns to the pad)
     game.addPlayer({ pad: p.index });
   }
@@ -10345,7 +10350,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.86.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.87.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10360,7 +10365,7 @@ What every coin-op had around its game: for arcade games, shooters, puzzles, pin
   cab.enter(score, mode, done): initials on a letter wheel (up and down turn it, left and right move, confirm takes a
   letter; taps on its arrows and OK do each); cab.entry is it while open. cab.drawTable(r, mode, y, title).
 - cab.card('STAGE 2', 2) shows a card (cab.carding while one is up), cab.say('READY!') a word under it.
-- The attract mode, on the title: cab.attract(dt) -> 'title', then 'demo' once o.idle seconds (20) pass without input
+- The attract mode, on the title: cab.attract(dt) -> 'title', then 'demo' once o.idle seconds (20) pass without any player's input
   (play the game's own bot, start(1, { demo: true }): DEMO shows, no table), 'scores' for o.scores seconds (6) once
   cab.endDemo() is called or o.demo seconds (30) pass, then 'title'; any input goes back to 'title'.
 - cab.update(dt) every step (cards, the entry, the continue); cab.draw(r, [x, y, w, h]) after your drawing: the HUD
@@ -10460,8 +10465,8 @@ class Arcade {
   /** the attract mode, each step on the title: 'title', 'demo' (o.idle seconds without input; it lasts o.demo seconds or
    *  until endDemo()), 'scores' (o.scores seconds), then 'title' again; any input goes back to 'title' */
   attract(dt) {
-    const I = this.game.input, o = this.o;
-    if (I.anyPressed() || clicked(I)) { this._idle = 0; this.phase = 'title'; return 'title'; }
+    const I = this.game.input, o = this.o, P = this.game.players || [I], n = P.length, joined = n !== (this._n || 1); this._n = n;
+    if (P.some(q => q.anyPressed()) || joined || clicked(I)) { this._idle = 0; this.phase = 'title'; return 'title'; }   // (any player's input, or one joining)
     this._idle += dt;
     const next = this.phase === 'title' ? (this._idle >= o.idle ? 'demo' : null) : this.phase === 'demo' ? (this._idle >= o.demo ? 'scores' : null) : this._idle >= o.scores ? 'title' : null;
     if (next) { this.phase = next; this._idle = 0; }
@@ -10560,7 +10565,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.86.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.87.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -10920,7 +10925,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.86.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.87.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11146,7 +11151,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.86.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.87.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11697,7 +11702,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.86.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.87.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11880,7 +11885,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.86.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.87.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12289,7 +12294,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.86.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.87.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12494,7 +12499,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.86.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.87.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12861,7 +12866,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.86.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.87.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13068,7 +13073,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.86.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.87.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13228,7 +13233,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.86.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.87.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13409,7 +13414,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.86.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.87.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13736,7 +13741,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.86.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.87.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13890,7 +13895,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.86.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.87.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14098,7 +14103,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.86.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.87.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14539,7 +14544,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.86.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.87.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
