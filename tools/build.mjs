@@ -117,7 +117,7 @@ const builds = [
   { template: 'src/asset-lab.template.html', out: 'examples/asset-lab.html', vars: {} },
   // a Temporary prototype (src/labs.json): the 3D engine's vehicles two ways, side by side on one track
   { template: 'src/vehicle-lab.template.html', out: 'examples/vehicle-lab.html', vars: {} },
-  // Temporary prototypes (src/labs.json; docs/HANDOFF-MATRIX.md 3.4, 7.5): a light-gun gallery on the mode7 module
+  // Temporary prototypes (src/labs.json; the cc-matrix plan's 3.4, 7.5): a light-gun gallery on the mode7 module
   { template: 'src/gallery-lab.template.html', out: 'examples/gallery-lab.html', vars: {}, modules: ['mode7'] },
   // and a racer's ribbon track of its own on the 3D engine (a loop, banked bends, a craft in the track's space)
   { template: 'src/track-lab.template.html', out: 'examples/track-lab.html', vars: {} },

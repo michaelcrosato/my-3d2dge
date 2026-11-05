@@ -1,4 +1,4 @@
-/* Gallery Lab (a Temporary prototype: src/labs.json; docs/HANDOFF-MATRIX.md 3.4). A light-gun gallery on the mode7 module:
+/* Gallery Lab (a Temporary prototype: src/labs.json; the cc-matrix plan's 3.4). A light-gun gallery on the mode7 module:
  * a field at dusk seen in perspective, deer that bound across it and step out from behind a barn and a fence, a
  * crosshair (the mouse, a pad's stick, the arrows) and a shot (a click, a tap, Space or J; R or a shot off the screen
  * reloads six). It asks whether a 2D game's perspective camera can be the mode7 module with two more calls, here on

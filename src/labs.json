@@ -487,7 +487,7 @@
           "page": "gallery-lab",
           "title": "Gallery Lab",
           "added": "2026-11-05",
-          "question": "Can a 2D game's perspective camera (a light-gun gallery, a first-person corridor: 13 runs of the cc-matrix wrote their own renderer for it, all four Big Buck Hunter and all four Time Crisis builds among them) be the mode7 module with two more calls, m7.quad (world polygons sorted with the billboards) and m7.pick (what was drawn under the crosshair, nearest first), or does it need a perspective E.View that the 2D renderer draws everything through (docs/HANDOFF-MATRIX.md 3.4)?",
+          "question": "Can a 2D game's perspective camera (a light-gun gallery, a first-person corridor: 13 runs of the cc-matrix wrote their own renderer for it, all four Big Buck Hunter and all four Time Crisis builds among them) be the mode7 module with two more calls, m7.quad (world polygons sorted with the billboards) and m7.pick (what was drawn under the crosshair, nearest first), or does it need a perspective E.View that the 2D renderer draws everything through (the cc-matrix plan's 3.4)?",
           "deviates": "puts bill, quad and pick on E.Mode7's prototype, wraps its draw to keep what it drew, and resets the pen's colour cache (g._c) after its own alpha, as a prototype may.",
           "what": "A field at dusk in perspective: deer bound across it and step out from behind a barn and a fence, trees from m7.shape. Aim with the mouse, a pad's stick or the arrows; shoot with a click, a tap, Space or J; R, or a shot at the screen's foot, reloads six. A deer hit scores 100 (a stag 250); the barn and the fence are quads and stop a shot at a deer behind them. Does it read as a light-gun game, and do quad and pick belong in the mode7 module?",
           "links": []
@@ -496,7 +496,7 @@
           "page": "track-lab",
           "title": "Track Lab",
           "added": "2026-11-05",
-          "question": "Can a racer whose track leaves the ground (a loop, banked bends: 7 of 8 WipeoutHD and TrackMania builds wrote their own track physics) live on the 3D engine with a track that is data, its frames along a centreline (track.at(s): where, forward, right and up; track.toTrack(x, y, z): along, across and up from it) and its riders in its space, and is that a world.track() of the engine or a module of its own (docs/HANDOFF-MATRIX.md 7.5)?",
+          "question": "Can a racer whose track leaves the ground (a loop, banked bends: 7 of 8 WipeoutHD and TrackMania builds wrote their own track physics) live on the 3D engine with a track that is data, its frames along a centreline (track.at(s): where, forward, right and up; track.toTrack(x, y, z): along, across and up from it) and its riders in its space, and is that a world.track() of the engine or a module of its own (the cc-matrix plan's 7.5)?",
           "what": "A ribbon track: a straight, a loop that drifts aside as it climbs (upside down at its top), an S-bend back into line and two banked half turns. The craft keeps to the track's surface wherever it turns, its walls keep it on; the camera rides behind in the track's frame (through the loop upside down with it) or watches from the stands (C). Arrows or WASD steer, Z the gas, X the brake. Does it feel like a track, and should the engine carry one?",
           "links": [
             [
@@ -513,7 +513,7 @@
           "page": "fork-lab",
           "title": "Fork Lab",
           "added": "2026-11-05",
-          "question": "Can a pseudo-3D road fork at the end of a stretch, one road easing into two and the side the car is on choosing the way (OutBloom and DenshaDeHalo forked road.js for it), and is that E.Road's own (road.fork(at, { left, right }): the branches as more segments, drawn together in its one pass) or roads a game draws itself (docs/HANDOFF-MATRIX.md 7.5)?",
+          "question": "Can a pseudo-3D road fork at the end of a stretch, one road easing into two and the side the car is on choosing the way (OutBloom and DenshaDeHalo forked road.js for it), and is that E.Road's own (road.fork(at, { left, right }): the branches as more segments, drawn together in its one pass) or roads a game draws itself (the cc-matrix plan's 7.5)?",
           "what": "A road that forks twice a run: before each split it widens into two roads that ease apart, each with its own bends and hills; keep left or right through the split, and the view turns with the road you took while the other bends away out of sight. Arrows or WASD steer, Z the gas, X the brake. The lab draws its own roads, every row's grass and then every road over it, back to front: what would E.Road need to do this itself?",
           "links": [
             [

@@ -1,4 +1,4 @@
-/* Fork Lab (a Temporary prototype: src/labs.json; docs/HANDOFF-MATRIX.md 7.5). A pseudo-3D road that forks at the end of
+/* Fork Lab (a Temporary prototype: src/labs.json; the cc-matrix plan's 7.5). A pseudo-3D road that forks at the end of
  * each stretch: one road splits into two that ease apart, each with its own bends and hills; the side the car is on at the
  * split is the way it goes, and the view turns with the road it took while the other bends away out of sight. Two forks
  * a run (a tree of roads), then the first stretch again. E.Road draws one road and its whole scene (sky, grass, scenery),

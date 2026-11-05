@@ -1,4 +1,4 @@
-/* Track Lab (a Temporary prototype: src/labs.json; docs/HANDOFF-MATRIX.md 7.5). A racer's track of its own on the 3D
+/* Track Lab (a Temporary prototype: src/labs.json; the cc-matrix plan's 7.5). A racer's track of its own on the 3D
  * engine: a ribbon that leaves the ground, banks into its bends and runs round a loop, a craft that rides it in the
  * track's own space (along it, across it, up from it: through the loop upside down), the track's walls its colliders.
  * Seven of eight WipeoutHD and TrackMania builds wrote their own track physics. It asks: is a track a world.track() of
