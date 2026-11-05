@@ -7,14 +7,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 
 ## 0.87.0 (2026-11-05)
 
-Input for a shared world, `docs/HANDOFF-MATRIX.md`'s 1.1, 1.3, 1.4 and 1.10 (their lines gone): what the cc-matrix builders patched into `Input` and the pause.
+Input for a shared world, `docs/HANDOFF-MATRIX.md`'s 1.1 to 1.4 and 1.10 (their lines gone; 1.2 is a call of its own, D78): what the cc-matrix builders patched into `Input` and the pause.
 
 - **Engine**: Create + Options is the host's (the AI Hub opens its corner bar on it): Options (`Pad9`) while Create (`Pad8`) is held is no press, so no pause, no Start and no join on a free pad (20 builds patched it); alone, Options pauses as before. Both editions.
+- **Engine**: `new E.Game({ live: true })` and `game.menu(name, { pause: false })`: the menus open over a world that keeps stepping (an online or shared world can't stop for one player); `game.paused` says a menu is up, the scene's update goes on, the menu holds that player's input back.
 - **Engine**: `input.use(preset)` keeps the keys held: down in the new layout, not pressed again, and a press no step has seen yet counts in it (it let go of every key, so a key held into a scene with its own `input` read up until pressed again, and a press on the step a layout changed was lost). Both editions.
 - **Engine**: a preset's own halves for two on one keyboard: `preset.halves = { left: { pass: ['KeyR'] }, right: { pass: ['KeyL'] } }` gives those actions their keys (their pads kept); an action a menu reads beside `confirm` took confirm's F. `use()` takes such a preset. DEFAULT's halves are as before.
 - **Engine**: the arcade module's attract mode wakes on any player's input and on a player joining (it heard player 1 only).
-- **Tools**: the contract suite holds each (the host's chord on a scripted pad and on a stubbed gamepad, a layout change, DEFAULT's halves as documented and a preset's own, player 2 waking the attract mode); `tools/engine-lib.mjs`'s `load` takes a page's own globals (a stubbed `navigator`).
-- **Docs**: the API card names a preset's `halves` and the host's chord; `docs/HANDOFF-MATRIX.md` without 1.1, 1.3, 1.4 and 1.10.
+- **Tools**: the contract suite holds each (the host's chord on a scripted pad and on a stubbed gamepad, a live pause, a layout change, DEFAULT's halves as documented and a preset's own, player 2 waking the attract mode); `tools/engine-lib.mjs`'s `load` takes a page's own globals (a stubbed `navigator`).
+- **Docs**: the API card names `live`, a preset's `halves` and the host's chord; D78; `docs/HANDOFF-MATRIX.md` without 1.1 to 1.4 and 1.10.
 
 ## 0.86.1 (2026-11-05)
 

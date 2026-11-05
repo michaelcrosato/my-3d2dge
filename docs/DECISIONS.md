@@ -1406,3 +1406,19 @@ An entry:
 - **Answered:** no: a reversible call, made at once, flagged in the pull request
 - **Landed in:** v0.86.0
 
+## D78 · 2026-11-05 · A world that keeps stepping under the menu: `live: true` and `menu(name, { pause: false })`
+
+- **Principle:** 5 (one game, any device: a headless game and a page alike) and the standard features (no pause code
+  of a game's own)
+- **Call:** `new E.Game({ live: true })` makes every pause (Start, the corner's menu, the touch START, the page losing
+  focus) open the menus over a world that keeps stepping: `game.paused` is true, as the Shell's pause screen and a
+  game's own HUD read it, but the scene's update, the timers and the hooks run on, and the open menu holds that
+  player's input back (the others play on). `game.menu(name, { pause: false })` does the same for one menu, until it
+  closes. Without either, a pause stops the world as before. The alternative the matrix run also patched in, a
+  menu with no pause at all (`game.paused` false while a screen is open), was not taken: the pause screen, the
+  canvas PAUSED overlay, the ducked music and "P2 PAUSED" all follow `game.paused`, so a live pause keeps them.
+- **Why:** an online or shared world can't stop for one player (the cc-matrix run's audit: "menus must not stall a
+  shared world"; KarateChampon patched `game.live` in, AmericanFootballFiasco `menu(name, { pause: false })`). Keeping
+  `paused` true and the world stepping is the smallest change that keeps every standard screen as it is.
+- **Answered:** no: a reversible call, made at once, flagged in the pull request
+- **Landed in:** v0.87.0

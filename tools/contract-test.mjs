@@ -147,6 +147,16 @@ function matrixInput(E, ed) {
     pads[1].buttons[9].pressed = false; jg.advance(.05); pads[1].buttons[9].pressed = true; jg.advance(.05);
     check(`${ed}: Create + Options on a free pad joins no one; Options alone joins`, n1 === 1 && n2 === 1 && jg.players.length === 2 && !jg.paused, [n1, n2, jg.players.length, jg.paused].join());
   }
+  // a shared world under the menu: game.live, or menu(name, { pause: false }), opens the menus over a world that steps on
+  if (ed === 'full') {
+    let ups = 0; const lg = new E.Game({ headless: true, live: true }); lg.start({ scenes: { play: scene({ update() { ups++; } }) }, scene: 'play' }); lg.advance(.05);
+    lg.input.tap('pause'); lg.advance(.05); const u0 = ups; lg.advance(.1);
+    check(`${ed}: new E.Game({ live: true }): a pause opens over a world that keeps stepping (game.paused says so)`, lg.paused && ups >= u0 + 11, `paused ${lg.paused}, ${ups - u0} steps`);
+    let mu = 0; const mg = new E.Game({ headless: true }); mg.start({ scenes: { play: scene({ update() { mu++; } }) }, scene: 'play' }); mg.advance(.05);
+    mg.menu(null, { pause: false }); const m0 = mu; mg.advance(.1); const live = [mg.paused, mu - m0];
+    mg.resume(); mg.menu(); const m1 = mu; mg.advance(.1);
+    check(`${ed}: game.menu(name, { pause: false }) opens over a running world; a plain menu() still stops it`, live[0] && live[1] >= 11 && mg.paused && mu === m1, JSON.stringify({ live, plain: mu - m1 }));
+  }
   // input.use() keeps the keys held: down in the new layout with no second press, and a press not yet seen counts there
   let edges = 0; const ug = new E.Game({ headless: true }), UI = ug.input; ug.start({ update() { if (UI.pressed('right')) edges++; }, draw() {} }); ug.advance(.05);
   UI.press('KeyD'); ug.advance(.05); UI.use('PLATFORMER'); ug.advance(.05);

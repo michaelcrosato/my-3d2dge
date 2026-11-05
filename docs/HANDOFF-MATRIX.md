@@ -65,10 +65,6 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
 
 ## Part 1: input, and the AI Hub's controller
 
-- **1.2 A shared world under the menu** (KarateChampon's `game.live`, AmericanFootball's `menu(name, { pause: false })`;
-  the audit: "menus must not stall a shared world"). A way to open the pause menu or a Shell screen while the world
-  keeps stepping (an online session can't stop for one player). A design call: `game.menu(name, { pause: false })`
-  and the Shell's screens over a running game.
 - **1.5 Analog values:** `input.value(a)` 0 to 1 (a pad button's `value`: the triggers; a key or scripted hold 1). 8
   builds (SnipeoutHD, OutBloom, Crackmania x2).
 - **1.6 More bindable codes:** the right stick as `PadRAxisUp/Down/Left/Right` (KarateChampon x2), the mouse wheel as
@@ -204,5 +200,5 @@ BigBuckHuntOff read as "E.View rounding puts rigs 7 px off": the engine's `E.Vie
 
 ## Order and size
 
-Part 0 (the room) landed in v0.86.1. 1.1, 1.3, 1.4 and 1.10 in v0.87.0. Then 2.1 to 2.6, 3.5, 3.6, 7.1 to 7.4 and Part 8 (small to medium each);
+Part 0 (the room) landed in v0.86.1. 1.1 to 1.4 and 1.10 in v0.87.0. Then 2.1 to 2.6, 3.5, 3.6, 7.1 to 7.4 and Part 8 (small to medium each);
 then 1.5 to 1.9, 3.1 to 3.3, 3.7 to 3.11, Parts 4 to 6 (medium); the prototypes 3.4 and 7.5 last, for the owner.

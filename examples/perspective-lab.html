@@ -2348,7 +2348,7 @@ E.PLAYER_COLORS = ['#4a8aff', '#ff4a4a', '#4ad860', '#ffd040'];
 class Game {
   /**
    * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
-   * fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id, pace, camera }). The standard features
+   * fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, live: false, id, pace, camera }). The standard features
    * (section 10b) every game gets: menu, fullscreen, corner, backGesture, autoPause.
    * - res: a fixed resolution ('ps1' or [w, h]), whole pixels
    * - expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars
@@ -2364,6 +2364,8 @@ class Game {
    * - corner, backGesture: corner: the menu and full-screen buttons (top right); backGesture: a
    *   phone's back steps back in the game first (false: it leaves the page)
    * - autoPause: a pausable scene pauses when the page is hidden or loses focus
+   * - live: true: a world that never stops for one player (online, a shared screen): a pause opens the menus over it,
+   *   the scene's update goes on (game.paused says a menu is up) and the menu holds that player's input back
    * - id: the name the player's settings are saved under (the page's path)
    * - pace: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every
    *   other one, evenly), unless the player picks Frame rate 60
@@ -2430,8 +2432,10 @@ class Game {
     this.fps = 60; this.hz = 60; this.drawEvery = 1; this._viewListeners = []; this.gpu = null;
     /** paused: true while paused (a pausable scene toggles it on 'pause'; steps still run, scenes don't update);
      *  pauseOverlay: false hides the engine's PAUSED overlay (a game drawing its own pause screen); errors: the
-     *  errors caught in update and draw, each { where, scene, message, stack }, once per kind */
-    this.paused = false; this.pauseOverlay = true; this._timers = []; this.errors = []; this._errKeys = new Set();
+     *  errors caught in update and draw, each { where, scene, message, stack }, once per kind; live: true (o.live): a pause
+     *  opens the menus over a world that keeps stepping (an online or shared world can't stop for one player): paused
+     *  is true and the scene's update goes on, the menu holding the player's own input back */
+    this.paused = false; this.pauseOverlay = true; this._timers = []; this.errors = []; this._errKeys = new Set(); this.live = !!o.live; this._goOn = false;
     /** the E.Shell over this game (an HTML interface: screens and HUD), or null */
     this.shell = null;
     /** seconds for the dithered fade between scenes (0 = instant cuts) */
@@ -2565,7 +2569,7 @@ class Game {
    *  The player resumes (Escape, Start, Resume); resume() does it from code */
   pause(reason = 'player') { this.input.stopRumble(); if (this.paused) return false; this.paused = true; this.pauseReason = reason; return true; }
   /** take the game out of pause (and close the pause screen) */
-  resume() { this.paused = false; this.pauseReason = null; }
+  resume() { this.paused = false; this.pauseReason = null; this._goOn = false; }
   /** a pausable scene in play pauses when the page is hidden, the window loses focus or the controller is unplugged
    *  (new E.Game({ autoPause: false }) turns that off); coming back never resumes by itself */
   _autoPause(reason) { this.input.stopRumble(); return this.o.autoPause !== false && !!this.scene && !!this.scene.pausable && this.pause(reason); }
@@ -2573,10 +2577,12 @@ class Game {
    * open the menu (the corner's menu button and the touch START do it): a pausable scene (or a game started without
    * scenes) pauses on its pause screen; any other scene, a title, waits under the settings. menu('settings') or
    * menu('controls') opens that screen. Without a menu (menu: false, or the agent edition) it pauses a scene in play.
-   * Returns true when a menu opened
+   * o: { pause: false } opens it over a world that keeps stepping, as game.live does for every pause. Returns true when
+   * a menu opened
    */
-  menu(name) {
+  menu(name, o) {
     const sh = this.shell, s = this.scene, play = !!s && (!!s.pausable || this.sceneName === 'main');
+    if (o && o.pause === false && !this.paused) this._goOn = true;   // (until it resumes)
     if (!sh || !sh._menu()) { if (play) this.pause('player'); return false; }
     if (!name && play) { this.pause('player'); return true; }
     if (this.pause('menu')) sh._ownPause = true;
@@ -2961,14 +2967,14 @@ class Game {
     if (this._fade) { const out = this._fade.out; this._fadeStep(dt); if (out) return; }   // the old scene freezes while it fades out
     const s = this.scene;
     if (s && s.pausable && this.input.pressed('pause')) { this.paused = !this.paused; this.pauseReason = this.paused ? 'player' : null; this.audio.sfx('pause'); }
-    if (!this.paused) this.pauseReason = null;
+    if (!this.paused) { this.pauseReason = null; this._goOn = false; }
     this.audio._duck(this.paused);
     // the player's zoom: the wheel, - and = and a pinch ask for it while a scene that allows it plays (input.zoom())
     const I = this.input, zr = !this.paused && !(this.shell && this.shell.screen) && !!this.zoomRange();
     I._zoomOn = zr; I._wheelOn = zr && (this._camera() || {}).wheel !== false;
     if (this._zoomTo && !I._pinching && this._wall - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
-    if (this.paused) return;
-    this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk);
+    if (this.paused && !this.live && !this._goOn) return;   // (live: the world steps on under the menu)
+    if (!this.paused) { this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk); }
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     this.time += dt;
     this.audio._tick(true);   // (a synced song: on game.time, it waits with the game)
