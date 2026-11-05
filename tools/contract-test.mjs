@@ -32,7 +32,12 @@
 //                  joints; a standard setting's default from the game (glyphs: playstation), reaching a player who joins;
 //                  E.Dialog's voice per letter, say's voice, its width; audio.bus headless; a script's tap and hold are no
 //                  device, a tap leaves a hold held, feed('move') is a mouse move, a script's pad codes stay held with no
-//                  pad; a kept timer outlives a scene; the floor bakes keep the latest used
+//                  pad; a kept timer outlives a scene; the floor bakes keep the latest used. Its input (Part 1): the
+//                  host's Create + Options (scripted, and on a stubbed gamepad: no join), a live pause, a layout change
+//                  that keeps the keys held, DEFAULT's halves and a preset's own, the attract mode woken by player 2.
+//                  Its headless tests (Part 2): a menu clicked with no draw, draw: true's stand-in and its errors, a
+//                  timer before the first scene, a boot step's go, the visit's store, a scene's fields of the wrong
+//                  type, timeScale across a scene change
 //   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
 //                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map;
 //                  in Chromium, r.pick on a body drawn from its kept image (r.actor's every) the box it has redrawn
@@ -78,7 +83,7 @@ const failures = [];
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; else { failures.push(name + (detail ? ': ' + detail : '')); console.log('  FAIL ' + name + (detail ? ': ' + detail : '')); } };
 /** the engine loaded in Node with its modules, as a game's scripts would load it (a context of its own per call) */
-const load = file => loadEngine(EDITIONS.find(e => e[1] === file)[0]);
+const load = (file, o) => loadEngine(EDITIONS.find(e => e[1] === file)[0], o);
 
 // the fenced examples of the cards and the index (```js name ... ```; a name starting full- is the full engine's only), and
 // of each module's manual on the editions it loads after (x.editions)
@@ -124,6 +129,101 @@ for (const [ed, file] of EDITIONS) {
   rpgs(E, ed);
   shellHeadless(E, ed);
   matrixFixes(E, ed);
+  matrixInput(E, ed);
+  matrixHeadless(E, ed);
+}
+
+// the matrix run's input (docs/HANDOFF-MATRIX.md, Part 1): the host's Create + Options, a world that steps under the
+// menu, a layout change that keeps the keys held, a half keyboard's own layout, the attract mode woken by any player
+function matrixInput(E, ed) {
+  const scene = (o = {}) => Object.assign({ pausable: true, update() {} }, o);
+  // Create + Options is the host's (the AI Hub opens its bar on it): Options while Create is held is no press
+  const hg = new E.Game({ headless: true }), HI = hg.input; hg.start({ scenes: { play: scene() }, scene: 'play' }); hg.advance(.05);
+  HI.press('Pad8'); HI.press('Pad9'); hg.advance(.05);
+  const chord = { paused: hg.paused, start: HI.down('start') || HI.down('pause') };
+  HI.release('Pad8'); hg.advance(.05); const after = hg.paused;   // (Create let go first, Options still held: still nothing)
+  HI.release('Pad9'); hg.advance(.05); HI.press('Pad9'); hg.advance(.05); const alone = hg.paused; HI.release('Pad9');
+  check(`${ed}: Options while Create is held (the host's chord) is no pause and no Start; alone it pauses`, !chord.paused && !chord.start && !after && alone, JSON.stringify({ chord, after, alone }));
+  if (ed === 'full') {   // a pad no player holds: Create + Options joins no one
+    const btn = () => ({ pressed: false, value: 0 }), pad = i => ({ index: i, id: 'pad ' + i, connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) }), pads = [pad(0), pad(1)];
+    const EP = load('engine/my-3d2dge.js', { globals: { navigator: { getGamepads: () => pads } } }), jg = new EP.Game({ headless: true });
+    jg.start({ scenes: { play: scene() }, scene: 'play' }); jg.allowJoin({ max: 2 }); pads[0].buttons[0].pressed = true; jg.advance(.05); pads[0].buttons[0].pressed = false; jg.advance(.05);
+    pads[1].buttons[8].pressed = pads[1].buttons[9].pressed = true; jg.advance(.05); const n1 = jg.players.length;
+    pads[1].buttons[8].pressed = false; jg.advance(.05); const n2 = jg.players.length;
+    pads[1].buttons[9].pressed = false; jg.advance(.05); pads[1].buttons[9].pressed = true; jg.advance(.05);
+    check(`${ed}: Create + Options on a free pad joins no one; Options alone joins`, n1 === 1 && n2 === 1 && jg.players.length === 2 && !jg.paused, [n1, n2, jg.players.length, jg.paused].join());
+  }
+  // a shared world under the menu: game.live, or menu(name, { pause: false }), opens the menus over a world that steps on
+  if (ed === 'full') {
+    let ups = 0; const lg = new E.Game({ headless: true, live: true }); lg.start({ scenes: { play: scene({ update() { ups++; } }) }, scene: 'play' }); lg.advance(.05);
+    lg.input.tap('pause'); lg.advance(.05); const u0 = ups; lg.advance(.1);
+    check(`${ed}: new E.Game({ live: true }): a pause opens over a world that keeps stepping (game.paused says so)`, lg.paused && ups >= u0 + 11, `paused ${lg.paused}, ${ups - u0} steps`);
+    let mu = 0; const mg = new E.Game({ headless: true }); mg.start({ scenes: { play: scene({ update() { mu++; } }) }, scene: 'play' }); mg.advance(.05);
+    mg.menu(null, { pause: false }); const m0 = mu; mg.advance(.1); const live = [mg.paused, mu - m0];
+    mg.resume(); mg.menu(); const m1 = mu; mg.advance(.1);
+    check(`${ed}: game.menu(name, { pause: false }) opens over a running world; a plain menu() still stops it`, live[0] && live[1] >= 11 && mg.paused && mu === m1, JSON.stringify({ live, plain: mu - m1 }));
+  }
+  // input.use() keeps the keys held: down in the new layout with no second press, and a press not yet seen counts there
+  let edges = 0; const ug = new E.Game({ headless: true }), UI = ug.input; ug.start({ update() { if (UI.pressed('right')) edges++; }, draw() {} }); ug.advance(.05);
+  UI.press('KeyD'); ug.advance(.05); UI.use('PLATFORMER'); ug.advance(.05);
+  const across = [UI.down('right'), edges]; UI.press('Space'); UI.use('DEFAULT'); UI.use('PLATFORMER'); ug.advance(1 / 120);
+  check(`${ed}: input.use() keeps a held key held (down, not pressed again) and a press not yet seen`, across[0] && across[1] === 1 && UI.pressed('jump'), JSON.stringify({ across, jump: UI.pressed('jump') }));
+  UI.release('KeyD'); UI.release('Space');
+  // a half keyboard: DEFAULT's halves as documented, and a preset's own (preset.halves) for actions a menu reads too
+  if (ed === 'full') {
+    const keys = h => Object.entries(h).map(([a, c]) => a + ':' + c.filter(x => !/^Pad/.test(x)).join('/')).join(' ');
+    const L = keys(E.Input.halfKeys('DEFAULT', 'left')), R = keys(E.Input.halfKeys('DEFAULT', 'right'));
+    check(`${ed}: DEFAULT's halves are as documented (WASD with F G H R; the arrows with . / , L)`, L === 'up:KeyW down:KeyS left:KeyA right:KeyD attack:KeyF dash:KeyG skill:KeyH jump:KeyR start:Digit1 pause:Escape/Digit1 confirm:KeyF cancel:KeyG'
+      && R === 'up:ArrowUp down:ArrowDown left:ArrowLeft right:ArrowRight attack:Period/Numpad1 dash:Slash/Numpad2 skill:Comma/Numpad3 jump:KeyL/Numpad4 start:Digit2/Enter/NumpadEnter pause:Digit2/Backspace confirm:Period/Enter/NumpadEnter cancel:Slash/Backspace', L + ' | ' + R);
+    const M = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], alt: ['KeyQ', 'Pad2'], info: ['KeyE', 'Pad3'], start: ['Enter'], pause: ['Escape'], confirm: ['Enter', 'Pad0'], cancel: ['Escape', 'Pad1'],
+      halves: { left: { alt: ['KeyR'], info: ['KeyT'] }, right: { alt: ['KeyL'], info: ['Semicolon'] } } };
+    let threw = '', hl = {}, hr = {}; try { new E.Game({ headless: true }).input.use(M); hl = E.Input.halfKeys(M, 'left'); hr = E.Input.halfKeys(M, 'right'); } catch (e) { threw = e.message; }
+    check(`${ed}: a preset's halves give its actions their keys on each half (its pads kept), and use() takes such a preset`, !threw && String(hl.alt) === 'KeyR,Pad2' && String(hl.info) === 'KeyT,Pad3' && String(hl.confirm) === 'KeyF,Pad0' && String(hr.alt) === 'KeyL,Pad2' && !('halves' in hl), threw || keys(hl) + ' | ' + keys(hr));
+    // the arcade's attract mode wakes on any player's input
+    const ag = new E.Game({ headless: true }); ag.start({ update() {}, draw() {} }); ag.advance(.05);
+    const cab = new E.Arcade(ag, { id: 'ct-attract-' + ed, idle: .5, demo: 9 }), p2 = ag.addPlayer({ pad: 1 });
+    for (let i = 0; i < 60; i++) { ag.advance(1 / 60); cab.attract(1 / 60); }
+    const was = cab.phase; p2.tap('start'); ag.advance(1 / 120);
+    check(`${ed}: the arcade's attract mode wakes on any player's input (player 2's Start)`, was === 'demo' && cab.attract(1 / 60) === 'title', was + ' -> ' + cab.phase);
+  }
+}
+
+// the matrix run's headless tests (docs/HANDOFF-MATRIX.md, Part 2): a menu's rows without a draw, draw run headless on a
+// stand-in renderer, timers and a go() before the first scene, a store for the visit, a scene's fields of the wrong type
+function matrixHeadless(E, ed) {
+  if (ed === 'full') {
+    // E.Menu's rows come from update (a scripted click picks an entry with no draw); menu.rowAt(i) is where entry i is
+    let picked = -1; const mg = new E.Game({ headless: true }), MI = mg.input, menu = new E.Menu(mg, ['ONE', 'TWO', 'THREE'], { onPick: i => { picked = i; } });
+    mg.start({ update() { menu.update(); }, draw(r) { menu.draw(r); } }); mg.advance(.05);
+    const box = menu.rowAt ? menu.rowAt(2) : null;
+    if (box) { MI.feed('down', box[0] + box[2] / 2, box[1] + box[3] / 2); MI.feed('up', box[0] + box[2] / 2, box[1] + box[3] / 2); mg.advance(1 / 120); mg.advance(1 / 120); }
+    check(`${ed}: E.Menu's rows come from update: a scripted click on its third entry picks it, with no draw`, picked === 2, 'box ' + JSON.stringify(box) + ', picked ' + picked);
+    // new E.Game({ headless: true, draw: true }): draw runs on a stand-in renderer each advance, its error in game.errors
+    let draws = 0; const dg = new E.Game({ headless: true, draw: true }), rig = new E.Humanoid({});
+    dg.start({ update(dt) { rig.update(dt, { x: 40, y: 40, vx: 30, vy: 0 }); }, draw(r) { draws++; E.px.rect(r.ctx, 0, 0, 4, 4, '#ffffff'); r.actor(40, 40, 0, (g, ox, oy) => rig.draw(g, ox, oy, r.view)); E.font.text(r.ctx, 'HI', 2, 2); if (draws === 3) throw new Error('drawn wrong'); } });
+    dg.advance(.05); dg.advance(.05); dg.advance(.05); dg.advance(.05);
+    check(`${ed}: new E.Game({ headless: true, draw: true }) draws each advance on a stand-in renderer, a draw error in game.errors`, draws === 4 && !!dg.r && dg.errors.some(e => e.where === 'draw' && /drawn wrong/.test(e.message)), `draws ${draws}, errors ${JSON.stringify(dg.errors.map(e => e.where + ': ' + e.message))}`);
+  }
+  // timers made before the first scene live into it
+  const tg = new E.Game({ headless: true }), fired = []; tg.after(.1, () => fired.push('before'));
+  tg.start({ scenes: { a: { update() {} } }, scene: 'a' }); tg.advance(.2);
+  check(`${ed}: a timer made before the first scene fires in it`, fired.includes('before'), JSON.stringify(fired));
+  // game.go during the boot: that scene, when the boot ends (not the first)
+  const warned = [], EW = load(ed === 'full' ? 'engine/my-3d2dge.js' : 'engine/my-3d2dge-agent.js', { console: { log() {}, info() {}, error() {}, warn: m => warned.push(String(m)) } });
+  const bg = new EW.Game({ headless: true });
+  bg.start({ scenes: { title: { update() {} }, battle: { update() {} } }, scene: 'title', boot: { steps: [['Reading the link', g => g.go('battle', { from: 'link' })]] } }); bg.advance(.05);
+  check(`${ed}: game.go in a boot step enters that scene when the boot ends`, bg.sceneName === 'battle' && !warned.some(w => /needs game.start/.test(w)), bg.sceneName + ' ' + warned.join(' | '));
+  // E.store with no storage (Node, a sandboxed frame): a memory store for the visit; E.store.clear() forgets it
+  E.store.set('ct-visit', { n: 3 }); const kept = E.store.get('ct-visit', null); if (E.store.clear) E.store.clear();
+  check(`${ed}: E.store with no storage keeps a value for the visit; clear() forgets it`, kept && kept.n === 3 && E.store.get('ct-visit', 'gone') === 'gone', JSON.stringify(kept));
+  // a scene's fields the engine reads, of the wrong type, warn by name (a method named camera() is no camera)
+  const sg = new EW.Game({ headless: true }); warned.length = 0;
+  sg.start({ scenes: { a: { update() {}, camera() { return 1; }, views: 'side', touch: 'jump' } }, scene: 'a' }); sg.advance(.05);
+  check(`${ed}: a scene field of the wrong type warns, naming it (${ed === 'full' ? 'camera a function, views and touch not lists' : 'views not a list'})`, (ed === 'full' ? ['camera', 'views', 'touch'] : ['views']).every(k => warned.some(w => w.includes('"a"') && w.includes('its ' + k))), warned.join(' | ').slice(0, 300));
+  // slow motion: game.timeScale outlives a scene change (a game's speed: Emberdeep's, the sim's), hitstop doesn't
+  const sl = new E.Game({ headless: true }); sl.start({ scenes: { a: { update() {} }, b: { update() {} } }, scene: 'a' }); sl.advance(.05);
+  sl.timeScale = .5; sl.hitstop = 1; sl.go('b', null, { fade: 0 }); sl.advance(1 / 120);
+  check(`${ed}: game.timeScale outlives a scene change, hitstop ends with it`, sl.sceneName === 'b' && sl.timeScale === .5 && sl.hitstop === 0, [sl.sceneName, sl.timeScale, sl.hitstop].join());
 }
 
 // the cc-matrix run's patches, in the engine now (docs/HANDOFF-MATRIX.md): each was made by builders again and again
@@ -649,6 +749,19 @@ function views(E, ed) {
   check(`${ed}: views: mode7: chase puts the camera back units behind the body, along its angle, h high`, Math.abs(cam.x - 10) < 1e-9 && Math.abs(cam.y + 30) < 1e-9 && cam.h === 30 && cam.angle === b.angle, JSON.stringify(cam));
   const yaw = a => { m7.cam = { x: 0, y: 0, h: 40, angle: a, pitch: 12 }; m7.begin({ W: 320, H: 180 }); return m7.view(.5); };
   check(`${ed}: views: mode7: a rig is seen from the camera's side (heading north: yaw 0, east: -90), at its distance's scale`, yaw(-Math.PI / 2).yawDeg === 0 && yaw(0).yawDeg === -90 && yaw(0).scale === .5 && yaw(0).pitchDeg === 12, [yaw(-Math.PI / 2).yawDeg, yaw(0).yawDeg].join());
+  // a bobbing camera's pitch makes no new view each frame (whole degrees); a shape keeps its params and mats (HANDOFF-MATRIX 3.5, 3.6)
+  const vm7 = new E.Mode7({ floor: () => [0, 0, 0], size: [64, 64] });
+  for (let i = 0; i < 120; i++) { vm7.cam = { x: 0, y: 0, h: 40, angle: 0, pitch: 12 + Math.sin(i / 9) * .4, fov: 70 }; vm7.begin({ W: 320, H: 180 }); vm7.view(.5); }
+  check(`${ed}: views: mode7: a pitch that bobs by a fraction of a degree reuses its views (whole degrees)`, vm7._views.size <= 2, vm7._views.size + ' views for 120 frames');
+  if (ed === 'full') {
+    const made = [], was = E.shapeSprite; E.shapeSprite = (id, o) => { made.push(JSON.stringify([id, o.params, o.mats])); return null; };
+    try {
+      const sm = new E.Mode7({ floor: () => [0, 0, 0], size: [64, 64] }); sm.cam = { x: 0, y: 0, h: 40, angle: 0, pitch: 12, fov: 70 }; sm.begin({ W: 320, H: 180 });
+      const g = { drawImage() {} }, put = o => { sm.shape('barrel', 60, 0, 0, o); for (const it of sm.items.splice(0)) it.fn(g, 160, 120, .5); };
+      put({ params: { a: 1 }, mats: { wood: 'oak' } }); put({ params: { a: 2 }, mats: { wood: 'oak' } }); put({ params: { a: 1 }, mats: { wood: 'pine' } }); put({ params: { a: 1 }, mats: { wood: 'oak' } });
+    } finally { E.shapeSprite = was; }
+    check(`${ed}: views: mode7: m7.shape passes its params and mats to the shape, one sprite each`, made.length === 3 && made[0] === JSON.stringify(['barrel', { a: 1 }, { wood: 'oak' }]) && made[1].includes('"a":2') && made[2].includes('pine'), made.join(' | '));
+  }
   // the road
   const road = new E.Road({ segment: 200 }); road.add(30).add(60, { curve: 4, hill: 3000 }).add(30, { tunnel: true });
   road.place(1000, -1.5, { w: 400, draw() {} }); road.place(1000, 1.5, { w: 400, draw() {} });

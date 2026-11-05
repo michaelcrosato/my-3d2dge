@@ -65,22 +65,6 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
 
 ## Part 1: input, and the AI Hub's controller
 
-- **1.1 Create + Options is the hub's** (20 builds patched it; the hub's corner bar opens on Create + Options). Make
-  Options while Create is held (Pad9 with Pad8 down) no pause and no START, in `Input.tick`'s button loop, the game
-  step's pause press, the Shell's close-all and the other players' pause. A test: a stubbed `navigator.getGamepads`
-  pad (the browser part) or scripted `press('Pad8')`, `press('Pad9')`.
-- **1.2 A shared world under the menu** (KarateChampon's `game.live`, AmericanFootball's `menu(name, { pause: false })`;
-  the audit: "menus must not stall a shared world"). A way to open the pause menu or a Shell screen while the world
-  keeps stepping (an online session can't stop for one player). A design call: `game.menu(name, { pause: false })`
-  and the Shell's screens over a running game.
-- **1.3 `input.use()` drops held keys** (confirmed: `use()` calls `clear()`, `engine/my-3d2dge.js` near line 851; a
-  key held across a scene's own `input` map reads up until pressed again; MashTV lost a press on the step a preset
-  changed). Carry the held codes into the new map; consume their press edges so nothing fires twice.
-- **1.4 `Input.halfKeys` gives two menu actions one key** (confirmed: a menu preset's actions past the moves and
-  `confirm`/`cancel` take F and G, which `confirm` and `cancel` hold: `{ confirm: KeyF, alt: KeyF }`). DEFAULT's
-  `attack` = `confirm` = F is meant (a pad's A), so don't just skip used buttons. Let a preset name its halves
-  (`preset.halves = { left: {...}, right: {...} }`, ThugbyTurbo's patch), or skip buttons held by `confirm`/`cancel`
-  only for actions that a menu reads. A test that DEFAULT's halves are as documented.
 - **1.5 Analog values:** `input.value(a)` 0 to 1 (a pad button's `value`: the triggers; a key or scripted hold 1). 8
   builds (SnipeoutHD, OutBloom, Crackmania x2).
 - **1.6 More bindable codes:** the right stick as `PadRAxisUp/Down/Left/Right` (KarateChampon x2), the mouse wheel as
@@ -92,32 +76,6 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
   builds exported it (an attract-mode watcher, an idle timer, a hub guard that runs while paused).
 - **1.9 Move-stick inversion** (the brief asks every game for invert X and Y toggles for a known pad fault): standard
   Controller settings `invertMoveX`, `invertMoveY` (off), beside `invertY` (aim).
-- **1.10 The arcade module hears player one only** (confirmed: `cab.attract()` wakes on `game.input.anyPressed()`,
-  `engine/modules/arcade.js` near 117, so player 2's Start doesn't leave the attract mode). Read every player.
-
-## Part 2: headless tests
-
-- **2.1 `draw` never runs headless** (13 runs; 6 shipped a draw-time crash their suites passed; `E.Menu`'s click rows
-  exist only after a draw, which broke scripted input in 9). Two parts: `E.Menu` computes its rows in `update` (no draw
-  needed), and `new E.Game({ headless: true, draw: true })` runs `draw` on a stand-in renderer each frame `advance`
-  takes, so a draw error lands in `game.errors`. Draw must not change state (principle 6): this path proves it.
-- **2.2 Timers made before the first scene** (confirmed: the first `_enter` clears them too; CricketKerfuffle's deep
-  link "never fired"). Keep timers when there was no scene before.
-- **2.3 `game.go` during boot** (confirmed: a boot step's `go` warns "needs game.start() first", misleading, and is
-  dropped; the title starts). Remember it and enter that scene when the boot ends.
-- **2.4 `E.store` with no storage** (confirmed: Node, a sandboxed frame such as the hub's iframe: nothing kept; 16
-  runs). A memory store for the visit when `localStorage` is missing or throws (as `game.saves` and the arcade tables
-  already do). Watch the suites that make several games in one process (contract, standard, agent): give them
-  `E.store.clear()` or a store per game id.
-- **2.5 Scene field names the engine reads** (confirmed: a scene method named `camera()` is taken as the scene's camera
-  option and the zoom never applied, Gauntletdown; `view`, `views`, `input`, `touch`, `res`, `expand` likewise). Warn
-  when one has the wrong type (`camera` a function, `view` not a view), naming the field; list them on the card.
-- **2.6 Slow motion past a scene change** (partly: the engine resets `hitstop` when a scene enters, not `timeScale`; a
-  game that set `timeScale` and restored it with a timer the scene change cleared stayed slow). With `{ keep: true }`
-  in v0.86.0 such a timer can live; decide whether a scene's entry resets `timeScale` to 1 as it does `hitstop`
-  (Emberdeep's speed tool sets it: check it first).
-- **2.7 Scenes are one object for every visit** (AheadOrAlive: "sticky scene state caused more game-breaking bugs than
-  anything else"). Say it on the card: state that starts fresh belongs in `enter()`.
 
 ## Part 3: 2D rendering and cameras
 
@@ -136,10 +94,6 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
   the 3D engine (the README does now). Then a light-gun gallery on the mode7 module as a Temporary lab: `m7.pick(x, y)`
   (the billboard or shape under the crosshair, by its drawn box), `m7.wall`/`m7.quad` (world polygons sorted with the
   billboards), shapes with their params (3.5), lights; or a perspective `E.View`. The owner picks.
-- **3.5 `m7.shape` ignores `params` and `mats`** (confirmed: `engine/modules/mode7.js` 102-108 passes only `view`,
-  `facing`, `size` to `E.shapeSprite`, and its cache key leaves them out). Pass them through and key on them.
-- **3.6 Mode 7's view cache is keyed on the raw pitch** (confirmed: `m7.view`, mode7.js 111-114; a bobbing camera made
-  120 views and 120 shape rasterizations in 120 frames; OperationWolfpack rounded it). Round the pitch to whole degrees.
 - **3.7 `E.Road` scales x by W/2 and y by H/2** (confirmed: `engine/modules/road.js` 80; the up-to-across ratio is .56 at
   427x240 and 1.78 upright, so a wide screen squashes the world; OutBloom and DenshaDeHalo wrote square projections).
   One focal length, behind an option first (`square: true`), then the default with the ROAD kit retuned, filmed
@@ -190,33 +144,13 @@ the handoff README's 3D pointer and headless pitfalls. Tests: `matrixFixes` in `
 
 ## Part 7: the 3D engine
 
-- **7.1 The cel filter blacks out the first-person overlay** (confirmed in Chromium: with the output in sRGB, three r182
-  renders through a hidden buffer; the filter pass bypasses it, and the overlay's render copies the stale buffer over
-  the filtered picture, `engine/my-3d2dge-3d.js` near 3253; Skiller7). Draw the overlay inside the filter pass. The
-  "post filters black without a GPU" report is this same bug (without the overlay they draw on SwiftShader).
-- **7.2 Split screen stacks its viewports from the bottom** (confirmed in the code: near line 2955 the viewport's y is
-  turned to a bottom-left origin, but three r182's WebGPURenderer takes it from the top on both backends; viewport 0,
-  the top one in the 2D layout and in `world.project`, draws at the bottom; Crackmania's patch is `y = Math.round(vp.y
-  * sw)`). Side-by-side splits are fine, and they are all `kit3d-test` checks: add a stacked one, on WebGL 2 and WebGPU.
-- **7.3 `</script>` in the headers** (confirmed: `engine/my-3d2dge-3d.js` 18 and 22-24, `engine/my-3d2dge-agent.js` 19;
-  a builder who inlines the file into a page ends the page there; the repo's build escapes it). Say it beside each
-  header's page skeleton (the handoff README says it now).
-- **7.4 Handedness** ("text planes come out mirrored" was the builder's own three.js meshes, built in engine
-  coordinates): one header line: the engine's axes are left-handed (y south), so a mesh's winding and rotations flip.
 - **7.5 A racer's track** (**prototype**; 7 of 8 WipeoutHD and TrackMania builders wrote their own track physics;
   ribbon tracks, loops and branches asked 12 times). A ribbon track with loops and any banking, its own colliders, and
   queries in track space (along, across, up); and a road (`E.Road`) that branches at a junction or runs several
   tracks (OutBloom, DenshaDeHalo forked road.js for it). Each as a Temporary lab first.
 
-## Part 8: the card's "Common mistakes" (cheap)
-
-`mouseGround()` is `[x, y]`; a scene's field names the engine reads (2.5); colours are `'#rrggbb'` (3.11); a sprite's
-pixel is a screen pixel (3.2); `settings.reset(group)` takes a group; `particles.explosion()` adds hit-stop;
-`E.font.text` outlines by default; a frame past 50 ms gives up its time, so a slow browser's test waits on state, not
-on the clock. And the Mode 7 header: billboards are flat at the foot's scale, so hit-test the drawn box (what
-BigBuckHuntOff read as "E.View rounding puts rigs 7 px off": the engine's `E.View` is exact).
-
 ## Order and size
 
-Part 9 (the suites' own failures) landed first, in v0.85.3; Part 0 (the room) in v0.86.1. Then 1.1 to 1.4, 2.1 to 2.6, 3.5, 3.6, 1.10, 7.1 to 7.4 and Part 8 (small to medium each);
-then 1.5 to 1.9, 3.1 to 3.3, 3.7 to 3.11, Parts 4 to 6 (medium); the prototypes 3.4 and 7.5 last, for the owner.
+Landed: Part 9 (the suites' own failures) in v0.85.3, Part 0 (the room) in v0.86.1, and in v0.87.0 1.1 to 1.4, 1.10,
+Part 2, 3.5, 3.6, 7.1 to 7.4 and Part 8. Then 1.5 to 1.9, 3.1 to 3.3, 3.7 to 3.11, Parts 4 to 6 (medium); the prototypes
+3.4 and 7.5 last, for the owner.

@@ -500,6 +500,7 @@ const ADV = (() => {
       gate.open = true; keys--; A.sfx('door'); game.shake(3); P.dust(gate.x, gate.y + 10, 2, 14, { color: '#8a7a6a', speed: 50 });
       game.after(.5, () => { Object.assign(h, { x: entry.x, y: entry.y, vx: 0, vy: 0, facing: -Math.PI / 2 }); game.cam.snap = true; game.flash('#07040c', .5); A.sfx('warp'); });
     }
+    for (const it of items) if (!it.got && it.kind === 'relic' && Math.random() < dt * 5) P.glints(it.x, it.y, 22, 1, '#bff8ff', 14);   // the relic sparkles
     for (const it of items) if (!it.got && E.dist(it, h) < (it.kind === 'relic' ? 15 : 10)) {
       it.got = true; P.glints(it.x, it.y, 6, 4); if (it.kind === 'gem') { gems++; A.sfx('coin'); } else if (it.kind === 'heart') { h.hp = Math.min(h.max, h.hp + 1); A.sfx('heal'); }
       else { won = true; held = { spr: CRYSTALS[1], t: 99 }; game.flash('#ffffff', .2); P.glints(it.x, it.y, 20, 24, '#bff8ff', 30); A.music('victory'); game.after(6, () => game.go('title')); }
@@ -631,7 +632,7 @@ const ADV = (() => {
       if (t.light && t.room === room) L.add(t.x, y + (t.prop === 'window' ? 30 : 0), z + 14, t.face ? 90 : 60, .9, { color: t.light, shadow: t.face });
     }
     for (const it of items) if (!it.got) {
-      if (it.kind === 'relic') { r.sprite(it.x, it.y, 18 + bob, CRYSTALS[0], { glow: .5 }); if (Math.random() < .08) P.glints(it.x, it.y, 22, 1, '#bff8ff', 14); }
+      if (it.kind === 'relic') r.sprite(it.x, it.y, 18 + bob, CRYSTALS[0], { glow: .5 });   // (its sparkle comes from update: draw changes nothing)
       else { shadow(r, it.x, it.y, 3); r.sprite(it.x, it.y, 3 + bob, it.kind === 'gem' ? GEM : HEART, { glow: .5 }); }
     }
     for (const b of [...npcs, ...pets]) r.actor(b.x, b.y, b.z || 0, (g, ox, oy) => (b.rig || b.look).draw(g, ox, oy, view), { every: 2, key: b });   // townsfolk animate every other frame (a phone's frame time goes to the hero and foes)

@@ -76,7 +76,9 @@ and the page would end there).
 
 ## Testing a game without a browser
 
-`new E.Game()` is headless in Node (or with `{ headless: true }`): no screen, sound or DOM, and `draw` is skipped.
+`new E.Game()` is headless in Node (or with `{ headless: true }`): no screen, sound or DOM, and `draw` is skipped unless
+the game is made with `draw: true` (the template is): then each `advance` draws a frame on a stand-in, and a draw error
+lands in `game.errors`, as it would on a player's screen.
 
 - `game.advance(seconds)` runs exact fixed steps of 1/120 s at once: `advance(1)` is 120 updates.
 - `game.input.tap('jump')` presses an action for one step, `hold('right')` holds one down, `hold('right', false)` lets go.
@@ -85,9 +87,12 @@ and the page would end there).
 - `game.stop()`, `game.start()` and `game.dispose()` stop, resume and end a game.
 - `game.go('play')` fades for `game.fadeTime` (.22 s) before the new scene enters: advance past it, or set
   `game.fadeTime = 0` in a test.
-- A scene change clears `game.after` and `game.every` timers: `game.after(s, fn, { keep: true })` outlives scenes.
-- `draw` never runs headless, so nothing your input relies on (a menu's click targets) may be made only in `draw`.
-- `E.store` keeps nothing in Node, which has no `localStorage`.
+- A scene change clears `game.after` and `game.every` timers (`{ keep: true }` outlives it); those made before the first
+  scene live into it. It ends a hit-stop; `game.timeScale` stays (restore a slow motion with a kept timer). A boot step's `game.go(name)` enters that scene when the boot ends.
+- Draw changes nothing, and nothing your update or input relies on (a click target, what is on screen) may be made only
+  in `draw`: `E.Menu`'s rows come from its update (`menu.rowAt(i)` is entry i's box, for a test's click), and the camera
+  (`game.cam`) says where the screen is in update.
+- `E.store` keeps values for the visit in Node, which has no `localStorage` (`E.store.clear()` between games in one test).
 - A script's `tap` and `hold` are no device: `input.label()` keeps showing the keys or buttons the player used last.
 
 The same inputs give the same game on every machine and at every refresh rate: the clock is an exact fixed step.

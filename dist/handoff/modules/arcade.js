@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ARCADE v0.86.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.87.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14,7 +14,7 @@ What every coin-op had around its game: for arcade games, shooters, puzzles, pin
   cab.enter(score, mode, done): initials on a letter wheel (up and down turn it, left and right move, confirm takes a
   letter; taps on its arrows and OK do each); cab.entry is it while open. cab.drawTable(r, mode, y, title).
 - cab.card('STAGE 2', 2) shows a card (cab.carding while one is up), cab.say('READY!') a word under it.
-- The attract mode, on the title: cab.attract(dt) -> 'title', then 'demo' once o.idle seconds (20) pass without input
+- The attract mode, on the title: cab.attract(dt) -> 'title', then 'demo' once o.idle seconds (20) pass without any player's input
   (play the game's own bot, start(1, { demo: true }): DEMO shows, no table), 'scores' for o.scores seconds (6) once
   cab.endDemo() is called or o.demo seconds (30) pass, then 'title'; any input goes back to 'title'.
 - cab.update(dt) every step (cards, the entry, the continue); cab.draw(r, [x, y, w, h]) after your drawing: the HUD
@@ -114,8 +114,8 @@ class Arcade {
   /** the attract mode, each step on the title: 'title', 'demo' (o.idle seconds without input; it lasts o.demo seconds or
    *  until endDemo()), 'scores' (o.scores seconds), then 'title' again; any input goes back to 'title' */
   attract(dt) {
-    const I = this.game.input, o = this.o;
-    if (I.anyPressed() || clicked(I)) { this._idle = 0; this.phase = 'title'; return 'title'; }
+    const I = this.game.input, o = this.o, P = this.game.players || [I], n = P.length, joined = n !== (this._n || 1); this._n = n;
+    if (P.some(q => q.anyPressed()) || joined || clicked(I)) { this._idle = 0; this.phase = 'title'; return 'title'; }   // (any player's input, or one joining)
     this._idle += dt;
     const next = this.phase === 'title' ? (this._idle >= o.idle ? 'demo' : null) : this.phase === 'demo' ? (this._idle >= o.demo ? 'scores' : null) : this._idle >= o.scores ? 'title' : null;
     if (next) { this.phase = next; this._idle = 0; }

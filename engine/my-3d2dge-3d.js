@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.86.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.87.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -22,10 +22,14 @@ way you see fit): its sections start with "/* ===" and a number.
 <script src="/dist/my-3d2dge.js"></script>                   the 2D engine, a classic script, first
 <script type="module" src="/dist/my-3d2dge-3d.js"></script>  this file
 <script type="module" src="game.js"></script>                your game, a module (const E = My3D2dge;)
+Inlined into a page's own script tag instead, this file ends the page at its first closing script tag (this header has
+four): write each with a backslash before its slash, as the build's single files do.
 
 ## Mental model
 - The 2D engine's units: x east, y south, z up; 16 units = 1 metre = 1 tile; speeds in units a second; angles in
-  radians from +x toward +y (0 east, PI/2 south, -PI/2 north).
+  radians from +x toward +y (0 east, PI/2 south, -PI/2 north). The axes are left-handed (three.js's are right-handed):
+  a mesh of your own built in engine units comes out mirrored, its winding and turns flipped; place it in three.js's
+  (E.World3D.toThree(x, y, z): x, z, y over 16).
 - new E.Game({ ..., bg: null }): its canvas is clear, and the HUD draws on it over the 3D picture (r.overlay, r.text,
   E.ui, E.font) in game pixels, r.W x r.H. res: 'ps1', expand: true as in the 2D games.
 - await E.World3D.init(game) once (a boot step), then new E.World3D(game, { level, ... }) for each level. In a scene:
@@ -2952,7 +2956,7 @@ Object.assign(World3D.prototype, {
     if (!this._warm) this._warmUp(c3, view);
     R.info.reset();
     const t1 = performance.now();
-    if (vp) { const x = Math.round(vp.x * sw), y = full[1] - Math.round(vp.y * sw) - rw[1]; R.setViewport(x, y, rw[0], rw[1]); R.setScissor(x, y, rw[0], rw[1]); R.setScissorTest(true); R.autoClear = vp.i === 0; }   // (the first viewport clears the picture; the others draw beside it)
+    if (vp) { const x = Math.round(vp.x * sw), y = Math.round(vp.y * sw); R.setViewport(x, y, rw[0], rw[1]); R.setScissor(x, y, rw[0], rw[1]); R.setScissorTest(true); R.autoClear = vp.i === 0; }   // (from the top left, as three r182 takes it on both backends; the first viewport clears the picture, the others draw beside it)
     this._render(c3); this._proj = { cam: c3, vp };
     if (vp) { R.setViewport(0, 0, full[0], full[1]); R.setScissorTest(false); R.autoClear = true; }
     for (const b of Object.values(this.B)) b.begin(); if (OB) for (const b of Object.values(OB)) b.begin();
@@ -3222,17 +3226,20 @@ function makeFX(world) {
     return select(lb.lessThan(lo).or(lb.greaterThan(hi)), a, b);
   }
   const OBJ_MASK = mrt({ mask: float(1) }), sz = new THREE.Vector2();
-  let targets = [], key = '', tagged = false;
+  let targets = [], key = '', tagged = false, ovPass = null;
   return {
     /** tag the world's characters and things for the mask (only while a filter is on: a material with its own MRT
      *  outputs can't draw straight to the screen) */
     tag(on) { if (on === tagged) return; tagged = on; for (const m of world._objMats) { m.mrtNode = on ? OBJ_MASK : null; m.needsUpdate = true; } world._warm = false; },
     render(cam) {
-      const F = world.filter, k = [F.look, F.bloom, F.fxaa].join();
+      const F = world.filter, ov = world.overlay, ovOn = !!(ov && ov.on), k = [F.look, F.bloom, F.fxaa, ovOn].join();
       if (k !== key) {
         key = k; let col = F.look === 'cel' ? cel() : F.look === 'pixel' ? pixel() : sceneAt(uv()); targets = [];
         if (F.bloom) { const b = bloom(); targets = b.targets; col = col.add(b.glow.mul(.6)); }
         if (F.fxaa) col = fxaa(rtt(vec4(col, 1)));
+        // the overlay (a view model) is drawn in the pass, its own depth over the filtered picture: drawn after it, three
+        // r182 copied its stale output buffer over the filter's picture (black)
+        if (ovOn) { ovPass = ovPass || pass(ov.scene, ov.camera); const oc = ovPass.getTextureNode('output').sample(uv()).rgb, od = ovPass.getTextureNode('depth').sample(uv()).r; col = select(od.lessThan(.99999), sRGBTransferOETF(oc), col); }
         post.outputNode = vec4(col, 1); post.needsUpdate = true; world._warm = false;
       }
       PAGE.renderer.getDrawingBufferSize(sz); UF.texel.value.set(1 / sz.x, 1 / sz.y);
@@ -3251,8 +3258,8 @@ Object.assign(World3D.prototype, {
     const on = !this._vp && fxOn(this.filter);   // (no filter in a split screen's viewports)
     if (on || this._fx) { this._fx = this._fx || makeFX(this); this._fx.tag(on); }
     if (on) this._fx.render(cam); else PAGE.renderer.render(this.scene, cam);
-    const ov = this.overlay;
-    if (ov && ov.on && !this._vp) { const R = PAGE.renderer; R.autoClear = false; R.clearDepth(); R.render(ov.scene, ov.camera); R.autoClear = true; }
+    const ov = this.overlay;   // (under a filter, its pass draws the overlay too)
+    if (ov && ov.on && !this._vp && !on) { const R = PAGE.renderer; R.autoClear = false; R.clearDepth(); R.render(ov.scene, ov.camera); R.autoClear = true; }
   }
 });
 

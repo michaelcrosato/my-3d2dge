@@ -77,9 +77,9 @@ export function engineSource(edition = 'full', names = 'all') {
 }
 
 /** the engine run in a vm context of its own, as a page's scripts would run it: its My3D2dge. o.console replaces the
- *  console; o.modules picks the modules ('all', by default) */
+ *  console; o.modules picks the modules ('all', by default); o.globals are the page's own (a stubbed navigator) */
 export function load(edition = 'full', o = {}) {
-  const ctx = { console: o.console || console }; vm.createContext(ctx);
+  const ctx = Object.assign({ console: o.console || console }, o.globals); vm.createContext(ctx);
   vm.runInContext(read(EDITIONS[edition]), ctx, { filename: EDITIONS[edition] });
   for (const m of forEdition(edition, o.modules || 'all')) vm.runInContext(m.src, ctx, { filename: m.file });
   return ctx.My3D2dge;
