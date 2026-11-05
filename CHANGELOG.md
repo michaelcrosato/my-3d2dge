@@ -7,9 +7,10 @@ One version number covers the engine, its agent edition, the docs and the games 
 
 ## 0.85.3 (2026-11-05)
 
-The phone suite's own failures, on main since v0.85.2 at least (`docs/HANDOFF-MATRIX.md`'s Part 9, found on the cc-matrix run's way): two were one engine bug, a phone's first tap going full screen, and one the test's.
+The test suites' own failures, on main since v0.85.2 at least (`docs/HANDOFF-MATRIX.md`'s Part 9, found on the cc-matrix run's way): two were one engine bug, a phone's first tap going full screen; one the test's; and a 3D warm-up that missed a shadow.
 
 - **Engine**: the page going full screen (or back) lets go of the keys and mouse buttons only: a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts. It let go of everything, so a phone's first tap on JUMP (the one that goes full screen) never jumped, and a drag that began as the change landed, a moment after the first tap, stopped dead. Both editions.
+- **Rendering**: the 3D engine's warm-up draws every shadow caster into every light's shadow (frustum culling off for that one frame): a torch's shadow camera culled what lay outside it, so a material's shadow pipeline was built mid-game the first time a torch came near (the 3D HORROR kit on WebGL 2 failed `kit3d-test`'s "no pipeline built mid-game" 4 runs in 6; a player had a hitch). Passes 3 of 3.
 - **Tools**: the phone test's shooter case goes full screen under its second drag every time (it ended that drag 3 runs in 4 on a slow machine, when the change landed in it); the metroidvania's JUMP jumps upright and on its side; the army's box counts the units well inside it and those selected near it (stopped, the crowd still jostles: two selected at the box's edge were a few pixels past it by the time it was checked, every run).
 
 ## 0.85.2 (2026-11-03)

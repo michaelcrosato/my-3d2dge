@@ -3127,7 +3127,9 @@ Object.assign(World3D.prototype, {
     const capes = this.capes.mesh, cd = capes.geometry.drawRange.count, cv = capes.visible; capes.geometry.setDrawRange(0, 6); capes.visible = true;
     const ovHid = []; if (this.overlay) this.overlay.scene.traverse(x => { if (!x.visible) { ovHid.push(x); x.visible = true; } });
     const ovOn = this.overlay && this.overlay.on; if (this.overlay) this.overlay.on = true;
+    const culled = []; this.scene.traverse(x => { if (x.isMesh && x.frustumCulled) { culled.push(x); x.frustumCulled = false; } });   // (every caster in every light's shadow too: a torch's culls what lies outside it, whose shadow pipeline was then built mid-game, the first time a torch came near)
     this._render(cam);
+    for (const x of culled) x.frustumCulled = true;
     for (const x of ovHid) x.visible = false; if (this.overlay) this.overlay.on = ovOn;
     capes.geometry.setDrawRange(0, cd); capes.visible = cv;
     this._shadowLights.forEach((L, i) => { L.castShadow = sh[i][0]; L.intensity = sh[i][1]; }); this._glowLights.forEach((L, i) => { L.intensity = gl[i]; }); this._userLights.forEach((L, i) => { L.intensity = ul[i]; }); this._spots.forEach((L, i) => { L.castShadow = sp[i][0]; L.intensity = sp[i][1]; });
