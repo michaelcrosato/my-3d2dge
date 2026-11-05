@@ -2,7 +2,7 @@
 // side), fast (about a minute), for what a player finds in ten minutes with a real one:
 //   1. every kit: a tap on its title entry starts it (the first tap, the one that goes full screen), with no page errors
 //   2. shooter: one continuous thumb drag, started anywhere (the right half too), flies the ship from one side of the
-//      playfield to the other and back (no lifting the thumb to go on)
+//      playfield to the other and back (no lifting the thumb to go on), the page going full screen under the second
 //   3. brawler: walking right, no street is ever on screen beyond where the hero can walk (the camera stops at a fight's
 //      lock, so the screen's edge is the wall)
 //   4. adventure: a phone gets Fast lighting (no GPU lighting, Settings: Lighting), and a frame draws within budget;
@@ -75,6 +75,7 @@ async function open(kit, vp, hash = kit, init) {
   const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage(), errors = [];
+  page.on('console', m => { if (/DEBUG/.test(m.text())) console.log(m.text()); });
   page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(pathToFileURL(resolve(`dist/kits/my-3d2dge-${kit}.html`)).href + (hash ? '#' + hash : ''));
   await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName);
@@ -84,11 +85,14 @@ const ev = (p, fn, arg) => p.evaluate(fn, arg);
 const wait = ms => new Promise(r => setTimeout(r, ms));
 /** game (screen) pixels -> CSS pixels on the page */
 const toCss = (p, x, y) => ev(p, ([x, y]) => { const S = window.__game.game.screen, rc = S.canvas.getBoundingClientRect(); return [rc.left + (x * S.S + S.OX) / S.dpr, rc.top + (y * S.S + S.OY) / S.dpr]; }, [x, y]);
-/** one finger, pressed at the first point, moved through the rest (ms per step), lifted */
-async function drag(cdp, pts, ms = 25) {
+/** one finger, pressed at the first point, moved through the rest (ms per step), lifted; mid(i) after each move */
+async function drag(cdp, pts, ms = 25, mid) {
   const at = (type, q) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: q ? [{ x: q[0], y: q[1], id: 1 }] : [] });
-  await at('touchStart', pts[0]); for (const q of pts.slice(1)) { await at('touchMove', q); await wait(ms); } await at('touchEnd');
+  await at('touchStart', pts[0]); for (const [i, q] of pts.slice(1).entries()) { await at('touchMove', q); await wait(ms); if (mid) await mid(i); } await at('touchEnd');
 }
+// the page going full screen (or back) under a finger: a phone's first tap asks for it, and the change lands a moment
+// later, often in the next drag (HANDOFF-MATRIX 9.2: it ended that drag 3 runs in 4); dispatched at once, every time
+const fullscreenChange = p => ev(p, () => document.dispatchEvent(new Event('fullscreenchange')));
 /** fingers (one [x, y] each, ids 1, 2, ...) pressed at their first points, moved together through n steps to their last */
 async function fingers(cdp, from, to, n = 12, ms = 20) {
   const at = k => from.map((p, i) => ({ x: p[0] + (to[i][0] - p[0]) * k, y: p[1] + (to[i][1] - p[1]) * k, id: i + 1 }));
@@ -124,10 +128,10 @@ if (want('shooter')) {
     await calm(); const s0 = await st(), w = vp.width, h = vp.height;
     // started on the right half (the stick's old dead zone), swiped over 72% of the screen to the left without lifting
     await drag(cdp, line([w * .8, h * .55], [w * .08, h * .55], 24)); const s1 = await st();
-    await calm(); await drag(cdp, line([w * .25, h * .5], [w * .95, h * .5], 24)); const s2 = await st();   // (a swipe over 70% of the screen)
+    await calm(); await drag(cdp, line([w * .25, h * .5], [w * .95, h * .5], 24), 25, i => i === 2 && fullscreenChange(page)); const s2 = await st();   // (a swipe over 70% of the screen, the page going full screen under it)
     const [fa, fb] = s0.span, left = s1.x - (fa + 10), right = (fb - 10) - s2.x;
     check(`shooter ${label}: one drag from the right half flies the ship to the left edge`, left < 4, `ship at ${s1.x.toFixed(0)}, the edge at ${(fa + 10).toFixed(0)}`);
-    check(`shooter ${label}: one drag flies it back to the right edge`, right < 4 && !errors.length, `ship at ${s2.x.toFixed(0)}, the edge at ${(fb - 10).toFixed(0)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    check(`shooter ${label}: one drag flies it back to the right edge, the page going full screen under the finger`, right < 4 && !errors.length, `ship at ${s2.x.toFixed(0)}, the edge at ${(fb - 10).toFixed(0)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
@@ -759,17 +763,19 @@ if (want('army')) {
     const pts = blue.map(u => R.w(u.x, u.y, 0)).filter(q => q[0] > 12 && q[1] > 12 && q[0] < S.W - 12 && q[1] < S.H - 12);
     if (pts.length < 3) return null; const xs = pts.map(q => q[0]).sort((a, b) => a - b), ys = pts.map(q => q[1]).sort((a, b) => a - b);
     return [xs[0] - 6, ys[0] - 6, xs[xs.length - 1] + 6, ys[ys.length - 1] + 6, pts.length]; });
-  let boxed = 0, inside = 0;
+  let boxed = 0, inside = 0, strays = 0;
   if (box) {
     const [ax, ay] = await css(box[0], box[1]), [bx, by] = await css(box[2], box[3]);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: ax, y: ay }] }); await wait(600);   // a long press (.45 s), then the drag
     for (const q of line([ax, ay], [bx, by], 10)) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: q[0], y: q[1] }] }); await wait(25); }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(250);
-    [boxed, inside] = await ev(page, b => { const { game, rts } = window.__fx, R = game.r, S = rts.selected;   // (those inside still standing: a foe may strike one down meanwhile)
-      const all = rts.of('blue').filter(u => !u.building && (q => q[0] >= b[0] && q[0] <= b[2] && q[1] >= b[1] && q[1] <= b[3])(R.w(u.x, u.y, 0)));
-      return [S.length, S.length === all.length && all.every(u => S.includes(u)) ? all.length : -all.length]; }, box);
+    // (stopped, the crowd still jostles: a unit at the box's edge may be a few pixels past it by now, so those well inside
+    // must be selected and those selected near it; those inside still standing: a foe may strike one down meanwhile)
+    [boxed, inside, strays] = await ev(page, b => { const { game, rts } = window.__fx, R = game.r, S = rts.selected, m = 8, at = u => R.w(u.x, u.y, 0);
+      const within = (q, d) => q[0] >= b[0] - d && q[0] <= b[2] + d && q[1] >= b[1] - d && q[1] <= b[3] + d, core = rts.of('blue').filter(u => !u.building && !u.dead && within(at(u), -m));
+      return [S.length, core.length, S.filter(u => !within(at(u), m)).length + core.filter(u => !S.includes(u)).length]; }, box);
   }
-  check('army: a long press and a drag draws a box that selects the units inside', !!box && inside >= 3 && boxed === inside && !errors.length, `${boxed} selected, ${Math.abs(inside)} standing inside (${box ? box[4] : 0} at the start)${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+  check('army: a long press and a drag draws a box that selects the units inside', !!box && inside >= 3 && boxed >= inside && !strays && !errors.length, `${boxed} selected, ${inside} well inside, ${strays} selected outside or left out (${box ? box[4] : 0} at the start)${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
   // a drag on open ground pans the camera
   const cam0 = await ev(page, () => [window.__fx.game.cam.x, window.__fx.game.cam.y]);
   await drag(cdp, line([SIDE.width * .5, SIDE.height * .8], [SIDE.width * .3, SIDE.height * .55], 12)); await wait(300);

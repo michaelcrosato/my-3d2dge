@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.85.2: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.85.3: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -3127,7 +3127,9 @@ Object.assign(World3D.prototype, {
     const capes = this.capes.mesh, cd = capes.geometry.drawRange.count, cv = capes.visible; capes.geometry.setDrawRange(0, 6); capes.visible = true;
     const ovHid = []; if (this.overlay) this.overlay.scene.traverse(x => { if (!x.visible) { ovHid.push(x); x.visible = true; } });
     const ovOn = this.overlay && this.overlay.on; if (this.overlay) this.overlay.on = true;
+    const culled = []; this.scene.traverse(x => { if (x.isMesh && x.frustumCulled) { culled.push(x); x.frustumCulled = false; } });   // (every caster in every light's shadow too: a torch's culls what lies outside it, whose shadow pipeline was then built mid-game, the first time a torch came near)
     this._render(cam);
+    for (const x of culled) x.frustumCulled = true;
     for (const x of ovHid) x.visible = false; if (this.overlay) this.overlay.on = ovOn;
     capes.geometry.setDrawRange(0, cd); capes.visible = cv;
     this._shadowLights.forEach((L, i) => { L.castShadow = sh[i][0]; L.intensity = sh[i][1]; }); this._glowLights.forEach((L, i) => { L.intensity = gl[i]; }); this._userLights.forEach((L, i) => { L.intensity = ul[i]; }); this._spots.forEach((L, i) => { L.castShadow = sp[i][0]; L.intensity = sp[i][1]; });
