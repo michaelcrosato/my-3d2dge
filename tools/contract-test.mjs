@@ -749,6 +749,19 @@ function views(E, ed) {
   check(`${ed}: views: mode7: chase puts the camera back units behind the body, along its angle, h high`, Math.abs(cam.x - 10) < 1e-9 && Math.abs(cam.y + 30) < 1e-9 && cam.h === 30 && cam.angle === b.angle, JSON.stringify(cam));
   const yaw = a => { m7.cam = { x: 0, y: 0, h: 40, angle: a, pitch: 12 }; m7.begin({ W: 320, H: 180 }); return m7.view(.5); };
   check(`${ed}: views: mode7: a rig is seen from the camera's side (heading north: yaw 0, east: -90), at its distance's scale`, yaw(-Math.PI / 2).yawDeg === 0 && yaw(0).yawDeg === -90 && yaw(0).scale === .5 && yaw(0).pitchDeg === 12, [yaw(-Math.PI / 2).yawDeg, yaw(0).yawDeg].join());
+  // a bobbing camera's pitch makes no new view each frame (whole degrees); a shape keeps its params and mats (HANDOFF-MATRIX 3.5, 3.6)
+  const vm7 = new E.Mode7({ floor: () => [0, 0, 0], size: [64, 64] });
+  for (let i = 0; i < 120; i++) { vm7.cam = { x: 0, y: 0, h: 40, angle: 0, pitch: 12 + Math.sin(i / 9) * .4, fov: 70 }; vm7.begin({ W: 320, H: 180 }); vm7.view(.5); }
+  check(`${ed}: views: mode7: a pitch that bobs by a fraction of a degree reuses its views (whole degrees)`, vm7._views.size <= 2, vm7._views.size + ' views for 120 frames');
+  if (ed === 'full') {
+    const made = [], was = E.shapeSprite; E.shapeSprite = (id, o) => { made.push(JSON.stringify([id, o.params, o.mats])); return null; };
+    try {
+      const sm = new E.Mode7({ floor: () => [0, 0, 0], size: [64, 64] }); sm.cam = { x: 0, y: 0, h: 40, angle: 0, pitch: 12, fov: 70 }; sm.begin({ W: 320, H: 180 });
+      const g = { drawImage() {} }, put = o => { sm.shape('barrel', 60, 0, 0, o); for (const it of sm.items.splice(0)) it.fn(g, 160, 120, .5); };
+      put({ params: { a: 1 }, mats: { wood: 'oak' } }); put({ params: { a: 2 }, mats: { wood: 'oak' } }); put({ params: { a: 1 }, mats: { wood: 'pine' } }); put({ params: { a: 1 }, mats: { wood: 'oak' } });
+    } finally { E.shapeSprite = was; }
+    check(`${ed}: views: mode7: m7.shape passes its params and mats to the shape, one sprite each`, made.length === 3 && made[0] === JSON.stringify(['barrel', { a: 1 }, { wood: 'oak' }]) && made[1].includes('"a":2') && made[2].includes('pine'), made.join(' | '));
+  }
   // the road
   const road = new E.Road({ segment: 200 }); road.add(30).add(60, { curve: 4, hill: 3000 }).add(30, { tunnel: true });
   road.place(1000, -1.5, { w: 400, draw() {} }); road.place(1000, 1.5, { w: 400, draw() {} });

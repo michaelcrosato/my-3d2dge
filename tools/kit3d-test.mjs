@@ -27,7 +27,10 @@
 //      E.Race (the drive module) races two AI vehicles a lap over the hump (in the air) to the finish; a flyer on rails
 //      keeps the rail's pace and moves within its window, a barrel roll ends, one in free flight turns back into its
 //      bounds, seek picks the one in its cone and in sight; all of it twice the same and the same on both backends; a
-//      split screen draws two views through world.cameras (check-output/kit3d/split-<backend>.png: read it)
+//      split screen draws two views through world.cameras (check-output/kit3d/split-<backend>.png: read it), side by side
+//      and stacked (viewport 0 on top, as the 2D layout has it: split-rows-<backend>.png)
+//   3e. first person with the cel filter, on both backends: the filtered hall and the overlay's gun are both drawn
+//      (check-output/kit3d/fps-cel-<backend>.png)
 //   4. on an emulated phone held upright (390 x 844 at 3x, touch): every kit starts, the 3D picture lies exactly under the
 //      game's, the touch buttons are there
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
@@ -204,7 +207,23 @@ window.__veh = { game, get world() { return world; }, get track() { return track
   const w = world; w.reset(); const a = w.vehicle({ kind: 'kart', x: 220, y: 200, angle: 0 }), b = w.vehicle({ kind: 'car', x: 760, y: 520, angle: Math.PI, color: '#3a8ad8' });
   game.splitScreen(2); if (w.cameras.length < 2) w.addCamera({ mode: 'behind' }); w.camera.set('behind'); w.camera.follow(a); w.cameras[1].set('behind'); w.cameras[1].follow(b);
   return { cameras: w.cameras.length, viewports: game.viewports ? game.viewports.length : 0 };
+}, stacked() {   // the same, stacked: viewport 0 on top (as the 2D layout and world.project have it), 1 below behind the magenta car
+  const w = world; w.reset(); const a = w.vehicle({ kind: 'kart', x: 220, y: 200, angle: 0, color: '#c8503a' }), b = w.vehicle({ kind: 'car', x: 760, y: 520, angle: Math.PI, color: '#ff30ff' });
+  game.splitScreen(2, { layout: 'rows' }); w.camera.set('behind'); w.camera.follow(a); w.cameras[1].set('behind'); w.cameras[1].follow(b);
+  return { viewports: game.viewports.map(v => [v.x, v.y, v.w, v.h]) };
 } };
+</script></body></html>`;
+// first person under a filter: a hall, the eye's camera fixed, the overlay's pen a magenta block low on the right (a gun),
+// world.filter's cel look on (HANDOFF-MATRIX 7.1: the overlay's render copied a stale buffer over the filtered picture)
+const FPS_PAGE = QUICK.split('<script type="module">')[0] + `<script type="module">
+const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: [320, 240], bg: null, menu: false });
+const LEVEL = { rows: ['############', '#..........#', '#..........#', '#..........#', '#..........#', '############'], legend: {}, colors: { base: '#8a8478' } };
+let world;
+game.start({ scenes: { s: { update(dt) { world.step(dt); }, draw(r) { world.draw(r); } } }, scene: 's', boot: { steps: [['3D', () => E.World3D.init(game)], ['level', () => {
+  world = new E.World3D(game, { level: LEVEL, fog: false, sky: '#5a7ab0', overlay: { fov: 60 }, camera: { mode: 'fixed' },
+    onDraw: w => { w.overlay.pen.box(14, 5, -4, 8, 3, 3, '#ff30ff'); } });
+  world.camera.fixed = { x: 24, y: 48, z: 14, yaw: 0, pitch: -.1 }; world.filter = { look: 'cel' }; world.prepare(); }]] } });
+window.__fps = { game, get world() { return world; } };
 </script></body></html>`;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json' };
 const server = createServer((req, res) => {
@@ -213,6 +232,7 @@ const server = createServer((req, res) => {
   if (path === '/check/shapes.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(SHAPES_PAGE); return; }
   if (path === '/check/camera.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(CAMERA_PAGE); return; }
   if (path === '/check/vehicles.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(VEHICLE_PAGE); return; }
+  if (path === '/check/fps.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(FPS_PAGE); return; }
   for (const r of rules) { const m = path.match(r.re); if (m) { path = r.to.replace(/:(\w+)/g, (_, k) => m.groups[k]); break; } }
   const file = join(root, path);
   if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end('not found'); return; }
@@ -508,12 +528,45 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
       }
       if (sp.cameras !== 2 || sp.viewports !== 2) fail(`${label}: a split screen with ${sp.cameras} cameras and ${sp.viewports} viewports`);
       if (lit[0] < n / 4 || lit[1] < n / 4 || differ < n / 10) fail(`${label}: the split screen's halves: ${lit[0]} and ${lit[1]} of ${n} pixels lit, ${differ} differ (a quarter lit each; a tenth differ: two views)`);
+      // stacked: viewport 0 on top, 1 below (camera 1 behind the magenta car: the magenta is in the bottom half)
+      const rows = await page.evaluate(() => __veh.stacked()); await page.waitForTimeout(1200);
+      const png2 = want === 'webgl' ? await page.screenshot() : Buffer.from((await page.evaluate(() => __readFrame(1))).split(',')[1], 'base64');
+      writeFileSync(join(OUT, 'split-rows-' + want + '.png'), png2); pictures++;
+      const S2 = decodePNG(png2), magenta = (y0, y1) => { let m = 0; for (let y = y0; y < y1; y += 2) for (let x = 0; x < S2.w; x += 2) { const j = (y * S2.w + x) * 4, r = S2.rgba[j], g = S2.rgba[j + 1], b = S2.rgba[j + 2]; if (r > 110 && b > 110 && g < r * .6 && g < b * .6) m++; } return m; };
+      const top = magenta(0, S2.h >> 1), bottom = magenta(S2.h >> 1, S2.h);
+      if (!(bottom > 40 && bottom > top * 3)) fail(`${label}: a stacked split screen (viewports ${JSON.stringify(rows.viewports)}): viewport 1, behind the magenta car, belongs below: ${top} magenta pixels on top, ${bottom} below`);
       await page.evaluate(() => { __veh.game.splitScreen(0); });
     } catch (e) { fail(`${label}: ` + e.message.split('\n')[0]); }
     for (const e of errors) fail(`${label}: ` + e);
     await page.close();
   }
   if (seen.webgl && seen.webgpu && seen.webgl !== seen.webgpu) fail(`vehicles: not the same on both backends: ${seen.webgl} on WebGL 2, ${seen.webgpu} on WebGPU`);
+}
+
+/* 3e. first person under a filter, on both backends: the world and the overlay's gun both on screen (not black) */
+{
+  const { decodePNG } = await import('./asset-lib.mjs');
+  for (const want of ['webgl', 'webgpu']) {
+    const page = await browser.newPage({ viewport: { width: 640, height: 480 } });
+    if (want === 'webgpu') await page.addInitScript(standInCanvas);
+    const errors = watch(page), label = 'first person with the cel filter on ' + want;
+    await page.goto(SITE + '/check/fps.html' + (want === 'webgl' ? '?backend=webgl' : ''));
+    try {
+      await page.waitForFunction(() => window.__fps && __fps.world && __fps.world.stats.frames > 4, null, { timeout: 120000 });
+      if (want === 'webgpu' && await page.evaluate(() => My3D2dge.World3D.backend) !== 'WebGPU') { await page.close(); continue; }
+      await page.waitForTimeout(600);
+      const png = want === 'webgl' ? await page.screenshot() : Buffer.from((await page.evaluate(() => __readFrame(1))).split(',')[1], 'base64');
+      writeFileSync(join(OUT, 'fps-cel-' + want + '.png'), png); pictures++;
+      const A = decodePNG(png); let lit = 0, n = 0, gun = 0;
+      for (let y = 0; y < A.h; y += 3) for (let x = 0; x < A.w; x += 3) {
+        const j = (y * A.w + x) * 4, r = A.rgba[j], g = A.rgba[j + 1], b = A.rgba[j + 2]; n++;
+        if (r + g + b > 90) lit++; if (r > 110 && b > 110 && g < r * .6 && g < b * .6) gun++;
+      }
+      if (lit < n / 3 || gun < 20) fail(`${label}: ${lit} of ${n} pixels lit (a third: the hall, filtered), ${gun} of the overlay's magenta gun (check-output/kit3d/fps-cel-${want}.png)`);
+    } catch (e) { fail(`${label}: ` + e.message.split('\n')[0]); }
+    for (const e of errors) fail(`${label}: ` + e);
+    await page.close();
+  }
 }
 
 /* 4. an upright phone */

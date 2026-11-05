@@ -92,6 +92,9 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - HUD drawn in world coordinates. Use `r.text(...)` or `r.overlay(g => ...)` with screen pixels (`r.W`, `r.H`).
 - An old key layout: platformers want `input: 'PLATFORMER'` (Space jumps), shooters `input: 'SHMUP'` (Space fires).
 - Errors show in a red box on screen and in the console. Fix the first one first.
+- Colours are `'#rrggbb'` strings. A sprite's pixel is a screen pixel at zoom 1 in every view (rigs and maps grow with the view's scale).
+- `mouseGround()` is `[x, y]`; `settings.reset(group)` resets a group ('Sound'; none: all), not a key; `particles.explosion()` adds a hit-stop and a shake (`{ freeze: false, shake: 0 }`); `E.font.text` outlines unless `outline: false`.
+- A frame past 50 ms gives up its time (no catch-up): a test in a slow browser waits on the game's state, not the clock.
 
 ## Game
 `new E.Game({ canvas: 'screen', view, views, res, expand, input, bg })`
@@ -118,7 +121,7 @@ game.start({ scene: 'title', scenes: {
           enter(data) { /* build the level */ }, exit() {}, update(dt) {}, draw(r) {} }
 } });
 ```
-`game.go(name, data)` switches after a short dithered fade (`game.fadeTime`: a test advances past it; `{ fade: 0 }` cuts; `{ fade: 'wipe' | 'iris' | 'mosaic' | 'swirl' | 'dissolve' | 'white', seconds: .4, at: hero }` a transition, a plain fade under reduce motion); timers (but `after(s, fn, { keep: true })`) and particles are cleared. `pausable: true`: Escape / P / Start pauses it, with the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `camera`, `propSize` are options applied on entry (a method so named warns). A scene is one object every visit: reset its state in `enter`. `back()` takes a phone's back gesture first (true if it went back: a sub-menu closed).
+`game.go(name, data)` switches after a short dithered fade (`game.fadeTime`: a test advances past it; `{ fade: 0 }` cuts; `{ fade: 'wipe' | 'iris' | 'mosaic' | 'swirl' | 'dissolve' | 'white', seconds: .4, at: hero }` a transition, a plain fade under reduce motion); timers (but `after(s, fn, { keep: true })`) and particles are cleared, a hit-stop ends (`timeScale` stays). `pausable: true`: Escape / P / Start pauses it, with the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `camera`, `propSize` are options applied on entry (a method so named warns). A scene is one object every visit: reset its state in `enter`. `back()` takes a phone's back gesture first (true if it went back: a sub-menu closed).
 
 ## Motion and timing: tweens, scripts, paths, weather
 - Tweens (Phaser's): `game.tween(door, { y: 40 }, .5, { ease: 'outBack', delay, repeat, yoyo, onDone, keep })` eases numbers on game time: paused with the game, slowed by `timeScale`, ended by a scene change unless `keep`. Returns `{ done, cancel() }`. `E.ease` has Penner's set: `linear`, `inSine` `outSine` `inOutSine`, `inQuad` `outQuad` `inOutQuad`, the same for `Cubic`, `Back`, `Elastic`, `Bounce`.
@@ -245,7 +248,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
 - **Objects and materials** (full engine): `r.shape('barrel', x, y, 0, { facing })` draws a still object from any view and facing, `map.solid(...)` makes it solid; `E.MATERIALS` dresses floors (`floorMat`), walls (`face`, `roof`) and platform tiles (`mat`). `docs/ASSETS.md` is the card: the format, the library, writing one and checking it with `node tools/asset-sheet.mjs`.
 - **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 29 monster, boss and dummy bodies, 3 heroes and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
 - **Modules** (`engine/modules/<name>.js`; `modules/` in the handoff package): general systems in files of their own, each a `<script>` after the engine, its header its manual (read it there, or its section of the index). A kit carries the modules its slice names (`@modules` in its header); the full engine (`dist/my-3d2dge.js`; `my-3d2dge.js` in the handoff package) carries them all.
-  - `drive`: cars on the ground plane (`E.Car`: speed, grip and slide, a kart's hop and drift boost, the floor's tag slowing it, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, wrong way, places, drivers that brake for bends, pass and rubber-band, items, the HUD; the 3D engine's `world.vehicle` races too). KART.
+  - `drive`: cars on the ground plane (`E.Car`: grip and slide, a kart's hop and drift boost, floor tags, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, places, drivers that pass and rubber-band, items, the HUD; the 3D engine's `world.vehicle` too). KART.
   - (the modules this kit carries; API.md lists every one)
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
@@ -463,10 +466,14 @@ way you see fit): its sections start with "/* ===" and a number.
 <script src="/dist/my-3d2dge.js"><\/script>                   the 2D engine, a classic script, first
 <script type="module" src="/dist/my-3d2dge-3d.js"><\/script>  this file
 <script type="module" src="game.js"><\/script>                your game, a module (const E = My3D2dge;)
+Inlined into a page's own script tag instead, this file ends the page at its first closing script tag (this header has
+four): write each with a backslash before its slash, as the build's single files do.
 
 ## Mental model
 - The 2D engine's units: x east, y south, z up; 16 units = 1 metre = 1 tile; speeds in units a second; angles in
-  radians from +x toward +y (0 east, PI/2 south, -PI/2 north).
+  radians from +x toward +y (0 east, PI/2 south, -PI/2 north). The axes are left-handed (three.js's are right-handed):
+  a mesh of your own built in engine units comes out mirrored, its winding and turns flipped; place it in three.js's
+  (E.World3D.toThree(x, y, z): x, z, y over 16).
 - new E.Game({ ..., bg: null }): its canvas is clear, and the HUD draws on it over the 3D picture (r.overlay, r.text,
   E.ui, E.font) in game pixels, r.W x r.H. res: 'ps1', expand: true as in the 2D games.
 - await E.World3D.init(game) once (a boot step), then new E.World3D(game, { level, ... }) for each level. In a scene:

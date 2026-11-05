@@ -17,7 +17,8 @@ first: one line each (a † marks the full engine's only).
 <!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
 #screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
 <body><canvas id="screen"></canvas><script src="my-3d2dge-agent.js"></script><script src="game.js"></script></body></html>
-For a single-file game, paste both scripts inline. Start every game with: const E = My3D2dge;
+For a single-file game, paste both scripts inline, a backslash before the slash of each closing script tag in them
+(this header has one). Start every game with: const E = My3D2dge;
 Modules (engine/modules/<name>.js; the handoff's modules/): one system each, a <script> after this file when its manual
 (its header) says it loads after the agent edition.
 

@@ -1507,10 +1507,10 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `mode7.refresh()`: forget the floor's baked texture (after changing the map or the function: it bakes again)
 - `mode7.rig(rig, x, y, z = 0)`: gather a rig, drawn by the engine at the size its distance gives, from the camera's side (it faces rig.facing)
 - `mode7.rowDepth(sy)`: a screen row's floor distance ahead of the camera, or 0 at or above the horizon
-- `mode7.shape(id, x, y, z = 0, o = {})`: gather one of the engine's shapes (r.shape's: 'barrel', 'tree', ...; the full engine), seen from the camera's side at its distance's size: o.facing (radians), o.size (1)
+- `mode7.shape(id, x, y, z = 0, o = {})`: gather one of the engine's shapes (r.shape's: 'barrel', 'tree', ...; the full engine), seen from the camera's side at its distance's size: o.facing (radians), o.size (1), o.params and o.mats (as r.shape's: a door's angle, a crate's wood)
 - `mode7.sprite(spr, x, y, z = 0, o = {})`: gather a sprite (E.sprite, or E.anim's frames at o.t, the game's time by default), its foot at the point: o.scale (world units a sprite pixel, 1), o.flip
 - `mode7.toFloor(sx, sy)`: a screen point -> the floor point under it [x, y], or null above the horizon
-- `mode7.view(k)`: the engine view a rig is drawn with at k pixels per unit, seen from the camera's heading (sixteenths, reused)
+- `mode7.view(k)`: the engine view a rig is drawn with at k pixels per unit, seen from the camera's heading (sixteenths, reused) and pitch (whole degrees: a bobbing camera makes no new view each frame)
 - `mode7.cam`: the camera ({ x, y, h, angle, pitch, fov })
 - `mode7.horizon = 0`: the screen row of the horizon in the last drawing
 - `mode7.items = []`: the billboards gathered for the next draw

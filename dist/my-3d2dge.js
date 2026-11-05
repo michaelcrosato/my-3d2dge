@@ -12342,8 +12342,10 @@ billboards (rigs drawn at the size their distance gives, sprites, your own drawi
   unwrapped, the sky turns with it), pitch: 12 (degrees down), fov: 70 (degrees across the height) };
   m7.chase(body, { back: 56, h: 34, angle }) puts it behind a body (body.angle, or angle) each step.
 - In draw: m7.rig(rig, x, y, z), m7.sprite(spr or E.anim, x, y, z, { scale, flip, t }), m7.shape(id, x, y, z, { facing,
-  size }) (full engine), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
-  far to near, as an overlay (in a split screen, in r.viewport: give each player's cam).
+  size, params, mats }) (full engine), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world
+  unit there); m7.draw(r, cam) draws sky, floor, fog and them, far to near, as an overlay (in a split screen, in
+  r.viewport: give each player's cam). A billboard is flat, at its foot's scale: hit-test the box it was drawn in (from
+  m7.project and its size), not the world's view of it.
 - m7.project(x, y, z) -> [sx, sy, k] on the screen, or null behind the camera; m7.toFloor(sx, sy) -> [x, y], or null
   above the horizon (both for the camera last drawn: HUD markers, a tap on the track). m7.horizon: its screen row.
 - Your own pass: m7.begin({ W, H, x, y, cx, cy, focal }, cam), then project, rowDepth(sy), drawFloor(g, rect),
@@ -12427,18 +12429,20 @@ class Mode7 {
     });
   }
   /** gather one of the engine's shapes (r.shape's: 'barrel', 'tree', ...; the full engine), seen from the camera's side at
-   *  its distance's size: o.facing (radians), o.size (1) */
+   *  its distance's size: o.facing (radians), o.size (1), o.params and o.mats (as r.shape's: a door's angle, a crate's wood) */
   shape(id, x, y, z = 0, o = {}) {
+    const extra = o.params || o.mats ? ':' + JSON.stringify([o.params || null, o.mats || null]) : '';   // (each look a sprite of its own)
     return this.add(x, y, z, (g, sx, sy, k) => {
-      const v = this.view(k), f = Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / Math.PI * 8) / 8 * Math.PI, key = id + ':' + v.scale + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + f + ':' + (o.size || 1);
-      let sp = this._shapes.get(key); if (sp === undefined) { if (this._shapes.size > 300) this._shapes.clear(); sp = E.shapeSprite ? E.shapeSprite(id, { view: v, facing: f, size: o.size || 1 }) : null; this._shapes.set(key, sp); }
+      const v = this.view(k), f = Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / Math.PI * 8) / 8 * Math.PI, key = id + ':' + v.scale + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + f + ':' + (o.size || 1) + extra;
+      let sp = this._shapes.get(key); if (sp === undefined) { if (this._shapes.size > 300) this._shapes.clear(); sp = E.shapeSprite ? E.shapeSprite(id, { view: v, facing: f, size: o.size || 1, params: o.params, mats: o.mats }) : null; this._shapes.set(key, sp); }
       if (sp) g.drawImage(sp.cv, Math.round(sx - sp.foot[0]), Math.round(sy - sp.foot[1]));
     });
   }
-  /** the engine view a rig is drawn with at k pixels per unit, seen from the camera's heading (sixteenths, reused) */
+  /** the engine view a rig is drawn with at k pixels per unit, seen from the camera's heading (sixteenths, reused) and
+   *  pitch (whole degrees: a bobbing camera makes no new view each frame) */
   view(k) {
-    const q = Math.max(1 / 8, Math.round(k * 16) / 16), yaw = (Math.round((-this._a * 180 / Math.PI - 90) * 2) / 2) || 0, key = q + ':' + yaw + ':' + this._pd;
-    let v = this._views.get(key); if (!v) { if (this._views.size > 400) this._views.clear(); v = new E.View('mode7', 'Mode 7', yaw, this._pd, q, 1); this._views.set(key, v); }
+    const q = Math.max(1 / 8, Math.round(k * 16) / 16), yaw = (Math.round((-this._a * 180 / Math.PI - 90) * 2) / 2) || 0, pd = Math.round(this._pd), key = q + ':' + yaw + ':' + pd;
+    let v = this._views.get(key); if (!v) { if (this._views.size > 400) this._views.clear(); v = new E.View('mode7', 'Mode 7', yaw, pd, q, 1); this._views.set(key, v); }
     return v;
   }
   /** draw the view as an overlay over r's frame (in a split screen, r.viewport's part): sky, floor, fog, then the

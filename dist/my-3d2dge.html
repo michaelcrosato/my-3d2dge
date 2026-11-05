@@ -113,6 +113,9 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - HUD drawn in world coordinates. Use `r.text(...)` or `r.overlay(g => ...)` with screen pixels (`r.W`, `r.H`).
 - An old key layout: platformers want `input: 'PLATFORMER'` (Space jumps), shooters `input: 'SHMUP'` (Space fires).
 - Errors show in a red box on screen and in the console. Fix the first one first.
+- Colours are `'#rrggbb'` strings. A sprite's pixel is a screen pixel at zoom 1 in every view (rigs and maps grow with the view's scale).
+- `mouseGround()` is `[x, y]`; `settings.reset(group)` resets a group ('Sound'; none: all), not a key; `particles.explosion()` adds a hit-stop and a shake (`{ freeze: false, shake: 0 }`); `E.font.text` outlines unless `outline: false`.
+- A frame past 50 ms gives up its time (no catch-up): a test in a slow browser waits on the game's state, not the clock.
 
 ## Game
 `new E.Game({ canvas: 'screen', view, views, res, expand, input, bg })`
@@ -139,7 +142,7 @@ game.start({ scene: 'title', scenes: {
           enter(data) { /* build the level */ }, exit() {}, update(dt) {}, draw(r) {} }
 } });
 ```
-`game.go(name, data)` switches after a short dithered fade (`game.fadeTime`: a test advances past it; `{ fade: 0 }` cuts; `{ fade: 'wipe' | 'iris' | 'mosaic' | 'swirl' | 'dissolve' | 'white', seconds: .4, at: hero }` a transition, a plain fade under reduce motion); timers (but `after(s, fn, { keep: true })`) and particles are cleared. `pausable: true`: Escape / P / Start pauses it, with the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `camera`, `propSize` are options applied on entry (a method so named warns). A scene is one object every visit: reset its state in `enter`. `back()` takes a phone's back gesture first (true if it went back: a sub-menu closed).
+`game.go(name, data)` switches after a short dithered fade (`game.fadeTime`: a test advances past it; `{ fade: 0 }` cuts; `{ fade: 'wipe' | 'iris' | 'mosaic' | 'swirl' | 'dissolve' | 'white', seconds: .4, at: hero }` a transition, a plain fade under reduce motion); timers (but `after(s, fn, { keep: true })`) and particles are cleared, a hit-stop ends (`timeScale` stays). `pausable: true`: Escape / P / Start pauses it, with the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `camera`, `propSize` are options applied on entry (a method so named warns). A scene is one object every visit: reset its state in `enter`. `back()` takes a phone's back gesture first (true if it went back: a sub-menu closed).
 
 ## Motion and timing: tweens, scripts, paths, weather
 - Tweens (Phaser's): `game.tween(door, { y: 40 }, .5, { ease: 'outBack', delay, repeat, yoyo, onDone, keep })` eases numbers on game time: paused with the game, slowed by `timeScale`, ended by a scene change unless `keep`. Returns `{ done, cancel() }`. `E.ease` has Penner's set: `linear`, `inSine` `outSine` `inOutSine`, `inQuad` `outQuad` `inOutQuad`, the same for `Cubic`, `Back`, `Elastic`, `Bounce`.
@@ -296,18 +299,18 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
 - **Objects and materials** (full engine): `r.shape('barrel', x, y, 0, { facing })` draws a still object from any view and facing, `map.solid(...)` makes it solid; `E.MATERIALS` dresses floors (`floorMat`), walls (`face`, `roof`) and platform tiles (`mat`). `docs/ASSETS.md` is the card: the format, the library, writing one and checking it with `node tools/asset-sheet.mjs`.
 - **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 29 monster, boss and dummy bodies, 3 heroes and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
 - **Modules** (`engine/modules/<name>.js`; `modules/` in the handoff package): general systems in files of their own, each a `<script>` after the engine, its header its manual (read it there, or its section of the index). A kit carries the modules its slice names (`@modules` in its header); the full engine (`dist/my-3d2dge.js`; `my-3d2dge.js` in the handoff package) carries them all.
-  - `grid`: square and hex grids: A* paths, move ranges (over heights, past allies), lines, fields of view (symmetric shadowcasting), `E.Fog`, groups, shapes of effect, facing, threat maps, `E.GridMover`, `E.Turns` (speed, charge time, phases, ATB). ROGUELIKE, PUZZLE, TACTICS, ARCADE, ARTILLERY, RTS, SIM, 3D CRAWLER.
+  - `grid`: square and hex grids: A* paths, move ranges over heights and past allies, fields of view, `E.Fog`, groups, shapes of effect, threat maps, `E.GridMover`, `E.Turns` (speed, charge time, phases, ATB). ROGUELIKE, PUZZLE, TACTICS, ARCADE, ARTILLERY, RTS, SIM, 3D CRAWLER.
   - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE, ARCADE.
-  - `fight` (the full engine only): one-on-one fighting: `E.Fighter` (a Platformer and a Humanoid; frame data; hurt boxes from the rig's joints; high, low and overhead guards; chip; throws; cancels; juggles; knockdowns; specials by motion or charge; a super meter; projectiles), `E.Match` (rounds, timer, KO, the HUD, training), `E.FightAI`, `E.FightSelect`. FIGHTING.
+  - `fight` (the full engine only): one-on-one fighting: `E.Fighter` (frame data, hurt boxes from the rig's joints, guards, throws, cancels, juggles, specials by motion or charge, a meter, projectiles), `E.Match` (rounds, KO, the HUD, training), `E.FightAI`, `E.FightSelect`. FIGHTING.
   - `rooms`: a world of rooms on a grid of screens (`E.World`): walking between them at open edges, the explored map (`drawMap`, or `shellMap()` for `E.Shell`), gates that abilities or keys open, saves in `E.store`. METROIDVANIA.
-  - `mode7`: the SNES's Mode 7 (`E.Mode7`): a camera at a height over a flat floor (a TileMap's, a color function's or a canvas), a sky that turns with the heading (a Backdrop), billboards far to near (rigs at the size their distance gives, sprites, your drawing), fog, `project` and `toFloor`, a split screen's cameras. The stress test's depth view, KART.
+  - `mode7`: the SNES's Mode 7 (`E.Mode7`): a camera over a flat floor (a TileMap's, a function's or a canvas), a turning sky, billboards far to near (rigs, sprites, shapes, your drawing), fog, `project` and `toFloor`, split screens. KART.
   - `road`: the pseudo-3D road (`E.Road`): segments with curves and hills, lanes, rumble strips, tunnels, scenery and cars scaled by distance and hidden past a crest, the sky's parallax on curves. ROAD.
-  - `drive`: cars on the ground plane (`E.Car`: speed, grip and slide, a kart's hop and drift boost, the floor's tag slowing it, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, wrong way, places, drivers that brake for bends, pass and rubber-band, items, the HUD; the 3D engine's `world.vehicle` races too). KART.
+  - `drive`: cars on the ground plane (`E.Car`: grip and slide, a kart's hop and drift boost, floor tags, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, places, drivers that pass and rubber-band, items, the HUD; the 3D engine's `world.vehicle` too). KART.
   - `story`: dialogue as data (`E.Story`): nodes of lines with speakers and portraits, choices with conditions, flags and values (`{$name}` in lines), gotos, the game's events (one may hold the talk), a quest log, emote balloons over heads, a backlog, auto and skip; its state for a save. RPG, POINT-AND-CLICK, TACTICS.
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG, 3D HORROR.
-  - `strategy` (the full engine only; needs `grid`): real-time strategy and sims (`E.Strategy`): selection (a click, a box, a double tap, groups), orders (move, attack, attack-move, gather, build, patrol; queued), formations on shared flow fields kept apart, production, resources, placement with a ghost, fog, the minimap, an enemy's build order and waves; `E.Clock` (days, night, the light), needs that pick an action (`E.needs`, `E.choose`), `E.overlay`, `E.tooltip`. RTS, SIM.
-  - `click` (the full engine only): point-and-click adventures (`E.Click`): rooms painted once, walk areas with holes (`E.Walkbox`: the shortest way round), depth scale, hotspots (rectangles, polygons, actors) with verbs, a place to stand and a way to face, SCUMM's nine verbs, Sierra's icons, a verb coin or two buttons, an inventory (an item on a hotspot or another item), rules as data, exits with fades, `story`'s flags and talk; taps on a phone. POINT-AND-CLICK.
-  - `physics`: 2D rigid bodies (`E.Physics`): circles, boxes, convex polygons, static segments, chains and arcs; dynamic, kinematic and static bodies; bounce, friction, sensors, layers, sleep, gravity as a vector; fast balls swept so they never pass through; stepped in a fixed order (the same world at any refresh rate); flippers, bumpers, slingshots, kickers. PINBALL, ARTILLERY (its grenades).
+  - `strategy` (the full engine only; needs `grid`): `E.Strategy` for real-time strategy (selection by click, box and group; queued orders; formations; production, resources, placement; fog, the minimap; an AI's build order and waves) and for sims `E.Clock` (days, the light), `E.needs` and `E.choose`, `E.overlay`, `E.tooltip`. RTS, SIM.
+  - `click` (the full engine only): point-and-click adventures (`E.Click`): painted rooms, walk areas with holes (`E.Walkbox`), depth scale, hotspots with verbs, SCUMM's nine verbs, Sierra's icons, a verb coin or two buttons, an inventory, rules as data, exits, `story`'s talk; taps on a phone. POINT-AND-CLICK.
+  - `physics`: 2D rigid bodies (`E.Physics`): circles, boxes, polygons, segments, chains and arcs; bounce, friction, sensors, layers, sleep; fast balls swept, never passing through; the same world at any refresh rate; flippers, bumpers, slingshots, kickers. PINBALL, ARTILLERY.
   - `terrain`: destructible ground in the side plane (`E.Terrain`): a mask of materials carved and added by circles and polygons, the ground below a point and its normal, hits and rays for shots, walkers on slopes (Worms, Lemmings), a collider for `physics`, drawn in chunks redrawn only where it changed. ARTILLERY.
   - `songs`: the songbook (`E.Songbook`): the kits' best songs and more by mood (field, town, shop, battle, race, puzzle, space, horror, stealth, chase, dance), and jingles (stage clear, game over, one-up, level up, fanfare); `get(id)`, `find(mood)`. RHYTHM.
   - `rhythm` (the full engine only): `E.Rhythm`: charts on a song's steps (lane strings, parts in an order, or a track's notes), judgments in ms of the music clock (perfect, great, good, miss), combo, score, a life gauge, grades, holds, call and response, a note highway in any direction. RHYTHM.
@@ -12733,8 +12736,10 @@ billboards (rigs drawn at the size their distance gives, sprites, your own drawi
   unwrapped, the sky turns with it), pitch: 12 (degrees down), fov: 70 (degrees across the height) };
   m7.chase(body, { back: 56, h: 34, angle }) puts it behind a body (body.angle, or angle) each step.
 - In draw: m7.rig(rig, x, y, z), m7.sprite(spr or E.anim, x, y, z, { scale, flip, t }), m7.shape(id, x, y, z, { facing,
-  size }) (full engine), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
-  far to near, as an overlay (in a split screen, in r.viewport: give each player's cam).
+  size, params, mats }) (full engine), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world
+  unit there); m7.draw(r, cam) draws sky, floor, fog and them, far to near, as an overlay (in a split screen, in
+  r.viewport: give each player's cam). A billboard is flat, at its foot's scale: hit-test the box it was drawn in (from
+  m7.project and its size), not the world's view of it.
 - m7.project(x, y, z) -> [sx, sy, k] on the screen, or null behind the camera; m7.toFloor(sx, sy) -> [x, y], or null
   above the horizon (both for the camera last drawn: HUD markers, a tap on the track). m7.horizon: its screen row.
 - Your own pass: m7.begin({ W, H, x, y, cx, cy, focal }, cam), then project, rowDepth(sy), drawFloor(g, rect),
@@ -12818,18 +12823,20 @@ class Mode7 {
     });
   }
   /** gather one of the engine's shapes (r.shape's: 'barrel', 'tree', ...; the full engine), seen from the camera's side at
-   *  its distance's size: o.facing (radians), o.size (1) */
+   *  its distance's size: o.facing (radians), o.size (1), o.params and o.mats (as r.shape's: a door's angle, a crate's wood) */
   shape(id, x, y, z = 0, o = {}) {
+    const extra = o.params || o.mats ? ':' + JSON.stringify([o.params || null, o.mats || null]) : '';   // (each look a sprite of its own)
     return this.add(x, y, z, (g, sx, sy, k) => {
-      const v = this.view(k), f = Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / Math.PI * 8) / 8 * Math.PI, key = id + ':' + v.scale + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + f + ':' + (o.size || 1);
-      let sp = this._shapes.get(key); if (sp === undefined) { if (this._shapes.size > 300) this._shapes.clear(); sp = E.shapeSprite ? E.shapeSprite(id, { view: v, facing: f, size: o.size || 1 }) : null; this._shapes.set(key, sp); }
+      const v = this.view(k), f = Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / Math.PI * 8) / 8 * Math.PI, key = id + ':' + v.scale + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + f + ':' + (o.size || 1) + extra;
+      let sp = this._shapes.get(key); if (sp === undefined) { if (this._shapes.size > 300) this._shapes.clear(); sp = E.shapeSprite ? E.shapeSprite(id, { view: v, facing: f, size: o.size || 1, params: o.params, mats: o.mats }) : null; this._shapes.set(key, sp); }
       if (sp) g.drawImage(sp.cv, Math.round(sx - sp.foot[0]), Math.round(sy - sp.foot[1]));
     });
   }
-  /** the engine view a rig is drawn with at k pixels per unit, seen from the camera's heading (sixteenths, reused) */
+  /** the engine view a rig is drawn with at k pixels per unit, seen from the camera's heading (sixteenths, reused) and
+   *  pitch (whole degrees: a bobbing camera makes no new view each frame) */
   view(k) {
-    const q = Math.max(1 / 8, Math.round(k * 16) / 16), yaw = (Math.round((-this._a * 180 / Math.PI - 90) * 2) / 2) || 0, key = q + ':' + yaw + ':' + this._pd;
-    let v = this._views.get(key); if (!v) { if (this._views.size > 400) this._views.clear(); v = new E.View('mode7', 'Mode 7', yaw, this._pd, q, 1); this._views.set(key, v); }
+    const q = Math.max(1 / 8, Math.round(k * 16) / 16), yaw = (Math.round((-this._a * 180 / Math.PI - 90) * 2) / 2) || 0, pd = Math.round(this._pd), key = q + ':' + yaw + ':' + pd;
+    let v = this._views.get(key); if (!v) { if (this._views.size > 400) this._views.clear(); v = new E.View('mode7', 'Mode 7', yaw, pd, q, 1); this._views.set(key, v); }
     return v;
   }
   /** draw the view as an overlay over r's frame (in a split screen, r.viewport's part): sky, floor, fog, then the

@@ -10444,10 +10444,14 @@ way you see fit): its sections start with "/* ===" and a number.
 <script src="/dist/my-3d2dge.js"><\/script>                   the 2D engine, a classic script, first
 <script type="module" src="/dist/my-3d2dge-3d.js"><\/script>  this file
 <script type="module" src="game.js"><\/script>                your game, a module (const E = My3D2dge;)
+Inlined into a page's own script tag instead, this file ends the page at its first closing script tag (this header has
+four): write each with a backslash before its slash, as the build's single files do.
 
 ## Mental model
 - The 2D engine's units: x east, y south, z up; 16 units = 1 metre = 1 tile; speeds in units a second; angles in
-  radians from +x toward +y (0 east, PI/2 south, -PI/2 north).
+  radians from +x toward +y (0 east, PI/2 south, -PI/2 north). The axes are left-handed (three.js's are right-handed):
+  a mesh of your own built in engine units comes out mirrored, its winding and turns flipped; place it in three.js's
+  (E.World3D.toThree(x, y, z): x, z, y over 16).
 - new E.Game({ ..., bg: null }): its canvas is clear, and the HUD draws on it over the 3D picture (r.overlay, r.text,
   E.ui, E.font) in game pixels, r.W x r.H. res: 'ps1', expand: true as in the 2D games.
 - await E.World3D.init(game) once (a boot step), then new E.World3D(game, { level, ... }) for each level. In a scene:
