@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.85.3 (2026-11-05)
+
+The phone suite's own failures, on main since v0.85.2 at least (`docs/HANDOFF-MATRIX.md`'s Part 9, found on the cc-matrix run's way): two were one engine bug, a phone's first tap going full screen, and one the test's.
+
+- **Engine**: the page going full screen (or back) lets go of the keys and mouse buttons only: a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts. It let go of everything, so a phone's first tap on JUMP (the one that goes full screen) never jumped, and a drag that began as the change landed, a moment after the first tap, stopped dead. Both editions.
+- **Tools**: the phone test's shooter case goes full screen under its second drag every time (it ended that drag 3 runs in 4 on a slow machine, when the change landed in it); the metroidvania's JUMP jumps upright and on its side; the army's box counts the units well inside it and those selected near it (stopped, the crowd still jostles: two selected at the box's edge were a few pixels past it by the time it was checked, every run).
+
 ## 0.85.2 (2026-11-03)
 
 A builder's copy of the engine is theirs to change, in any way they see fit: the owner's word (D76). The manuals said never to.

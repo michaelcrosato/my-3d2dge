@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.85.2: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.85.3: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -377,7 +377,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.85.2', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.85.3', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1292,7 +1292,7 @@ class Game {
     pageSetup(this.screen.canvas);
     on(window, 'blur', () => this._autoPause('focus'));
     on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
-    const fsChange = () => this.input.clear();   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
+    const fsChange = () => { const I = this.input; for (const c of [...I.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) I.release(c); };   // (keys let go, a finger and a landed press go on; the player's choice is what they asked for: fullscreen.toggle() keeps it)
     on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
     on(window, 'pointerup', e => {
       if (e.pointerType === 'mouse') return;
