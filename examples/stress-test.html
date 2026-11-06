@@ -249,7 +249,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.89.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.89.3  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -330,7 +330,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.89.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.89.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1088,6 +1088,10 @@ class Input {
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
     on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { if (this.lastDevice !== 'mouse' && this.lastDevice !== 'keyboard' && Math.hypot(e.clientX - this.mouse.cx, e.clientY - this.mouse.cy) > 3) this.lastDevice = 'mouse'; this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
+    // a mouse button pressed or let go while another is held comes as a pointermove, not a pointerdown or pointerup
+    // (Pointer Events' chorded buttons: e.button the one that changed, e.buttons those down now): right held to aim, a
+    // left click fires; either let go first, the other stays held and this one lets go. A press counts on the canvas
+    on(window, 'pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } });
     on(el, 'pointerdown', e => {
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
       if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
@@ -10859,7 +10863,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.89.2: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.89.3: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
