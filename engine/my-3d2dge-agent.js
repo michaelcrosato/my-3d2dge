@@ -776,6 +776,9 @@ class Input {
     el.addEventListener('pointermove', at, { signal });
     el.addEventListener('pointerdown', e => { at(e); this.press('Mouse' + e.button); }, { signal });
     addEventListener('pointerup', e => this.release('Mouse' + e.button));
+    // a mouse button pressed or let go while another is held comes as a pointermove (Pointer Events' chorded buttons:
+    // e.button the one that changed, e.buttons those down now): right held to aim, a left click fires
+    addEventListener('pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } }, { signal });
   }
   use(map) {
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
