@@ -4,6 +4,8 @@
 //   the clock      the same inputs at 60, 90, 120 and 144 Hz give the same state after the same time; steps are 1/120 s
 //                  of real time, slow motion shortens them, pause and timeScale 0 still tick input, fps reads real time,
 //                  the first frame updates before it draws
+//   the mouse      a second button pressed or let go while one is held (Chromium sends a pointermove, not a down or
+//                  up), by real mouse input: right held to aim, a left click fires; either let go first, the other holds
 //   flow fields    a FlowField follows map.block() and map.set() at its next update
 //   heights        E.HEIGHTS, map.ray/sight/standable/ledge/landing/drop/arcClear, E.inArc's dz, E.sameLevel, E.targets
 //                  and FlowField over heights, on small maps (a roof edge, a kerb, a gap, a planter, a guard above)
@@ -1657,6 +1659,16 @@ for (const [ed, file] of EDITIONS) {
   for (const hz of [60, 90, 120, 144]) rates[hz] = await run(PLAY, hz);
   for (const hz of [60, 90, 120, 144]) console.log(`  ${String(hz).padStart(3)} Hz: steps per frame ${rates[hz].steps.join(',')}..., ${rates[hz].total} in 2.5 s, jump peak ${rates[hz].peak.toFixed(4)}, state ${rates[hz].state}`);
   for (const hz of [90, 120, 144]) check(`${ed}: the same state at ${hz} Hz as at 60 Hz`, rates[hz].state === rates[60].state, rates[hz].state + ' vs ' + rates[60].state);
+  { // the mouse's chorded buttons, as Chromium sends them (a second button's press and release come as pointermoves):
+    // right held to aim, a left click fires; either let go first, the other stays held
+    const page = await browser.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message)); await page.setContent(html);
+    const at = await page.evaluate(() => { const g = window.__g = new My3D2dge.Game({ canvas: 'screen', res: [320, 240], input: { ...My3D2dge.Input.DEFAULT, fire: ['Mouse0'], aim: ['Mouse2'] } }); g.start({ update() {}, draw() {} });
+      const r = document.getElementById('screen').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    await page.mouse.move(at[0], at[1]); const seen = [];
+    for (const [f, b] of [['down', 'right'], ['down', 'left'], ['up', 'left'], ['down', 'left'], ['up', 'right'], ['up', 'left']]) { await page.mouse[f]({ button: b }); seen.push(await page.evaluate(() => ['fire', 'aim'].filter(a => __g.input.down(a)).join('+') || '-')); }
+    await page.close();
+    check(`${ed}: the mouse's chorded buttons: right held, a left click fires and lets go; right let go first, left stays held`, seen.join(' ') === 'aim fire+aim aim fire+aim fire -' && !errors.length, seen.join(' ') + ' ' + errors.join(' | '));
+  }
   if (ed === 'full') {
     const T = {}; for (const hz of [60, 90, 120, 144]) T[hz] = await run(TIMELINE, hz);
     check(`${ed}: a script's waits and a tween give the same timeline at 60, 90, 120 and 144 Hz`, T[60].split(' ').length === 7 && [90, 120, 144].every(hz => T[hz] === T[60]), JSON.stringify(T));
