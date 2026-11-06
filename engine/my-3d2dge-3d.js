@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.89.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.89.2: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -3012,9 +3012,9 @@ Object.assign(World3D.prototype, {
       else if (a.blob) blobParts(B, a, flash, sink);
       if (a.trail && a.rig && a.rig.trail.length > 1 && nr < 24) this._ribbons.set(nr++, a.rig.trail, typeof a.trail === 'string' ? lin(a.trail) : a.trail);
     };
-    for (const a of this.actors) {   // (each drawn part way from where it was before the last step, then put back; one that jumped is where it is)
+    for (const a of this.actors) {   // (each drawn part way from where it was before the last step, then put back; one that jumped is where it is, and so is one added since that step: it has no place before it yet)
       const w = a._ip, dx = w && k ? (w[0] - a.x) * k : 0, dy = w && k ? (w[1] - a.y) * k : 0, dz = w && k ? (w[2] - (a.z || 0)) * k : 0, m = Math.abs(dx) + Math.abs(dy) + Math.abs(dz) < 40 * k;
-      if (!m) { one(a); continue; }
+      if (!w || !m) { one(a); continue; }
       // (the body, its facing, and what hangs off it in the world: the cape, the hair, the blade's ribbon; all put back
       // exactly, even if drawing throws: the steps read them)
       const ax = a.x, ay = a.y, az = a.z, af = a.facing, R = a.rig, rx = R && R.x, ry = R && R.y, rz = R && R.z, rf = R && R.facing, f1 = R ? rf : af || 0;
