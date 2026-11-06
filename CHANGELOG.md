@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.89.2 (2026-11-06)
+
+A builder's game (a light-gun rail shooter made by another model on v0.89.1) stopped drawing with `Cannot read properties of undefined (reading '3')` in `World3D._drawActors`: it adds its actors after `world.step`.
+
+- **Rendering**: an actor added to a 3D world since its last step (after `world.step` in the same update, or from an event during it) is drawn where it is on a frame between steps: it has no place before a step yet, and the frame threw reading it, drawing nothing after it and putting up the error banner. From its first step on it is drawn part way, as every actor is.
+- **Tools**: kit3d-test adds actors after a step and draws a frame half way to the next (alpha .5): it threw before the fix.
+
 ## 0.89.1 (2026-11-05)
 
 The cc-matrix plan is done: its last two items, prototypes, are Temporary labs for the owner to judge, and the plan is gone (its text: `git show 5f44010:docs/HANDOFF-MATRIX.md`; what wasn't taken: F8 in `docs/FEEDBACK-LOG.md`).

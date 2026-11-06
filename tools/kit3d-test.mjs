@@ -5,7 +5,7 @@
 //      addons), no WebGPU-only compute or storage buffers, nothing read back from the GPU; the import map points at
 //      vendored files that exist, and those files match their checksums (tools/vendor-3d.mjs --check)
 //   2. the manual's quick start (the ```js quickstart block in the engine's header) runs as the manual hosts it: no
-//      errors, a hero that walks and jumps, gems to take
+//      errors, a hero that walks and jumps, gems to take; actors added after a step drawn on a frame between steps
 //   3. every 3D kit, served as Vercel serves it (/kits/3d-<slice>, /3d), on WebGL 2 and on WebGPU (headless Chromium runs
 //      WebGPU on SwiftShader, through a stand-in canvas): no page errors, the title
 //      draws, each slice starts; each slice's proof run gives the same hash twice and on both backends (the game never
@@ -288,8 +288,17 @@ let pictures = 0;
       const g = __quick.game; g.stop(); const h = __quick.hero, x0 = h.x, y0 = h.y;
       g.input.hold('right', true); g.advance(.8); g.input.hold('right', false);
       g.input.tap('jump'); let top = h.z; for (let i = 0; i < 40; i++) { g.advance(1 / 120); top = Math.max(top, h.z); }
-      return { moved: Math.hypot(h.x - x0, h.y - y0), top, gems: __quick.gems.length, things: __quick.world.things.length };
+      const out = { moved: Math.hypot(h.x - x0, h.y - y0), top, gems: __quick.gems.length, things: __quick.world.things.length };
+      // an actor made after the step (a game that adds its actors after world.step): a frame half way to the next step
+      // draws it where it is (it has no place before a step yet), and the frame draws whole
+      const w = __quick.world; g.advance(1 / 120); g.advance((1.5 - g.alpha) / 120);
+      const e0 = g.errors.length, late = [w.mob({ x: h.x + 30, y: h.y, rig: new My3D2dge.Humanoid() }), w.mob({ x: h.x - 30, y: h.y, blob: new My3D2dge.Blob({ R: 6 }) })];
+      g.advance(0, { draw: true }); out.late = { alpha: g.alpha, errors: g.errors.slice(e0).map(e => e.where + ': ' + e.message) };
+      for (const a of late) w.remove(a);
+      return out;
     });
+    if (Math.abs(r.late.alpha - .5) > .01) fail(`quick start: the frame between steps was drawn at alpha ${r.late.alpha.toFixed(2)}, not .5`);
+    for (const e of r.late.errors) fail(`quick start: an actor made after the step, drawn between steps: ${e}`);
     if (r.moved < 30) fail(`quick start: the hero moved only ${r.moved.toFixed(1)} units in 0.8 s`);
     if (r.top < 20) fail(`quick start: the hero's jump reached only ${r.top.toFixed(1)} units`);
     if (!r.gems || r.gems !== r.things) fail(`quick start: ${r.gems} gems, ${r.things} things`);
