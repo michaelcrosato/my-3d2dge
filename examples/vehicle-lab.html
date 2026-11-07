@@ -1821,7 +1821,8 @@ Object.assign(ENGINE_LINES, {
   'engine.shell.interact': 'Interact', 'engine.shell.hold_to_interact': 'Hold to interact', 'engine.shell.language': 'Language',
   'engine.shell.distance': '{m} m', 'engine.shell.distance_above': '{m} m  ·  ABOVE YOU', 'engine.shell.distance_below': '{m} m  ·  BELOW YOU',
   'engine.controls.how': 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.',
-  'engine.controls.keyboard': 'Keyboard', 'engine.controls.controller': 'Controller', 'engine.controls.press': 'Press…', 'engine.controls.player': 'Player {player}',
+  'engine.controls.keyboard': 'Keyboard', 'engine.controls.controller': 'Controller', 'engine.controls.press': 'Press…',
+  'engine.controls.bind_keys': '{action}, keyboard: {keys}', 'engine.controls.bind_pad': '{action}, controller: {keys}', 'engine.controls.none': 'none', 'engine.controls.player': 'Player {player}',
   'engine.controls.player_pad': 'Player {player} (controller)', 'engine.controls.player_left': 'Player {player} (left keys)', 'engine.controls.player_right': 'Player {player} (right keys)',
   'engine.controls.pad_found': 'Controller: {name}', 'engine.controls.pad_none': 'No controller found: press a button on one to connect it.',
   'engine.controls.press_pad': 'Press a controller button for {action} (Start cancels).', 'engine.controls.press_key': 'Press a key or mouse button for {action} (Escape cancels).',
@@ -10083,7 +10084,7 @@ class Shell {
       for (const d of ['keys', 'pad']) {
         const codes = I.map[a].filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis') && padCode(c) === (d === 'pad')), cap = this._cap && this._cap.a === a && this._cap.device === d;
         const b = this._el('button', cap ? 'cap' : '', cap ? ENG('controls.press') : codes.map(c => I.codeLabel(c)).join(' / ') || '—');
-        b.setAttribute('aria-label', name + ', ' + ENG(d === 'pad' ? 'controls.controller' : 'controls.keyboard') + ': ' + (codes.map(c => I.codeLabel(c)).join(', ') || '—'));
+        b.setAttribute('aria-label', ENG(d === 'pad' ? 'controls.bind_pad' : 'controls.bind_keys', { action: name, keys: codes.map(c => I.codeLabel(c)).join(', ') || ENG('controls.none') }));   // (what a screen reader says)
         b.onclick = () => this._capStart(a, d, name); grid.appendChild(b);
       }
     }
