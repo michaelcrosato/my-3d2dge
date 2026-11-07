@@ -11,19 +11,25 @@
 // The build (tools/build.mjs) writes each kit's block from its parts' lines files: src/starter/<part>.lines.json and
 // src/starter3d/<part>.lines.json ({ lines, notes, max, names, brief }), with the engine's lines and its modules'.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join, resolve as resolvePath } from 'node:path';
+import { join, dirname, resolve as resolvePath } from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import { root, load } from './engine-lib.mjs';
+
+// the repository (the core and its modules, through engine-lib), or the handoff package (the full engine in one file)
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const LIB = existsSync(join(root, 'engine/my-3d2dge.js')) ? await import('./engine-lib.mjs') : null;
+const quiet = { log() {}, warn() {}, error() {}, info() {} };
+const load = () => { if (LIB) return LIB.load('full', { console: quiet }); const ctx = { console: quiet }; vm.createContext(ctx); vm.runInContext(readFileSync(join(root, 'my-3d2dge.js'), 'utf8'), ctx); return ctx.My3D2dge; };
 
 export const ID = /^[a-z0-9_]+(\.[a-z0-9_]+)*$/;
 const OK = v => (typeof v === 'string' && v !== '') || (!!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0 && Object.values(v).every(s => typeof s === 'string'));
 let ENGINE = null;
 /** the engine's own lines (its menus, saves, notices, key names) and its modules': { id: English } */
-export function engineAll() { if (!ENGINE) { const E = load('full', { console: { log() {}, warn() {}, error() {}, info() {} } }); ENGINE = E.lang.engineLines(); } return ENGINE; }
+export function engineAll() { if (!ENGINE) ENGINE = load().lang.engineLines(); return ENGINE; }
 /** the 3D engine's lines (its settings), read from its source as data (it needs three.js to run) */
 export function engine3dLines() {
-  const src = readFileSync(join(root, 'engine/my-3d2dge-3d.js'), 'utf8'), out = {};
+  const f = join(root, 'engine/my-3d2dge-3d.js'); if (!existsSync(f)) return {};   // (the handoff package has no 3D engine)
+  const src = readFileSync(f, 'utf8'), out = {};
   const grab = (start, end) => { const i = src.indexOf(start); if (i < 0) return null; const j = src.indexOf(end, i); return vm.runInNewContext('(' + src.slice(i + start.length - 1, j + end.length - 1) + ')'); };
   const specs = [...(grab('World3D.SETTINGS = [', '\n];') || []), grab('World3D.CONTROLS = {', '};')].filter(Boolean);
   for (const sp of specs) { const id = 'engine.setting.' + sp.key; out[id] = sp.label; if (sp.help) out[id + '.help'] = sp.help; for (const o of sp.options || []) out[id + '.' + o[0]] = o[1]; }
@@ -121,7 +127,7 @@ if (resolvePath(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
   let block = null; try { block = readBlock(html); } catch (e) { console.error(file + ': its game-lines block is not valid JSON: ' + e.message); process.exit(1); }
   block = block || { version: 1, language: 'en', lines: {} };
   const own = Object.fromEntries(Object.entries(block.lines || {}).filter(([k]) => !k.startsWith('engine.')));
-  block.lines = Object.assign(own, engineLines({ modules: mods, threeD }));
+  block.lines = Object.assign({}, own, engineLines({ modules: mods, threeD }));
   writeFileSync(file, putBlock(html, block));
   console.log(`${file}: ${Object.keys(own).length} lines of the game's own, ${Object.keys(block.lines).length - Object.keys(own).length} of the engine's`);
 }

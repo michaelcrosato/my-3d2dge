@@ -341,6 +341,7 @@ const H = 'dist/handoff', HANDOFF = [
   ...EVERY.map(m => ['modules/' + m.name + '.js', m.file]),
   ['API.md', 'API.md'], ['API-INDEX.md', 'API-INDEX.md'], ['AI_GUIDE.md', 'AI_GUIDE.md'],
   ['tools/check.mjs', 'tools/check.mjs'], ['tools/filmstrip.mjs', 'tools/filmstrip.mjs'], ['tools/replay.mjs', 'tools/replay.mjs'],
+  ['tools/lines.mjs', 'tools/lines.mjs'], ['tools/lines-scan.mjs', 'tools/lines-scan.mjs'], ['docs/LANGUAGES.md', 'docs/LANGUAGES.md'],
   // the asset card, its tools and the store, at the repository's own paths so the card's commands work as written
   ['docs/ASSETS.md', 'docs/ASSETS.md'], ...['find', 'sheet', 'set', 'lib'].map(t => ['tools/asset-' + t + '.mjs', 'tools/asset-' + t + '.mjs']),
   ...readdirSync(join(root, 'src/assets/sets')).filter(f => f.endsWith('.js')).sort().map(f => ['src/assets/sets/' + f, 'src/assets/sets/' + f]),
@@ -351,7 +352,7 @@ const SAY = { 'README.md': 'start here: what the package holds, which page to re
   'my-3d2dge.js': 'the full engine, readable: the core and every module', 'my-3d2dge-agent.js': 'the agent edition: the essential engine, its header a short manual',
   'API.md': 'the API card: read it whole', 'API-INDEX.md': 'every public name, one line each: search it', 'AI_GUIDE.md': 'the guide: recipes, the look, heights, sessions',
   'tools/check.mjs': 'plays a game headless and reports errors, screenshots and its snapshot', 'tools/filmstrip.mjs': 'records frames into one picture',
-  'tools/replay.mjs': 'replays a recorded play session exactly', 'game/index.html': 'the template game: play it', 'game/game.js': 'the template game: copy it',
+  'tools/replay.mjs': 'replays a recorded play session exactly', 'tools/lines.mjs': 'a page\'s words: puts the engine\'s lines in its game-lines block, --check checks it as the AI Hub will', 'tools/lines-scan.mjs': 'plays a page in the test language en-XA and lists words not from its lines', 'docs/LANGUAGES.md': 'every word a line: a game in the player\'s own language', 'game/index.html': 'the template game: play it', 'game/game.js': 'the template game: copy it',
   'game/test.mjs': 'its headless test: node game/test.mjs', 'docs/ASSETS.md': 'the asset card: objects and materials as data (r.shape), the core library, writing one',
   'tools/asset-find.mjs': 'searches the core library and the store: node tools/asset-find.mjs "tavern table"', 'tools/asset-sheet.mjs': 'draws an object in every view and says what reads badly',
   'tools/asset-set.mjs': 'cuts the few entries a game uses from the store\'s sets', 'tools/asset-lib.mjs': 'shared by the asset tools' };

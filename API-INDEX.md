@@ -224,6 +224,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.VIEW_ORDER: iso, threequarter, topdown, brawler, side`: the order game.nextView() cycles through when a game doesn't set game.views ('overhead' is left out)
 - `new E.View(id, label, yaw, pitch, scale = 1, zBoost = 1) → view`: new E.View(id, label, yaw, pitch, scale, zBoost): an orthographic camera (degrees; scale = screen pixels per world unit; zBoost stretches heights)
 - `view.depth(x, y, z = 0)`: true camera depth: use it to sort parts inside one object
+- `view.label` †: its name for people, in the player's language where the engine has a line for it (engine.view.<id>: the standard views'); a label of a view's own stays as given
 - `view.order(x, y, z = 0)`: painter's order for whole objects standing on the ground
 - `view.p(x, y, z = 0)`: world -> projected screen pixels (not yet camera-relative)
 - `view.screenDirToGround(dx, dy)`: a direction the player pushed on screen (x right, y down) -> normalized ground direction
@@ -237,7 +238,6 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `view.inv`: the inverse of the ground projection (screen -> ground at z 0), null in side views
 - `view.isSide`: a side view (pitch 1 or less: x right, z up, y is depth)
 - `view.isTop`: looking straight down (pitch 89 or more)
-- `view.label`: its name for people ('Isometric')
 - `view.pitch`, `view.yaw`: the same angles in radians
 - `view.pitchDeg`: the tilt, 0 side view to 90 straight down
 - `view.scale`: screen pixels per world unit
@@ -369,34 +369,34 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 6b. Languages
 
-- `E.lang`
-- `E.lang.asked`
-- `E.lang.available`
-- `E.lang.big`
+- `E.lang`: the player's language: the page's lines and translations, the language chosen, E.t's work (see the section's header)
+- `E.lang.asked`: the address's ?lang=, or null
+- `E.lang.available`: the languages the page has, its own first
+- `E.lang.big`: true when the language's text needs the device's font (lines grow to fit it: section 6)
 - `E.lang.choose(code)`: the player picks a language (the Language menu): kept under 'lang:' + the page's path, and the page starts again in it. Headless (no page to reload) it changes at once
-- `E.lang.code`: the language shown ('en', 'es-419', or a test language); source: the game's own; dir: 'ltr' | 'rtl'; available: the languages the page has, its own first; test: true in a test language; asked: the address's ?lang= (or null); big: true when the language's text needs the device's font (lines grow to fit it: section 6)
-- `E.lang.compare(a, b)`
+- `E.lang.code`: the language shown ('en', 'es-419', or a test language)
+- `E.lang.compare(a, b)`: names sorted in the player's language: list.sort(E.lang.compare)
 - `E.lang.control(a)`: the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a function of your own for a game without E.Game's input
-- `E.lang.date(d, o)`
-- `E.lang.dir`
+- `E.lang.date(d, o)`: a date in the player's language (o: Intl.DateTimeFormat's)
+- `E.lang.dir`: 'ltr' | 'rtl', the language's direction (set it where text is drawn: the fonts and E.Dialog do)
 - `E.lang.engine(lines)`: an engine part's own lines (the 3D engine's, a module's), English by id: engineLines() lists them with the rest
 - `E.lang.engineLines()`: the engine's own lines by id, in English: put them in the page's game-lines block (tools/lines.mjs does) for the translation step to translate the menus with the game
 - `E.lang.fake(line, max, code = this.code)`: a test language's line, made from the game's own before its blanks are filled: accented and longer in brackets (en-XA, exactly max wide when there is one), Chinese characters without spaces (zh-XC), Arabic letters (ar-XB)
 - `E.lang.fillPage(root = typeof document !== 'undefined' ? document : null)`: HTML in the page with data-line="id" gets its line (and the direction); call it once the page has loaded
 - `E.lang.has(id)`: true when the game's lines (or the engine's) have this id
 - `E.lang.letters(s)`: whole letters in s, tags left out (a Chinese, Japanese or Korean character is one)
-- `E.lang.list(a, o)`
+- `E.lang.list(a, o)`: a list joined in the player's language: list(['Pip', 'Vex', 'Lynx']) is 'Pip, Vex, and Lynx' in English
 - `E.lang.load(o)`: read the page's two blocks and choose the language (the first E.t does it; call it again after changing them). o, in place of the page and the address (Node, tests): { lines: a game-lines object, translations, lang }
 - `E.lang.name(code)`: a language's name in that language, for the Language menu: Español latinoamericano, 繁體中文
-- `E.lang.num(n, o)`: a number, date or list in the player's language: num(12500) is 12,500 in English, 12.500 in German
-- `E.lang.offer`
+- `E.lang.num(n, o)`: a number in the player's language: num(12500) is 12,500 in English, 12.500 in German (o: Intl.NumberFormat's)
+- `E.lang.offer()`: true when the Language menu should offer a choice: the page has two languages or more and the address names none (with ?lang= the hub's own menu is in charge)
 - `E.lang.pick(available, asked = this.asked, quiet = false)`: the language to show among available: asked (?lang=), then the player's saved choice, the browser's languages, the game's own. A code matches in full, then the same language in the same writing, then the same language (a browser set to zh-TW gets zh-Hant before zh-Hans; es-MX gets es-419). quiet: neither storage nor the browser (Node, tests)
 - `E.lang.pieces(line, by)`: what a typewriter reveals one step at a time: whole letters (whole words in Arabic script), a {tag} one step of its own. by: 'grapheme' or 'word' to choose
-- `E.lang.source`
+- `E.lang.source`: the game's own language (its game-lines block's)
 - `E.lang.sourceLength(text)`: the original line's letter count for text E.t gave in another language (E.Dialog types it over the original's time), or 0
 - `E.lang.t(id, values, fallback)`: a line in the player's language: E.t('hud.lives', { count: 3 }). values fill its {blanks} (a number in the language's format, wrapped in Unicode isolates in a right-to-left language); {count} picks a plural form ({ zero, one, two, few, many, other }); {key:jump} is the key or button that does jump on the device in use; other tags ({c=#hex}, {w=.5}) stay for E.Dialog. A translation missing, empty or broken shows the game's own line (Critical), an id in neither the game's lines nor the engine's shows fallback, else the id itself
-- `E.lang.test`
-- `E.lang.upper(s)`: capitals in the player's language (Turkish i is İ); compare(a, b): names sorted in it
+- `E.lang.test`: true in a test language (en-XA, zh-XC, ar-XB)
+- `E.lang.upper(s)`: capitals in the player's language (Turkish i is İ)
 - `E.lang.width(line)`: a line's width for max: whole letters, a Chinese, Japanese or Korean character counting two; tags count nothing
 - `E.t(id, values, fallback)`: E.t(id, values): E.lang.t, a line in the player's language
 

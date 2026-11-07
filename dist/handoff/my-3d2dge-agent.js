@@ -165,7 +165,13 @@ Pixels (g is a canvas context from r.queue, r.overlay or r.actor): E.px.rect(g, 
 Sprites: const COIN = E.sprite(['.yy.', 'yYYy', '.yy.'], { y: '#f0b020', Y: '#fff0a0' }, scale); '.' and ' ' are clear
 Text: E.font.text(g, str, x, y, color, { outline: '#0b0814' | false, shadow, gradient: [top, bottom], scale, align, wrap: px })
   -> { w, h }; E.font.title(g, str, x, y, { scale: 3, colors: [top, ..., bottom], depth, align }); E.font.width(str, opts),
-  lineHeight(opts), wrap(str, px). A 5x7 font with lower case, accents and every symbol label() returns (✕ ○ □ △)
+  lineHeight(opts), wrap(str, px). A 5x7 font with lower case, accents and every symbol label() returns (✕ ○ □ △); a
+  letter it lacks (Chinese, Arabic, Hindi) is drawn with the device's font
+Words as lines (AI Hub Languages v1; docs/LANGUAGES.md): keep every word players read in the page's <head> as <script
+  type="application/json" id="game-lines">{"version": 1, "language": "en", "lines": {"hud.score": "Score {points}"}}</script>
+  and show it with E.t('hud.score', { points }): {blanks} filled, plural forms by {count} ({ one, other }), {key:jump}
+  the player's key. A translation step adds languages later; ?lang=en-XA, zh-XC or ar-XB test a game. E.lang: code,
+  dir, upper(s), num(n), load({ lines }) (headless). Lay text out by lineHeight() and width(), not counted pixels
 UI (draw inside r.overlay): E.ui.box(g, x, y, w, h, { bg, border, alpha }), E.ui.bar(g, x, y, w, h, 0..1, color),
   E.ui.hearts(g, x, y, hp, max) (halves allowed)
   const talk = new E.Dialog(game); talk.say(['Page one.', 'Page two.'], { name: 'ELDER', choices: ['YES', 'NO'],
@@ -985,11 +991,22 @@ const LANG_INTL = (k, lang, o) => { const c = LANG_INTL.c || (LANG_INTL.c = new 
 /** the engine's own words by id, in English: each part that shows words adds its own where it is written (the menus, the
  *  saves, the notes, the key names); E.lang.engineLines() lists them */
 const ENGINE_LINES = {};
+/** the player's language: the page's lines and translations, the language chosen, E.t's work (see the section's header) */
 E.lang = {
-  /** code: the language shown ('en', 'es-419', or a test language); source: the game's own; dir: 'ltr' | 'rtl'; available:
-   *  the languages the page has, its own first; test: true in a test language; asked: the address's ?lang= (or null);
-   *  big: true when the language's text needs the device's font (lines grow to fit it: section 6) */
-  code: 'en', source: 'en', dir: 'ltr', available: ['en'], test: false, asked: null, big: false,
+  /** code: the language shown ('en', 'es-419', or a test language) */
+  code: 'en',
+  /** source: the game's own language (its game-lines block's) */
+  source: 'en',
+  /** dir: 'ltr' | 'rtl', the language's direction (set it where text is drawn: the fonts and E.Dialog do) */
+  dir: 'ltr',
+  /** available: the languages the page has, its own first */
+  available: ['en'],
+  /** test: true in a test language (en-XA, zh-XC, ar-XB) */
+  test: false,
+  /** asked: the address's ?lang=, or null */
+  asked: null,
+  /** big: true when the language's text needs the device's font (lines grow to fit it: section 6) */
+  big: false,
   _src: { lines: {} }, _tr: {}, _table: {}, _loaded: false, _len: new Map(),
   /** read the page's two blocks and choose the language (the first E.t does it; call it again after changing them).
    *  o, in place of the page and the address (Node, tests): { lines: a game-lines object, translations, lang } */
@@ -1033,7 +1050,7 @@ E.lang = {
   },
   /** true when the Language menu should offer a choice: the page has two languages or more and the address names none
    *  (with ?lang= the hub's own menu is in charge) */
-  get offer() { this._ensure(); return this.available.length > 1 && !this.asked; },
+  offer() { this._ensure(); return this.available.length > 1 && !this.asked; },
   /** true when the game's lines (or the engine's) have this id */
   has(id) { this._ensure(); return LANG_OK(LANG_OWN(this._src.lines, id)) || LANG_OK(LANG_OWN(ENGINE_LINES, id)); },
   /**
@@ -1106,12 +1123,15 @@ E.lang = {
     try { localStorage.setItem('lang:' + location.pathname, code); } catch (e) { /* storage blocked: this visit only */ }
     try { location.reload(); } catch (e) { this.load(); }
   },
-  /** a number, date or list in the player's language: num(12500) is 12,500 in English, 12.500 in German */
+  /** a number in the player's language: num(12500) is 12,500 in English, 12.500 in German (o: Intl.NumberFormat's) */
   num(n, o) { this._ensure(); const f = LANG_INTL('NumberFormat', this.code, o); return f ? f.format(n) : String(n); },
+  /** a date in the player's language (o: Intl.DateTimeFormat's) */
   date(d, o) { this._ensure(); const f = LANG_INTL('DateTimeFormat', this.code, o); return f ? f.format(d) : String(d); },
+  /** a list joined in the player's language: list(['Pip', 'Vex', 'Lynx']) is 'Pip, Vex, and Lynx' in English */
   list(a, o) { this._ensure(); const f = LANG_INTL('ListFormat', this.code, o || { type: 'conjunction' }); return f ? f.format(a.map(String)) : a.join(', '); },
-  /** capitals in the player's language (Turkish i is İ); compare(a, b): names sorted in it */
+  /** capitals in the player's language (Turkish i is İ) */
   upper(s) { this._ensure(); try { return String(s).toLocaleUpperCase(this.test ? 'en' : this.code); } catch (e) { return String(s).toUpperCase(); } },
+  /** names sorted in the player's language: list.sort(E.lang.compare) */
   compare(a, b) { this._ensure(); try { return String(a).localeCompare(String(b), this.test ? 'en' : this.code); } catch (e) { return a < b ? -1 : a > b ? 1 : 0; } },
   /** HTML in the page with data-line="id" gets its line (and the direction); call it once the page has loaded */
   fillPage(root = typeof document !== 'undefined' ? document : null) { if (!root) return; for (const el of root.querySelectorAll('[data-line]')) { el.textContent = this.t(el.dataset.line); el.dir = this.dir; } },

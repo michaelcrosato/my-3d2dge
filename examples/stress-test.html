@@ -267,7 +267,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
  *    (coins, bullets, icons) can be pixel sprites written as strings: E.sprite().
  * 4. PIXEL RULES. Draw with E.px (rect, line, disc, ell, poly, sprite...). Every shape
  *    snaps to whole pixels. Never use ctx.arc / ctx.stroke / ctx.fillText on the game
- *    buffer: they anti-alias and break the look. Translucency and glow go through
+ *    buffer: they anti-alias and break the look (E.font alone uses fillText, for letters its
+ *    glyphs lack: readable text in the player's language comes first). Translucency and glow go through
  *    px.blend / polyDither / ddisc / r.glowDisc: stepped alpha and blend modes like PS1
  *    hardware (E.style.trans = 'dither' switches to NES / Genesis style dithering).
  * 5. FRAME ORDER (handled by the Renderer):
@@ -290,6 +291,11 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
  *    new E.Dialog(game) (markup: {c=#hex}, {w=.5}, {s=12}, {shake}, {wave}, {$name}), new E.Menu(game, items). An HTML
  *    interface (title, pause, settings, help, results, map screens and a HUD with a minimap) from data: new E.Shell(game,
  *    {...}) (21d). Save slots: game.saves (10k).
+ * 8c. LANGUAGES (AI Hub Languages v1; docs/LANGUAGES.md, 6b). Every word a player reads is a line: the page's
+ *    <script type="application/json" id="game-lines"> block, shown with E.t('hud.lives', { count }) (whole sentences with
+ *    {blanks}, plural forms by {count}, {key:jump} for the player's key). A translation step adds a game-translations
+ *    block; the language follows ?lang=, the Language menu, the browser. The fonts draw what they lack with the device's
+ *    font; ?lang=en-XA, zh-XC, ar-XB test a game. Lay text out with E.font.lineHeight() and width(), never counted pixels.
  * 8a. STANDARD FEATURES come with every game (10b): a pause menu with settings and controls the player rebinds, saved
  *    per game (game.settings), full screen (game.fullscreen; a phone's first tap), pausing when the page is hidden, and
  *    input.label(action) for prompts, and a boot (10c): heavy setup in game.start({ boot: { steps } }) runs behind a
@@ -809,6 +815,10 @@ class View {
   /** new E.View(id, label, yaw, pitch, scale, zBoost): an orthographic camera (degrees; scale = screen pixels per
    *  world unit; zBoost stretches heights). id: its name ('iso', or yours); label: its name for people ('Isometric') */
   constructor(id, label, yaw, pitch, scale = 1, zBoost = 1) { this.id = id; this.label = label; this.set(yaw, pitch, scale, zBoost); }
+  /** label: its name for people, in the player's language where the engine has a line for it (engine.view.<id>: the
+   *  standard views'); a label of a view's own stays as given */
+  get label() { const id = 'engine.view.' + String(this.id).replace(/[^a-z0-9_]/g, '_'); return typeof E.lang !== 'undefined' && LANG_OWN(ENGINE_LINES, id) === this._label ? E.t(id) : this._label; }
+  set label(v) { this._label = v; }
   /** change the angles and scale in place (game.setView and rotateView use their own copies); returns the view */
   set(yaw, pitch, scale = 1, zBoost = 1) {
     /** yawDeg: the turn about the up axis, degrees (0: north is up the screen; iso is 45); pitchDeg: the tilt, 0
@@ -1778,11 +1788,22 @@ const LANG_INTL = (k, lang, o) => { const c = LANG_INTL.c || (LANG_INTL.c = new 
 /** the engine's own words by id, in English: each part that shows words adds its own where it is written (the menus, the
  *  saves, the notes, the key names); E.lang.engineLines() lists them */
 const ENGINE_LINES = {};
+/** the player's language: the page's lines and translations, the language chosen, E.t's work (see the section's header) */
 E.lang = {
-  /** code: the language shown ('en', 'es-419', or a test language); source: the game's own; dir: 'ltr' | 'rtl'; available:
-   *  the languages the page has, its own first; test: true in a test language; asked: the address's ?lang= (or null);
-   *  big: true when the language's text needs the device's font (lines grow to fit it: section 6) */
-  code: 'en', source: 'en', dir: 'ltr', available: ['en'], test: false, asked: null, big: false,
+  /** code: the language shown ('en', 'es-419', or a test language) */
+  code: 'en',
+  /** source: the game's own language (its game-lines block's) */
+  source: 'en',
+  /** dir: 'ltr' | 'rtl', the language's direction (set it where text is drawn: the fonts and E.Dialog do) */
+  dir: 'ltr',
+  /** available: the languages the page has, its own first */
+  available: ['en'],
+  /** test: true in a test language (en-XA, zh-XC, ar-XB) */
+  test: false,
+  /** asked: the address's ?lang=, or null */
+  asked: null,
+  /** big: true when the language's text needs the device's font (lines grow to fit it: section 6) */
+  big: false,
   _src: { lines: {} }, _tr: {}, _table: {}, _loaded: false, _len: new Map(),
   /** read the page's two blocks and choose the language (the first E.t does it; call it again after changing them).
    *  o, in place of the page and the address (Node, tests): { lines: a game-lines object, translations, lang } */
@@ -1826,7 +1847,7 @@ E.lang = {
   },
   /** true when the Language menu should offer a choice: the page has two languages or more and the address names none
    *  (with ?lang= the hub's own menu is in charge) */
-  get offer() { this._ensure(); return this.available.length > 1 && !this.asked; },
+  offer() { this._ensure(); return this.available.length > 1 && !this.asked; },
   /** true when the game's lines (or the engine's) have this id */
   has(id) { this._ensure(); return LANG_OK(LANG_OWN(this._src.lines, id)) || LANG_OK(LANG_OWN(ENGINE_LINES, id)); },
   /**
@@ -1899,12 +1920,15 @@ E.lang = {
     try { localStorage.setItem('lang:' + location.pathname, code); } catch (e) { /* storage blocked: this visit only */ }
     try { location.reload(); } catch (e) { this.load(); }
   },
-  /** a number, date or list in the player's language: num(12500) is 12,500 in English, 12.500 in German */
+  /** a number in the player's language: num(12500) is 12,500 in English, 12.500 in German (o: Intl.NumberFormat's) */
   num(n, o) { this._ensure(); const f = LANG_INTL('NumberFormat', this.code, o); return f ? f.format(n) : String(n); },
+  /** a date in the player's language (o: Intl.DateTimeFormat's) */
   date(d, o) { this._ensure(); const f = LANG_INTL('DateTimeFormat', this.code, o); return f ? f.format(d) : String(d); },
+  /** a list joined in the player's language: list(['Pip', 'Vex', 'Lynx']) is 'Pip, Vex, and Lynx' in English */
   list(a, o) { this._ensure(); const f = LANG_INTL('ListFormat', this.code, o || { type: 'conjunction' }); return f ? f.format(a.map(String)) : a.join(', '); },
-  /** capitals in the player's language (Turkish i is İ); compare(a, b): names sorted in it */
+  /** capitals in the player's language (Turkish i is İ) */
   upper(s) { this._ensure(); try { return String(s).toLocaleUpperCase(this.test ? 'en' : this.code); } catch (e) { return String(s).toUpperCase(); } },
+  /** names sorted in the player's language: list.sort(E.lang.compare) */
   compare(a, b) { this._ensure(); try { return String(a).localeCompare(String(b), this.test ? 'en' : this.code); } catch (e) { return a < b ? -1 : a > b ? 1 : 0; } },
   /** HTML in the page with data-line="id" gets its line (and the direction); call it once the page has loaded */
   fillPage(root = typeof document !== 'undefined' ? document : null) { if (!root) return; for (const el of root.querySelectorAll('[data-line]')) { el.textContent = this.t(el.dataset.line); el.dir = this.dir; } },
@@ -1996,6 +2020,7 @@ for (const c in CODE_LABELS) if (/[A-Za-z]{2}/.test(CODE_LABELS[c])) ENGINE_LINE
 for (const a of ['up', 'down', 'left', 'right', 'attack', 'dash', 'skill', 'jump', 'start', 'pause', 'confirm', 'cancel', 'sprint', 'crouch', 'interact', 'block', 'dodge', 'use', 'map', 'fire', 'bomb', 'menu']) ENGINE_LINES['engine.action.' + a] = a.charAt(0).toUpperCase() + a.slice(1);   // (the presets' actions, named on the controls screen)
 const PAD_WORDS = { 'D-pad': 'dpad', 'L stick': 'lstick', 'R stick': 'rstick', Bottom: 'bottom', Right: 'right', Left: 'left', Top: 'top', Select: 'select', Start: 'start', Home: 'home' };   // (a gamepad's words; its makers' names, A or Options, stay)
 for (const w in PAD_WORDS) ENGINE_LINES['engine.pad.' + PAD_WORDS[w]] = w;
+for (const k in E.VIEWS) ENGINE_LINES['engine.view.' + k] = E.VIEWS[k]._label;   // (the standard views' names: Isometric, Side)
 Object.assign(ENGINE_LINES, {
   'engine.key.numpad': 'Num {key}',
   // the standard menu (E.Shell's screens), its notices and the corner's button
@@ -10246,7 +10271,7 @@ class Shell {
       const keys = S.keys(g).filter(k => (k !== 'scale' || this._game.screen._fixedRes()) && (k !== 'fullscreen' || this._game.o.fullscreen !== false) && (k !== 'zoom' || !this._game._zoomStd() || this._game._zooms()) && S.spec(k).type !== 'value');
       if (!keys.length) continue;
       add(this._el('div', 'esh-k esh-sec', groupWords(g)));
-      if (g === 'Display' && E.lang.offer) { const row = this._el('div', 'esh-row'), b = this._el('button', 'esh-sel', '‹ ' + E.lang.name(E.lang.code) + ' ›'); b.onclick = () => this._languages(); row.append(this._el('span', '', ENG('shell.language')), b); add(row); }   // (the Language menu, where the page has two languages or more and the address names none)
+      if (g === 'Display' && E.lang.offer()) { const row = this._el('div', 'esh-row'), b = this._el('button', 'esh-sel', '‹ ' + E.lang.name(E.lang.code) + ' ›'); b.onclick = () => this._languages(); row.append(this._el('span', '', ENG('shell.language')), b); add(row); }   // (the Language menu: E.lang.offer())
       for (const k of keys) add(this._row(k));
     }
   }
@@ -10340,7 +10365,7 @@ class Shell {
     }
     const acts = (name === 'pause' ? [[ENG('shell.resume'), () => this.hide()]] : []).concat(v(s.actions) || [], name === 'pause' && this._std && v(this._game.o.menu && this._game.o.menu.items) || []).filter(Boolean);
     if (name === 'pause') this._pauseActs(acts);
-    if (title && E.lang.offer) acts.push([ENG('shell.language') + ': ' + E.lang.name(E.lang.code), () => this._languages()]);
+    if (title && E.lang.offer()) acts.push([ENG('shell.language') + ': ' + E.lang.name(E.lang.code), () => this._languages()]);
     if (name === 'settings' && this._std) acts.push([ENG('shell.controls'), () => this.show('controls')], [ENG('shell.restore'), () => { for (const g of SHELL_GROUPS.concat('Game')) this._game.settings.reset(g); this.show('settings'); }]);
     if (name === 'controls') acts.push([ENG('shell.restore'), () => { this._ctlI().resetBindings(); this._game.settings.reset('Controller'); this._game.settings.reset('Touch'); this._status = ENG('controls.restored'); this.show('controls'); }]);
     if (!acts.length && !title || name === 'settings' || name === 'controls') acts.push([ENG('shell.back'), () => this.back()]);
@@ -10359,7 +10384,7 @@ class Shell {
     top.focus = undefined; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
   }
   /** the Language menu: the page's languages, each in its own language (E.lang.name); a choice starts the game again in it
-   *  (E.lang.choose). The settings' Display group and a title screen offer it while E.lang.offer */
+   *  (E.lang.choose). The settings' Display group and a title screen offer it while E.lang.offer() */
   _languages() { this.show('language', { title: ENG('shell.language'), actions: E.lang.available.map(c => ({ label: E.lang.name(c), primary: c === E.lang.code, fn: () => E.lang.choose(c) })).concat([[ENG('shell.back'), () => this.back()]]) }); }
   /** the standard pause screen's buttons after Resume and the game's own: Settings, Controls, Full screen, Help, Save
    *  session (while the page is recorded: E.session), Quit */

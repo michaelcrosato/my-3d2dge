@@ -10,8 +10,10 @@
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
-import { join, extname, resolve, relative } from 'node:path';
-import { root } from './engine-lib.mjs';
+import { join, dirname, extname, resolve, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');   // (the repository, or the handoff package)
 
 const a = process.argv.slice(2), opt = (n, d) => { const i = a.indexOf('--' + n); return i >= 0 ? a[i + 1] : d; };
 const file = a.find(x => !x.startsWith('--') && !x.startsWith('#') && a[a.indexOf(x) - 1] !== '--seconds' && a[a.indexOf(x) - 1] !== '--keys' && a[a.indexOf(x) - 1] !== '--allow');
