@@ -291,6 +291,7 @@ export function render({ E, F, entries, insts }) {
   const H = E.HEIGHTS, out = [];
   out.push(`# my-3D2dge API index (v${E.version})`, '',
     `Every public name in \`engine/my-3d2dge.js\` and its modules (\`engine/modules/\`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: \`new E.Game({ expand })\`). Written by \`node tools/api-index.mjs\` from the engine itself; \`doctrine-check\` fails when a public name has no description here. Search it for a name; \`API.md\` and the agent edition's header are the overviews. † marks a name the agent edition (\`my-3d2dge-agent.js\`) doesn't have.`, '',
+    `**Real 3D is not here:** \`E.World3D\` and its names (\`world.hero\`, \`world.camera\`, \`world.track\`, \`world.flyer\`: a three.js and Rapier world under a game) are in the 3D engine's header, the 3D manual: \`engine/my-3d2dge-3d.js\` in the repository, \`my-3d2dge-3d.js\` in the handoff package. Grep it as you grep this.`, '',
     '## Units and the height rules', '',
     '| Quantity | Unit |', '| --- | --- |',
     '| Distances, positions, sizes in the world | world units: one floor tile is 16; x east, y south, z up |',

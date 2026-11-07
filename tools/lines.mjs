@@ -4,6 +4,7 @@
 //   node tools/lines.mjs <page.html>            write the engine's own lines (its menus, saves, notices: engine.* ids)
 //                                               into the page's game-lines block, keeping the game's own (a block is
 //                                               made if it has none); --modules a,b and --3d add those parts' lines
+//                                               (a page that loads the 3D engine gets its lines without --3d)
 //   node tools/lines.mjs <page.html> --check    check its blocks as the hub will: valid JSON, ids of the right shape,
 //                                               lines that are text or plural forms of text, translations with the
 //                                               original's ids and tags and each plural form their language needs
@@ -28,7 +29,7 @@ let ENGINE = null;
 export function engineAll() { if (!ENGINE) ENGINE = load().lang.engineLines(); return ENGINE; }
 /** the 3D engine's lines (its settings), read from its source as data (it needs three.js to run) */
 export function engine3dLines() {
-  const f = join(root, 'engine/my-3d2dge-3d.js'); if (!existsSync(f)) return {};   // (the handoff package has no 3D engine)
+  const f = ['engine/my-3d2dge-3d.js', 'my-3d2dge-3d.js'].map(p => join(root, p)).find(p => existsSync(p)); if (!f) return {};   // (the repository's, or the handoff package's)
   const src = readFileSync(f, 'utf8'), out = {};
   const grab = (start, end) => { const i = src.indexOf(start); if (i < 0) return null; const j = src.indexOf(end, i); return vm.runInNewContext('(' + src.slice(i + start.length - 1, j + end.length - 1) + ')'); };
   const specs = [...(grab('World3D.SETTINGS = [', '\n];') || []), grab('World3D.CONTROLS = {', '};')].filter(Boolean);
@@ -128,7 +129,7 @@ if (resolvePath(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
   if (a.includes('--engine')) { console.log(JSON.stringify(engineLines({ modules: mods.length ? mods : 'all', threeD }), null, 1)); process.exit(0); }
   const file = a.find(x => !x.startsWith('--') && x !== opt('--modules'));
   if (!file) { console.error('usage: node tools/lines.mjs <page.html> [--check] [--modules a,b] [--3d] | --engine [--3d]'); process.exit(2); }
-  const html = readFileSync(file, 'utf8');
+  const html = readFileSync(file, 'utf8'), is3d = threeD || /my-3d2dge-3d\.js/.test(html);   // (it loads the 3D engine, or inlines it)
   if (a.includes('--check')) {
     const r = check(html);
     for (const e of r.errors) console.log('error: ' + e); for (const f of r.flags) console.log('look:  ' + f);
@@ -138,7 +139,7 @@ if (resolvePath(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
   let block = null; try { block = readBlock(html); } catch (e) { console.error(file + ': its game-lines block is not valid JSON: ' + e.message); process.exit(1); }
   block = block || { version: 1, language: 'en', lines: {} };
   const own = Object.fromEntries(Object.entries(block.lines || {}).filter(([k]) => !k.startsWith('engine.')));
-  block.lines = Object.assign({}, own, engineLines({ modules: mods, threeD }));
+  block.lines = Object.assign({}, own, engineLines({ modules: mods, threeD: is3d }));
   writeFileSync(file, putBlock(html, block));
   console.log(`${file}: ${Object.keys(own).length} lines of the game's own, ${Object.keys(block.lines).length - Object.keys(own).length} of the engine's`);
 }

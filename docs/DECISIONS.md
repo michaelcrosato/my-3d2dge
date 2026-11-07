@@ -1332,6 +1332,8 @@ An entry:
   pages: then the package carries `my-3d2dge-3d.js`, `vendor/` and the 3D kits the same way.
 - **Answered:** no: made at once as a reversible call (F7.3's theme named both ways), flagged in its pull request
 - **Landed in:** v0.85.0
+- **Superseded in part by D85** (v0.91.0): builders couldn't find the 3D engine (F9), so the package carries it,
+  `vendor/`, every 3D kit readable and a 3D template; the 2D half stands.
 
 ## D74 · 2026-10-30 · A kit's card says its engine is the kit's, and its quick start is the kit's game where the card's can't run
 
@@ -1522,3 +1524,32 @@ An entry:
   then prefer for it.
 - **Answered:** yes: the owner's goal (2026-11-07), and the hub's spec
 - **Landed in:** v0.90.0
+
+## D85 · 2026-11-07 · The handoff package carries the 3D engine, and opens with a map
+
+- **Principle:** 1 (agent-readable: an agent builds from what it is handed) and 3 (verifiable without a display); D73's
+  "what would change it"; F9 in `docs/FEEDBACK-LOG.md` (builders find the 3D engine hard to find)
+- **Call:** `dist/handoff/` carries the 3D engine beside the 2D one (`my-3d2dge-3d.js`), the libraries it loads byte for
+  byte with their licences (`vendor/`), each 3D kit's game readable with a page that plays it on the package's engines
+  (`kits/3d-<id>.js` and `.html`, the site's own names; their import maps relative, written from the 3D starter's), and
+  a 3D template game (`game3d/`, written from the 3D manual's quick start). `tools/check.mjs` serves a page that loads
+  ES modules (from the repository or the package it sits in) and plays it on WebGL 2, waiting out its boot, and measures
+  a game whose canvas is clear from its screenshot; `tools/lines.mjs` finds the package's 3D engine and a 3D page by
+  itself. The package's README opens with a map (what to open for what), then 2D or 3D, the steps (the 3D manual the
+  second read for a 3D game) and its files by kind; `kits/README.md` has a table for each; the index page groups its
+  files; `API-INDEX.md` and the card say where a 3D name is (the index holds none: a search for `World3D` there found
+  nothing). `tools/kit3d-test.mjs` holds it (3f): each 3D kit of the package plays from its deep link, loads only the
+  package's files and gives the site kit's proof hash; the template plays; `vendor/` is the repository's; the check,
+  run in the package, passes a 3D page.
+- **Why:** D73 kept the 3D engine out for its 3.3 MB of libraries, pages that must be served and a check that can't see
+  a 3D picture, and named the change: a builder that wants a 3D game from the package. Builders now do, and the
+  package's pointers to the repository weren't enough: a step at the end of its README, a sentence in the kits' table,
+  and nothing in the index the README says to search. Served pages and a check that sees a 3D picture are what
+  `tools/lines-scan.mjs` and `tools/kit3d-test.mjs` already did. The cost: the package is 9.7 MB, from 5.2 (its zip 3.3 MB,
+  from 1.8); in git the libraries cost nothing, the same files as `vendor/`. A 3D kit still has no headless
+  test in Node: the 3D world bakes its textures on a page (F8.4's stand-in). What would change it: a chat that can't
+  take the zip, then `tools/handoff.mjs --zip` leaves `vendor/` and the 3D kits out on request.
+- **Answered:** yes, the ask: the owner (2026-11-07), "make the handoff directory easier to navigate; agents complain
+  the newer 3D engine is hard to find; relook at its structure and docs". The way (carry it, not point at it) is D73's
+  own, made at once as a reversible call, flagged in its pull request
+- **Landed in:** v0.91.0

@@ -3,14 +3,18 @@
 // #<id>), plays two seconds, then runs the slice's proof twice: run(600), scripted play from a seed, gives a hash of how
 // it went, the same every time. Then it plays the kit again with draw run every advance on a stand-in screen (what
 // new E.Game({ draw: true }) does): the proof's hash is the same (draw changes nothing) and no draw throws.
-// Run it: node kits/test.mjs [id ...] (every kit without one; exit code 1 on a failure).
+// Run it: node kits/test.mjs [id ...] (every 2D kit without one; exit code 1 on a failure).
 // A game copied from a kit tests the same way: a kit's code reads three of the page's globals, given stand-ins here
 // (window, addEventListener, location); drive it with game.advance and input.tap / hold, as game/test.mjs does.
+// The 2D kits only: a 3D kit (3d-<id>) builds its world on a page, so it plays in a browser, served:
+// node tools/check.mjs kits/3d-<id>.html#<id>.
 import vm from 'node:vm';
 import { readFileSync, readdirSync } from 'node:fs';
 
 const here = new URL('./', import.meta.url), read = f => readFileSync(new URL(f, here), 'utf8');
-const ids = process.argv.slice(2).length ? process.argv.slice(2) : readdirSync(here).filter(f => f.endsWith('.html')).map(f => f.slice(0, -5)).sort();
+const asked = process.argv.slice(2), three = asked.filter(id => id.startsWith('3d-'));
+if (three.length) { console.log(`${three.join(', ')}: a 3D kit plays in a browser, served (the 3D world bakes its textures on a page): ${three.map(id => `node tools/check.mjs kits/${id}.html#${id.slice(3)}`).join('; ')}`); process.exit(2); }
+const ids = asked.length ? asked : readdirSync(here).filter(f => f.endsWith('.html') && !f.startsWith('3d-')).map(f => f.slice(0, -5)).sort();
 // the kit's page in a context of its own: its scripts in its order (../my-3d2dge.js, any asset set, then the kit's game),
 // its game made with draw: true when asked (the kit's own new E.Game, given that option)
 const play = (id, draw) => {

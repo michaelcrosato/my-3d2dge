@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- The 3D template game: the 3D engine's quick start (its manual, the header of ../my-3d2dge-3d.js), on this package's
+     engines. Served, not opened from a disk (it loads ES modules): node tools/check.mjs game3d/index.html, or npx serve at
+     the package's root and open /game3d/. The scripts in order: the 2D engine (a classic script, first), the 3D engine
+     (a module), your game (a module). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>my-3D2dge 3D game</title>
+{{IMPORTMAP}}
+<style>html, body { margin: 0; height: 100%; background: #000; overflow: hidden; -webkit-user-select: none; user-select: none }
+#stage { position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none }
+#view { position: absolute; left: 0; top: 0; display: block; pointer-events: none; z-index: 0 }
+#screen { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; z-index: 1; background: transparent }</style>
+<!-- @lines -->
+</head>
+<body>
+<!-- @boot -->
+<div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen"></canvas></div>
+<script src="../my-3d2dge.js"></script>
+<script type="module" src="../my-3d2dge-3d.js"></script>
+<script type="module" src="game.js"></script>
+</body>
+</html>

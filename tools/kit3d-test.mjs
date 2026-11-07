@@ -31,13 +31,17 @@
 //      and stacked (viewport 0 on top, as the 2D layout has it: split-rows-<backend>.png)
 //   3e. first person with the cel filter, on both backends: the filtered hall and the overlay's gun are both drawn
 //      (check-output/kit3d/fps-cel-<backend>.png); a fixed camera's roll leans the way pen.at's does (its right side down)
+//   3f. the handoff package's 3D side (dist/handoff/, D85), served as the site serves it (/handoff/): each 3D kit's page
+//      starts its slice from its deep link on the package's own engines and vendor/ (nothing loaded from outside
+//      /handoff/), and its proof gives the hash the site's kit gave; the 3D template (game3d/) plays; the package's
+//      vendor/ is the repository's byte for byte; tools/check.mjs, run in the package, serves a 3D page and passes it
 //   4. on an emulated phone held upright (390 x 844 at 3x, touch): every kit starts, the 3D picture lies exactly under the
 //      game's, the touch buttons are there
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve, join, extname } from 'node:path';
 
 const root = resolve('.');
@@ -587,6 +591,39 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
     for (const e of errors) fail(`${label}: ` + e);
     await page.close();
   }
+}
+
+/* 3f. the handoff package's 3D side */
+if (existsSync(join(root, 'dist/handoff/my-3d2dge-3d.js'))) {
+  const HO = join(root, 'dist/handoff');
+  for (const f of readdirSync(join(root, 'vendor')).flatMap(d => readdirSync(join(root, 'vendor', d)).map(x => 'vendor/' + d + '/' + x)))
+    if (!existsSync(join(HO, f)) || !readFileSync(join(HO, f)).equals(readFileSync(join(root, f)))) fail(`handoff: ${f} is not the repository's byte for byte (node tools/build.mjs copies it)`);
+  // (a page of the package: no errors, and every file it loaded is the package's own, under /handoff/)
+  const open = async (path, ready, arg) => {
+    const page = await browser.newPage({ viewport: { width: 1000, height: 640 } }), errors = watch(page);
+    await page.goto(SITE + path);
+    try { await page.waitForFunction(ready, arg, { timeout: 120000 }); } catch (e) { errors.push('it did not start in 120 s'); }
+    const outside = await page.evaluate(() => performance.getEntriesByType('resource').map(e => new URL(e.name).pathname).filter(p => !p.startsWith('/handoff/') && p !== '/favicon.ico'));
+    if (outside.length) errors.push('it loaded files from outside the package: ' + [...new Set(outside)].join(', '));
+    return { page, errors };
+  };
+  for (const s of SLICES) {
+    const label = `handoff: kits/3d-${s}.html#${s}`;
+    const { page, errors } = await open(`/handoff/kits/3d-${s}.html?backend=webgl#${s}`, id => window.__game && __game.game.sceneName === id && __game.scenes[id].world.stats.frames > 2, s);
+    if (!errors.length) {
+      const h = await page.evaluate(id => __game.scenes[id].run(600), s);
+      if (hashes[s] && hashes[s].webgl && h !== hashes[s].webgl) fail(`${label}: its proof gives ${h}, the site's kit ${hashes[s].webgl} (the package's kit should be the same game)`);
+    }
+    for (const e of errors) fail(`${label}: ${e}`);
+    await page.close();
+  }
+  {
+    const { page, errors } = await open('/handoff/game3d/index.html?backend=webgl', () => window.My3D2dge && My3D2dge.current && My3D2dge.current.sceneName === 'play' && My3D2dge.World3D.worlds.some(w => w.stats.frames > 2));
+    for (const e of errors) fail(`handoff: game3d/index.html: ${e}`);
+    await page.close();
+  }
+  const c = spawnSync(process.execPath, ['tools/check.mjs', 'game3d/index.html', '--out', join(OUT, 'handoff-check')], { cwd: HO, encoding: 'utf8', env: process.env });
+  if (c.status !== 0 || !/no errors/.test(c.stdout)) fail(`handoff: node tools/check.mjs game3d/index.html, run in the package, failed (exit ${c.status}): ${(c.stdout + c.stderr).split('\n').filter(l => /error|Error|FAIL/.test(l)).join(' | ').slice(0, 500)}`);
 }
 
 /* 4. an upright phone */

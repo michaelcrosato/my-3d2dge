@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- The 3D {{LABEL}} kit, on this package's engines. Served, not opened from a disk (it loads ES modules): node
+     tools/check.mjs kits/3d-{{ID}}.html, or npx serve at the package's root and open /kits/3d-{{ID}}.html#{{ID}}. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D {{LABEL}} · my-3D2dge kit</title>
+{{IMPORTMAP}}
+<style>html, body { margin: 0; height: 100%; background: #000; overflow: hidden; -webkit-user-select: none; user-select: none }
+#stage { position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none }
+#view { position: absolute; left: 0; top: 0; display: block; pointer-events: none; z-index: 0 }
+#screen { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; z-index: 1; background: transparent }</style>
+<!-- @lines -->
+</head>
+<body>
+<!-- @boot 3D {{LABEL}} -->
+<div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen"></canvas></div>
+<script src="../my-3d2dge.js"></script>
+{{SETS}}<script type="module" src="../my-3d2dge-3d.js"></script>
+<script type="module" src="3d-{{ID}}.js"></script>
+</body>
+</html>

@@ -45,7 +45,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['labs', 'node tools/labs-test.mjs', ['src/', 'vercel.json', 'tools/labs-test.mjs']],
   ['audio', 'node tools/audio-test.mjs', ['engine/modules/songs.js', 'engine/modules/rhythm.js', 'tools/audio-test.mjs', 'tools/fixtures/audio.html']],
   ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'engine/modules/mode7.js', 'vercel.json', 'tools/stress-test.mjs']],
-  ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'vercel.json', 'API.md', 'tools/kit3d-test.mjs', 'tools/vendor-3d.mjs', 'tools/diet.mjs']]
+  ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'vercel.json', 'API.md', 'tools/kit3d-test.mjs', 'tools/vendor-3d.mjs', 'tools/diet.mjs', 'src/handoff/', 'tools/check.mjs']]
 ];
 // changes that run everything: the engine (every page and suite uses it), the build, the engine's loader (every tool's),
 // the dependencies (package.json: installs keep no lockfile, and a bump that changes only its version counts as
