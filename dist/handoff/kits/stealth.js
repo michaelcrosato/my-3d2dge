@@ -1,5 +1,5 @@
 // The STEALTH kit's game (third-person stealth and parkour: a rooftop district at dusk, guards with sight and suspicion, climbing, takedowns, an HTML HUD; Assassin's Creed, Metal Gear), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/70-stealth.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/70-stealth.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. stealth.html plays it; node kits/test.mjs stealth runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -283,13 +288,13 @@ const STEALTH = (() => {
     rig = rig || new E.Humanoid({ size: 1.2, build: 'heroic', hood: true, weapon: 'sword', bladeLen: 7, outfit: 'coat', sleeves: 'long', cape: { len: 6, width: 5, seg: 2.4 }, colors: { cloth: '#d8d2c4', coat: '#d8d2c4', cape: '#8a2a2a', capeIn: '#5a1a1a', pants: '#3a3448', metal: '#e8e8f0' } });
     attack = new E.Attack('slash', { reach: 9 }); guards = ROUTES.map(makeGuard);
     ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: it takes over from the engine's own, keeping the pause menu)
-    checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; say('Steal the ledger', 'It lies on the brick roof');
+    checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; say(E.t('stealth.goal.ledger'), E.t('stealth.toast.start'));
     game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = !!(window.matchMedia && matchMedia('(pointer: fine)').matches); L.ambient = .6; A.music(SONG); A.layer('chase', 0, .02); A.layer('alarm', 0, .02);
   }
   function respawnAt(cp) {
     Object.assign(hero, { x: cp.x, y: cp.y, z: cp.z, vx: 0, vy: 0, vz: 0, onGround: true, action: null }); hp = HP;
     guards.forEach((g, i) => { if (!g.dead) { const [x, y, z] = ROUTES[i][0]; Object.assign(g, { x: x * T, y: y * T, z, vx: 0, vy: 0, vz: 0, at: 1, stun: 0, action: null }); g.mind.reset(); g.swing.cancel(); } });
-    game.cam.snap = true; say('Back at the checkpoint');
+    game.cam.snap = true; say(E.t('stealth.toast.respawn'));
   }
   function lose() { if (checkpoint) { A.sfx('die'); respawnAt(checkpoint); } else { over = true; game.after(.8, () => game.go('over', { from: 'stealth' })); } }
   // a takedown within reach: [guard, from above] or null
@@ -322,32 +327,32 @@ const STEALTH = (() => {
     });
     // a parry: block in the last moments of a guard's wind-up
     // CONTEXT touch buttons: ATTACK says TAKE DOWN when one is in reach, BLOCK says PARRY in a guard's wind-up
-    I.touchSet('attack', !hero.action && takedown() ? 'TAKE DOWN' : null); I.touchSet('block', parrying() ? 'PARRY' : null);
+    I.touchSet('attack', !hero.action && takedown() ? E.t('stealth.touch.takedown') : null); I.touchSet('block', parrying() ? E.t('stealth.touch.parry') : null);
     if (I.pressed('block')) for (const g of guards) if (!g.dead && g.swing.phase === 'wind' && g.swing.u > .35 && Math.hypot(g.x - hero.x, g.y - hero.y) < 26) {
-      g.swing.cancel(); g.stun = 1.3; A.sfx('kick'); game.flash('#ffffff', .08); P.sparks(g.x, g.y, g.z + 18, 10, hero.facing); say('Parried');
+      g.swing.cancel(); g.stun = 1.3; A.sfx('kick'); game.flash('#ffffff', .08); P.sparks(g.x, g.y, g.z + 18, 10, hero.facing); say(E.t('stealth.toast.parried'));
     }
     hero.update(dt, map, attack.busy ? { move: [0, 0] } : I);
     if (hero.hurt) { hp--; hurtT = .4; game.shake(3); if (hp <= 0) lose(); }
     if (hero.inHazard) hero.respawn();
-    if (!ledger && E.dist(hero, LEDGER) < 12) { ledger = true; checkpoint = { x: hero.x, y: hero.y, z: hero.z }; A.sfx('powerup'); say('Checkpoint', 'The ledger is yours: now the east gate'); }
+    if (!ledger && E.dist(hero, LEDGER) < 12) { ledger = true; checkpoint = { x: hero.x, y: hero.y, z: hero.z }; A.sfx('powerup'); say(E.t('stealth.toast.checkpoint'), E.t('stealth.toast.checkpoint.text')); }
     if (ledger && !won && Math.hypot(hero.x - EXIT.x, hero.y - EXIT.y) < 14 && hero.z < 2) { won = true; A.music('victory'); results(); }
   }
 
   function results() {
     const alive = guards.filter(g => !g.dead).length, top = best('stealth', alive);
-    ui.show('results', { kicker: 'Mission complete', title: 'The ledger is out', stats: [[String(alive), 'guards who never fell'], [String(top), 'the best yet'], [String(HP - hp), 'wounds taken']],
-      actions: [{ label: 'Back to the title', primary: true, fn: () => { ui.hide(); game.go('title'); } }] });
+    ui.show('results', { kicker: E.t('stealth.results'), title: E.t('stealth.results.title'), stats: [[String(alive), E.t('stealth.results.alive')], [String(top), E.t('stealth.results.best')], [String(HP - hp), E.t('stealth.results.wounds')]],
+      actions: [{ label: E.t('stealth.results.back'), primary: true, fn: () => { ui.hide(); game.go('title'); } }] });
   }
   // the HUD, from this step's state: E.Shell redraws only what changed (keys hide by themselves on a touch screen)
   function hud() {
-    const k = a => game.input.label(a).toUpperCase(), pad = game.input.lastDevice === 'gamepad', td = !hero.action && takedown();
+    const k = a => E.lang.upper(game.input.label(a)), pad = game.input.lastDevice === 'gamepad', td = !hero.action && takedown();
     ui.hud(won || over ? {} : {
-      objective: ledger ? { step: '02 / 02', title: 'Slip out by the east gate', text: 'Down in the street, at the far end', at: { x: EXIT.x, y: EXIT.y, z: 0 }, from: hero }
-        : { step: '01 / 02', title: 'Steal the ledger', text: 'On the brick roof', at: LEDGER, from: hero },
-      status: hero.exposure === 0 ? { text: 'Hidden', color: '#9ae89a' } : alertT > 0 ? { text: 'Hunted', color: '#ff4a3a' } : hero.crouch ? 'Crouched' : null,
-      bars: [{ label: 'Health', value: hp, max: HP, kind: 'pips', color: '#e8505a' }], counts: [['Guards down', guards.filter(g => g.dead).length]],
-      prompt: touch() ? null : td ? { act: 'attack', label: 'Take down', hint: td[1] ? 'From above' : 'From behind' } : parrying() ? { act: 'block', label: 'Parry' } : null,
-      keys: [[pad ? 'STICK' : ['up', 'left', 'down', 'right'].map(k).join(''), 'Move'], [k('sprint'), 'Sprint'], [k('jump'), 'Jump, climb'], [k('crouch'), 'Crouch'], [k('attack'), 'Strike'], [k('block'), 'Block'], [k('dodge'), 'Roll']]
+      objective: ledger ? { step: '02 / 02', title: E.t('stealth.goal.gate'), text: E.t('stealth.goal.gate.text'), at: { x: EXIT.x, y: EXIT.y, z: 0 }, from: hero }
+        : { step: '01 / 02', title: E.t('stealth.goal.ledger'), text: E.t('stealth.goal.ledger.text'), at: LEDGER, from: hero },
+      status: hero.exposure === 0 ? { text: E.t('stealth.status.hidden'), color: '#9ae89a' } : alertT > 0 ? { text: E.t('stealth.status.hunted'), color: '#ff4a3a' } : hero.crouch ? E.t('stealth.status.crouched') : null,
+      bars: [{ label: E.t('stealth.hud.health'), value: hp, max: HP, kind: 'pips', color: '#e8505a' }], counts: [[E.t('stealth.hud.down'), guards.filter(g => g.dead).length]],
+      prompt: touch() ? null : td ? { act: 'attack', label: E.t('stealth.prompt.takedown'), hint: E.t(td[1] ? 'stealth.prompt.above' : 'stealth.prompt.behind') } : parrying() ? { act: 'block', label: E.t('stealth.prompt.parry') } : null,
+      keys: [[pad ? E.t('stealth.key.stick') : ['up', 'left', 'down', 'right'].map(k).join(''), E.t('stealth.key.move')], [k('sprint'), E.t('stealth.key.sprint')], [k('jump'), E.t('stealth.key.jump')], [k('crouch'), E.t('stealth.key.crouch')], [k('attack'), E.t('stealth.key.strike')], [k('block'), E.t('stealth.key.block')], [k('dodge'), E.t('stealth.key.roll')]]
     });
   }
 
@@ -385,7 +390,7 @@ const STEALTH = (() => {
     const shadow = b => r.shadow(b.x, b.y, 6, .35, undefined, map.groundAt(b.x, b.y, b.r, b.z));
     shadow(hero); r.actor(hero.x, hero.y, hero.z, (g, ox, oy) => rig.draw(g, ox, oy, r.view), { xray: { actors: true }, flash: hurtT > 0, alpha: hero.exposure === 0 ? .55 : 1 });
     for (const g of guards) { shadow(g); r.actor(g.x, g.y, g.z, (gg, ox, oy) => g.rig.draw(gg, ox, oy, r.view), { flash: g.stun > 0 && Math.floor(game.time * 10) % 2 === 0 }); }
-    r.marker(ledger ? EXIT.x : LEDGER.x, ledger ? EXIT.y : LEDGER.y, ledger ? 0 : LEDGER.z, { label: ledger ? 'EAST GATE' : 'LEDGER', color: ledger ? '#80e0ff' : '#ffd040' });
+    r.marker(ledger ? EXIT.x : LEDGER.x, ledger ? EXIT.y : LEDGER.y, ledger ? 0 : LEDGER.z, { label: E.t(ledger ? 'stealth.marker.gate' : 'stealth.marker.ledger'), color: ledger ? '#80e0ff' : '#ffd040' });
     r.overlay(g => {
       for (const gd of guards) if (!gd.dead && gd.mind.state !== 'calm') {   // ? and ! over their heads, with the meter
         const [sx, sy] = r.w(gd.x, gd.y, gd.z + 46), a = gd.mind.state === 'alert';

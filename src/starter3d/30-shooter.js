@@ -71,15 +71,17 @@ const SHOOT = (() => {
     const k = .9 + f * .2; out[0] = r * k; out[1] = g * k; out[2] = b * k; return out;
   }
   /* the outposts: where each is meant to be, moved at boot to the flattest ground near there; DROP POINT (the start)
-     is the firing range. r: the pad's radius (metres) */
+     is the firing range. r: the pad's radius (metres); name: its line (shooter3d.outpost.<id>) */
   const OUTPOSTS = [
-    { id: 'drop', name: 'DROP POINT', at: [1030, 1560], r: 44 },
-    { id: 'relay', name: 'RELAY STATION', at: [610, 1010], r: 44 },
-    { id: 'salvage', name: 'SALVAGE YARD', at: [1480, 1230], r: 50 },
-    { id: 'pump', name: 'PUMP HOUSE', at: [1010, 600], r: 44 },
-    { id: 'ridge', name: 'RIDGE CAMP', at: [430, 1520], r: 40 },
-    { id: 'depot', name: 'THE DEPOT', at: [1580, 620], r: 50 }
+    { id: 'drop', name: E.t('shooter3d.outpost.drop'), at: [1030, 1560], r: 44 },
+    { id: 'relay', name: E.t('shooter3d.outpost.relay'), at: [610, 1010], r: 44 },
+    { id: 'salvage', name: E.t('shooter3d.outpost.salvage'), at: [1480, 1230], r: 50 },
+    { id: 'pump', name: E.t('shooter3d.outpost.pump'), at: [1010, 600], r: 44 },
+    { id: 'ridge', name: E.t('shooter3d.outpost.ridge'), at: [430, 1520], r: 40 },
+    { id: 'depot', name: E.t('shooter3d.outpost.depot'), at: [1580, 620], r: 50 }
   ];
+  const HELD = 5;   // the outposts the raiders hold (all but the drop point): clear them all to win
+  const num = n => E.lang.num(n, { useGrouping: false });   // a number in the player's digits, ungrouped (1090M, as English shows it)
   const OP = Object.fromEntries(OUTPOSTS.map(o => [o.id, o]));
   const ROADS = [['drop', 'relay'], ['drop', 'salvage'], ['relay', 'pump'], ['pump', 'depot'], ['salvage', 'depot'], ['relay', 'ridge'], ['ridge', 'drop']];
   const roads = [];   // each a list of [m, n, h] every 6 m
@@ -1019,9 +1021,9 @@ const SHOOT = (() => {
    * (part of it comes back when you stop), damage that falls off with range, shields before health, headshots
    * ===================================================================== */
   const WEAPONS = {
-    rifle: { name: 'RANGER AR', mag: 28, reserve: 196, rate: 13, auto: true, pellets: 1, dmg: 14, head: 1.75, far: 260 * M, fall: [45 * M, 140 * M, .72], hip: .03, adsSpread: .0025, bloom: .004, maxBloom: .03,
+    rifle: { name: E.t('shooter3d.weapon.rifle'), mag: 28, reserve: 196, rate: 13, auto: true, pellets: 1, dmg: 14, head: 1.75, far: 260 * M, fall: [45 * M, 140 * M, .72], hip: .03, adsSpread: .0025, bloom: .004, maxBloom: .03,
       kick: [.0105, .0046], fore: 6.2, adsFov: 50, reload: 1.75, reloadEmpty: 2.35, sound: 'ar', shake: .9, punch: 1.1 },
-    shotgun: { name: 'BREACHER', mag: 6, reserve: 30, rate: 1.25, auto: false, pellets: 9, dmg: 11, head: 1.3, far: 70 * M, fall: [8 * M, 24 * M, .35], hip: .075, adsSpread: .052, bloom: 0, maxBloom: 0,
+    shotgun: { name: E.t('shooter3d.weapon.shotgun'), mag: 6, reserve: 30, rate: 1.25, auto: false, pellets: 9, dmg: 11, head: 1.3, far: 70 * M, fall: [8 * M, 24 * M, .35], hip: .075, adsSpread: .052, bloom: 0, maxBloom: 0,
       kick: [.055, .012], fore: 7.3, adsFov: 62, shell: .5, sound: 'sg', shake: 3, punch: 4.5 }
   };
   // the rifle's recoil: up each shot, side to side in a fixed pattern (learnable), then a wander
@@ -1115,7 +1117,7 @@ const SHOOT = (() => {
   /** a raider down: it falls the shot's way, drops loot, counts toward its outpost */
   function kill(e, d) {
     e.alive = false; e.b.move = 'dead'; e.b.dead = { t: 0, dir: Math.atan2(d[1], d[0]) + (rnd() - .5) * .6, g: e.a.z }; e.a.setSolid(false); e.a.vx = e.a.vy = 0;
-    e.deadT = 0; A.sfx('kill'); S.kills++; S.feed.unshift({ text: (e.dummy ? 'TARGET' : e.heavy ? 'HEAVY RAIDER' : 'RAIDER') + ' DOWN', t: 4 }); S.feed.length = Math.min(S.feed.length, 4);
+    e.deadT = 0; A.sfx('kill'); S.kills++; S.feed.unshift({ text: E.t(e.dummy ? 'shooter3d.feed.target_down' : e.heavy ? 'shooter3d.feed.heavy_down' : 'shooter3d.feed.raider_down'), t: 4 }); S.feed.length = Math.min(S.feed.length, 4);
     if (!e.dummy) {
       dropLoot(e.a.x, e.a.y, e.a.z, rnd() < .55 ? 'ammo_' + (rnd() < .7 ? 'r' : 's') : 'cell');
       const o = OP[e.op]; o.left--; if (o.left === 0) outpostCleared(o);
@@ -1397,7 +1399,7 @@ const SHOOT = (() => {
       if (d) startAct('kick', .72); else { startAct('melee', .55); A.sfx('swing'); const e = raiders.find(q => q.alive && Math.hypot(q.a.x - hero.x, q.a.y - hero.y) < 4.6 * M && Math.abs(q.a.z - hero.z) < 20 && Math.cos(Math.atan2(q.a.y - hero.y, q.a.x - hero.x) - S.yaw) > .75); if (e) S.lunge = { e, t: .085 }; }
     }
     if (I.pressed('grenade') && S.nades > 0 && !S.act && !busyMove) { I.use('grenade'); startAct('throw', .78); A.sfx('pin'); }
-    if (I.pressed('view')) { I.use('view'); S.view = S.view === 'first' ? 'third' : 'first'; game.note(S.view === 'first' ? 'FIRST PERSON' : 'THIRD PERSON', 1.2); }
+    if (I.pressed('view')) { I.use('view'); S.view = S.view === 'first' ? 'third' : 'first'; game.note(E.t(S.view === 'first' ? 'shooter3d.note.first_person' : 'shooter3d.note.third_person'), 1.2); }
   }
   /** where a shot leaves from in third person: the camera's ray, begun level with the player (nothing behind them hit) */
   function tpsOrigin(c) { const F = frameYP([c.x, c.y, c.z], S.yaw, S.pitch), d = dot(sub([hero.x, hero.y, hero.z + S.eye], [c.x, c.y, c.z]), F.f); return add([c.x, c.y, c.z], F.f, Math.max(0, d)); }
@@ -1589,11 +1591,14 @@ const SHOOT = (() => {
     S.hitDirs.push({ a: Math.atan2(fy - hero.y, fx - hero.x), t: 1.3 }); if (S.hitDirs.length > 6) S.hitDirs.shift();
     A.sfx(toS > 0 && S.shield > 0 ? 'shieldhit' : toS > 0 ? 'shieldbreak' : 'ouch', { vol: .9 }); S.punchR.v += (rnd() - .5) * 12; S.punchP.v += 4;
     pb.hit[0] += (hero.x - fx) * .02; pb.hit[1] += (hero.y - fy) * .02;
-    if (S.hp <= 0) { S.hp = 0; S.alive = false; S.lost = true; pb.move = 'dead'; pb.dead = { t: 0, dir: Math.atan2(hero.y - fy, hero.x - fx), g: hero.z }; S.view = 'third'; game.after(2.6, () => game.go('over', { from: 'shooter', world, lines: ['RAIDERS DOWN ' + S.kills + '   OUTPOSTS ' + S.cleared + ' OF 5'] })); }
+    if (S.hp <= 0) { S.hp = 0; S.alive = false; S.lost = true; pb.move = 'dead'; pb.dead = { t: 0, dir: Math.atan2(hero.y - fy, hero.x - fx), g: hero.z }; S.view = 'third'; game.after(2.6, () => game.go('over', { from: 'shooter', world, lines: [E.t('shooter3d.over.lost', { kills: num(S.kills), cleared: S.cleared, total: HELD })] })); }
   }
   function outpostCleared(o) {
-    S.cleared++; S.banner = { text: o.name + ' CLEARED', sub: S.cleared + ' OF 5 OUTPOSTS', t: 3.5 }; A.sfx('secret');
-    if (S.cleared >= 5 && !S.won) { S.won = true; game.after(4, () => game.go('over', { from: 'shooter', world, won: true, title: 'AREA SECURED', lines: ['RAIDERS DOWN ' + S.kills, 'TIME ' + Math.floor(S.time / 60) + ':' + String(Math.floor(S.time % 60)).padStart(2, '0')] })); }
+    S.cleared++; S.banner = { text: E.t('shooter3d.banner.cleared', { outpost: o.name }), sub: E.t('shooter3d.banner.progress', { cleared: S.cleared, total: HELD }), t: 3.5 }; A.sfx('secret');
+    if (S.cleared >= HELD && !S.won) {
+      S.won = true; const time = Math.floor(S.time / 60) + ':' + String(Math.floor(S.time % 60)).padStart(2, '0');   // (minutes:seconds)
+      game.after(4, () => game.go('over', { from: 'shooter', world, won: true, title: E.t('shooter3d.over.won'), lines: [E.t('shooter3d.over.kills', { kills: num(S.kills) }), E.t('shooter3d.over.time', { time })] }));
+    }
   }
 
   /* =====================================================================
@@ -1627,14 +1632,15 @@ const SHOOT = (() => {
       else if (!shut && d.block) { world.remove(d.block); d.block = null; }
     }
   }
-  /** what's in reach to use: a zipline, a door in front, a bin in front (for the prompt and for E) */
+  /** what's in reach to use: a zipline, a door in front, a bin in front (for the prompt and for E; what: its prompt's line,
+   *  shooter3d.use.<what>) */
   function nearUse() {
-    const z = S.move !== 'zip' ? nearZip() : null; if (z) return { zip: z, what: 'ZIPLINE' };
-    const d = doorAhead(); if (d) return { door: d, what: d.want ? 'CLOSE DOOR' : 'OPEN DOOR', kick: true };
-    const b = bins.find(q => !q.used && Math.hypot(q.x - hero.x, q.y - hero.y) < 28 && Math.abs(q.z - hero.z) < 20 && Math.cos(Math.atan2(q.y - hero.y, q.x - hero.x) - S.yaw) > .4); if (b) return { bin: b, what: 'OPEN SUPPLY BIN' };
+    const z = S.move !== 'zip' ? nearZip() : null; if (z) return { zip: z, what: 'zipline' };
+    const d = doorAhead(); if (d) return { door: d, what: d.want ? 'close_door' : 'open_door', kick: true };
+    const b = bins.find(q => !q.used && Math.hypot(q.x - hero.x, q.y - hero.y) < 28 && Math.abs(q.z - hero.z) < 20 && Math.cos(Math.atan2(q.y - hero.y, q.x - hero.x) - S.yaw) > .4); if (b) return { bin: b, what: 'bin' };
     return null;
   }
-  const LOOT = { ammo_r: ['RIFLE AMMO', '#d8b46a'], ammo_s: ['SHELLS', '#e8743a'], cell: ['SHIELD CELL', '#6ac8ff'], syringe: ['SYRINGE', '#f0f0f0'], nade: ['FRAG GRENADE', '#7aa04a'] };
+  const LOOT = { ammo_r: [E.t('shooter3d.loot.ammo_r'), '#d8b46a'], ammo_s: [E.t('shooter3d.loot.ammo_s'), '#e8743a'], cell: [E.t('shooter3d.loot.cell'), '#6ac8ff'], syringe: [E.t('shooter3d.loot.syringe'), '#f0f0f0'], nade: [E.t('shooter3d.loot.nade'), '#7aa04a'] };   // (its name, a line, and its color)
   function openBin(b) {
     b.used = true; b.want = 1; A.sfx('bin');
     const kinds = ['ammo_r', rnd() < .5 ? 'ammo_s' : 'ammo_r', 'cell', rnd() < .6 ? 'syringe' : 'cell', rnd() < .45 ? 'nade' : 'ammo_s'];
@@ -1652,7 +1658,7 @@ const SHOOT = (() => {
       else if (q.kind === 'syringe') { if (S.hp >= HP) ok = false; else S.hp = Math.min(HP, S.hp + 30); }
       else if (q.kind === 'nade') { if (S.nades >= 4) ok = false; else S.nades++; }
       if (!ok) continue;
-      loot.splice(i, 1); A.sfx(q.kind === 'cell' ? 'cellup' : 'pickup'); S.feed.unshift({ text: '+ ' + LOOT[q.kind][0], t: 2.5, c: LOOT[q.kind][1] }); S.feed.length = Math.min(S.feed.length, 4);
+      loot.splice(i, 1); A.sfx(q.kind === 'cell' ? 'cellup' : 'pickup'); S.feed.unshift({ text: E.t('shooter3d.feed.pickup', { item: LOOT[q.kind][0] }), t: 2.5, c: LOOT[q.kind][1] }); S.feed.length = Math.min(S.feed.length, 4);
       P.glints(q.x, q.y, q.z + 6, 6, LOOT[q.kind][1]);
     }
   }
@@ -1843,42 +1849,41 @@ const SHOOT = (() => {
     rect(x0, yb + 8, CW, 1, 'rgba(255,255,255,.35)');
     for (let dgr = 0; dgr < 360; dgr += 15) {
       let rel = ((dgr - BEARING(S.yaw) + 540) % 360) - 180; if (Math.abs(rel) > span / 2) continue;
-      const x = cx + rel / span * CW, lab = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' }[dgr];
-      if (lab) F.text(g, lab, x, yb, dgr === 0 ? '#ffb347' : '#ffffff', { align: 'center', outline: OL, font: 'tiny' }); else rect(x, yb + 5, 1, 3, 'rgba(255,255,255,.6)');
+      const x = cx + rel / span * CW, lab = { 0: 'n', 45: 'ne', 90: 'e', 135: 'se', 180: 's', 225: 'sw', 270: 'w', 315: 'nw' }[dgr];   // (the points' lines: shooter3d.compass.<point>)
+      if (lab) F.text(g, E.t('shooter3d.compass.' + lab), x, yb, dgr === 0 ? '#ffb347' : '#ffffff', { align: 'center', outline: OL, font: 'tiny' }); else rect(x, yb + 5, 1, 3, 'rgba(255,255,255,.6)');
     }
     for (const o of OUTPOSTS) {
       if (o.id === 'drop') continue; const a = Math.atan2(o.y - hero.y, o.x - hero.x), rel = ((BEARING(a) - BEARING(S.yaw) + 540) % 360) - 180; if (Math.abs(rel) > span / 2) continue;
       const x = cx + rel / span * CW, done = o.left === 0, d = Math.round(Math.hypot(o.x - hero.x, o.y - hero.y) / M);
-      rect(x - 1, yb + 11, 3, 3, done ? '#8a8a8a' : '#ff4a3a'); F.text(g, d + 'M', x, yb + 16, done ? '#a8a8a8' : '#ffd0c8', { align: 'center', outline: OL, font: 'tiny' });
+      rect(x - 1, yb + 11, 3, 3, done ? '#8a8a8a' : '#ff4a3a'); F.text(g, E.t('shooter3d.compass.metres', { metres: num(d) }), x, yb + 16, done ? '#a8a8a8' : '#ffd0c8', { align: 'center', outline: OL, font: 'tiny' });
     }
     F.text(g, String(Math.round(BEARING(S.yaw))), cx, yb + 24, '#ffe7a8', { align: 'center', outline: OL, font: 'tiny' });
     // shield (purple, in segments) and health, bottom left; grenades
     const bx = 8, by = H - 20, segW = 17;
     for (let i = 0; i < 4; i++) { const f = clamp((S.shield - i * 25) / 25, 0, 1); rect(bx + i * (segW + 2) - 1, by - 1, segW + 2, 6, OL); rect(bx + i * (segW + 2), by, segW, 4, '#3a2a52'); if (f > 0) rect(bx + i * (segW + 2), by, Math.round(segW * f), 4, '#b07aff'); }
     const hw = segW * 4 + 6; rect(bx - 1, by + 7, hw + 2, 6, OL); rect(bx, by + 8, hw, 4, '#4a1a1a'); rect(bx, by + 8, Math.round(hw * clamp(S.hp / HP, 0, 1)), 4, S.hp < 30 ? '#ff5a4a' : '#f0ece4');
-    F.text(g, 'G ' + S.nades, bx + hw + 6, by + 2, '#b8d890', { outline: OL, font: 'tiny' });
+    F.text(g, E.t('shooter3d.hud.grenades', { grenades: S.nades }), bx + hw + 6, by + 2, '#b8d890', { outline: OL, font: 'tiny' });
     // the gun: its name, the mag big, the rest small, the other slot; a reload's progress
     const rx = W - 8;
     F.text(g, String(am[0]), rx - 28, by - 8, am[0] === 0 ? '#ff5a4a' : am[0] <= WP.mag * .25 ? '#ffb347' : '#ffffff', { align: 'right', outline: OL, scale: 2 });
     F.text(g, '/ ' + am[1], rx, by - 2, '#c8c0b0', { align: 'right', outline: OL, font: 'tiny' });
     F.text(g, WP.name, rx, by + 8, '#ffe7a8', { align: 'right', outline: OL, font: 'tiny' });
-    F.text(g, (S.cur === 'rifle' ? '1' : '2') + ' / ' + (S.cur === 'rifle' ? WEAPONS.shotgun.name : WEAPONS.rifle.name), rx, by - 18, '#8a8478', { align: 'right', outline: OL, font: 'tiny' });
+    F.text(g, E.t('shooter3d.hud.slot', { slot: S.cur === 'rifle' ? 1 : 2, weapon: S.cur === 'rifle' ? WEAPONS.shotgun.name : WEAPONS.rifle.name }), rx, by - 18, '#8a8478', { align: 'right', outline: OL, font: 'tiny' });
     if (S.act === 'reload') { const f = clamp(S.actT / S.actDur, 0, 1); rect(rx - 60, by + 16, 60, 2, '#3a3428'); rect(rx - 60, by + 16, Math.round(60 * f), 2, '#ffe7a8'); }
     // the outposts and the feed, top right; where you are, top left
-    F.text(g, 'OUTPOSTS ' + S.cleared + '/5', W - 6, 6, '#ffe7a8', { align: 'right', outline: OL, font: 'tiny' });
+    F.text(g, E.t('shooter3d.hud.outposts', { cleared: S.cleared, total: HELD }), W - 6, 6, '#ffe7a8', { align: 'right', outline: OL, font: 'tiny' });
     S.feed.forEach((f, i) => F.text(g, f.text, W - 6, 16 + i * 8, f.c || '#ffffff', { align: 'right', outline: OL, font: 'tiny' }));
     const here = OUTPOSTS.find(o => Math.hypot(o.x - hero.x, o.y - hero.y) < (o.r + 30) * M);
-    F.text(g, here ? here.name : 'THE BADLANDS', 6, 6, here ? '#ffffff' : '#c8c0b0', { outline: OL, font: 'tiny' });
-    if (here && here.id !== 'drop') F.text(g, here.left ? here.left + ' RAIDERS LEFT' : 'CLEARED', 6, 14, here.left ? '#ff9a8a' : '#a8e0a0', { outline: OL, font: 'tiny' });
-    else if (here) F.text(g, 'FIRING RANGE: TRY THE TARGETS', 6, 14, '#c8c0b0', { outline: OL, font: 'tiny' });
+    F.text(g, here ? here.name : E.t('shooter3d.place.badlands'), 6, 6, here ? '#ffffff' : '#c8c0b0', { outline: OL, font: 'tiny' });
+    if (here && here.id !== 'drop') F.text(g, here.left ? E.t('shooter3d.hud.left', { count: here.left }) : E.t('shooter3d.hud.cleared'), 6, 14, here.left ? '#ff9a8a' : '#a8e0a0', { outline: OL, font: 'tiny' });
+    else if (here) F.text(g, E.t('shooter3d.hud.range'), 6, 14, '#c8c0b0', { outline: OL, font: 'tiny' });
     // what's in reach; the banner; the controls at first
-    if (S.near && S.alive) { const lab = game.input.label('use') + ' ' + S.near.what + (S.near.kick ? '   ' + game.input.label('melee') + ' KICK IT IN' : ''); F.text(g, lab, cx, Math.round(H * .66), '#ffffff', { align: 'center', outline: OL }); }
+    if (S.near && S.alive) F.text(g, E.t('shooter3d.use.' + S.near.what), cx, Math.round(H * .66), '#ffffff', { align: 'center', outline: OL });   // (its keys as the player's: {key:use})
     if (S.banner && S.banner.t > 0) { const k = clamp(S.banner.t, 0, 1); g.globalAlpha = k; F.title(g, S.banner.text, cx, Math.round(H * .2), { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'], depth: 2 }); F.text(g, S.banner.sub, cx, Math.round(H * .2) + 22, '#ffe7a8', { align: 'center', outline: OL }); g.globalAlpha = 1; }
     if (S.time < 10 && S.alive && !touch()) {
-      const l = a => game.input.label(a);
-      F.text(g, l('up') + l('left') + l('down') + l('right') + ' MOVE  ' + l('sprint') + ' SPRINT  ' + l('jump') + ' JUMP, VAULT, MANTLE  ' + l('crouch') + ' CROUCH, SLIDE', cx, H - 44, '#ffffff', { align: 'center', outline: OL, font: 'tiny' });
-      F.text(g, l('fire') + ' FIRE  ' + l('aim') + ' AIM  ' + l('reload') + ' RELOAD  ' + l('swap') + ' SWAP  ' + l('melee') + ' PUNCH  ' + l('grenade') + ' GRENADE  ' + l('use') + ' USE  ' + l('view') + ' 1ST/3RD', cx, H - 36, '#ffffff', { align: 'center', outline: OL, font: 'tiny' });
-      F.text(g, 'CLICK TO CAPTURE THE MOUSE', cx, H - 28, '#c8c0b0', { align: 'center', outline: OL, font: 'tiny' });
+      F.text(g, E.t('shooter3d.help.move'), cx, H - 44, '#ffffff', { align: 'center', outline: OL, font: 'tiny' });
+      F.text(g, E.t('shooter3d.help.fight'), cx, H - 36, '#ffffff', { align: 'center', outline: OL, font: 'tiny' });
+      F.text(g, E.t('shooter3d.help.mouse'), cx, H - 28, '#c8c0b0', { align: 'center', outline: OL, font: 'tiny' });
     }
     g._c = null;
   }
@@ -1925,7 +1930,8 @@ const SHOOT = (() => {
     jump: ['Space', 'Pad0'], crouch: ['KeyC', 'Pad1'], sprint: ['ShiftLeft', 'ShiftRight', 'Pad10'], fire: ['Mouse0', 'KeyJ', 'Pad7'], aim: ['Mouse2', 'KeyK', 'Pad6'],
     reload: ['KeyR', 'Pad2'], use: ['KeyE', 'KeyF', 'Pad2'], melee: ['KeyV', 'Pad11'], grenade: ['KeyG', 'Pad4'], swap: ['KeyQ', 'Digit1', 'Digit2', 'Pad3'], view: ['KeyT', 'Pad5'],
     start, pause, confirm, cancel };
-  const TOUCH = ['use', 'melee', 'swap', 'crouch', 'jump', 'aim', 'fire'], TOUCH_LABELS = { use: 'USE', melee: 'HIT', swap: 'SWAP', crouch: 'DUCK', jump: 'JUMP', aim: 'AIM', fire: 'FIRE' };
+  // the touch buttons and their labels (lines shooter3d.touch.<action>; KICK: melee's at a door)
+  const TOUCH = ['use', 'melee', 'swap', 'crouch', 'jump', 'aim', 'fire'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.t('shooter3d.touch.' + a)])), KICK = E.t('shooter3d.touch.kick');
   /** one step of the game */
   function step(dt, I) {
     if (!(dt > 0)) { ip.still = true; world.step(0); return; }   // (time stopped, timeScale 0: nothing moves)
@@ -2058,8 +2064,8 @@ const SHOOT = (() => {
     cv.addEventListener('pointermove', e => { const p = ids.get(e.pointerId); if (!p || active !== world) return; world.camera.mouse[0] += (e.clientX - p[0]) * 2.4; world.camera.mouse[1] += (e.clientY - p[1]) * 2.4; p[0] = e.clientX; p[1] = e.clientY; });
     const up = e => ids.delete(e.pointerId); addEventListener('pointerup', up); addEventListener('pointercancel', up);
   }
-  BOOT.push(['The badlands: land, roads and outposts', () => { for (const [k, v] of Object.entries(SOUNDS)) A.define(k, v); planLand(); layout(); }]);
-  BOOT.push(['The open world', () => {
+  BOOT.push([E.t('shooter3d.boot.land'), () => { for (const [k, v] of Object.entries(SOUNDS)) A.define(k, v); planLand(); layout(); }]);
+  BOOT.push([E.t('shooter3d.boot.world'), () => {
     world = new W3(game, { terrain: { size: SIZE, cell: 32, chunk: 32, height, color, far: 17000, physics: 1400, detail: 1.2, rock: { colors: ['#a8644a', '#c47e5a', '#8e523c', '#d0946a', '#b06e50', '#7a4632', '#c8885e'], band: 46, slope: [.34, .52] }, speckle: .2, mottle: .34 },
       sky: { top: '#3d6fb8', horizon: '#f2dcb4', ground: '#b49070', sun: '#fff0c8', haze: .3 }, fog: { color: '#ead4b0', near: 2200, far: 19000 },
       ambient: ['#c4d4ee', '#8a6a48', 1.55], sun: { color: '#fff0d8', intensity: 3.1, dir: [-.55, .4, -.62], area: 1150, map: 2048 },
@@ -2074,7 +2080,7 @@ const SHOOT = (() => {
     update(dt) {
       I.move = game.input.move(); world.camera.takeMouse(I.mouse); I.stick2 = game.input.padAim;
       step(dt, I);
-      const inp = game.input; inp.touchSet('use', S.near ? 'USE' : null, !!S.near); inp.touchSet('melee', S.near && S.near.kick ? 'KICK' : null, !!(S.near && S.near.kick) || raiders.some(e => e.alive && Math.hypot(e.a.x - hero.x, e.a.y - hero.y) < 5 * M));
+      const inp = game.input; inp.touchSet('use', S.near ? TOUCH_LABELS.use : null, !!S.near); inp.touchSet('melee', S.near && S.near.kick ? KICK : null, !!(S.near && S.near.kick) || raiders.some(e => e.alive && Math.hypot(e.a.x - hero.x, e.a.y - hero.y) < 5 * M));
     },
     draw(r) { world.draw(r); r.overlay(g => hud(g, r)); },
     get world() { return world; }, get hero() { return hero; }, get state() { return S; }, get raiders() { return raiders; },

@@ -31,7 +31,7 @@ const RHYTHM = (() => {
     R3: ['c..c..c.........|x..x..x.........', '.........c......|.........x......', '...........c.c..|...........x.x..', '..............c.|..............x.'],
     R4: ['c...............|x...............', '....c...c...c...|....x...x...x...', b16 + b16, '..c.............|..h=====........'] },
     order: 'I R1 R1 R2 R2 R3 R3 R4 R2 R3 R4 R4' };
-  const SONGS = [{ id: 'stepup', name: 'STEP UP', about: 'FOUR LANES: NOTES, JUMPS, HOLDS', chart: STEPUP }, { id: 'rapschool', name: 'RAP SCHOOL', about: 'MASTER BEAT RAPS, YOU ANSWER', chart: RAP, call: true }];
+  const SONGS = [{ id: 'stepup', chart: STEPUP }, { id: 'rapschool', chart: RAP, call: true }].map(s => Object.assign(s, { name: E.t('rhythm.song.' + s.id), about: E.t('rhythm.song.' + s.id + '.about') }));
 
   /* ---- 1. THE STAGE: the dancer, Master Beat, the crowd, the lights; each moves on the music's beat ---- */
   const dancer = { rig: new E.Humanoid({ size: 1.35, build: 'heroic', weapon: null, hair: 'ponytail', outfit: 'tunic', sleeves: 'none', face: { eyes: 'big' }, colors: { cloth: '#e83a8a', pants: '#2a2a4a', hair: '#ffd040', glove: '#ffffff', boot: '#ffffff', trim: '#4ac8ff' } }), pose: null, move: null, mt: 0, hurt: 0, hop: 0 };
@@ -48,8 +48,8 @@ const RHYTHM = (() => {
 
   /* ---- 2. THE GAME: the menu (two songs, calibrate), play, the results; the calibration screen ---- */
   let mode = 'menu', modeT = 0, song = null, rh = null, menuI = 0, cal = null, bot = null, beatOn = null;
-  const MENU = () => [...SONGS.map(s => [s.name, s.about]), ['CALIBRATE', 'THE AUDIO OFFSET: ' + Math.round(game.settings.audioOffset) + ' MS']];
-  const AFTER = [['RETRY', ''], ['SONGS', ''], ['TITLE', '']];
+  const MENU = () => [...SONGS.map(s => [s.name, s.about]), [E.t('rhythm.calibrate'), E.t('rhythm.calibrate.about', { ms: Math.round(game.settings.audioOffset) })]];
+  const AFTER = [[E.t('rhythm.after.retry'), ''], [E.t('rhythm.after.songs'), ''], [E.t('rhythm.after.title'), '']];
   function begin(i) {
     song = SONGS[i]; mode = 'play'; modeT = 0; cheer = 0;
     rh = new E.Rhythm(game, { song: SB.get(song.id), chart: song.chart, lanes: LANES, windows: { perfect: 45, great: 90, good: 135 }, life: .6, lead: 1.5, voice: { wave: 'square', vol: .22, dur: .11 },
@@ -154,40 +154,40 @@ const RHYTHM = (() => {
     r.overlay(g => {
       const W = r.W, H = r.H;
       if (mode === 'menu') {
-        E.font.title(g, 'STEP UP!', W / 2, 14, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ac8', '#c03a8a'], depth: 3 });
-        E.font.text(g, 'FOUR LANES, TWO SONGS, ONE GROOVE', W / 2, 52, '#ffe0f0', { align: 'center', shadow: '#000', outline: false });
+        E.font.title(g, E.t('rhythm.title'), W / 2, 14, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ac8', '#c03a8a'], depth: 3 });
+        E.font.text(g, E.t('rhythm.tagline'), W / 2, 52, '#ffe0f0', { align: 'center', shadow: '#000', outline: false });
         btns(g, buttons(MENU(), W, H)); return;
       }
       if (mode === 'calibrate') {
-        E.font.title(g, 'CALIBRATE', W / 2, 16, { align: 'center', scale: 3, colors: ['#ffffff', '#4ac8ff', '#2a5ac0'], depth: 3 });
+        E.font.title(g, E.t('rhythm.calibrate'), W / 2, 16, { align: 'center', scale: 3, colors: ['#ffffff', '#4ac8ff', '#2a5ac0'], depth: 3 });
         const b = Math.floor(A.pos.beat), on = A.pos.beat - b < .15;
         px.disc(g, W / 2, H * .45, 22, '#000000'); px.disc(g, W / 2, H * .45, 20, on ? (b % 4 === 0 ? '#ffd040' : '#ffffff') : '#2a2a4a');
-        E.font.text(g, touch ? 'TAP ON EACH CLICK YOU HEAR' : 'PRESS A LANE KEY ON EACH CLICK YOU HEAR', W / 2, H * .45 + 34, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        E.font.text(g, cal.done ? 'YOUR OFFSET: ' + cal.result + ' MS  (' + cal.taps + ' TAPS, 12 SETS IT)' : 'TAPS: ' + cal.taps + ' OF 8', W / 2, H * .45 + 48, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
-        E.font.text(g, (touch ? 'BACK' : 'ESCAPE') + ': KEEP THE OLD ONE (' + Math.round(game.settings.audioOffset) + ' MS)', W / 2, H - 50, '#a8b0d8', { align: 'center', outline: false });
+        E.font.text(g, E.t(touch ? 'rhythm.calibrate.how.touch' : 'rhythm.calibrate.how.keys'), W / 2, H * .45 + 34, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, cal.done ? E.t('rhythm.calibrate.done', { ms: String(cal.result), taps: cal.taps }) : E.t('rhythm.calibrate.taps', { taps: cal.taps }), W / 2, H * .45 + 48, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, E.t(touch ? 'rhythm.calibrate.keep.touch' : 'rhythm.calibrate.keep.keys', { ms: Math.round(game.settings.audioOffset) }), W / 2, H - 50, '#a8b0d8', { align: 'center', outline: false });
         return;
       }
       if (mode === 'results') {
         const R = rh, gr = R.failed ? 'F' : R.grade, col = { S: '#ffd040', A: '#6aff6a', B: '#4ac8ff', C: '#ffffff', D: '#a8a8b8', F: '#ff4a4a' }[gr];
-        E.font.text(g, song.name + (R.failed ? '  FAILED' : '  CLEAR!'), W / 2, 12, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, E.t(R.failed ? 'rhythm.result.failed' : 'rhythm.result.clear', { song: song.name }), W / 2, 12, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         E.font.title(g, gr, W / 2, 24, { align: 'center', scale: 6, colors: ['#ffffff', col, E.shade(col, .5)], depth: 4 });
-        const c = R.counts, lines = ['PERFECT ' + c.perfect + '   GREAT ' + c.great, 'GOOD ' + c.good + '   MISS ' + c.miss, 'MAX COMBO ' + R.maxCombo + '   SCORE ' + R.score.toLocaleString('en-US')];
+        const c = R.counts, lines = [E.t('rhythm.result.counts1', { perfect: c.perfect, great: c.great }), E.t('rhythm.result.counts2', { good: c.good, miss: c.miss }), E.t('rhythm.result.combo', { combo: R.maxCombo, score: R.score })];   // (the score in the player's language: 12,500 or 12.500)
         lines.forEach((s, i) => E.font.text(g, s, W / 2, 76 + i * 11, '#ffe7a8', { align: 'center', shadow: '#000', outline: false }));
         if (modeT > 1) btns(g, buttons(AFTER, W, H));
         return;
       }
       if (mode !== 'play' || !rh) return;
       // the score, the life gauge, the song; the combo; the last judgment over its lane's target
-      E.font.text(g, rh.score.toLocaleString('en-US'), 8, 8, '#ffffff', { shadow: '#000', outline: false, scale: 2 });
+      E.font.text(g, E.lang.num(rh.score), 8, 8, '#ffffff', { shadow: '#000', outline: false, scale: 2 });
       E.font.text(g, song.name, 8, 26, '#ffb8e0', { shadow: '#000', outline: false });
       const gw = Math.min(110, W * .3), gx = Math.min(W - gw - 8, cornerX() - gw - 8); px.rect(g, gx - 1, 9, gw + 2, 9, '#ffffff'); px.rect(g, gx, 10, gw, 7, '#1a0a2a'); px.rect(g, gx, 10, Math.round(gw * rh.life), 7, rh.life < .25 ? '#ff4a4a' : rh.life > .8 ? '#6aff6a' : '#ffd040');
-      E.font.text(g, 'LIFE', gx - 4, 10, '#ffffff', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
+      E.font.text(g, E.t('rhythm.life'), gx - 4, 10, '#ffffff', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
       if (rh.combo >= 5) E.font.title(g, String(rh.combo), Lo.hx, Lo.ty - Lo.len * .55, { align: 'center', scale: 3, colors: ['#ffffff', '#ff8ac8', '#8a2a5a'], depth: 2 });
       const L0 = rh.last;
-      if (L0 && game.time - L0.t < .45) { const word = L0.j.toUpperCase(), cl = { perfect: '#ffd040', great: '#6aff6a', good: '#4ac8ff', miss: '#ff4a4a' }[L0.j]; E.font.text(g, word, Lo.hx, Lo.ty - 30 - (game.time - L0.t) * 20, cl, { align: 'center', shadow: '#000', outline: false, scale: 2 }); }
-      if (A.pos.beat < 4) E.font.title(g, A.pos.beat < 2 ? 'READY?' : String(4 - Math.floor(A.pos.beat)), W / 2, H * .3, { align: 'center', scale: 3, colors: ['#ffffff', '#ffd040', '#a06a10'], depth: 2 });
-      if (song.call && A.pos.beat >= 4) { const bar = Math.floor(A.pos.bar); E.font.text(g, bar % 2 === 0 ? 'MASTER BEAT:' : 'YOU:', Lo.mx, Lo.dy - (Lo.tall ? 124 : 100), bar % 2 === 0 ? '#ffd040' : '#ff8ac8', { align: 'center', shadow: '#000', outline: false }); }
-      if (modeT < 6) E.font.text(g, touch ? 'TAP THE COLUMN AS A NOTE MEETS ITS RING' : 'D F J K (OR THE ARROWS) AS A NOTE MEETS ITS RING', W / 2, Lo.ty + 16, '#ffe0f0', { align: 'center', shadow: '#000', outline: false });
+      if (L0 && game.time - L0.t < .45) { const word = E.t('rhythm.judge.' + L0.j), cl = { perfect: '#ffd040', great: '#6aff6a', good: '#4ac8ff', miss: '#ff4a4a' }[L0.j]; E.font.text(g, word, Lo.hx, Lo.ty - 30 - (game.time - L0.t) * 20, cl, { align: 'center', shadow: '#000', outline: false, scale: 2 }); }
+      if (A.pos.beat < 4) E.font.title(g, A.pos.beat < 2 ? E.t('rhythm.ready') : String(4 - Math.floor(A.pos.beat)), W / 2, H * .3, { align: 'center', scale: 3, colors: ['#ffffff', '#ffd040', '#a06a10'], depth: 2 });
+      if (song.call && A.pos.beat >= 4) { const bar = Math.floor(A.pos.bar); E.font.text(g, E.t(bar % 2 === 0 ? 'rhythm.turn.master' : 'rhythm.turn.you'), Lo.mx, Lo.dy - (Lo.tall ? 124 : 100), bar % 2 === 0 ? '#ffd040' : '#ff8ac8', { align: 'center', shadow: '#000', outline: false }); }
+      if (modeT < 6) E.font.text(g, E.t(touch ? 'rhythm.how.touch' : 'rhythm.how.keys'), W / 2, Lo.ty + 16, '#ffe0f0', { align: 'center', shadow: '#000', outline: false });
     });
   }
   function btns(g, B) {

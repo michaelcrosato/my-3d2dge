@@ -6,7 +6,11 @@ import { readFileSync } from 'node:fs';
 
 const ctx = { console };
 vm.createContext(ctx);
-for (const f of ['../my-3d2dge.js', './game.js']) vm.runInContext(readFileSync(new URL(f, import.meta.url), 'utf8'), ctx, { filename: f });
+vm.runInContext(readFileSync(new URL('../my-3d2dge.js', import.meta.url), 'utf8'), ctx, { filename: '../my-3d2dge.js' });
+// the game's words: its page's game-lines block (in Node there is no page to read it from), before the game runs
+const page = readFileSync(new URL('./index.html', import.meta.url), 'utf8'), block = /<script type="application\/json" id="game-lines">([\s\S]*?)<\/script>/.exec(page);
+ctx.My3D2dge.lang.load({ lines: block ? JSON.parse(block[1]) : undefined, lang: process.env.LANG_TEST || undefined });   // (LANG_TEST=en-XA node game/test.mjs: a test language)
+vm.runInContext(readFileSync(new URL('./game.js', import.meta.url), 'utf8'), ctx, { filename: './game.js' });
 const E = ctx.My3D2dge, game = E.current, I = game.input, snap = () => game.debug.snapshot();
 let failed = 0;
 const check = (what, ok, detail = '') => { console.log((ok ? 'ok   ' : 'FAIL ') + what + (ok ? '' : ': ' + detail)); if (!ok) failed++; };

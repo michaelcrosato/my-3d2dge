@@ -6,8 +6,11 @@
 //   3. its bot, where its slice has one (bot(): it plays to the end through the game's own rules, as a player would, from
 //      a seed): the end it must reach (BOTS below: the roguelike's ten floors, the puzzle's lines; BOTS3D: the horror
 //      wing to its boss), with no errors
-//   4. its size in cl100k tokens (tools/doctrine-check.mjs holds the budgets: a 2D kit at most 200,000, six of their own,
+//   4. its size in cl100k tokens (tools/doctrine-check.mjs holds the budgets: a 2D kit at most 216,000 (D83), six of their own,
 //      D69; each 3D kit its own, D70)
+//   4b. its words (AI Hub Languages v1, docs/LANGUAGES.md): its game-lines block passes the hub's checks (tools/lines.mjs),
+//      and it starts in each test language (en-XA, zh-XC, ar-XB) with no error; in en-XA, where every line is bracketed,
+//      every word its title and its slice draw is a line
 //   5. the reference editions' title (dist/my-3d2dge.html, and dist/my-3d2dge-3d.html served): every slice under its
 //      family's heading, two columns on a wide screen, each reached by the keys and picked by a tap; on a short screen
 //      one column that scrolls to the last
@@ -22,6 +25,7 @@ import { readFileSync, readdirSync, existsSync, statSync, mkdirSync } from 'node
 import { spawnSync } from 'node:child_process';
 import { dirname, join, extname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { check as linesCheck } from './lines.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..'), K = join(root, 'dist/kits');
 const args = process.argv.slice(2), opt = n => { const i = args.indexOf('--' + n); return i >= 0 ? args[i + 1] : null; };
@@ -75,6 +79,7 @@ await new Promise(r => server.listen(0, '127.0.0.1', r));
 const SITE = 'http://127.0.0.1:' + server.address().port;
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-vulkan=swiftshader', '--use-webgpu-adapter=swiftshader', '--disable-vulkan-surface'] });
 
+let plain = null;   // (the 2D kits' test languages: a browser of their own, without WebGPU)
 for (const k of kits) {
   const html = readFileSync(join(K, k.file), 'utf8'), n = tok(html);
   console.log(`\n${k.file} (${n.toLocaleString('en')} tokens)`);
@@ -101,6 +106,28 @@ for (const k of kits) {
   }
   check(`${k.file}: nothing the kit diet left out was called`, !left.length, left.slice(0, 3).join(' | '));
   await page.close();
+  // its words: the block as the hub checks it, then the three test languages (en-XA: no word drawn that isn't a line)
+  const blk = linesCheck(html);
+  check(`${k.file}: its game-lines block passes the hub's checks`, !blk.errors.length, blk.errors.slice(0, 3).join(' | '));
+  for (const L of ['en-XA', 'zh-XC', 'ar-XB']) {
+    // (a 2D kit in a browser without WebGPU: its slice plays live here, and the adventure's GPU lighting on the software adapter
+    // throws "A valid external Instance reference no longer exists", main's build too; without it, the canvas lighting)
+    if (!k.is3d && !plain) plain = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+    const p2 = await (k.is3d ? browser : plain).newPage({ viewport: { width: 960, height: 640 } }), e2 = [];
+    p2.on('pageerror', e => e2.push(e.message));
+    await p2.addInitScript(() => {   // (every text the fonts draw, noted as the engine arrives)
+      const seen = window.__drawn = new Set(); let E0;
+      Object.defineProperty(window, 'My3D2dge', { configurable: true, get() { return E0; }, set(E) { E0 = E; const f = E && E.font; if (!f || f._noted) return; f._noted = true; for (const m of ['text', 'title']) { const o = f[m]; f[m] = function (g, s, ...r) { seen.add(String(s)); return o.call(this, g, s, ...r); }; } } });
+    });
+    await p2.goto((k.is3d ? SITE + '/dist/kits/' + k.file + '?backend=webgl&' : pathToFileURL(join(K, k.file)).href + '?') + 'lang=' + L);
+    const ok = await p2.waitForFunction(() => window.__game && __game.game.sceneName === 'title', null, { timeout: k.is3d ? 120000 : 30000 }).then(() => true, () => false);
+    if (ok) { await p2.waitForTimeout(600); await p2.evaluate(id => __game.game.go(id, null, { fade: 0 }), k.id); await p2.waitForTimeout(k.is3d ? 2500 : 1500); }
+    const r = await p2.evaluate(() => ({ lang: My3D2dge.lang.code, errors: __game.game.errors.map(e => e.message), drawn: [...window.__drawn] })).catch(e => ({ lang: '?', errors: [e.message], drawn: [] }));
+    const bare = L === 'en-XA' ? r.drawn.filter(s => /\p{L}{3,}/u.test(s) && !/[[\]áéíóúñçÁÉÍÓÚÑÇ]/.test(s)) : [];   // (a line's text carries en-XA's brackets, or its accents on a row of a long one; a word of three letters or more)
+    check(`${k.file}: in ${L} it starts with no error${L === 'en-XA' ? ', and every word it draws is a line' : ''}`, ok && r.lang === L && !r.errors.length && !e2.length && !bare.length,
+      (ok ? '' : 'it did not start ') + r.lang + ' ' + [...r.errors, ...e2].slice(0, 2).join(' | ') + (bare.length ? ' words not lines: ' + JSON.stringify(bare.slice(0, 6)) : ''));
+    await p2.close();
+  }
 }
 // the reference editions' title menu: families, keys, a tap, and scrolling on a short screen
 if (!only.length) for (const [file, url] of [['dist/my-3d2dge.html', pathToFileURL(join(root, 'dist/my-3d2dge.html')).href], ['dist/my-3d2dge-3d.html', SITE + '/dist/my-3d2dge-3d.html?backend=webgl']]) {
@@ -125,7 +152,7 @@ if (!only.length) for (const [file, url] of [['dist/my-3d2dge.html', pathToFileU
     await page.close();
   }
 }
-await browser.close(); server.close();
+await browser.close(); if (plain) await plain.close(); server.close();
 
 // --compare: each 2D kit filmed beside the same kit of another build, title and play, pixel for pixel
 const PLAY = {   // keys that play each slice for a few seconds (the slice's own controls)

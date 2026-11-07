@@ -21,6 +21,8 @@
  * moves (allies passed through), grid.shape the areas, grid.side where a blow lands, grid.threat the AI's danger; E.Story
  * runs the scene before the battle and its choice of the order. bot() lets the heroes' own AI play the battle
  * (tools/kits-test.mjs). Deep links: #tactics/battle (no scene, charge time), #tactics/phases.
+ * WORDS: every name, command and line is a line (src/starter/47-tactics.lines.json, tactics.* ids, shown with E.t); a unit
+ * of the scene is found by its who, never by the name shown.
  * ===================================================================================== */
 const TACTICS = (() => {
   const T = 16, LV = E.HEIGHTS.level, STEP = .16, BASE = 16;   // a cell; a level (8); a step's seconds; the ground's height
@@ -55,54 +57,54 @@ const TACTICS = (() => {
    * over what is between; a cell further for each two levels higher), magic, heal. area: a grid.shape round the target
    * ([kind, n]; cone: along the way from the user) ---- */
   const ACTS = {
-    sword:  { label: 'ATTACK', kind: 'melee', range: [1, 1], power: 1, anim: 'slash' },
-    dagger: { label: 'ATTACK', kind: 'melee', range: [1, 1], power: .9, anim: 'thrust' },
-    staff:  { label: 'ATTACK', kind: 'melee', range: [1, 1], power: .8, anim: 'overhead' },
-    bow:    { label: 'ATTACK', kind: 'bow', range: [2, 4], power: 1, anim: 'throw' },
-    bash:   { label: 'BASH', kind: 'melee', range: [1, 1], power: 1.2, mp: 4, push: true, anim: 'bash' },
-    cleave: { label: 'CLEAVE', kind: 'melee', range: [1, 1], power: .9, mp: 5, area: ['cone', 2], anim: 'spin' },
-    volley: { label: 'VOLLEY', kind: 'bow', range: [3, 5], power: .7, mp: 6, area: ['cross', 1], anim: 'throw' },
-    fire:   { label: 'FIRE', kind: 'magic', range: [1, 4], power: 1.5, mp: 6, area: ['diamond', 1], anim: 'cast' },
-    cure:   { label: 'CURE', kind: 'heal', range: [0, 3], power: 2, mp: 5, anim: 'rising' }
+    sword:  { label: E.t('tactics.act.attack'), kind: 'melee', range: [1, 1], power: 1, anim: 'slash' },
+    dagger: { label: E.t('tactics.act.attack'), kind: 'melee', range: [1, 1], power: .9, anim: 'thrust' },
+    staff:  { label: E.t('tactics.act.attack'), kind: 'melee', range: [1, 1], power: .8, anim: 'overhead' },
+    bow:    { label: E.t('tactics.act.attack'), kind: 'bow', range: [2, 4], power: 1, anim: 'throw' },
+    bash:   { label: E.t('tactics.act.bash'), kind: 'melee', range: [1, 1], power: 1.2, mp: 4, push: true, anim: 'bash' },
+    cleave: { label: E.t('tactics.act.cleave'), kind: 'melee', range: [1, 1], power: .9, mp: 5, area: ['cone', 2], anim: 'spin' },
+    volley: { label: E.t('tactics.act.volley'), kind: 'bow', range: [3, 5], power: .7, mp: 6, area: ['cross', 1], anim: 'throw' },
+    fire:   { label: E.t('tactics.act.fire'), kind: 'magic', range: [1, 4], power: 1.5, mp: 6, area: ['diamond', 1], anim: 'cast' },
+    cure:   { label: E.t('tactics.act.cure'), kind: 'heal', range: [0, 3], power: 2, mp: 5, anim: 'rising' }
   };
-  const ROSTER = [   // side, name, class, stats, its two actions, where it starts, its look
-    { side: 'hero', name: 'ALDO', cls: 'PALADIN', hp: 54, mp: 10, atk: 13, def: 7, mag: 4, res: 4, speed: 95, move: 4, jump: 2, acts: ['sword', 'bash'], at: [11, 10],
+  const ROSTER = [   // side, name and class (lines), stats, its two actions, where it starts, its look; who: the scene's id for it
+    { side: 'hero', who: 'aldo', name: E.t('tactics.unit.aldo'), cls: E.t('tactics.class.paladin'), hp: 54, mp: 10, atk: 13, def: 7, mag: 4, res: 4, speed: 95, move: 4, jump: 2, acts: ['sword', 'bash'], at: [11, 10],
       rig: { build: 'heroic', armor: true, hair: 'short', cape: { len: 5, width: 5, seg: 2.4 }, colors: { cloth: '#2c5cc0', cape: '#e8e4d8', capeIn: '#a8a090', hair: '#e0b050', trim: '#e8c860', metal: '#c8d0e0' } } },
-    { side: 'hero', name: 'WREN', cls: 'RANGER', hp: 40, mp: 12, atk: 12, def: 4, mag: 4, res: 5, speed: 110, move: 4, jump: 3, acts: ['bow', 'volley'], at: [13, 10], bow: true,
+    { side: 'hero', who: 'wren', name: E.t('tactics.unit.wren'), cls: E.t('tactics.class.ranger'), hp: 40, mp: 12, atk: 12, def: 4, mag: 4, res: 5, speed: 110, move: 4, jump: 3, acts: ['bow', 'volley'], at: [13, 10], bow: true,
       rig: { hood: true, outfit: 'tunic', weapon: null, sleeves: 'long', colors: { cloth: '#3a7a3a', pants: '#5a4a32', hair: '#8a4a2a', trim: '#c8a860', boot: '#4a3020' } } },
-    { side: 'hero', name: 'SABLE', cls: 'MAGE', hp: 32, mp: 24, atk: 5, def: 3, mag: 14, res: 9, speed: 100, move: 3, jump: 2, acts: ['staff', 'fire'], at: [11, 12],
+    { side: 'hero', who: 'sable', name: E.t('tactics.unit.sable'), cls: E.t('tactics.class.mage'), hp: 32, mp: 24, atk: 5, def: 3, mag: 14, res: 9, speed: 100, move: 3, jump: 2, acts: ['staff', 'fire'], at: [11, 12],
       rig: { outfit: 'robe', weapon: 'staff', sleeves: 'long', hair: 'long', hat: { style: 'pointed', color: '#2a2a6a' }, colors: { cloth: '#4a3ab0', pants: '#3a2e90', hair: '#e8e0f0', orb: '#ff9040', trim: '#f0c860' } } },
-    { side: 'hero', name: 'LIORA', cls: 'CLERIC', hp: 36, mp: 24, atk: 6, def: 4, mag: 11, res: 10, speed: 100, move: 4, jump: 2, acts: ['staff', 'cure'], at: [13, 12],
+    { side: 'hero', who: 'liora', name: E.t('tactics.unit.liora'), cls: E.t('tactics.class.cleric'), hp: 36, mp: 24, atk: 6, def: 4, mag: 11, res: 10, speed: 100, move: 4, jump: 2, acts: ['staff', 'cure'], at: [13, 12],
       rig: { outfit: 'robe', weapon: 'staff', sleeves: 'long', hair: 'ponytail', hat: { style: 'band', color: '#c83a4a' }, colors: { cloth: '#f2eee2', pants: '#e2dccc', trim: '#c8a040', hair: '#6a3a24', orb: '#8affc0' } } },
-    { side: 'foe', name: 'GRIMWALD', cls: 'KNIGHT', hp: 60, mp: 10, atk: 13, def: 8, mag: 3, res: 3, speed: 85, move: 3, jump: 1, acts: ['sword', 'cleave'], at: [2, 4], lead: true,
+    { side: 'foe', who: 'grim', name: E.t('tactics.unit.grimwald'), cls: E.t('tactics.class.knight'), hp: 60, mp: 10, atk: 13, def: 8, mag: 3, res: 3, speed: 85, move: 3, jump: 1, acts: ['sword', 'cleave'], at: [2, 4], lead: true,
       rig: { build: 'bulky', size: 1.1, armor: true, hair: 'bald', hat: { style: 'helmet', color: '#4a4652' }, cape: { len: 6, width: 6, seg: 2.6 }, eyeGlow: '#ff6040', colors: { cloth: '#2e2a34', pants: '#3a3640', metal: '#6a6878', cape: '#a01c2c', capeIn: '#6a1020', trim: '#c89040', skin: '#12060c' } } },
-    { side: 'foe', name: 'ARCHER', cls: 'ARCHER', hp: 30, mp: 0, atk: 10, def: 3, mag: 3, res: 3, speed: 105, move: 4, jump: 2, acts: ['bow'], at: [4, 3], bow: true,
+    { side: 'foe', name: E.t('tactics.class.archer'), cls: E.t('tactics.class.archer'), hp: 30, mp: 0, atk: 10, def: 3, mag: 3, res: 3, speed: 105, move: 4, jump: 2, acts: ['bow'], at: [4, 3], bow: true,
       rig: { hood: true, outfit: 'tunic', weapon: null, sleeves: 'long', colors: { cloth: '#7a2a2a', pants: '#3a3036', hair: '#2a2024', trim: '#5a5a62', boot: '#2a2024' } } },
-    { side: 'foe', name: 'MAGE', cls: 'MAGE', hp: 28, mp: 20, atk: 4, def: 2, mag: 12, res: 7, speed: 95, move: 3, jump: 2, acts: ['staff', 'fire'], at: [4, 0],
+    { side: 'foe', name: E.t('tactics.class.mage'), cls: E.t('tactics.class.mage'), hp: 28, mp: 20, atk: 4, def: 2, mag: 12, res: 7, speed: 95, move: 3, jump: 2, acts: ['staff', 'fire'], at: [4, 0],
       rig: { outfit: 'robe', weapon: 'staff', sleeves: 'long', hair: 'bald', hat: { style: 'pointed', color: '#1a1420' }, colors: { cloth: '#2a2030', pants: '#221a28', trim: '#c83a3a', orb: '#ff4a2a', skin: '#c8b0a0' } } },
-    { side: 'foe', name: 'PRIEST', cls: 'PRIEST', hp: 30, mp: 20, atk: 5, def: 3, mag: 9, res: 8, speed: 90, move: 3, jump: 2, acts: ['staff', 'cure'], at: [2, 2],
+    { side: 'foe', name: E.t('tactics.class.priest'), cls: E.t('tactics.class.priest'), hp: 30, mp: 20, atk: 5, def: 3, mag: 9, res: 8, speed: 90, move: 3, jump: 2, acts: ['staff', 'cure'], at: [2, 2],
       rig: { outfit: 'robe', weapon: 'staff', hood: true, sleeves: 'long', colors: { cloth: '#5a5462', pants: '#4a4452', trim: '#a01c2c', orb: '#c8ffd8' } } },
-    { side: 'foe', name: 'THIEF', cls: 'THIEF', hp: 30, mp: 0, atk: 10, def: 3, mag: 3, res: 3, speed: 125, move: 5, jump: 3, acts: ['dagger'], at: [8, 1],
+    { side: 'foe', name: E.t('tactics.class.thief'), cls: E.t('tactics.class.thief'), hp: 30, mp: 0, atk: 10, def: 3, mag: 3, res: 3, speed: 125, move: 5, jump: 3, acts: ['dagger'], at: [8, 1],
       rig: { hood: true, outfit: 'tunic', bladeLen: 7, colors: { cloth: '#3a2a4a', pants: '#2a2232', hair: '#1a1420', trim: '#8a6a3a', boot: '#1e1824' } } }
   ];
-  const PEOPLE = { aldo: 'ALDO', wren: 'WREN', sable: 'SABLE', liora: 'LIORA', grim: 'GRIMWALD' };
+  const PEOPLE = ['aldo', 'wren', 'sable', 'liora', 'grim'];   // who speaks in the scene (a unit's who)
   // the scene before the battle (E.Story): each line looks at its speaker; its last choice sets the turn order
   const NODES = { intro: [
     { event: 'look', at: 'grim' },
-    { who: 'grim', say: 'So the Crown sends {c=#8ad0ff}four{/c}. Thornwatch has stood a hundred years, little lord.', emote: 'dots' },
+    { who: 'grim', say: E.t('tactics.scene.grim_sends'), emote: 'dots' },
     { event: 'look', at: 'aldo' },
-    { who: 'aldo', say: 'Then a hundred years is long enough. Open the gate, Grimwald.' },
+    { who: 'aldo', say: E.t('tactics.scene.aldo_gate') },
     { event: 'look', at: 'grim' },
-    { who: 'grim', say: '{shake}Legion! To the walls!{/shake}', emote: '!' },
+    { who: 'grim', say: E.t('tactics.scene.grim_walls'), emote: '!' },
     { event: 'look', at: 'liora' },
-    { who: 'liora', say: 'Mind the archer on the wall. {w=.3}And keep out of the river: the shallows {c=#8ad0ff}slow{/c} you.' },
-    { who: 'wren', say: 'From up there their bows reach further. {w=.2}So will mine, from the hill.' },
+    { who: 'liora', say: E.t('tactics.scene.liora_river') },
+    { who: 'wren', say: E.t('tactics.scene.wren_hill') },
     { event: 'look', at: 'aldo' },
-    { who: 'aldo', say: 'How shall we fight?', choices: [{ text: 'Each in turn, by speed', set: { order: 'ct' } }, { text: 'Side by side: phases', set: { order: 'phase' } }] }] };
+    { who: 'aldo', say: E.t('tactics.scene.aldo_how'), choices: [{ text: E.t('tactics.scene.by_speed'), set: { order: 'ct' } }, { text: E.t('tactics.scene.by_phases'), set: { order: 'phase' } }] }] };
 
   let map = null, grid = null, story = null, turns = null, units = [], active = null, mode = 'scene', order = 'ct', cursor = [11, 10], look = [0, 0, 0], menuI = 0;
   let sel = null, pending = null, cells = null, queue = [], wait = 0, banner = null, msg = null, over = null, round = 1, phase = 'hero', left = [], auto = false, stats = null, hold = 0, held = null, ptr = null, base = null;
-  const endMenu = new E.Menu(game, ['RETRY', 'TITLE'], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title') });
+  const endMenu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title') });
   const top = (cx, cy) => map.height(cx, cy), key = c => c[0] + ',' + c[1], same = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
   const living = side => units.filter(u => !u.dead && (!side || u.side === side)), unitAt = c => units.find(u => !u.dead && u.cx === c[0] && u.cy === c[1]) || null;
   const foesOf = u => living(u.side === 'hero' ? 'foe' : 'hero'), mates = u => living(u.side).filter(o => o !== u), cell = u => [u.cx, u.cy];
@@ -188,7 +190,7 @@ const TACTICS = (() => {
         if (b.heal) { v.hp += b.amount; P.text(x, y, z + 30, '+' + b.amount, '#8affc0', { bounce: true }); continue; }
         v.hp -= b.amount; v.hit = .3; stats.dealt[u.name] = (stats.dealt[u.name] || 0) + b.amount;
         game.hitFx(x, y, z + 14, { damage: b.amount, power: b.side === 'back' ? 1.5 : 1, angle: Math.atan2(u.facing[1], u.facing[0]), textColor: v.side === 'hero' ? '#ff9a8a' : '#fff2c4', sound: a.kind === 'magic' ? false : 'hit' });
-        if (b.side !== 'front') P.text(x, y, z + 40, b.side === 'back' ? 'BACK!' : 'SIDE', '#ffd040');
+        if (b.side !== 'front') P.text(x, y, z + 40, E.t(b.side === 'back' ? 'tactics.hit.back' : 'tactics.hit.side'), '#ffd040');
         if (a.push && v.hp > 0) push(u, v);
         if (v.hp <= 0) fall(v);
       }
@@ -204,11 +206,11 @@ const TACTICS = (() => {
     if (grid.walk(to) && !unitAt(to) && top(...to) <= top(v.cx, v.cy) + LV / 2) {
       const drop = Math.max(0, Math.floor((top(v.cx, v.cy) - top(...to)) / LV)); v.from = cell(v); v.cx = to[0]; v.cy = to[1]; v.path = [v.from, to]; v.seg = 0; v.st = 0; v.after = null;
       if (drop) { v.hp -= drop * 3; game.after(.2, () => P.text(v.x, v.y, top(v.cx, v.cy) + 30, drop * 3, '#ffb070')); }
-    } else { v.hp -= 4; game.after(.15, () => P.text(v.x, v.y, top(v.cx, v.cy) + 30, 'SLAM 4', '#ffb070')); }
+    } else { v.hp -= 4; game.after(.15, () => P.text(v.x, v.y, top(v.cx, v.cy) + 30, E.t('tactics.slam', { damage: 4 }), '#ffb070')); }
   }
   function fall(v) {
     v.dead = true; v.die = 0; v.hp = 0; left = left.filter(o => o !== v); if (turns) turns.remove(v);
-    P.dust(v.x, v.y, top(v.cx, v.cy), 10); A.sfx('die'); say(v.name + ' FALLS', v.side === 'hero' ? '#ff8a8a' : '#a8e0a0');
+    P.dust(v.x, v.y, top(v.cx, v.cy), 10); A.sfx('die'); say(E.t('tactics.falls', { name: v.name }), v.side === 'hero' ? '#ff8a8a' : '#a8e0a0');
   }
   function check() {
     if (over) return;
@@ -222,12 +224,12 @@ const TACTICS = (() => {
     let u;
     if (order === 'ct') u = turns.next();
     else {
-      if (!left.length) { phase = phase === 'hero' ? 'foe' : 'hero'; if (phase === 'hero') round++; left = living(phase); banner = { s: phase === 'hero' ? 'PLAYER PHASE' : 'ENEMY PHASE', t: 0, c: phase === 'hero' ? '#8ad0ff' : '#ff8a7a' }; }
+      if (!left.length) { phase = phase === 'hero' ? 'foe' : 'hero'; if (phase === 'hero') round++; left = living(phase); banner = { s: E.t(phase === 'hero' ? 'tactics.phase.player' : 'tactics.phase.enemy'), t: 0, c: phase === 'hero' ? '#8ad0ff' : '#ff8a7a' }; }
       u = left[0];
     }
     if (!u) return;
     active = u; u.moved = u.acted = false; u.at0 = cell(u); u.mp = Math.min(u.mmp, u.mp + 2); cursor = cell(u); aimLook(cursor); stats.turns++;
-    if (order === 'ct') banner = { s: u.name + "'S TURN", t: 0, c: u.side === 'hero' ? '#8ad0ff' : '#ff8a7a' };
+    if (order === 'ct') banner = { s: E.t('tactics.turn_of', { name: u.name }), t: 0, c: u.side === 'hero' ? '#8ad0ff' : '#ff8a7a' };
     if (u.side === 'hero' && !auto) { mode = 'command'; menuI = u.moved ? 1 : 0; A.sfx('blip'); }
     else { mode = 'ai'; aiTurn(u); }
   }
@@ -264,21 +266,21 @@ const TACTICS = (() => {
     turns = new E.Turns(units, { mode: 'ct' }); active = null; over = null; queue = []; wait = 0; banner = null; msg = null; round = 0; phase = 'foe'; left = []; cells = null; sel = null; arrows.length = 0;
     stats = { turns: 0, dealt: {} }; base = null; acting = 0;
     const g = units.find(u => u.lead); cursor = cell(g); aimLook(cursor); game.cam.snap = true; game.cam.bounds = null; L.enabled = false; A.music(SONG); game.input.steer = 'drag';
-    const people = {}; for (const k in PEOPLE) { const u = units.find(o => o.name === PEOPLE[k]); people[k] = { name: u.name, portrait: u.rig, at: Object.assign(u, { h: 32 }) }; }
+    const people = {}; for (const k of PEOPLE) { const u = units.find(o => o.who === k); people[k] = { name: u.name, portrait: u.rig, at: Object.assign(u, { h: 32 }) }; }
     story = new E.Story(game, { people, nodes: NODES, vars: { order: 'ct' }, on: { look(s, st) { const u = people[st.at].at; cursor = cell(u); aimLook(cursor); } } });
     if (part) begin(); else { mode = 'scene'; story.run('intro', { onDone: () => { order = story.get('order') || 'ct'; begin(); } }); }
   }
-  function begin() { mode = 'busy'; banner = { s: order === 'ct' ? 'BATTLE!' : 'BATTLE! BY PHASES', t: 0, c: '#ffe070' }; A.sfx('confirm'); queue.push([.9, nextTurn]); }
+  function begin() { mode = 'busy'; banner = { s: E.t(order === 'ct' ? 'tactics.battle' : 'tactics.battle.phases'), t: 0, c: '#ffe070' }; A.sfx('confirm'); queue.push([.9, nextTurn]); }
   // the camera looks at a cell's top (the cursor, a speaker, the unit whose turn it is)
   const aimLook = c => { const [x, y] = map.center(...c); look = [x, y, top(...c)]; };
 
   /* ---- 6. THE PLAYER: a command list, then a cell to move to or a target, then a way to face ---- */
   const skillOf = u => ACTS[u.acts[1]];
   const rows = u => {
-    const sk = skillOf(u), out = [{ id: 'move', label: 'MOVE', off: u.moved }, { id: 'act', act: u.acts[0], label: ACTS[u.acts[0]].label, off: u.acted }];
-    if (sk) out.push({ id: 'act', act: u.acts[1], label: sk.label, note: sk.mp + ' MP', off: u.acted || u.mp < sk.mp });
-    if (order === 'phase') out.push({ id: 'end', label: 'END PHASE' });
-    out.push({ id: 'wait', label: 'WAIT' }); return out;
+    const sk = skillOf(u), out = [{ id: 'move', label: E.t('tactics.cmd.move'), off: u.moved }, { id: 'act', act: u.acts[0], label: ACTS[u.acts[0]].label, off: u.acted }];
+    if (sk) out.push({ id: 'act', act: u.acts[1], label: sk.label, note: E.t('tactics.mp', { mp: sk.mp }), off: u.acted || u.mp < sk.mp });
+    if (order === 'phase') out.push({ id: 'end', label: E.t('tactics.cmd.end') });
+    out.push({ id: 'wait', label: E.t('tactics.cmd.wait') }); return out;
   };
   function command(r) {
     const u = active; if (!r || r.off) { A.sfx('bump'); return; }
@@ -429,36 +431,39 @@ const TACTICS = (() => {
       if (o) { const [x, y] = r.w(o.x, o.y, o.z + 40 + Math.sin(game.real * 6) * 2); px.poly(g, [[x - 4, y - 4], [x + 4, y - 4], [x, y + 1]], '#ffe070'); px.line(g, x - 4, y - 5, x + 4, y - 5, '#fff8d0'); }
     });
   }
+  // a key the help names (Z, X, Q, E: the keyboard's, whatever the device), or the action's own once the player rebinds it
+  const keyOf = (a, code) => (game.input.map[a] || []).includes(code) ? game.input.codeLabel(code) : game.input.label(a);
+  const NUM = n => E.lang.num(n, { useGrouping: false });   // (a count past 999 without a thousands mark, as always)
   function hud(r) {
     const W = r.W, H = r.H, tc = touch(), u = active;
     r.overlay(g => {
       // small HP bars over every unit
       for (const o of units) { if (o.dead || mode === 'scene') continue; const [x, y] = r.w(o.x, o.y, o.z + 36); px.rect(g, x - 8, y, 16, 3, '#140c18'); px.rect(g, x - 7, y + 1, Math.max(1, Math.round(14 * o.hp / o.max)), 1, o.side === 'hero' ? '#5ad86a' : '#ff5a4a'); }
       if (over) return;   // (the results alone)
-      if (mode === 'scene') { if (!tc) E.font.text(g, prompt('skip', 'SKIPS'), W - 4, 4, '#a8a0c0', { align: 'right', outline: false, font: 'tiny' }); return; }
+      if (mode === 'scene') { if (!tc) E.font.text(g, prompt('skip', E.t('tactics.skips')), W - 4, 4, '#a8a0c0', { align: 'right', outline: false, font: 'tiny' }); return; }
       // the order ahead (charge time) or who is left this phase
       const list = order === 'ct' ? (turns && u ? turns.order(7) : []) : left;
       E.ui.box(g, 4, 4, 74, 12 + list.length * 10, { alpha: .78 });
-      E.font.text(g, order === 'ct' ? 'ORDER' : phase === 'hero' ? 'PLAYER PHASE' : 'ENEMY PHASE', 9, 7, '#ffe8b0', { outline: false, font: 'tiny' });
+      E.font.text(g, E.t(order === 'ct' ? 'tactics.order' : phase === 'hero' ? 'tactics.phase.player' : 'tactics.phase.enemy'), 9, 7, '#ffe8b0', { outline: false, font: 'tiny' });
       list.forEach((o, i) => { const y = 16 + i * 10; px.rect(g, 9, y + 1, 4, 5, o.side === 'hero' ? '#4ab0ff' : '#ff5a4a'); E.font.text(g, o.name, 16, y, o === u ? '#ffffff' : '#c8c0d8', o === u ? { outline: false } : { outline: false, font: 'tiny' }); });
-      if (order === 'phase') E.font.text(g, 'ROUND ' + round, 9, 18 + list.length * 10, '#a8a0c0', { outline: false, font: 'tiny' });
+      if (order === 'phase') E.font.text(g, E.t('tactics.round', { round }), 9, 18 + list.length * 10, '#a8a0c0', { outline: false, font: 'tiny' });
       // the unit whose turn it is (bottom left) and the one under the cursor or selected (bottom right)
       const shown = sel && !sel.dead ? sel : unitAt(cursor);
-      if (u && !u.dead) panel(g, u, 4, H - 46, u.side === 'hero' ? 'TURN' : 'ENEMY');
-      if (shown && shown !== u) panel(g, shown, Math.max(84, (tc ? cornerX() : W) - 118), H - 46, shown.side === 'hero' ? 'ALLY' : 'FOE');
+      if (u && !u.dead) panel(g, u, 4, H - 46, E.t(u.side === 'hero' ? 'tactics.tag.turn' : 'tactics.tag.enemy'));
+      if (shown && shown !== u) panel(g, shown, Math.max(84, (tc ? cornerX() : W) - 118), H - 46, E.t(shown.side === 'hero' ? 'tactics.tag.ally' : 'tactics.tag.foe'));
       // the forecast while aiming: what the blow does to the unit under the cursor
       if (mode === 'target' && cells && cells.some(c => same(c, cursor))) {
         const a = ACTS[pending], hit = hitCells(a, cell(u), cursor).map(unitAt).filter(o => o && (o !== u || a.kind === 'heal'));
-        const lines = hit.slice(0, 3).map(o => { const b = blow(u, a, cell(u), o); return [o.name + (b.heal ? '  +' + b.amount : '  -' + b.amount + (b.side !== 'front' ? ' ' + b.side.toUpperCase() : '')), o.side === u.side ? '#8affc0' : '#ffd0a0']; });
+        const lines = hit.slice(0, 3).map(o => { const b = blow(u, a, cell(u), o); return [E.t(b.heal ? 'tactics.forecast.heal' : b.side === 'front' ? 'tactics.forecast.hit' : 'tactics.forecast.hit_' + b.side, { name: o.name, amount: b.amount }), o.side === u.side ? '#8affc0' : '#ffd0a0']; });
         if (lines.length) { const w = Math.max(...lines.map(l => E.font.width(l[0]))) + 12, x = Math.round(W / 2 - w / 2); E.ui.box(g, x, H - 64, w, 8 + lines.length * 10, { alpha: .85 }); lines.forEach((l, i) => E.font.text(g, l[0], x + 6, H - 60 + i * 10, l[1], { outline: false })); }
       }
       // the banner, the message, the hint
       if (banner && banner.t < 1.4) { const a = banner.t < .2 ? banner.t / .2 : banner.t > 1.1 ? (1.4 - banner.t) / .3 : 1; px.blend(g, a * .75, 'normal', () => px.rect(g, 0, H / 2 - 22, W, 26, '#0a0816')); E.font.title(g, banner.s, W / 2, H / 2 - 18, { align: 'center', scale: 2, colors: ['#ffffff', banner.c, E.mix(banner.c, '#000000', .4)] }); }
       if (msg && msg.t < 2.2) E.font.text(g, msg.s, W / 2, 6, msg.c, { align: 'center', shadow: '#000', outline: false });
-      if (!tc && u && u.side === 'hero' && mode !== 'busy' && mode !== 'anim' && mode !== 'ai') E.font.text(g, mode === 'command' ? 'UP DOWN CHOOSE  Z OK  X BACK  Q E TURN' : mode === 'face' ? 'ARROWS FACE  Z OK  X BACK' : 'ARROWS MOVE  Z OK  X BACK  Q E TURN', W / 2, H - 9, '#a8a0c0', { align: 'center', outline: false, font: 'tiny' });
+      if (!tc && u && u.side === 'hero' && mode !== 'busy' && mode !== 'anim' && mode !== 'ai') E.font.text(g, E.t(mode === 'command' ? 'tactics.keys.command' : mode === 'face' ? 'tactics.keys.face' : 'tactics.keys.move', { ok: keyOf('confirm', 'KeyZ'), back: keyOf('cancel', 'KeyX'), turn_l: keyOf('turnL', 'KeyQ'), turn_r: keyOf('turnR', 'KeyE') }), W / 2, H - 9, '#a8a0c0', { align: 'center', outline: false, font: 'tiny' });
       // TURN (touch)
       ui.turn = null;
-      if (tc) { const bw = 40, bh = Math.max(16, Math.ceil(44 * game.screen.dpr / game.screen.S)), x = cornerX() - bw - 2, y = 4; ui.turn = { x, y, w: bw, h: bh }; E.ui.box(g, x, y, bw, bh, { alpha: .8 }); E.font.text(g, 'TURN', x + bw / 2, y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false }); }
+      if (tc) { const bw = 40, bh = Math.max(16, Math.ceil(44 * game.screen.dpr / game.screen.S)), x = cornerX() - bw - 2, y = 4; ui.turn = { x, y, w: bw, h: bh }; E.ui.box(g, x, y, bw, bh, { alpha: .8 }); E.font.text(g, E.t('tactics.turn_view'), x + bw / 2, y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false }); }
     });
     commandDraw(r);
     if (over) overDraw(r);
@@ -467,10 +472,10 @@ const TACTICS = (() => {
   function panel(g, o, x, y, tag) {
     E.ui.box(g, x, y, 114, 42, { alpha: .82 });
     E.font.text(g, o.name, x + 5, y + 4, o.side === 'hero' ? '#a8d8ff' : '#ffb0a0', { outline: false });
-    E.font.text(g, o.cls + '  ' + tag, x + 109, y + 5, '#a8a0c0', { align: 'right', outline: false, font: 'tiny' });
+    E.font.text(g, E.t('tactics.panel.class', { cls: o.cls, tag }), x + 109, y + 5, '#a8a0c0', { align: 'right', outline: false, font: 'tiny' });
     E.ui.bar(g, x + 5, y + 15, 70, 4, o.hp / o.max, o.hp > o.max * .3 ? '#5ad86a' : '#ff4a4a'); E.font.text(g, o.hp + '/' + o.max, x + 79, y + 14, '#e8e0f0', { outline: false, font: 'tiny' });
-    if (o.mmp) { E.ui.bar(g, x + 5, y + 22, 70, 3, o.mp / o.mmp, '#5a8aff'); E.font.text(g, o.mp + ' MP', x + 79, y + 21, '#b0c8ff', { outline: false, font: 'tiny' }); }
-    E.font.text(g, 'MOVE ' + o.move + '  JUMP ' + o.jump + '  SPD ' + Math.round(o.speed / 10), x + 5, y + 31, '#c8c0d8', { outline: false, font: 'tiny' });
+    if (o.mmp) { E.ui.bar(g, x + 5, y + 22, 70, 3, o.mp / o.mmp, '#5a8aff'); E.font.text(g, E.t('tactics.mp', { mp: o.mp }), x + 79, y + 21, '#b0c8ff', { outline: false, font: 'tiny' }); }
+    E.font.text(g, E.t('tactics.panel.stats', { move: o.move, jump: o.jump, speed: Math.round(o.speed / 10) }), x + 5, y + 31, '#c8c0d8', { outline: false, font: 'tiny' });
   }
   // the command list (right): rows a thumb's height on a touch screen
   function commandDraw(r) {
@@ -492,8 +497,8 @@ const TACTICS = (() => {
     const k = Math.min(1, over.t / .8), W = r.W, H = r.H, cy = Math.round(H / 2);
     r.overlay(g => {
       g.fillStyle = 'rgba(4,2,10,' + (.6 * k).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
-      E.font.title(g, over.won ? 'VICTORY' : 'DEFEAT', W / 2, cy - 70, { align: 'center', scale: 3, colors: over.won ? ['#fff8d0', '#ffd060', '#e07a2a'] : ['#ffd0d0', '#ff5a5a', '#8a1a2a'] });
-      const mvp = Object.entries(stats.dealt).sort((a, b) => b[1] - a[1])[0], lines = [over.won ? 'THORNWATCH IS TAKEN' : 'THE LEGION HOLDS THORNWATCH', 'TURNS ' + stats.turns + '   HEROES STANDING ' + living('hero').length + ' OF 4', mvp ? 'MOST DAMAGE: ' + mvp[0] + ' (' + mvp[1] + ')' : ''];
+      E.font.title(g, E.t(over.won ? 'tactics.over.victory' : 'tactics.over.defeat'), W / 2, cy - 70, { align: 'center', scale: 3, colors: over.won ? ['#fff8d0', '#ffd060', '#e07a2a'] : ['#ffd0d0', '#ff5a5a', '#8a1a2a'] });
+      const mvp = Object.entries(stats.dealt).sort((a, b) => b[1] - a[1])[0], lines = [E.t(over.won ? 'tactics.over.taken' : 'tactics.over.holds'), E.t('tactics.over.stats', { turns: NUM(stats.turns), standing: living('hero').length, all: 4 }), mvp ? E.t('tactics.over.mvp', { name: mvp[0], damage: NUM(mvp[1]) }) : ''];
       lines.forEach((s, i) => E.font.text(g, s, W / 2, cy - 20 + i * 11, i ? '#e8e0f0' : '#ffe070', { align: 'center', shadow: '#000', outline: false }));
       endMenu.y = cy + 26;
     });

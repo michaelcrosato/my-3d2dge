@@ -1,9 +1,10 @@
 /*!
-my-3D2dge 3D v0.89.3: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.90.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
-its exact fixed steps, scenes, input, pause menu, settings, touch buttons, sound, the rigs and their moves, the HUD. This
+its exact fixed steps, scenes, input, pause menu, settings, touch buttons, sound, the rigs and their moves, the HUD, its
+words (E.t: the page's game-lines, docs/LANGUAGES.md; this engine's settings are lines too, engine.setting.look3d ...). This
 module simulates and draws the world under the game's clear canvas. Everything is drawn by code: levels written as text,
 textures pixel by pixel, characters by the 2D engine's rigs (as cards, or as 3D puppets on the same joints), props and
 pickups from four shapes. No image, model or sound files.
@@ -3295,6 +3296,8 @@ World3D.SETTINGS = [
 /** the Controls setting of a game that offers tank controls (game.settings.define(E.World3D.CONTROLS), or in menu.settings):
  *  camera.steer reads it */
 World3D.CONTROLS = { key: 'tank3d', label: 'Tank controls', group: 'Game', value: false, help: 'Up walks forward the way your character faces, down backs away, left and right turn it, whatever the camera does. Off: the stick moves it the way the camera looks.' };
+// their words are the engine's lines (engine.setting.<key>, .help, .<option>): the menus show them in the player's language
+if (E.lang && E.lang.engine) { const L = {}; for (const sp of [...World3D.SETTINGS, World3D.CONTROLS]) { const id = 'engine.setting.' + sp.key; L[id] = sp.label; if (sp.help) L[id + '.help'] = sp.help; for (const o of sp.options || []) L[id + '.' + o[0]] = o[1]; } E.lang.engine(L); }
 Object.defineProperties(World3D, {
   /** 'WebGPU' | 'WebGL 2' | 'none': what draws the 3D picture (after init) */
   backend: { get: () => PAGE.backend },

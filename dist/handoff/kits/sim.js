@@ -1,5 +1,5 @@
 // The SIM kit's game (a theme park: paths, four rides and two shops, guests with needs and money, prices, a rating, day and night, time controls), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/49-sim.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/49-sim.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. sim.html plays it; node kits/test.mjs sim runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -172,6 +177,7 @@ scenes.over = {
  * HOW IT WORKS: paths are the TileMap's floor tags; guests walk an E.Grid of them (grid.path); E.needs and E.choose
  * pick their next stop; E.Clock runs the days and the light. bot() lays out a park through the same calls the HUD makes
  * and runs ten days at 4x headless, its money each midnight (tools/kits-test.mjs). Deep link: #sim.
+ * WORDS: every name, message and thought is a line (src/starter/49-sim.lines.json, sim.* ids, shown with E.t).
  * ===================================================================================== */
 const SIM = (() => {
   const T = 16, DAY = 180, CAP = 140, TAU = Math.PI * 2;   // a day: 180 seconds at 1x (the park open half of it); at most 140 guests at once
@@ -222,14 +228,14 @@ const SIM = (() => {
 
   /* ---- 1. THE ATTRACTIONS: rides (seats, a ride's seconds, the fun it gives) and shops (what they give), each with a
    * price guests weigh against what it is worth to them, an upkeep each midnight, a shape (its moving part a generator
-   * stepped through angles: a still picture per step) ---- */
+   * stepped through angles: a still picture per step). name and short (the tool button's): lines ---- */
   const KINDS = {
-    carousel: { name: 'CAROUSEL', short: 'MERRY', w: 3, h: 3, cost: 600, price: 2, seats: 8, time: 9, fun: .45, upkeep: 25, worth: 3 },
-    wheel: { name: 'FERRIS WHEEL', short: 'WHEEL', w: 3, h: 3, cost: 1100, price: 3, seats: 12, time: 14, fun: .55, upkeep: 45, worth: 4 },
-    cups: { name: 'TEACUPS', short: 'CUPS', w: 3, h: 3, cost: 800, price: 2, seats: 8, time: 8, fun: .5, upkeep: 30, worth: 3, sick: .25 },
-    swings: { name: 'SWING TOWER', short: 'SWING', w: 3, h: 3, cost: 1000, price: 3, seats: 10, time: 11, fun: .6, upkeep: 40, worth: 4, sick: .15 },
-    burger: { name: 'BURGERS', short: 'FOOD', shop: true, w: 2, h: 2, cost: 300, price: 4, gives: { hunger: -.8 }, unit: 1.5, upkeep: 10, worth: 5 },
-    lemonade: { name: 'LEMONADE', short: 'DRINK', shop: true, w: 2, h: 2, cost: 250, price: 2, gives: { thirst: -.8 }, unit: .5, upkeep: 8, worth: 3 }
+    carousel: { name: E.t('sim.kind.carousel'), short: E.t('sim.kind.carousel.short'), w: 3, h: 3, cost: 600, price: 2, seats: 8, time: 9, fun: .45, upkeep: 25, worth: 3 },
+    wheel: { name: E.t('sim.kind.wheel'), short: E.t('sim.kind.wheel.short'), w: 3, h: 3, cost: 1100, price: 3, seats: 12, time: 14, fun: .55, upkeep: 45, worth: 4 },
+    cups: { name: E.t('sim.kind.cups'), short: E.t('sim.kind.cups.short'), w: 3, h: 3, cost: 800, price: 2, seats: 8, time: 8, fun: .5, upkeep: 30, worth: 3, sick: .25 },
+    swings: { name: E.t('sim.kind.swings'), short: E.t('sim.kind.swings.short'), w: 3, h: 3, cost: 1000, price: 3, seats: 10, time: 11, fun: .6, upkeep: 40, worth: 4, sick: .15 },
+    burger: { name: E.t('sim.kind.burger'), short: E.t('sim.kind.burger.short'), shop: true, w: 2, h: 2, cost: 300, price: 4, gives: { hunger: -.8 }, unit: 1.5, upkeep: 10, worth: 5 },
+    lemonade: { name: E.t('sim.kind.lemonade'), short: E.t('sim.kind.lemonade.short'), shop: true, w: 2, h: 2, cost: 250, price: 2, gives: { thirst: -.8 }, unit: .5, upkeep: 8, worth: 3 }
   };
   const TOOLS = ['path', 'erase', 'carousel', 'wheel', 'cups', 'swings', 'burger', 'lemonade'];
   const rad = d => d / 180 * Math.PI, ring = (n, f) => Array.from({ length: n }, (_, i) => f(i, i / n * TAU));
@@ -261,7 +267,10 @@ const SIM = (() => {
       parts: [['box','#f4ecd8 planks',[0,0,0],[20,14,10]], ['box','#e8c838 glaze',[0,7.5,5],[20,1,1.5]], ['cyl','#c8c8d0 none',[0,0,10],.6,10], ['cyl','#f0d040 cloth',[0,0,19],13,4,{r2:0,seg:8}], ['ball','#f0e040 glaze',[-6,4,11],2,{sz:.8}]] }
   });
   const GUESTS = [['#e04848', '#3a3a5a'], ['#4878e0', '#c8b890'], ['#48b060', '#3a3a5a'], ['#f0a030', '#5a4a3a'], ['#c060c0', '#3a3a5a'], ['#f0f0f0', '#4878e0'], ['#3ab0b0', '#5a4a3a'], ['#f088b0', '#3a3a5a']];
-  const NAMES = ['ANNA', 'BEN', 'CLARA', 'DEV', 'ELLA', 'FINN', 'GUS', 'HANA', 'IVO', 'JUNE', 'KAI', 'LUZ', 'MILO', 'NOOR', 'OTTO', 'PIA', 'RAFE', 'SAGE', 'TEO', 'UMA', 'VERA', 'WES', 'YUKI', 'ZED'];
+  const NAMES = ['anna', 'ben', 'clara', 'dev', 'ella', 'finn', 'gus', 'hana', 'ivo', 'june', 'kai', 'luz', 'milo', 'noor', 'otto', 'pia', 'rafe', 'sage', 'teo', 'uma', 'vera', 'wes', 'yuki', 'zed'].map(n => E.t('sim.guest.' + n));
+  // a guest's thoughts (lines, made once; a ride's own, with its name, when it is thought), money as it was always written
+  const THINK = {}; for (const k of ['knocked', 'nice', 'home', 'broke', 'tired', 'hungry', 'thirsty', 'pricey', 'nothing', 'lost', 'line', 'burger', 'refreshing', 'sick', 'fun']) THINK[k] = E.t('sim.think.' + k);
+  const NUM = n => E.lang.num(n, { useGrouping: false }), cash = n => E.t('sim.money', { money: NUM(n) });
 
   let map = null, grid = null, clock = null, guests = [], spots = [], money = 0, rating = 50, fee = 5, tool = null, placing = null, picked = null, overlay = false, auto = false;
   let day = null, ledger = null, msg = null, gate = null, arrive = 0, served = 0, left = [], speed = 1, open = true, boxes = { tools: [], time: [], panel: [], place: [] };
@@ -282,7 +291,7 @@ const SIM = (() => {
     build('carousel', 19, 25, true); build('burger', 24, 29, true);
     game.cam.free = { bounds: [0, 0, map.w * T, map.h * T] }; game.focus(gate.x, gate.y - 90); game.cam.snap = true; game.timeScale = 1;
     game.input.touchEnabled = false; L.enabled = false; A.music(SONG);
-    if (!auto) say('SUNNY BAY PARK OPENS AT 9:00', '#ffe8b0');
+    if (!auto) say(E.t('sim.say.opens'), '#ffe8b0');
   }
   // a ride or a shop at corner (cx, cy): on open grass, beside a path (its entrance: the path cell beside it nearest its
   // front); free: the park's first (no cost)
@@ -295,17 +304,17 @@ const SIM = (() => {
   }
   function build(kind, cx, cy, free) {
     const K = KINDS[kind], door = fits(kind, cx, cy);
-    if (!door) { if (!auto && !free) { A.sfx('bump'); say(K.shop ? 'A SHOP NEEDS A PATH BESIDE IT, ON OPEN GRASS' : 'A RIDE NEEDS A PATH BESIDE IT, ON OPEN GRASS', '#ffb070'); } return null; }
-    if (!free && money < K.cost) { if (!auto) { A.sfx('bump'); say('NOT ENOUGH MONEY', '#ffb070'); } return null; }
+    if (!door) { if (!auto && !free) { A.sfx('bump'); say(E.t(K.shop ? 'sim.say.shop_needs' : 'sim.say.ride_needs'), '#ffb070'); } return null; }
+    if (!free && money < K.cost) { if (!auto) { A.sfx('bump'); say(E.t('sim.say.no_money'), '#ffb070'); } return null; }
     if (!free) spend(K.cost, 'build');
     const s = { kind, K, cx, cy, door, x: (cx + K.w / 2) * T, y: (cy + K.h / 2) * T, price: K.price, queue: [], riders: [], state: 'load', t: 0, spin: 0, v: 0, today: { riders: 0, take: 0 }, total: 0 };
-    spots.push(s); if (!auto && !free) { A.sfx('powerup'); say(K.name + ' BUILT', '#a8ffb0'); }
+    spots.push(s); if (!auto && !free) { A.sfx('powerup'); say(E.t('sim.say.built', { name: K.name }), '#a8ffb0'); }
     return s;
   }
   const spotAt = (x, y) => spots.find(s => x >= s.cx && x < s.cx + s.K.w && y >= s.cy && y < s.cy + s.K.h);
   function demolish(s) {
     spots.splice(spots.indexOf(s), 1); money += Math.round(s.K.cost / 2); ledger.in += Math.round(s.K.cost / 2);
-    for (const g of [...s.queue, ...s.riders]) { g.at = null; g.state = 'decide'; g.ride = null; g.happy -= .1; g.thought = 'THEY KNOCKED IT DOWN!'; }
+    for (const g of [...s.queue, ...s.riders]) { g.at = null; g.state = 'decide'; g.ride = null; g.happy -= .1; g.thought = THINK.knocked; }
     for (const g of guests) if (g.goal === s) { g.goal = null; g.state = 'decide'; }
     if (picked === s) picked = null; A.sfx('explode'); game.particles.dust(s.x, s.y, 4, 12);
   }
@@ -330,7 +339,7 @@ const SIM = (() => {
   function spawnGuest() {
     const [shirt, pants] = GUESTS[Math.floor(Math.random() * GUESTS.length)], name = NAMES[Math.floor(Math.random() * NAMES.length)];
     const g = { id: ++served, name, x: gate.x + (Math.random() - .5) * 8, y: gate.y, cx: gate.cx, cy: gate.cy, money: 20 + Math.floor(Math.random() * 40), needs: { fun: .5 + Math.random() * .3, hunger: Math.random() * .4, thirst: Math.random() * .4, tired: 0 },
-      happy: .65, state: 'decide', goal: null, route: null, wait: 0, face: -Math.PI / 2, thought: 'WHAT A NICE PARK', spent: 0, moving: false,
+      happy: .65, state: 'decide', goal: null, route: null, wait: 0, face: -Math.PI / 2, thought: THINK.nice, spent: 0, moving: false,
       rig: new E.Humanoid({ size: .5, hat: Math.random() < .3 ? 'cap' : null, hair: ['short', 'long', 'ponytail', 'spiky'][Math.floor(Math.random() * 4)], weapon: null, outfit: 'shirt', sleeves: 'short',
         colors: { cloth: shirt, pants, hair: ['#2a1a10', '#6a4020', '#d8b060', '#1a1a1a', '#a03020'][Math.floor(Math.random() * 5)], skin: ['#f0c8a0', '#c8946a', '#8a5a3a', '#f4d4b4'][Math.floor(Math.random() * 4)] } }) };
     g.money -= fee; earn(fee); guests.push(g); return g;
@@ -338,10 +347,10 @@ const SIM = (() => {
   const options = g => spots.filter(s => (s.K.shop || s.queue.length < s.K.seats * 2) && s.price <= g.money).map(s => ({ id: s, x: s.door[0] * T + 8, y: s.door[1] * T + 8, cost: s.price * (s.price > s.K.worth ? 3 : 1),
     gives: s.K.shop ? s.K.gives : { fun: -s.K.fun } }));
   function decide(g) {
-    if (!open || g.money < 1 || g.needs.tired > .9) { g.state = 'leave'; g.goal = null; g.route = null; g.thought = !open ? 'TIME TO GO HOME' : g.money < 1 ? 'I\'M OUT OF MONEY' : 'I\'M TIRED'; return; }
+    if (!open || g.money < 1 || g.needs.tired > .9) { g.state = 'leave'; g.goal = null; g.route = null; g.thought = !open ? THINK.home : g.money < 1 ? THINK.broke : THINK.tired; return; }
     const o = E.choose(g, options(g));
-    if (o) { g.goal = o.id; g.route = null; g.state = 'walk'; g.thought = o.id.K.shop ? (o.id.kind === 'burger' ? 'I\'M HUNGRY' : 'I\'M THIRSTY') : 'I WANT TO RIDE THE ' + o.id.K.name; }
-    else { g.state = 'wander'; g.goal = null; g.route = null; g.wait = 1 + Math.random() * 3; g.stroll = strollFrom(g); const pricey = spots.some(s => s.price > s.K.worth); g.thought = pricey && Math.random() < .5 ? 'EVERYTHING HERE COSTS TOO MUCH' : 'THERE\'S NOTHING I WANT TO DO'; if (pricey) g.happy -= .05; }
+    if (o) { g.goal = o.id; g.route = null; g.state = 'walk'; g.thought = o.id.K.shop ? (o.id.kind === 'burger' ? THINK.hungry : THINK.thirsty) : E.t('sim.think.ride', { ride: o.id.K.name }); }
+    else { g.state = 'wander'; g.goal = null; g.route = null; g.wait = 1 + Math.random() * 3; g.stroll = strollFrom(g); const pricey = spots.some(s => s.price > s.K.worth); g.thought = pricey && Math.random() < .5 ? THINK.pricey : THINK.nothing; if (pricey) g.happy -= .05; }
   }
   // a path tile a few steps from a guest (a stroll while nothing appeals)
   function strollFrom(g) { const c = cellOf(g.x, g.y), near = []; for (let y = c[1] - 5; y <= c[1] + 5; y++) for (let x = c[0] - 5; x <= c[0] + 5; x++) if (x > 0 && y > 0 && x < map.w && y < map.h && isPath(x, y) && (x !== c[0] || y !== c[1])) near.push([x, y]); return near.length ? near[Math.floor(Math.random() * near.length)] : null; }
@@ -362,10 +371,10 @@ const SIM = (() => {
     else if (g.state === 'wander') { if (g.stroll && walkTo(g, g.stroll, dt) === 'walking') return; g.stroll = null; if ((g.wait -= dt) <= 0) decide(g); }   // (a stroll to a tile nearby, a look round)
     else if (g.state === 'walk') {
       const s = g.goal; if (!s || !spots.includes(s)) { g.state = 'decide'; return; }
-      const r = walkTo(g, s.door, dt); if (r === 'lost') { g.state = 'wander'; g.wait = 3; g.thought = 'I CAN\'T FIND THE WAY'; g.happy -= .05; }
+      const r = walkTo(g, s.door, dt); if (r === 'lost') { g.state = 'wander'; g.wait = 3; g.thought = THINK.lost; g.happy -= .05; }
       else if (r === 'there') { g.state = 'queue'; s.queue.push(g); g.wait = 0; }
     } else if (g.state === 'queue') {
-      g.wait += dt; if (g.wait > 25 && !g.goal.K.shop) { g.goal.queue.splice(g.goal.queue.indexOf(g), 1); g.state = 'decide'; g.happy -= .1; g.thought = 'THIS LINE IS TOO LONG'; g.needs.fun = Math.min(1, g.needs.fun + .1); }
+      g.wait += dt; if (g.wait > 25 && !g.goal.K.shop) { g.goal.queue.splice(g.goal.queue.indexOf(g), 1); g.state = 'decide'; g.happy -= .1; g.thought = THINK.line; g.needs.fun = Math.min(1, g.needs.fun + .1); }
     } else if (g.state === 'leave') {
       if (walkTo(g, [gate.cx, gate.cy], dt) !== 'walking') { g.gone = true; left.push(g.happy); rating = rating * .97 + g.happy * 100 * .03; }
     }
@@ -373,7 +382,7 @@ const SIM = (() => {
   // a ride: load (up to its seats, or a few seconds), run (its time), let them off; a shop: serve one a second
   function spotStep(s, dt) {
     s.t += dt;
-    if (s.K.shop) { if (s.queue.length && s.t > 1) { s.t = 0; const g = s.queue.shift(); serve(g, s); for (const k in s.K.gives) g.needs[k] = Math.max(0, g.needs[k] + s.K.gives[k]); g.happy = Math.min(1, g.happy + .08); g.thought = s.kind === 'burger' ? 'THAT BURGER WAS GREAT' : 'SO REFRESHING'; spend(s.K.unit); g.state = 'decide'; } return; }
+    if (s.K.shop) { if (s.queue.length && s.t > 1) { s.t = 0; const g = s.queue.shift(); serve(g, s); for (const k in s.K.gives) g.needs[k] = Math.max(0, g.needs[k] + s.K.gives[k]); g.happy = Math.min(1, g.happy + .08); g.thought = s.kind === 'burger' ? THINK.burger : THINK.refreshing; spend(s.K.unit); g.state = 'decide'; } return; }
     if (s.state === 'load') {
       while (s.queue.length && s.riders.length < s.K.seats) { const g = s.queue.shift(); s.riders.push(g); g.state = 'ride'; serve(g, s); }
       if (s.riders.length && (s.riders.length >= s.K.seats || s.t > 4)) { s.state = 'run'; s.t = 0; }
@@ -381,20 +390,20 @@ const SIM = (() => {
     } else {
       s.v = s.t < s.K.time - 2 ? Math.min(1, s.v + dt * .6) : Math.max(0, s.v - dt * .6);
       if (s.t >= s.K.time) {
-        for (const g of s.riders) { g.needs.fun = Math.max(0, g.needs.fun - s.K.fun); g.needs.tired = Math.min(1, g.needs.tired + .05); g.happy = Math.min(1, g.happy + s.K.fun * .35); g.state = 'decide'; g.thought = s.K.sick && Math.random() < s.K.sick ? 'I FEEL A LITTLE SICK' : 'THAT WAS FUN!'; if (g.thought[0] === 'I') g.happy -= .1; g.x = s.door[0] * T + 8; g.y = s.door[1] * T + 8; }
+        for (const g of s.riders) { g.needs.fun = Math.max(0, g.needs.fun - s.K.fun); g.needs.tired = Math.min(1, g.needs.tired + .05); g.happy = Math.min(1, g.happy + s.K.fun * .35); g.state = 'decide'; const sick = s.K.sick && Math.random() < s.K.sick; g.thought = sick ? THINK.sick : THINK.fun; if (sick) g.happy -= .1; g.x = s.door[0] * T + 8; g.y = s.door[1] * T + 8; }
         s.riders = []; s.state = 'load'; s.t = 0;
       }
     }
     s.spin += s.v * dt * 2.2;
   }
-  function serve(g, s) { g.money -= s.price; g.spent += s.price; earn(s.price); s.today.riders++; s.today.take += s.price; s.total += s.price; if (s.price > s.K.worth) { g.happy -= .08; g.thought = 'I PAID TOO MUCH FOR THE ' + s.K.name; } }
+  function serve(g, s) { g.money -= s.price; g.spent += s.price; earn(s.price); s.today.riders++; s.today.take += s.price; s.total += s.price; if (s.price > s.K.worth) { g.happy -= .08; g.thought = E.t('sim.think.paid', { ride: s.K.name }); } }
 
   /* ---- 4. EACH STEP: the HUD's buttons, then the tool (a path, a ride, the eraser) or a look at what is under the
    * pointer; the clock (the night runs fast once the park is empty), the guests, the rides, midnight's books ---- */
   const hitBox = (b, p) => b && p && p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
   const groundAt = p => { const h = map.pick(p[0], p[1]); return h ? [h.cx, h.cy] : cellOf(...game.view.toGround(p[0] + game.screen.ix, p[1] + game.screen.iy)); };
   function setSpeed(k) { speed = k; game.timeScale = k; A.sfx(k ? 'select' : 'cancel'); }
-  function useTool(t) { tool = tool === t ? null : t; placing = null; picked = null; A.sfx(tool ? 'blip' : 'cancel'); if (tool && KINDS[tool]) say(KINDS[tool].name + ' $' + KINDS[tool].cost + (touch() ? ': TAP WHERE IT GOES, THEN PLACE' : ': CLICK WHERE IT GOES (BESIDE A PATH)'), '#ffe8b0'); else if (tool === 'path') say(touch() ? 'PATH $10: TAP A TILE, OR A LONG PRESS AND A DRAG' : 'PATH $10 A TILE: CLICK, OR DRAG A LINE', '#ffe8b0'); }
+  function useTool(t) { tool = tool === t ? null : t; placing = null; picked = null; A.sfx(tool ? 'blip' : 'cancel'); if (tool && KINDS[tool]) say(E.t(touch() ? 'sim.say.tool.touch' : 'sim.say.tool.mouse', { name: KINDS[tool].name, cost: NUM(KINDS[tool].cost) }), '#ffe8b0'); else if (tool === 'path') say(E.t(touch() ? 'sim.say.path.touch' : 'sim.say.path.mouse'), '#ffe8b0'); }
   function update(dt) {
     const I = game.input, tap = I.clicked(), p = I.pointer();
     if (!auto) {
@@ -432,14 +441,14 @@ const SIM = (() => {
     for (const s of spots) spotStep(s, dt);
     for (const g of guests) { if (!g.rig || !onScreen(g)) continue; g.rig.update(dt, { x: g.x, y: g.y, vx: g.moving ? Math.cos(g.face) * 22 : 0, vy: g.moving ? Math.sin(g.face) * 22 : 0, facing: g.face }); }
     if (was === 23 && h === 0) midnight();
-    if (!auto && was !== h && h === 9) { say('THE PARK IS OPEN', '#a8ffb0'); A.sfx('secret'); }
-    if (!auto && was !== h && h === 21) say('CLOSING TIME', '#ffd0a0');
+    if (!auto && was !== h && h === 9) { say(E.t('sim.say.open'), '#a8ffb0'); A.sfx('secret'); }
+    if (!auto && was !== h && h === 21) say(E.t('sim.say.closing'), '#ffd0a0');
   }
   // midnight: each ride's upkeep; the day's books into the log
   function midnight() {
     for (const s of spots) { spend(s.K.upkeep, 'upkeep'); s.today = { riders: 0, take: 0 }; }
     day.log.push({ day: day.n, money: Math.round(money), in: Math.round(ledger.in), out: Math.round(ledger.out), rating: Math.round(rating), guests: served });
-    if (!auto) say('DAY ' + day.n + ': TOOK $' + Math.round(ledger.in) + ', SPENT $' + Math.round(ledger.out), ledger.in >= ledger.out ? '#a8ffb0' : '#ffb0a0');
+    if (!auto) say(E.t('sim.say.day', { day: day.n, took: NUM(Math.round(ledger.in)), spent: NUM(Math.round(ledger.out)) }), ledger.in >= ledger.out ? '#a8ffb0' : '#ffb0a0');
     day.n++; ledger = { in: 0, out: 0 };
   }
   const onScreen = (u, m = 40) => { const q = game.view.p(u.x, u.y, 0), x = q[0] - game.cam.x, y = q[1] - game.cam.y; return x > -m && y > -m && x < game.W + m && y < game.H + m * 1.5; };   // (by the camera, which steps: the screen's offset is the last frame drawn's, none headless)
@@ -489,44 +498,44 @@ const SIM = (() => {
     r.overlay(g => {
       // money, guests, the rating, the day and hour; the time controls
       E.ui.box(g, 3, 3, 150, 14, { alpha: .8 });
-      E.font.text(g, '$' + Math.round(money), 8, 6, money >= 0 ? '#a8ffb0' : '#ff8a7a', { outline: false });
-      E.font.text(g, 'GUESTS ' + guests.length, 56, 7, '#c8d8ff', { outline: false, font: 'tiny' });
-      E.font.text(g, 'RATING ' + Math.round(rating), 104, 7, rating >= 60 ? '#a8ffb0' : rating >= 35 ? '#ffe070' : '#ff8a7a', { outline: false, font: 'tiny' });
+      E.font.text(g, cash(Math.round(money)), 8, 6, money >= 0 ? '#a8ffb0' : '#ff8a7a', { outline: false });
+      E.font.text(g, E.t('sim.hud.guests', { count: guests.length }), 56, 7, '#c8d8ff', { outline: false, font: 'tiny' });
+      E.font.text(g, E.t('sim.hud.rating', { rating: Math.round(rating) }), 104, 7, rating >= 60 ? '#a8ffb0' : rating >= 35 ? '#ffe070' : '#ff8a7a', { outline: false, font: 'tiny' });
       E.ui.box(g, 156, 3, 64, 14, { alpha: .8 }); E.font.text(g, clock.label(), 188, 7, '#ffe8b0', { align: 'center', outline: false, font: 'tiny' });
       const bw = tc ? th : 20, bh = tc ? th : 14, wide = 223 + 4 * (bw + 2) <= (tc ? cornerX() : W), x0 = wide ? 223 : 3, y0 = wide ? 3 : 20;   // (beside the clock, or under it: the corner's buttons keep the top right)
-      [[0, 'II'], [1, '1X'], [2, '2X'], [4, '4X']].forEach(([k, s], i) => { const b = { k, x: x0 + i * (bw + 2), y: y0, w: bw, h: bh }; boxes.time.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .85, bg: speed === k ? '#3a5aa0' : '#1a1a30' }); E.font.text(g, s, b.x + bw / 2, b.y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
+      [[0, E.t('sim.speed.pause')], [1, E.t('sim.speed.x', { speed: 1 })], [2, E.t('sim.speed.x', { speed: 2 })], [4, E.t('sim.speed.x', { speed: 4 })]].forEach(([k, s], i) => { const b = { k, x: x0 + i * (bw + 2), y: y0, w: bw, h: bh }; boxes.time.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .85, bg: speed === k ? '#3a5aa0' : '#1a1a30' }); E.font.text(g, s, b.x + bw / 2, b.y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
       // the tools: a row along the bottom (two on a narrow screen)
       const cols = W >= 8 * 44 ? 8 : 4, tw = Math.floor((Math.min(W, 8 * 56) - 8) / cols) - 2, tth = tc ? th : 18, rows = 8 / cols, ty0 = H - rows * (tth + 2) - 3;
       TOOLS.forEach((t, i) => {
         const b = { t, x: 4 + (i % cols) * (tw + 2), y: ty0 + Math.floor(i / cols) * (tth + 2), w: tw, h: tth }, K = KINDS[t], on = tool === t, poor = K && money < K.cost;
         boxes.tools.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .88, bg: on ? '#3a6a3a' : poor ? '#1a1828' : '#22284a' });
-        E.font.text(g, K ? K.short : t.toUpperCase(), b.x + tw / 2, b.y + tth / 2 - (K ? 6 : 3), poor ? '#6a6680' : '#ffffff', { align: 'center', outline: false, font: 'tiny' });
-        if (K) E.font.text(g, '$' + K.cost, b.x + tw / 2, b.y + tth / 2 + 1, poor ? '#6a6680' : '#ffd860', { align: 'center', outline: false, font: 'tiny' });
+        E.font.text(g, K ? K.short : E.t('sim.tool.' + t), b.x + tw / 2, b.y + tth / 2 - (K ? 6 : 3), poor ? '#6a6680' : '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+        if (K) E.font.text(g, cash(K.cost), b.x + tw / 2, b.y + tth / 2 + 1, poor ? '#6a6680' : '#ffd860', { align: 'center', outline: false, font: 'tiny' });
       });
       // PLACE and CANCEL (touch, a ride's plan shown)
-      if (tc && tool && KINDS[tool] && placing) [['place', 'PLACE'], ['cancel', 'CANCEL']].forEach(([id, s], i) => { const b = { id, x: W / 2 - 64 + i * 66, y: ty0 - th - 4, w: 62, h: th }; boxes.place.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: i ? '#3a1a1a' : '#2a5a3a' }); E.font.text(g, s, b.x + 31, b.y + th / 2 - 3, '#ffffff', { align: 'center', outline: false }); });
+      if (tc && tool && KINDS[tool] && placing) [['place', E.t('sim.place.place')], ['cancel', E.t('sim.place.cancel')]].forEach(([id, s], i) => { const b = { id, x: W / 2 - 64 + i * 66, y: ty0 - th - 4, w: 62, h: th }; boxes.place.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: i ? '#3a1a1a' : '#2a5a3a' }); E.font.text(g, s, b.x + 31, b.y + th / 2 - 3, '#ffffff', { align: 'center', outline: false }); });
       // what is picked: a ride's price, riders and takings (PRICE - +, DEMOLISH), or a guest's mind
       if (picked) panel(g, picked, W, ty0, tc, th);
       if (msg && game.real - msg.at < 3.5) E.font.text(g, msg.s, W / 2, 22, msg.c, { align: 'center', shadow: '#000', outline: false });
     });
     // a tooltip under the mouse (a ride or a guest)
     const p = game.input.pointer();
-    if (p && !tc && !tool) { const o = r.pick(...p)[0]; if (o) E.tooltip(r, p[0], p[1], o.K ? [o.K.name, '$' + o.price + '  ' + (o.K.shop ? 'SERVED ' : 'RIDERS ') + o.today.riders] : [o.name, o.thought]); }
+    if (p && !tc && !tool) { const o = r.pick(...p)[0]; if (o) E.tooltip(r, p[0], p[1], o.K ? [o.K.name, E.t(o.K.shop ? 'sim.tip.served' : 'sim.tip.riders', { price: NUM(o.price), count: NUM(o.today.riders) })] : [o.name, o.thought]); }
   }
   function panel(g, o, W, ty0, tc, th) {
     const x = 4, w = 168, bh = tc ? Math.min(th, 22) : 12, h = o.K ? 42 + bh : 50, y = ty0 - h - 4;
     E.ui.box(g, x, y, w, h, { alpha: .9 });
     if (o.K) {
       E.font.text(g, o.K.name, x + 5, y + 4, '#ffe8b0', { outline: false });
-      E.font.text(g, (o.K.shop ? 'SERVED ' : 'RIDERS ') + o.today.riders + ' TODAY   $' + o.today.take + '   (' + (o.queue.length) + ' WAITING)', x + 5, y + 15, '#c8c0d8', { outline: false, font: 'tiny' });
-      E.font.text(g, 'PRICE $' + o.price + (o.price > o.K.worth ? '  TOO DEAR' : ''), x + 5, y + 26, o.price > o.K.worth ? '#ffb070' : '#a8ffb0', { outline: false });
-      [['down', '-'], ['up', '+'], ['demolish', 'KNOCK DOWN'], ['close', 'X']].forEach(([id, s], i) => {
+      E.font.text(g, E.t(o.K.shop ? 'sim.panel.served' : 'sim.panel.riders', { count: NUM(o.today.riders), take: NUM(o.today.take), waiting: o.queue.length }), x + 5, y + 15, '#c8c0d8', { outline: false, font: 'tiny' });
+      E.font.text(g, E.t(o.price > o.K.worth ? 'sim.panel.price_dear' : 'sim.panel.price', { price: o.price }), x + 5, y + 26, o.price > o.K.worth ? '#ffb070' : '#a8ffb0', { outline: false });
+      [['down', '-'], ['up', '+'], ['demolish', E.t('sim.panel.knock')], ['close', 'X']].forEach(([id, s], i) => {   // (- + X: signs, not words)
         const b = { id, x: x + 5 + [0, 26, 52, 136][i], y: y + h - bh - 4, w: [22, 22, 80, 24][i], h: bh }; boxes.panel.push(b);
         E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: id === 'demolish' ? '#5a2020' : '#2a3a7a' }); E.font.text(g, s, b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
     } else {
-      E.font.text(g, o.name + '   $' + o.money, x + 5, y + 4, '#ffe8b0', { outline: false });
-      E.font.text(g, '"' + o.thought + '"', x + 5, y + 15, '#ffffff', { outline: false, font: 'tiny' });
-      [['FUN', 1 - o.needs.fun], ['FOOD', 1 - o.needs.hunger], ['DRINK', 1 - o.needs.thirst], ['HAPPY', o.happy]].forEach(([s, v], i) => { const bx = x + 5 + (i % 2) * 80, by = y + 26 + Math.floor(i / 2) * 9; E.font.text(g, s, bx, by, '#a8a0c0', { outline: false, font: 'tiny' }); E.ui.bar(g, bx + 30, by + 1, 40, 3, Math.max(0, v), v > .5 ? '#5ad86a' : v > .25 ? '#ffd060' : '#ff4a4a'); });
+      E.font.text(g, E.t('sim.panel.guest', { name: o.name, money: NUM(o.money) }), x + 5, y + 4, '#ffe8b0', { outline: false });
+      E.font.text(g, E.t('sim.panel.thought', { thought: o.thought }), x + 5, y + 15, '#ffffff', { outline: false, font: 'tiny' });
+      [[E.t('sim.need.fun'), 1 - o.needs.fun], [E.t('sim.need.food'), 1 - o.needs.hunger], [E.t('sim.need.drink'), 1 - o.needs.thirst], [E.t('sim.need.happy'), o.happy]].forEach(([s, v], i) => { const bx = x + 5 + (i % 2) * 80, by = y + 26 + Math.floor(i / 2) * 9; E.font.text(g, s, bx, by, '#a8a0c0', { outline: false, font: 'tiny' }); E.ui.bar(g, bx + 30, by + 1, 40, 3, Math.max(0, v), v > .5 ? '#5ad86a' : v > .25 ? '#ffd060' : '#ff4a4a'); });
       const b = { id: 'close', x: x + w - 18, y: y + 3, w: 14, h: tc ? Math.min(th, 16) : 10 }; boxes.panel.push(b); E.font.text(g, 'X', b.x + 7, b.y + 1, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
     }
   }

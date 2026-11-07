@@ -1,5 +1,5 @@
 // The ARTILLERY kit's game (two teams of three on an island every blast carves: turns, aim and power, wind, a rocket, a bouncing grenade, a cluster bomb, falls and the sea, a CPU that tries its shots in simulation), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/34-artillery.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/34-artillery.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. artillery.html plays it; node kits/test.mjs artillery runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -174,16 +179,16 @@ scenes.over = {
  * ===================================================================================== */
 const ARTILLERY = (() => {
   const WW = 800, WH = 320, SKY = 560, DT = 1 / 120, px = E.px, clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-  E.VIEWS.artillery = E.VIEWS.artillery || new E.View('artillery', 'Island', 0, 0, 1, 1);   // a side view of whole pixels: the terrain stays crisp
+  E.VIEWS.artillery = E.VIEWS.artillery || new E.View('artillery', E.t('artillery.view'), 0, 0, 1, 1);   // a side view of whole pixels: the terrain stays crisp
   const SOIL = { color: '#7a4a2a', top: '#52a83a', edge: '#3a2210', depth: 3 }, ROCK = { color: '#6a6878', top: '#9a98a8', edge: '#34323e', depth: 2 }, SAND = { color: '#c8a868', top: '#e8d098', edge: '#8a6a3a', depth: 2 };
   const TEAMS = [
-    { name: 'RED GRUBS', short: 'RED', color: '#ff5a4a', dark: '#8a1a1a', grubs: ['SPUD', 'NIBBS', 'BOFF'] },
-    { name: 'BLUE GRUBS', short: 'BLUE', color: '#4ab4ff', dark: '#1a4a8a', grubs: ['WIGGLE', 'DOT', 'MUNCH'] }];
+    { name: E.t('artillery.team.red'), short: E.t('artillery.team.red.short'), color: '#ff5a4a', dark: '#8a1a1a', grubs: ['spud', 'nibbs', 'boff'].map(n => E.t('artillery.grub.' + n)) },
+    { name: E.t('artillery.team.blue'), short: E.t('artillery.team.blue.short'), color: '#4ab4ff', dark: '#1a4a8a', grubs: ['wiggle', 'dot', 'munch'].map(n => E.t('artillery.grub.' + n)) }];
   // speed: at full power, pixels a second; r and dmg: the blast's reach and its damage at the middle
   const WEAPONS = [
-    { id: 'rocket', name: 'ROCKET', speed: 520, wind: true, r: 28, dmg: 45 },
-    { id: 'grenade', name: 'GRENADE', speed: 400, fuse: 3, r: 30, dmg: 45 },
-    { id: 'cluster', name: 'CLUSTER', speed: 440, r: 16, dmg: 20, ammo: 2, bits: 5 }];
+    { id: 'rocket', name: E.t('artillery.weapon.rocket'), speed: 520, wind: true, r: 28, dmg: 45 },
+    { id: 'grenade', name: E.t('artillery.weapon.grenade'), speed: 400, fuse: 3, r: 30, dmg: 45 },
+    { id: 'cluster', name: E.t('artillery.weapon.cluster'), speed: 440, r: 16, dmg: 20, ammo: 2, bits: 5 }];
   const BIT = { id: 'bit', r: 14, dmg: 16 }, G_SHOT = 300, G_GRUB = 420, HP = 80, TURN_T = 30, SUDDEN = 16, PULL = 70;
   const PHYS = { gravity: [0, -G_SHOT], substeps: 2, iterations: 4, sleep: false }, GREN = { bounce: .45, friction: .5, damping: .1 }, FUSE_N = Math.round(3 / DT);
   const SONG = { bpm: 112, steps: 4, tracks: [
@@ -231,8 +236,8 @@ const ARTILLERY = (() => {
   function startTurn() {
     turnNo++; cur = nextGrub(); look.t = 0; phase = 'aim'; phT = 0; turnT = TURN_T; power = 0; charging = false; pull = null;
     wind = Math.round((Math.random() * 2 - 1) * 10) / 10;
-    if (turnNo > SUDDEN) { water += 8; banner = { s: 'THE SEA RISES', sub: 'SUDDEN DEATH', t: 1.6, team: -1 }; }
-    else banner = { s: cur.name, sub: TEAMS[cur.team].name + (play === 'two' ? '  PLAYER ' + (cur.team + 1) : teams[cur.team].human ? '  YOU' : '  CPU'), t: 1.4, team: cur.team };
+    if (turnNo > SUDDEN) { water += 8; banner = { s: E.t('artillery.banner.sea'), sub: E.t('artillery.banner.sudden_death'), t: 1.6, team: -1 }; }
+    else banner = { s: cur.name, sub: E.t(play === 'two' ? 'artillery.banner.player' : teams[cur.team].human ? 'artillery.banner.you' : 'artillery.banner.cpu', { team: TEAMS[cur.team].name, n: cur.team + 1 }), t: 1.4, team: cur.team };
     cpu = teams[cur.team].human ? null : { phase: 'think', t: 0, i: 0, cands: null, best: null };
     A.sfx('select');
   }
@@ -387,8 +392,8 @@ const ARTILLERY = (() => {
   }
 
   /* ---- 4. THE SCENE: the choice of players over the island, the match, its end ---- */
-  const CHOICES = [['ONE PLAYER', 'AGAINST THE CPU', 'cpu'], ['TWO PLAYERS', 'ON ONE SCREEN, IN TURN', 'two'], ['TWO CPUS', 'WATCH THEM PLAY', 'demo']];
-  const AFTER = [['PLAY AGAIN', 'A NEW ISLAND'], ['PLAYERS', 'CHOOSE AGAIN'], ['TITLE', '']];
+  const CHOICES = [['one', 'cpu'], ['two', 'two'], ['cpus', 'demo']].map(([k, how]) => [E.t('artillery.choice.' + k), E.t('artillery.choice.' + k + '.about'), how]);
+  const AFTER = [[E.t('artillery.after.again'), E.t('artillery.after.again.about')], [E.t('artillery.after.players'), E.t('artillery.after.players.about')], [E.t('artillery.after.title'), '']];
   function start(data) {
     shots = []; cur = null; banner = null; winner = -1; menuI = 0; water = 34; island(7); mode = 'menu'; modeT = 0;
     game.input.touchEnabled = true; game.input.steer = 'drag'; game.input.zones = null; L.enabled = false; game.follow(null); A.music(null);
@@ -486,8 +491,8 @@ const ARTILLERY = (() => {
       const W = r.W, H = r.H, touch = game.input.lastDevice === 'touch', ta = touch && game.input.touchArea(), right = Math.min(W, cornerX());
       if (mode === 'menu' || mode === 'over') {
         g.fillStyle = 'rgba(8,12,30,.35)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g);
-        if (mode === 'menu') { E.font.title(g, 'BLAST', W / 2, 14, { align: 'center', scale: 3, colors: ['#fff0c0', '#ffb040', '#c04a1a'], depth: 3 }); E.font.title(g, 'ISLAND', W / 2, 44, { align: 'center', scale: 3, colors: ['#e0f8ff', '#6ac0ff', '#2a5ac0'], depth: 3 }); E.font.text(g, 'TWO TEAMS OF THREE, TURN BY TURN', W / 2, 76, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }
-        else { const T = TEAMS[winner]; E.font.title(g, winner < 0 ? 'A DRAW' : T.short + ' WINS', W / 2, 20, { align: 'center', scale: 3, colors: winner < 0 ? ['#ffffff', '#c8c8d8', '#6a6a7a'] : ['#ffffff', T.color, T.dark], depth: 3 }); E.font.text(g, turnNo + ' TURNS, ' + stats.shots + ' SHOTS, ' + stats.kills + ' DOWN, ' + stats.drowned + ' DROWNED', W / 2, 54, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }
+        if (mode === 'menu') { E.font.title(g, E.t('artillery.logo.top'), W / 2, 14, { align: 'center', scale: 3, colors: ['#fff0c0', '#ffb040', '#c04a1a'], depth: 3 }); E.font.title(g, E.t('artillery.logo.bottom'), W / 2, 44, { align: 'center', scale: 3, colors: ['#e0f8ff', '#6ac0ff', '#2a5ac0'], depth: 3 }); E.font.text(g, E.t('artillery.about'), W / 2, 76, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }
+        else { const T = TEAMS[winner]; E.font.title(g, winner < 0 ? E.t('artillery.over.draw') : E.t('artillery.over.wins', { team: T.short }), W / 2, 20, { align: 'center', scale: 3, colors: winner < 0 ? ['#ffffff', '#c8c8d8', '#6a6a7a'] : ['#ffffff', T.color, T.dark], depth: 3 }); E.font.text(g, E.t('artillery.over.stats', { turns: turnNo, shots: stats.shots, down: stats.kills, drowned: stats.drowned }), W / 2, 54, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }
         if (mode === 'menu' || modeT > 1.2) for (const b of buttons(mode === 'menu' ? CHOICES : AFTER, W, H)) {
           const on = b.i === menuI; E.ui.box(g, b.x, b.y, b.w, b.h, { bg: on ? '#3a2a6a' : '#141a3a', border: on ? '#ffd36a' : '#8a8ab0' });
           E.font.text(g, b.label, b.x + b.w / 2, b.y + b.h / 2 - (b.sub ? 9 : 4), on ? '#ffd36a' : '#ffffff', { align: 'center', outline: false, shadow: '#000' });
@@ -496,8 +501,8 @@ const ARTILLERY = (() => {
         return;
       }
       // the turn: whose, its clock; the wind
-      if (cur) { const T = TEAMS[cur.team], s = Math.max(0, Math.ceil(turnT)); E.ui.box(g, 4, 4, 74, 24, { bg: '#101428', border: T.color, gradient: false }); E.font.text(g, cur.name, 9, 8, T.color, { outline: false }); E.font.text(g, play === 'two' ? 'PLAYER ' + (cur.team + 1) : teams[cur.team].human ? 'YOU' : 'CPU', 9, 18, '#a8b0d8', { font: 'tiny', outline: false }); E.font.text(g, phase === 'aim' ? String(s) : '-', 72, 9, s <= 5 && phase === 'aim' ? '#ff5a4a' : '#ffffff', { align: 'right', scale: 2, outline: false }); }
-      E.ui.box(g, 82, 4, 86, 14, { bg: '#101428', border: '#8a8ab0', gradient: false }); E.font.text(g, 'WIND', 86, 8, '#ffffff', { outline: false });
+      if (cur) { const T = TEAMS[cur.team], s = Math.max(0, Math.ceil(turnT)); E.ui.box(g, 4, 4, 74, 24, { bg: '#101428', border: T.color, gradient: false }); E.font.text(g, cur.name, 9, 8, T.color, { outline: false }); E.font.text(g, E.t(play === 'two' ? 'artillery.turn.player' : teams[cur.team].human ? 'artillery.turn.you' : 'artillery.turn.cpu', { n: cur.team + 1 }), 9, 18, '#a8b0d8', { font: 'tiny', outline: false }); E.font.text(g, phase === 'aim' ? String(s) : '-', 72, 9, s <= 5 && phase === 'aim' ? '#ff5a4a' : '#ffffff', { align: 'right', scale: 2, outline: false }); }
+      E.ui.box(g, 82, 4, 86, 14, { bg: '#101428', border: '#8a8ab0', gradient: false }); E.font.text(g, E.t('artillery.wind'), 86, 8, '#ffffff', { outline: false });
       const wl = Math.round(Math.abs(wind) * 20); px.rect(g, 142, 7, 1, 8, '#ffffff'); if (wl) px.rect(g, wind > 0 ? 143 : 142 - wl, 9, wl, 4, Math.abs(wind) > .6 ? '#ff7a4a' : '#7ad0ff');
       minimap(g, W);
       // the teams' health
@@ -505,8 +510,8 @@ const ARTILLERY = (() => {
       TEAMS.forEach((T, i) => { const hp = grubs.filter(o => o.team === i).reduce((a, o) => a + Math.max(0, o.shown), 0), y = by + i * 9; E.font.text(g, T.short, bx, y, T.color, { font: 'tiny', shadow: '#000', outline: false }); px.rect(g, bx + 22, y, bw, 6, '#101428'); px.rect(g, bx + 23, y + 1, Math.round((bw - 2) * hp / (HP * 3)), 4, T.color); });
       // the weapon, and what to press
       if (cur && mode === 'play' && !cpu) {
-        const Wp = weapon(), t = teams[cur.team], n = t.ammo[t.weapon], wy = by - 14; E.font.text(g, Wp.name + (n !== Infinity ? ' x' + n : ''), bx, wy, '#ffe7a8', { shadow: '#000', outline: false });
-        if (phase === 'aim' && turnNo <= 2) E.font.text(g, touch ? 'DRAG BACK TO FIRE, TAP TO WALK' : 'ARROWS WALK, AIM  SPACE FIRES  Q WEAPON', bx, wy - 11, '#d8e0ff', { shadow: '#000', outline: false });
+        const Wp = weapon(), t = teams[cur.team], n = t.ammo[t.weapon], wy = by - 14; E.font.text(g, n !== Infinity ? E.t('artillery.weapon.ammo', { weapon: Wp.name, count: n }) : Wp.name, bx, wy, '#ffe7a8', { shadow: '#000', outline: false });
+        if (phase === 'aim' && turnNo <= 2) E.font.text(g, touch ? E.t('artillery.how.touch') : E.lang.upper(E.t('artillery.how.keys')), bx, wy - 11, '#d8e0ff', { shadow: '#000', outline: false });
       }
       if (banner) { const T = TEAMS[banner.team], a = Math.min(1, banner.t * 3); px.blend(g, a, 'normal', () => { E.font.title(g, banner.s, W / 2, H * .3, { align: 'center', scale: 2, colors: T ? ['#ffffff', T.color, T.dark] : ['#ffffff', '#6ac0ff', '#1a4a8a'], depth: 2 }); E.font.text(g, banner.sub, W / 2, H * .3 + 22, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }); }
     });

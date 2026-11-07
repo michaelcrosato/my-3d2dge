@@ -15,6 +15,8 @@
  * fighters are as big as a wide screen shows them. TOUCH, after mobile RPGs: the band is big buttons a thumb hits (pads(): the
  * commands and AUTO, the party fighting by itself; then the targets with their HP, and BACK), the party's cards above them on
  * a phone held upright, beside them on its side; a tap on a fighter targets it too. Keys and a pad: the FF command list.
+ * WORDS: every name, command and line is a line (src/starter/40-rpg.lines.json, rpg.* ids, shown with E.t); the heroes and
+ * monsters keep an id beside the name shown, so a journey's matching and saves never lean on a language.
  * ===================================================================================== */
 const RPG = (() => {
   /* ---- BACKDROP: a sunset painted once per screen size and zoom in crisp pixel shapes like the sprites (a turn, and a
@@ -203,28 +205,28 @@ const RPG = (() => {
    * hats and eyes differ. Robes need pants in the robe color, or the dark default shows through as holes.
    * attack and skill name MOVES below: no two heroes share a swing ---- */
   const PARTY = [
-    { name: 'Rowan', hp: 96, mp: 16, atk: 14, spd: .45, atb: 1, attack: 'chop', skill: 'cleave', x: 158, y: 42, turn: .55, stance: 'ready', smear: ['#ffffff', '#fff6c8', '#ffd870', '#f0a040'],   // leads: his gauge starts full
+    { id: 'rowan', name: E.t('rpg.name.rowan'), hp: 96, mp: 16, atk: 14, spd: .45, atb: 1, attack: 'chop', skill: 'cleave', x: 158, y: 42, turn: .55, stance: 'ready', smear: ['#ffffff', '#fff6c8', '#ffd870', '#f0a040'],   // leads: his gauge starts full
       rig: { build: 'heroic', size: 1.35, headR: 3.6, shoulderHalf: 4.1, torsoW: 3.5, footSpread: 2.8, lean: .1, face: { bangs: .6 }, armor: true, outfit: 'tunic', hair: 'spiky', bladeLen: 15,
         colors: { cloth: '#2c5cc0', pants: '#8a6a4a', boot: '#4a2a1a', hair: '#7a4020', trim: '#e8c860', hilt: '#b08040', glove: '#6a4a3a', eye: '#1a3a8a' } } },
-    { name: 'Lyra', hp: 62, mp: 30, atk: 8, spd: .38, attack: 'spark', skill: 'fire', x: 182, y: 84, turn: .7, rig: { build: 'heroic', size: 1.2, headR: 3.8, shoulderHalf: 2.8, limbW: 1.6, torsoW: 2.5, hunch: .3, face: { eyes: 'big', bangs: .3 }, weapon: 'staff', outfit: 'robe', hair: 'long', sleeves: 'long',
+    { id: 'lyra', name: E.t('rpg.name.lyra'), hp: 62, mp: 30, atk: 8, spd: .38, attack: 'spark', skill: 'fire', x: 182, y: 84, turn: .7, rig: { build: 'heroic', size: 1.2, headR: 3.8, shoulderHalf: 2.8, limbW: 1.6, torsoW: 2.5, hunch: .3, face: { eyes: 'big', bangs: .3 }, weapon: 'staff', outfit: 'robe', hair: 'long', sleeves: 'long',
       hat: { style: 'pointed', color: '#3a2a7a' }, colors: { cloth: '#6a3ab8', pants: '#5a2e9e', trim: '#f0c860', hair: '#e0602a', orb: '#ff9040', staff: '#6a4a2a', boot: '#3a2a4a', eye: '#2a6a3a' } } },   // a stooped, slender black mage
-    { name: 'Sera', hp: 74, mp: 26, atk: 9, spd: .42, attack: 'flurry', skill: 'cure', x: 204, y: 126, h: 34, turn: .9, rig: { size: 1.3, headR: 3.6, face: { eyes: 'big', bangs: .8 }, weapon: 'staff', outfit: 'robe', hair: 'ponytail', sleeves: 'long',   // chibi build
+    { id: 'sera', name: E.t('rpg.name.sera'), hp: 74, mp: 26, atk: 9, spd: .42, attack: 'flurry', skill: 'cure', x: 204, y: 126, h: 34, turn: .9, rig: { size: 1.3, headR: 3.6, face: { eyes: 'big', bangs: .8 }, weapon: 'staff', outfit: 'robe', hair: 'ponytail', sleeves: 'long',   // chibi build
       hat: { style: 'band', color: '#c83a4a' }, colors: { cloth: '#f2eee2', pants: '#e2dccc', trim: '#c83a4a', hair: '#5a3424', orb: '#8affc0', staff: '#c8a060', boot: '#8a5a3a', eye: '#7a3ad0' } } }];   // brown hair, a red ribbon
   // painted monsters: pounce = [px back, px up] at the top of the wind-up (mirrored in the strike). Placed so the spot
   // a hero attacks each foe from (at its right) is clear of the others: nobody lands on the Bomb's head
   const TROOP = [
-    { name: 'Dread Knight', hp: 120, atk: 14, spd: .3, moves: ['rend', 'bash', 'doom'], x: 72, y: 70, stance: 'ready', front: knightPlate, debris: ['#454a68', '#aab4d0', '#a01c2c'], smear: ['#ffffff', '#ffe0e0', '#ff8a8a', '#e04058'],
+    { name: E.t('rpg.monster.knight'), hp: 120, atk: 14, spd: .3, moves: ['rend', 'bash', 'doom'], x: 72, y: 70, stance: 'ready', front: knightPlate, debris: ['#454a68', '#aab4d0', '#a01c2c'], smear: ['#ffffff', '#ffe0e0', '#ff8a8a', '#e04058'],
       rig: { build: 'bulky', size: 2.3, armor: true, sleeves: 'long', hair: 'bald', hat: { style: 'helmet', color: '#7a84a6' }, bladeLen: 17, cape: { len: 8, width: 8, seg: 2.8 },
         colors: { cloth: '#4a5274', pants: '#5c6486', boot: '#444860', glove: '#6a7090', skin: '#12060c', metal: '#aab4d0', cape: '#a01c2c', capeIn: '#7a1c32', trim: '#d8a840' } } },
-    { name: 'Gargoyle', hp: 44, atk: 10, spd: .5, moves: ['dive', 'gale'], x: 34, y: 40, z: 30, h: 40, pounce: [8, 3], front: gargoyleCached, debris: ['#7a7090', '#44365a', '#e8dcc8'] },
-    { name: 'Bomb', hp: 34, atk: 9, spd: .42, moves: ['tackle', 'blaze'], x: 38, y: 132, z: 8, h: 26, pounce: [12, 3], debris: ['#e0502a', '#ffb040', '#fff2b0'], back: bombBack, front: bombFront,
+    { name: E.t('rpg.monster.gargoyle'), hp: 44, atk: 10, spd: .5, moves: ['dive', 'gale'], x: 34, y: 40, z: 30, h: 40, pounce: [8, 3], front: gargoyleCached, debris: ['#7a7090', '#44365a', '#e8dcc8'] },
+    { name: E.t('rpg.monster.bomb'), hp: 34, atk: 9, spd: .42, moves: ['tackle', 'blaze'], x: 38, y: 132, z: 8, h: 26, pounce: [12, 3], debris: ['#e0502a', '#ffb040', '#fff2b0'], back: bombBack, front: bombFront,
       blob: { R: 8.5, face: 'front', colors: { dk: '#8a1a14', base: '#e8582a', lt: '#ffb048', spec: '#fff6c0', eye: '#ffffff', pupil: '#1a0a0a' } } }];
 
   // the journey's monsters (below): its troops name these, each standing in the next of SLOTS (a flier keeps its height);
   // their hp, atk, def and spd come from the journey's rules
   const KIN = { knight: TROOP[0], gargoyle: TROOP[1], bomb: TROOP[2],
-    slime: { name: 'Slime', moves: ['tackle'], h: 20, pounce: [10, 2], debris: ['#2a8a3a', '#6ad86a', '#e8ffd8'], blob: { R: 7, face: 'front', colors: { dk: '#1a5a2a', base: '#4ac85a', lt: '#9af090', spec: '#f0fff0', eye: '#ffffff', pupil: '#0a1a0a' } } },
-    goblin: { name: 'Goblin', moves: ['rend', 'bash'], stance: 'ready', debris: ['#4a6a2a', '#8ab84a', '#c8d0d8'], smear: ['#ffffff', '#e8ffd0', '#b0e070', '#70a040'],
+    slime: { name: E.t('rpg.monster.slime'), moves: ['tackle'], h: 20, pounce: [10, 2], debris: ['#2a8a3a', '#6ad86a', '#e8ffd8'], blob: { R: 7, face: 'front', colors: { dk: '#1a5a2a', base: '#4ac85a', lt: '#9af090', spec: '#f0fff0', eye: '#ffffff', pupil: '#0a1a0a' } } },
+    goblin: { name: E.t('rpg.monster.goblin'), moves: ['rend', 'bash'], stance: 'ready', debris: ['#4a6a2a', '#8ab84a', '#c8d0d8'], smear: ['#ffffff', '#e8ffd0', '#b0e070', '#70a040'],
       rig: { build: 'bulky', size: 1.35, bladeLen: 9, outfit: 'tunic', hair: 'bald', eyeGlow: '#ffd84a', colors: { skin: '#7ab048', cloth: '#6a4a2a', pants: '#4a3a2a', boot: '#3a2a1a', metal: '#a0a8b0', glove: '#5a7a30' } } } };
   const SLOTS = [[72, 70], [38, 128], [40, 26], [100, 110], [104, 34]];
 
@@ -232,24 +234,24 @@ const RPG = (() => {
    * in the cast pose), the swing: anim = a move from E.MOVES or an E.Attack with overrides (a list chains as an E.Combo,
    * one blow per hit) or, for painted monsters and plain commands, time = a timing-only spec whose phases drive the paint.
    * A blow lands on its impact frame, a bolt or cut when it arrives, a wave (its colors) as it passes each foe.
-   * Monsters wind up longer: the player can read them coming ---- */
+   * Monsters wind up longer: the player can read them coming. label and info: lines (rpg.move.*) ---- */
   const MOVES = {
-    chop:   { power: 1, go: 'leap', anim: 'overhead', info: 'Leap in and cut one foe' },
-    cleave: { label: 'Cleave', power: .8, mp: 8, all: true, go: 'step', anim: 'spin', wave: ['#284a9a', '#8ad8ff', '#ffffff'], info: 'Sweep every foe' },
-    spark:  { power: 1, go: 'step', anim: 'throw', bolt: '#c890ff', info: 'Fling a spark at one foe' },
-    fire:   { label: 'Fire', power: 3, mp: 6, go: 'step', charge: .7, anim: new E.Attack('cast', { a0: 2, wind: .3 }), bolt: '#ff9040', fx: 'flame', info: 'Burn one foe' },   // the staff up and back, then flung forward
-    flurry: { power: 1.5, go: 'dash', anim: [new E.Attack('jab', { hand: 'R', lunge: 2.5 }), new E.Attack('cross', { hand: 'L' }), 'roundhouse'], info: 'Three blows on one foe' },   // staff butt, fist, foot
-    cure:   { label: 'Cure', heal: 34, mp: 5, ally: true, go: 'step', charge: .6, anim: new E.Attack('rising', { a0: -.6, wind: .2 }), info: 'Heal one ally' },   // a small dip, the staff raised to the sky
-    defend: { label: 'Defend', guard: true, pose: 'block', info: 'Halve damage till next turn' },   // the weapon upright across the body
-    potion: { label: 'Potion', heal: 40, ally: true, pose: 'cheer', item: true, time: { wind: .4, active: .05, recover: .4 }, info: 'Restore 40 HP' },   // the bottle held up high
-    run:    { label: 'Run', go: 'flee', info: 'Try to escape' },
+    chop:   { power: 1, go: 'leap', anim: 'overhead', info: E.t('rpg.move.chop.info') },
+    cleave: { label: E.t('rpg.move.cleave'), power: .8, mp: 8, all: true, go: 'step', anim: 'spin', wave: ['#284a9a', '#8ad8ff', '#ffffff'], info: E.t('rpg.move.cleave.info') },
+    spark:  { power: 1, go: 'step', anim: 'throw', bolt: '#c890ff', info: E.t('rpg.move.spark.info') },
+    fire:   { label: E.t('rpg.move.fire'), power: 3, mp: 6, go: 'step', charge: .7, anim: new E.Attack('cast', { a0: 2, wind: .3 }), bolt: '#ff9040', fx: 'flame', info: E.t('rpg.move.fire.info') },   // the staff up and back, then flung forward
+    flurry: { power: 1.5, go: 'dash', anim: [new E.Attack('jab', { hand: 'R', lunge: 2.5 }), new E.Attack('cross', { hand: 'L' }), 'roundhouse'], info: E.t('rpg.move.flurry.info') },   // staff butt, fist, foot
+    cure:   { label: E.t('rpg.move.cure'), heal: 34, mp: 5, ally: true, go: 'step', charge: .6, anim: new E.Attack('rising', { a0: -.6, wind: .2 }), info: E.t('rpg.move.cure.info') },   // a small dip, the staff raised to the sky
+    defend: { label: E.t('rpg.move.defend'), guard: true, pose: 'block', info: E.t('rpg.move.defend.info') },   // the weapon upright across the body
+    potion: { label: E.t('rpg.item.potion'), heal: 40, ally: true, pose: 'cheer', item: true, time: { wind: .4, active: .05, recover: .4 }, info: E.t('rpg.move.potion.info') },   // the bottle held up high
+    run:    { label: E.t('rpg.move.run'), go: 'flee', info: E.t('rpg.move.run.info') },
     rend:   { power: 1, go: 'dash', anim: new E.Attack('slash', { wind: .3 }) },
     bash:   { power: 1.2, go: 'dash', pose: 'block', anim: new E.Attack('bash', { wind: .4, a0: 1.6, a1: -.1, r0: 2.5, r1: 4.5, z0: -3, crouch: .7, lean: .35, lunge: 2.6 }) },   // hands to the hip, then a pommel shove, blade upright
-    doom:   { label: 'Doom Blade', power: 1.7, anim: new E.Attack('twohand', { wind: .6, active: .2 }), fx: 'doom' },   // a slow, heavy cut (its trail curves) that flies from where he stands
+    doom:   { label: E.t('rpg.move.doom'), power: 1.7, anim: new E.Attack('twohand', { wind: .6, active: .2 }), fx: 'doom' },   // a slow, heavy cut (its trail curves) that flies from where he stands
     dive:   { power: 1, go: 'swoop', time: { wind: .5, active: .12, recover: .4 }, fx: 'claw' },
-    gale:   { label: 'Gale', power: .7, all: true, time: { wind: .6, active: .12, recover: .45 }, wave: ['#4a3c64', '#c8bcd8', '#fff8f0'] },   // wings up, one great beat
+    gale:   { label: E.t('rpg.move.gale'), power: .7, all: true, time: { wind: .6, active: .12, recover: .45 }, wave: ['#4a3c64', '#c8bcd8', '#fff8f0'] },   // wings up, one great beat
     tackle: { power: 1, go: 'hop', time: { wind: .45, active: .14, recover: .4 } },
-    blaze:  { label: 'Blaze', power: 1.3, time: { wind: .6, active: .1, recover: .35 }, bolt: '#ff8a2a', fx: 'flame' }
+    blaze:  { label: E.t('rpg.move.blaze'), power: 1.3, time: { wind: .6, active: .1, recover: .35 }, bolt: '#ff8a2a', fx: 'flame' }
   };
   const PAUSE = { wind: .2, active: .05, recover: .35 }, GO = .35, BACK = .4, FLY = .3, DIE = .9, WAVE = 400;   // seconds: out, back, a bolt's flight, a monster's death; a wave's speed
   const COMMANDS = h => [h.attack, h.skill, 'defend', 'potion', 'run'];
@@ -263,9 +265,11 @@ const RPG = (() => {
       face: hero ? Math.PI - d.turn : .75, flash: 0, glow: 0, shake: 0, grow: 0, coil: 0, flee: 0, tilt: 0, flapT: 0, bob: 0, die: 0, fade: hero ? 1 : 0, dead: false, guard: false, h: d.h || (d.rig.build === 'bulky' ? 29 : 31) * d.rig.size });
   };
   let D = null, won = null, drank = 0;
-  // a member of the journey's party as a fighter: its look from PARTY, its numbers from its stats (spd scaled by haste and slow)
+  // a member of the journey's party as a fighter: its look from PARTY (by its id: heroId), its numbers from its stats (spd
+  // scaled by haste and slow). A member keeps its id in data (a save from before had none: its English name is its id)
+  const heroId = m => (m.data && m.data.id) || String(m.name).toLowerCase();
   const fighter = m => {
-    const d = PARTY.find(p => p.name === m.name) || PARTY[0], u = unit(Object.assign({}, d, { hp: m.max('hp'), mp: m.max('mp'), atk: m.stat('atk'), def: m.stat('def'), spd: d.spd * m.stat('spd') / m.base.spd }), true);
+    const d = PARTY.find(p => p.id === heroId(m)) || PARTY[0], u = unit(Object.assign({}, d, { hp: m.max('hp'), mp: m.max('mp'), atk: m.stat('atk'), def: m.stat('def'), spd: d.spd * m.stat('spd') / m.base.spd }), true);
     u.hp = Math.max(0, m.hp); u.mp = m.mp; u.member = m; if (m.dead) Object.assign(u, { dead: true, die: DIE, atb: 0 }); return u;
   };
   const monster = (id, i) => { const k = KIN[id] || KIN.slime, st = D.stats[id] || {}, at = SLOTS[i % SLOTS.length]; return unit(Object.assign({}, k, { hp: st.hp || k.hp, atk: st.atk || k.atk, def: st.def || 0, spd: st.spd || k.spd || .4, x: at[0], y: at[1] }), false); };
@@ -287,7 +291,7 @@ const RPG = (() => {
     for (const c of all) if (!c.dead) c.atb = Math.min(1, c.atb + c.spd * dt);
     const c = all.find(c => !c.dead && c.atb >= 1), sk = c && MOVES[c.skill]; if (!c) return;
     c.atb = 0; c.guard = false; actor = c; if (!isHero(c)) return order(E.pick(c.moves), E.pick(alive(party)));   // monsters pick a move and a hero
-    menu.items = ['Attack', { label: sk.label, note: sk.mp, disabled: c.mp < sk.mp }, 'Defend', { label: 'Potion', note: '×' + potions, disabled: !potions }, 'Run'];
+    menu.items = [E.t('rpg.battle.attack'), { label: sk.label, note: sk.mp, disabled: c.mp < sk.mp }, MOVES.defend.label, { label: MOVES.potion.label, note: E.t('rpg.count', { count: potions }), disabled: !potions }, MOVES.run.label];
     if (auto) return order(...autoPick(c));   // AUTO: the hero picks for himself
     menu.i = 0; menu.active = true; mode = 'command'; A.sfx('blip');
   }
@@ -314,19 +318,20 @@ const RPG = (() => {
     if (!alive(foes).length) {   // the last death plays out, then victory and a line with a live portrait
       mode = 'won'; game.after(DIE, () => { mode = 'win'; A.music('victory'); game.flash('#fff4d0', .3, .6); });
       if (D) { keep(); won = D.party.reward(D.troop); }   // the journey's: the spoils, shared exp and its level-ups
-      const lead = D && party.find(h => !h.dead) || party[0], lines = D ? spoken() : ['The monsters are defeated!', 'Rowan, Lyra and Sera grow stronger.'];
+      const lead = D && party.find(h => !h.dead) || party[0], lines = D ? spoken() : [E.t('rpg.won.defeated'), E.t('rpg.won.grow')];
       game.after(DIE + 1.6, () => log.say(lines, { name: lead.name, portrait: lead.rig, portraitSize: 32, onDone: () => D ? end({ won: true, spoils: won }) : game.go('title') }));
-    } else if (!alive(party).length) { mode = 'lose'; note = 'The party has fallen...'; game.after(2, () => D ? (keep(), end({ won: false })) : game.go('over', { from: 'rpg' })); }
+    } else if (!alive(party).length) { mode = 'lose'; note = E.t('rpg.battle.fallen'); game.after(2, () => D ? (keep(), end({ won: false })) : game.go('over', { from: 'rpg' })); }
     else mode = 'wait';
   }
   // the journey's battle over: hp and mp back on its members, the potions drunk taken from the bag, then back to the field
   const keep = () => { for (const u of party) { u.member.hp = Math.max(0, u.hp); u.member.mp = u.mp; } D.party.inv.remove('potion', drank); drank = 0; };
   const end = r => { const d = D; D = null; d.done(r); };
-  // what the victory says: the spoils, then each level reached and what it brought
-  const spoken = () => [['The monsters are defeated!', won.exp + ' EXP, ' + won.gold + ' gold' + (won.items.length ? ', and ' + won.items.map(i => D.party.rpg.item(i).name).join(', ') : '') + '.'].join(' '),
-    ...won.levels.map(([m, ls]) => { const up = ls[ls.length - 1].up; return '{c=#ffe08a}' + m.name + ' reached level ' + ls[ls.length - 1].level + '!{/c} ' + Object.keys(up).map(k => k.toUpperCase() + ' +' + up[k]).join(', '); })];
+  // what the victory says: the spoils, then each level reached and what it brought (each stat's gain a line of its own)
+  const spoken = () => [E.t(won.items.length ? 'rpg.won.spoils_items' : 'rpg.won.spoils', { exp: won.exp, gold: won.gold, items: won.items.map(i => D.party.rpg.item(i).name).join(', ') }),
+    ...won.levels.map(([m, ls]) => { const up = ls[ls.length - 1].up; return E.t('rpg.won.level', { name: m.name, level: ls[ls.length - 1].level, gains: Object.keys(up).map(k => E.t('rpg.gain', { stat: E.t('rpg.stat.' + k), amount: up[k] })).join(', ') }); })];
   // the spoils' window rows: the journey's, or the demo's
-  const spoils = () => won ? [['EXP', '+' + won.exp], ['Gold', '+' + won.gold], ['Item', won.items.length ? D && D.party.rpg.item(won.items[0]).name || won.items[0] : '-']] : [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']];
+  const spoils = () => won ? [[E.t('rpg.spoils.exp'), '+' + won.exp], [E.t('rpg.spoils.gold'), '+' + won.gold], [E.t('rpg.spoils.item'), won.items.length ? D && D.party.rpg.item(won.items[0]).name || won.items[0] : '-']]
+    : [[E.t('rpg.spoils.exp'), '+180'], [E.t('rpg.spoils.gil'), '+96'], [E.t('rpg.spoils.item'), E.t('rpg.item.ether')]];
 
   /* ---- ACTIONS: go out (GO s), charge in the cast pose, swing an E.Combo of the move (each blow settles before the
    * next starts), wait for everything in flight to land (a.due), come back (BACK s) ---- */
@@ -381,8 +386,8 @@ const RPG = (() => {
   function strike(a, m, tg, side) {
     const u = a.who, due = (c, s) => a.due.push({ c, at: a.t + s, i: a.hits - 1 });
     if (a.key === 'run') {
-      if (D && !D.boss && E.chance(.6)) { note = 'Escaped!'; mode = 'fled'; A.sfx('warp'); game.after(.9, () => { keep(); end({ fled: true }); }); return; }   // the journey's: away, but not from a boss
-      note = "Can't escape!"; A.sfx('cancel'); return;
+      if (D && !D.boss && E.chance(.6)) { note = E.t('rpg.battle.escaped'); mode = 'fled'; A.sfx('warp'); game.after(.9, () => { keep(); end({ fled: true }); }); return; }   // the journey's: away, but not from a boss
+      note = E.t('rpg.battle.no_escape'); A.sfx('cancel'); return;
     }
     if (m.guard) { u.guard = true; P.ring(u.x, u.y, 3, 16, '#8ad0ff', .4); P.glints(u.x, u.y, u.z + 24, 4, '#c8ecff', 16); A.sfx('select'); return; }   // Defend: guard until the next turn
     if (u.blob) u.body.sq = .35;   // the Bomb squashes on the hit frame (a kick waits out the hit-stop)
@@ -465,7 +470,7 @@ const RPG = (() => {
       if (E.chance(dt * 6)) P.add({ kind: 'ember', x: E.pick([100, 132]) + E.rand(-3, 3), y: 8, z: 20, vz: E.rand(18, 30), vx: E.rand(-4, 4), max: 1, color: '#ff8a2a' });
     }
     if (tapped()) return;
-    const ap = game.input.pressed('skill') && padsNow().find(p => p && p.label === 'AUTO'); if (ap) ap.go();   // the keys' AUTO (L, E, a pad's X): the party fights by itself, or not
+    const ap = game.input.pressed('skill') && padsNow().find(p => p && p.auto); if (ap) ap.go();   // the keys' AUTO (L, E, a pad's X): the party fights by itself, or not
     if (mode === 'wait') tick(dt);
     else if (mode === 'act') play(act, dt);
     else if (mode === 'command') menu.update();
@@ -494,10 +499,10 @@ const RPG = (() => {
   // what the pads say and do now: the commands and AUTO on a hero's turn; aiming, the targets (with their HP) and BACK; else
   // the foes' HP (or the spoils) and AUTO, which can be turned on or off at any time
   function padsNow() {
-    const autoPad = { label: 'AUTO', note: auto ? 'ON' : 'OFF', on: auto, go: () => { auto = !auto; A.sfx(auto ? 'confirm' : 'cancel'); if (auto && actor && (mode === 'command' || mode === 'target')) order(...autoPick(actor)); } };
+    const autoPad = { auto: true, label: E.t('rpg.battle.auto'), note: E.t(auto ? 'rpg.battle.on' : 'rpg.battle.off'), on: auto, go: () => { auto = !auto; A.sfx(auto ? 'confirm' : 'cancel'); if (auto && actor && (mode === 'command' || mode === 'target')) order(...autoPick(actor)); } };
     const fill = (a, n) => { while (a.length < n) a.push(null); return a.slice(0, n); };
     if (mode === 'command') return [...menu.items.map((it, k) => ({ label: it.label || it, note: it.note, off: it.disabled, go: () => { menu.i = k; A.sfx('confirm'); pick(k); } })), autoPad];
-    if (mode === 'target') return [...fill(list.map((c, k) => ({ label: c.name, hp: c.hp / c.max, ally: isHero(c), on: k === cursor, go: () => { cursor = k; A.sfx('confirm'); order(pending, c); } })), 5), { label: 'BACK', go: () => { A.sfx('cancel'); mode = 'command'; } }];
+    if (mode === 'target') return [...fill(list.map((c, k) => ({ label: c.name, hp: c.hp / c.max, ally: isHero(c), on: k === cursor, go: () => { cursor = k; A.sfx('confirm'); order(pending, c); } })), 5), { label: E.t('rpg.back'), go: () => { A.sfx('cancel'); mode = 'command'; } }];
     if (mode === 'win' || mode === 'won') return fill(spoils().map(([label, note]) => ({ label, note })), 6);
     return [...fill(alive(foes).map(f => ({ label: f.name, hp: f.hp / f.max })), 5), autoPad];
   }
@@ -603,7 +608,7 @@ const RPG = (() => {
       if (choosing) {
         menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
         px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
-        E.font.text(g, game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK', X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
+        E.font.text(g, E.t('rpg.battle.keys'), X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
       } else if (mode === 'win') spoils().forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
       else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
     }
@@ -614,11 +619,11 @@ const RPG = (() => {
       const pic = h.pic || (h.pic = E.mkCanvas(30, 30));   // a whole rig draw: redrawn every third frame
       if ((frame + k) % 3 === 0) { const pg = E.ctx2d(pic); pg.clearRect(0, 0, 30, 30); h.rig.drawPortrait(pg, 3, 3, 24, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: h.dead ? '#808080' : undefined }); }
       g.drawImage(pic, x + 2, Y + 2);
-      txt(g, h.name, x + 34, Y + 6, col); tiny(g, 'MP', x + 34, Y + 19, '#9ad0ff'); txt(g, h.mp, x + 64, Y + 17, col, 'right');
-      tiny(g, 'HP', x + 6, Y + 36, '#9ad0ff'); txt(g, h.hp + '/' + h.max, x + 64, Y + 34, col, 'right'); gauge(g, x + 6, Y + 44, 58, h.hp / h.max, low ? '#e8a030' : '#58d068');
+      txt(g, h.name, x + 34, Y + 6, col); tiny(g, E.t('rpg.stat.mp'), x + 34, Y + 19, '#9ad0ff'); txt(g, h.mp, x + 64, Y + 17, col, 'right');
+      tiny(g, E.t('rpg.stat.hp'), x + 6, Y + 36, '#9ad0ff'); txt(g, h.hp + '/' + h.max, x + 64, Y + 34, col, 'right'); gauge(g, x + 6, Y + 44, 58, h.hp / h.max, low ? '#e8a030' : '#58d068');
       gauge(g, x + 6, Y + 54, 58, h.atb, h.atb >= 1 || on ? '#ffe060' : '#dce0f8');
     });
-    if (mode === 'win') E.font.title(g, 'Victory!', Math.round(r.W / 2) - 36, layout(r.W, r.H).fy - 60, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
+    if (mode === 'win') E.font.title(g, E.t('rpg.battle.victory'), Math.round(r.W / 2) - 36, layout(r.W, r.H).fy - 60, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
   }
   // propSize: props sized to the heroes; a strong warm rim light
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in past rest(), it eases to the fight (or the hero on turn) at chest height
@@ -627,14 +632,14 @@ const RPG = (() => {
     enter(data) { start(data); if (game.r) game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
     exit() { if (game.r) game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {
-      if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? 'TURN ' + yaw : 'CAMERA RESET');   // the kit's notice has a degree sign the pixel font lacks
+      if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? E.t('starter.note.turn', { angle: yaw }) : E.t('starter.note.camera_reset'));   // (the shell's notices: the kit's has a degree sign the pixel font lacks)
       if (placed !== game.upright) place();   // a phone turned: the camera comes in or out (camera.tall), and the sides close up or open out
       update(dt); const f = game.zoom > rest().zoom + 1e-6 && (act ? [act.who, act.target || act.who] : actor && [actor, actor]), k = Math.min(1, dt * 4);
       const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [rest().x, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
       game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
     state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }),   // for automated tests
-    looks: PARTY, kin: KIN,   // the heroes' and monsters' looks, for the journey's field
+    looks: PARTY, kin: KIN, heroId,   // the heroes' and monsters' looks, for the journey's field; a member's id
     /** the proof: the party on AUTO (each hero picks for himself) for n steps; a hash of the battle */
     run(n = 600) { const was = auto; try { return proof('rpg-battle', n, i => { if (!i) auto = true; }, () => [mode, actor && actor.name, potions, all.map(c => [c.hp, c.x, c.y])]); } finally { auto = was; } } };
 })();
@@ -650,39 +655,41 @@ scenes['rpg-battle'] = RPG;
  * levels, gold and spoils from every victory. THE MENU (MENU: L or E, a pad's X, the touch button): Items, Equip,
  * Status, Quests and, at a crystal, Save: three slots and the autosave (game.saves; the inn autosaves). The title's
  * CONTINUE and LOAD bring a journey back; BATTLE is the battle alone (#rpg/battle). TOUCH: the stick walks, TALK and
- * MENU; a tap picks in every window, as the battle's pads do.
+ * MENU; a tap picks in every window, as the battle's pads do. WORDS: lines, as the battle's (rpg.*: the townsfolk's talk,
+ * items, windows); a save keeps ids and numbers, and its place's name for the engine's slot screen (in its language then).
  * ===================================================================================== */
 const JOURNEY = (() => {
   const T = 16, inp = game.input, WIN = ['#6c8cff', '#0a0a48'], HOT = ['#90aaff', '#1c2a90'], GOLD = '#ffe08a';
   const txt = (g, s, x, y, c = '#ffffff', align) => E.font.text(g, String(s), x, y, c, { shadow: '#0a0820', outline: false, align });
 
-  /* ---- THE RULES (E.RPG): what items do and cost, the monsters' numbers and spoils, where they wait ---- */
+  /* ---- THE RULES (E.RPG): what items do and cost, the monsters' numbers and spoils, where they wait. An item's name and
+   * info are lines (rpg.item.<id>, rpg.item.<id>.info); for: the ids of the heroes who can wear it ---- */
   const ITEMS = {
-    potion: { name: 'Potion', kind: 'use', heal: 40, price: 12, info: 'Restores 40 HP' }, hipotion: { name: 'Hi-Potion', kind: 'use', heal: 120, price: 50, info: 'Restores 120 HP' },
-    ether: { name: 'Ether', kind: 'use', mp: 20, price: 60, info: 'Restores 20 MP' }, antidote: { name: 'Antidote', kind: 'use', cure: ['poison'], price: 8, info: 'Cures poison' },
-    phoenix: { name: 'Phoenix Down', kind: 'use', revive: .3, price: 120, info: 'Revives a fallen ally' },
-    bronze: { name: 'Bronze Sword', kind: 'weapon', stats: { atk: 5 }, price: 70, for: 'Rowan', info: 'A sword for Rowan' }, iron: { name: 'Iron Sword', kind: 'weapon', stats: { atk: 10 }, price: 260, for: 'Rowan', info: 'A heavier blade' },
-    oak: { name: 'Oak Staff', kind: 'weapon', stats: { atk: 2, mag: 4 }, price: 70, for: 'Lyra Sera', info: 'A staff for the mages' },
-    leather: { name: 'Leather Vest', kind: 'armor', stats: { def: 3 }, price: 40, info: 'Light armor for anyone' }, chain: { name: 'Chain Mail', kind: 'armor', stats: { def: 7 }, price: 220, for: 'Rowan', info: 'Heavy armor for Rowan' },
-    robe: { name: 'Silk Robe', kind: 'armor', stats: { def: 2, mag: 3 }, price: 90, for: 'Lyra Sera', info: 'A mage\'s robe' }, cap: { name: 'Leather Cap', kind: 'helm', stats: { def: 2 }, price: 30, info: 'A cap for anyone' },
-    ring: { name: 'Swift Ring', kind: 'accessory', stats: { spd: 2 }, price: 300, info: 'Its wearer acts sooner' },
-    key: { name: 'Cave Key', kind: 'key', info: 'Opens the cave in the northern mountains' }
+    potion: { name: E.t('rpg.item.potion'), kind: 'use', heal: 40, price: 12, info: E.t('rpg.item.potion.info') }, hipotion: { name: E.t('rpg.item.hipotion'), kind: 'use', heal: 120, price: 50, info: E.t('rpg.item.hipotion.info') },
+    ether: { name: E.t('rpg.item.ether'), kind: 'use', mp: 20, price: 60, info: E.t('rpg.item.ether.info') }, antidote: { name: E.t('rpg.item.antidote'), kind: 'use', cure: ['poison'], price: 8, info: E.t('rpg.item.antidote.info') },
+    phoenix: { name: E.t('rpg.item.phoenix'), kind: 'use', revive: .3, price: 120, info: E.t('rpg.item.phoenix.info') },
+    bronze: { name: E.t('rpg.item.bronze'), kind: 'weapon', stats: { atk: 5 }, price: 70, for: 'rowan', info: E.t('rpg.item.bronze.info') }, iron: { name: E.t('rpg.item.iron'), kind: 'weapon', stats: { atk: 10 }, price: 260, for: 'rowan', info: E.t('rpg.item.iron.info') },
+    oak: { name: E.t('rpg.item.oak'), kind: 'weapon', stats: { atk: 2, mag: 4 }, price: 70, for: 'lyra sera', info: E.t('rpg.item.oak.info') },
+    leather: { name: E.t('rpg.item.leather'), kind: 'armor', stats: { def: 3 }, price: 40, info: E.t('rpg.item.leather.info') }, chain: { name: E.t('rpg.item.chain'), kind: 'armor', stats: { def: 7 }, price: 220, for: 'rowan', info: E.t('rpg.item.chain.info') },
+    robe: { name: E.t('rpg.item.robe'), kind: 'armor', stats: { def: 2, mag: 3 }, price: 90, for: 'lyra sera', info: E.t('rpg.item.robe.info') }, cap: { name: E.t('rpg.item.cap'), kind: 'helm', stats: { def: 2 }, price: 30, info: E.t('rpg.item.cap.info') },
+    ring: { name: E.t('rpg.item.ring'), kind: 'accessory', stats: { spd: 2 }, price: 300, info: E.t('rpg.item.ring.info') },
+    key: { name: E.t('rpg.item.key'), kind: 'key', info: E.t('rpg.item.key.info') }
   };
   const MONSTERS = {
-    slime: { name: 'Slime', hp: 26, atk: 8, def: 1, spd: .34, exp: 7, gold: 5, drops: [[.25, 'potion']] }, goblin: { name: 'Goblin', hp: 40, atk: 11, def: 3, spd: .4, exp: 12, gold: 9, drops: [[.15, 'antidote']] },
-    bomb: { name: 'Bomb', hp: 38, atk: 10, def: 2, spd: .42, exp: 15, gold: 12, drops: [[.15, 'ether']] }, gargoyle: { name: 'Gargoyle', hp: 50, atk: 12, def: 4, spd: .5, exp: 20, gold: 16, drops: [[.2, 'hipotion']] },
-    knight: { name: 'Dread Knight', hp: 420, atk: 25, def: 6, spd: .32, exp: 150, gold: 300 }
+    slime: { name: E.t('rpg.monster.slime'), hp: 26, atk: 8, def: 1, spd: .34, exp: 7, gold: 5, drops: [[.25, 'potion']] }, goblin: { name: E.t('rpg.monster.goblin'), hp: 40, atk: 11, def: 3, spd: .4, exp: 12, gold: 9, drops: [[.15, 'antidote']] },
+    bomb: { name: E.t('rpg.monster.bomb'), hp: 38, atk: 10, def: 2, spd: .42, exp: 15, gold: 12, drops: [[.15, 'ether']] }, gargoyle: { name: E.t('rpg.monster.gargoyle'), hp: 50, atk: 12, def: 4, spd: .5, exp: 20, gold: 16, drops: [[.2, 'hipotion']] },
+    knight: { name: E.t('rpg.monster.knight'), hp: 420, atk: 25, def: 6, spd: .32, exp: 150, gold: 300 }
   };
   const R = new E.RPG({ items: ITEMS, monsters: MONSTERS });
   const ENC = R.encounters({ plains: { every: [16, 32], troops: [[3, ['slime', 'slime']], [2, ['goblin']], [2, ['slime', 'goblin']]] },
     forest: { every: [10, 22], troops: [[2, ['goblin', 'goblin']], [2, ['bomb']], [1, ['goblin', 'bomb']]] },
     cave: { every: [12, 24], troops: [[2, ['gargoyle']], [2, ['bomb', 'goblin']], [2, ['gargoyle', 'slime']], [1, ['goblin', 'goblin', 'bomb']]] } });
   const SHOP = R.shop(['potion', 'hipotion', 'ether', 'antidote', 'phoenix', 'bronze', 'oak', 'leather', 'robe', 'cap', 'iron', 'chain', 'ring']);
-  // the heroes as members at level 1 (their looks are the battle's: RPG.looks)
+  // the heroes as members at level 1 (their looks are the battle's: RPG.looks), each with its id in data (RPG.heroId)
   const HEROES = () => [
-    R.member({ name: 'Rowan', stats: { hp: 96, mp: 16, atk: 14, def: 6, mag: 3, spd: 10 }, growth: { hp: 12, mp: 2, atk: 3, def: 2, mag: 1, spd: .3 } }),
-    R.member({ name: 'Lyra', stats: { hp: 62, mp: 30, atk: 8, def: 3, mag: 12, spd: 9 }, growth: { hp: 7, mp: 5, atk: 2, def: 1, mag: 3, spd: .3 } }),
-    R.member({ name: 'Sera', stats: { hp: 74, mp: 26, atk: 9, def: 4, mag: 9, spd: 9.5 }, growth: { hp: 9, mp: 4, atk: 2, def: 1, mag: 2, spd: .3 } })];
+    R.member({ name: E.t('rpg.name.rowan'), data: { id: 'rowan' }, stats: { hp: 96, mp: 16, atk: 14, def: 6, mag: 3, spd: 10 }, growth: { hp: 12, mp: 2, atk: 3, def: 2, mag: 1, spd: .3 } }),
+    R.member({ name: E.t('rpg.name.lyra'), data: { id: 'lyra' }, stats: { hp: 62, mp: 30, atk: 8, def: 3, mag: 12, spd: 9 }, growth: { hp: 7, mp: 5, atk: 2, def: 1, mag: 3, spd: .3 } }),
+    R.member({ name: E.t('rpg.name.sera'), data: { id: 'sera' }, stats: { hp: 74, mp: 26, atk: 9, def: 4, mag: 9, spd: 9.5 }, growth: { hp: 9, mp: 4, atk: 2, def: 1, mag: 2, spd: .3 } })];
 
   /* ---- SONGS: the town's lilt, the road's march, the battle's drive; the cave plays the dungeon's ---- */
   const TOWN_SONG = { bpm: 104, steps: 4, tracks: [
@@ -840,41 +847,43 @@ const JOURNEY = (() => {
     child: { size: .85, weapon: null, hair: 'spiky', face: { eyes: 'big', bangs: .9 }, colors: { cloth: '#e8b040', pants: '#4a6ab0', hair: '#7a4a2a' } },
     woman: { size: 1.1, weapon: null, outfit: 'robe', hair: 'long', sleeves: 'long', face: { eyes: 'big', bangs: .5 }, colors: { cloth: '#c84a7a', pants: '#9a3a6a', hair: '#2a1a1a', trim: '#f0d0e0' } }
   };
-  const NAMES = { elder: 'ELDER', inn: 'INNKEEPER', shop: 'MERCHANT', guard: 'GUARD', child: 'PIP', woman: 'MARTA', knight: 'DREAD KNIGHT', rowan: 'ROWAN', lyra: 'LYRA', sera: 'SERA' };
-  // what everyone says: E.Story's nodes (markup in the lines; gold and the hero's name from story.vars)
+  // who speaks (the dialog's name plates, in capitals): the townsfolk's lines, the heroes' and the knight's names
+  const NAMES = { elder: E.t('rpg.who.elder'), inn: E.t('rpg.who.inn'), shop: E.t('rpg.who.shop'), guard: E.t('rpg.who.guard'), child: E.t('rpg.who.child'), woman: E.t('rpg.who.woman'),
+    knight: E.lang.upper(E.t('rpg.monster.knight')), rowan: E.lang.upper(E.t('rpg.name.rowan')), lyra: E.lang.upper(E.t('rpg.name.lyra')), sera: E.lang.upper(E.t('rpg.name.sera')) };
+  // what everyone says: E.Story's nodes, each line a line (rpg.* ids; markup in them; gold and the hero's name from story.vars)
   const NODES = {
     elder: [{ if: 'done:cave', goto: 'elderThanks' }, { if: 'quest:cave', goto: 'elderAgain' },
-      { who: 'elder', emote: '!', say: 'Ah, travelers! Welcome to {c=#ffe08a}Brightwater{/c}.' },
-      { who: 'elder', say: ['Since the {c=#ff8a8a}Dread Knight{/c} took the cave in the northern mountains,{w=.4} our wells have run dry.', 'Will you clear the cave for us?'], choices: [
-        { text: 'We will', quest: ['cave', 'The Dread Knight', 'Clear the cave in the northern mountains, up the road from Brightwater. The elder gave you its key.'], event: 'key' },
-        { text: 'Not yet', goto: 'elderLater' }] },
-      { who: 'elder', say: 'Take its key, and {c=#ffe08a}100 gold{/c} for the road.{w=.3} The inn and the shop are on the square.' }],
-    elderLater: [{ who: 'elder', emote: 'dots', say: 'I understand.{w=.3} Come back when you are ready.' }],
-    elderAgain: [{ who: 'elder', say: 'The cave lies north, past the woods.{w=.3} Follow the road, {$hero}.' }],
-    elderThanks: [{ who: 'elder', emote: 'heart', say: 'The water flows again!{w=.4} Brightwater will sing of you, {$hero}.' }],
-    inn: [{ who: 'inn', say: 'Welcome to the {c=#ffe08a}Sleeping Dragon{/c}! A night is 10 gold.', choices: [{ text: 'Stay (10 G)', if: 'gold >= 10', set: 'slept', event: 'inn', wait: true }, { text: 'No thanks' }] },
-      { if: 'slept', who: 'inn', say: 'Good morning! You look ready for anything.', set: { slept: false } }],
-    shop: [{ who: 'shop', say: 'Potions, blades and good armor!{w=.2} Have a look.', event: 'shop', wait: true }, { who: 'shop', say: 'Come again!' }],
-    guard: [{ if: '!quest:cave', who: 'guard', say: 'The road north is dangerous.{w=.3} Speak to the elder before you go.' }, { if: 'quest:cave', who: 'guard', say: 'Good luck, {$hero}. Monsters prowl the woods: walk the road.' }],
-    child: [{ who: 'child', emote: 'note', say: 'La la la!{w=.3} Do you like my song?', choices: [{ text: 'It\'s lovely', set: 'song' }, { text: 'Hmm...' }] },
-      { if: 'song', who: 'child', emote: 'heart', say: 'Yay! I\'ll sing it when the water comes back!' }, { if: '!song', who: 'child', emote: '?', say: 'Hmph. You sound like my brother.' }],
-    woman: [{ if: 'done:cave', who: 'woman', say: 'My well is full again!{w=.3} Thank you!' }, { if: '!done:cave', who: 'woman', say: 'They say the knight was a hero once.{w=.4} {s=14}Before the cave changed him...{/s}' }],
-    sign: [{ say: '{c=#ffe08a}BRIGHTWATER{/c}{w=.2}  North gate: closed.  South gate: the road.' }],
-    sealed: [{ who: 'rowan', say: 'A door of stone, sealed tight.{w=.3} The elder must have its key.' }],
-    found: [{ say: 'Found {c=#9ad0ff}{$found}{/c}!' }],
-    crystal: [{ say: 'A crystal hums with soft light.{w=.3} {c=#8affc0}Your wounds close.{/c}', event: 'heal' }, { say: 'Record your journey?', choices: [{ text: 'Save', event: 'save', wait: true }, { text: 'Not now' }] }],
-    knight: [{ who: 'knight', emote: '!', say: '{shake}Who dares walk my halls?{/shake}' }, { who: 'rowan', say: 'Brightwater wants its water back, knight!' },
-      { who: 'knight', say: 'Then you will {c=#ff6a6a}{wave}join the stones{/wave}{/c}.{w=.5} Come!' }, { event: 'fight' }],
-    victory: [{ who: 'rowan', say: 'It\'s over.{w=.3} Listen: water, running under the rock.' }, { who: 'sera', say: 'The spring is free. Let\'s go home.' }, { done: 'cave', set: 'knightDown' }, { event: 'home', wait: true },
-      { who: 'elder', emote: 'heart', say: 'You did it!{w=.4} The wells are full, and Brightwater owes you everything.' }, { event: 'theend' }]
+      { who: 'elder', emote: '!', say: E.t('rpg.elder.welcome') },
+      { who: 'elder', say: [E.t('rpg.elder.wells'), E.t('rpg.elder.ask')], choices: [
+        { text: E.t('rpg.elder.yes'), quest: ['cave', E.t('rpg.quest.cave'), E.t('rpg.quest.cave.text')], event: 'key' },
+        { text: E.t('rpg.elder.not_yet'), goto: 'elderLater' }] },
+      { who: 'elder', say: E.t('rpg.elder.key') }],
+    elderLater: [{ who: 'elder', emote: 'dots', say: E.t('rpg.elder.later') }],
+    elderAgain: [{ who: 'elder', say: E.t('rpg.elder.again') }],
+    elderThanks: [{ who: 'elder', emote: 'heart', say: E.t('rpg.elder.thanks') }],
+    inn: [{ who: 'inn', say: E.t('rpg.inn.welcome'), choices: [{ text: E.t('rpg.inn.stay'), if: 'gold >= 10', set: 'slept', event: 'inn', wait: true }, { text: E.t('rpg.inn.no') }] },
+      { if: 'slept', who: 'inn', say: E.t('rpg.inn.morning'), set: { slept: false } }],
+    shop: [{ who: 'shop', say: E.t('rpg.shop.hello'), event: 'shop', wait: true }, { who: 'shop', say: E.t('rpg.shop.bye') }],
+    guard: [{ if: '!quest:cave', who: 'guard', say: E.t('rpg.guard.warn') }, { if: 'quest:cave', who: 'guard', say: E.t('rpg.guard.luck') }],
+    child: [{ who: 'child', emote: 'note', say: E.t('rpg.child.song'), choices: [{ text: E.t('rpg.child.lovely'), set: 'song' }, { text: E.t('rpg.child.hmm') }] },
+      { if: 'song', who: 'child', emote: 'heart', say: E.t('rpg.child.yay') }, { if: '!song', who: 'child', emote: '?', say: E.t('rpg.child.hmph') }],
+    woman: [{ if: 'done:cave', who: 'woman', say: E.t('rpg.woman.full') }, { if: '!done:cave', who: 'woman', say: E.t('rpg.woman.hero') }],
+    sign: [{ say: E.t('rpg.sign') }],
+    sealed: [{ who: 'rowan', say: E.t('rpg.sealed') }],
+    found: [{ say: E.t('rpg.found') }],
+    crystal: [{ say: E.t('rpg.crystal.heal'), event: 'heal' }, { say: E.t('rpg.crystal.ask'), choices: [{ text: E.t('rpg.menu.save'), event: 'save', wait: true }, { text: E.t('rpg.crystal.not_now') }] }],
+    knight: [{ who: 'knight', emote: '!', say: E.t('rpg.knight.dares') }, { who: 'rowan', say: E.t('rpg.knight.rowan') },
+      { who: 'knight', say: E.t('rpg.knight.stones') }, { event: 'fight' }],
+    victory: [{ who: 'rowan', say: E.t('rpg.victory.over') }, { who: 'sera', say: E.t('rpg.victory.home') }, { done: 'cave', set: 'knightDown' }, { event: 'home', wait: true },
+      { who: 'elder', emote: 'heart', say: E.t('rpg.victory.elder') }, { event: 'theend' }]
   };
 
   /* ---- STATE ---- */
   let party, story, at, map, maps = {}, hero, crew, people, things, trail = [], mode = 'title', t = 0, wins = [], banner = null, dark = 0, onDark = null, end = 0, saveNote = '', noteT = 0, boxes = [], fought = [], boss = false;
   const looks = () => RPG.looks;   // the battle's heroes: their rigs, names and moves
-  const rigOf = name => new E.Humanoid((looks().find(p => p.name === name) || looks()[0]).rig);
+  const rigOf = id => new E.Humanoid((looks().find(p => p.id === id) || looks()[0]).rig);   // a hero's rig by its id
   const lead = () => party.members[0];
-  const place = id => ({ town: 'Brightwater', world: 'The Island', cave: 'The Northern Cave' })[id];
+  const place = id => E.t('rpg.place.' + id);   // a map's name (its banner, a save's place)
   function build(id) {   // a map, made once: its TileMap and what stands on it
     if (maps[id]) return maps[id];
     const m = id === 'town' ? new E.TileMap({ rows: TOWN, legend: TOWN_LEGEND, types: TOWN_TYPES, floorTex: townTex, ao: 6 }) : id === 'cave' ? new E.TileMap({ rows: CAVE, legend: CAVE_LEGEND, types: CAVE_TYPES, floorTex: caveTex, ao: 7, outside: '#06040a' }) : makeWorld();
@@ -884,16 +893,16 @@ const JOURNEY = (() => {
   // a new journey: the party at level 1 with 50 gold and two potions, the story at its start, in the town's square
   function fresh() {
     party = R.party(HEROES(), { gold: 50 }); party.inv.add('potion', 2);
-    story = new E.Story(game, { nodes: NODES, vars: { hero: 'Rowan' }, on: EVENTS, dialog: new E.Dialog(game, { bg: WIN, lines: 3 }) });
-    for (const n of ['rowan', 'lyra', 'sera']) story.people[n] = { name: NAMES[n], portrait: rigOf(n[0].toUpperCase() + n.slice(1)) };
+    story = new E.Story(game, { nodes: NODES, vars: { hero: E.t('rpg.name.rowan') }, on: EVENTS, dialog: new E.Dialog(game, { bg: WIN, lines: 3 }) });
+    for (const n of ['rowan', 'lyra', 'sera']) story.people[n] = { name: NAMES[n], portrait: rigOf(n) };
     go('town', 'start');
   }
   // enter a map at one of its spawns (a tag) or a point: the people and things of its rows, the camera, the song, the light
   function go(id, spot) {
     const M = build(id); at = id; map = M.map;
     const s = typeof spot === 'string' ? map.find(spot) : spot;
-    hero = Object.assign(new E.Body({ x: s.x, y: s.y, r: 4.5, friction: 10 }), { facing: -Math.PI / 2, rig: hero ? hero.rig : rigOf('Rowan') });
-    crew = (crew || ['Lyra', 'Sera'].map(n => ({ name: n, rig: rigOf(n) }))).map(c => Object.assign(c, { x: s.x, y: s.y + 4, facing: hero.facing }));
+    hero = Object.assign(new E.Body({ x: s.x, y: s.y, r: 4.5, friction: 10 }), { facing: -Math.PI / 2, rig: hero ? hero.rig : rigOf('rowan') });
+    crew = (crew || ['lyra', 'sera'].map(n => ({ name: n, rig: rigOf(n) }))).map(c => Object.assign(c, { x: s.x, y: s.y + 4, facing: hero.facing }));
     trail = []; people = []; things = [];
     for (const sp of map.spawns) {
       if (LOOKS[sp.tag]) people.push({ id: sp.tag, x: sp.x, y: sp.y, home: [sp.x, sp.y], face: Math.PI / 2, dir: Math.PI / 2, rig: new E.Humanoid(LOOKS[sp.tag]), t: E.hash2(sp.cx, sp.cy) * 3 });
@@ -940,52 +949,55 @@ const JOURNEY = (() => {
   const close = () => { const w = wins.pop(); inp.consumeAll(); A.sfx('cancel'); if (w && w.done) w.done(); };
   const say = s => { saveNote = s; noteT = 2.2; };
   const fit = (r, w) => Math.min(w, r.W - 16);
+  // a window's words are lines; a title shown in capitals is its line in capitals (E.lang.upper). Gold and experience
+  // can pass 999: written without a thousands mark, as they always were (NUM)
+  const NUM = n => E.lang.num(n, { useGrouping: false }), caps = id => E.lang.upper(E.t(id));
   function menuWin() {   // the field's menu, FF style: its commands; the party's cards and the gold beside them
-    return { title: 'MENU', w: 92, rows: () => [{ label: 'Items' }, { label: 'Equip' }, { label: 'Status' }, { label: 'Quests' }, { label: 'Save', off: !atCrystal(), note: atCrystal() ? '' : '-' }],
-      pick: i => [() => open(itemsWin()), () => open(whoWin('Equip', m => open(slotsWin(m)))), () => open(statusWin()), () => open(questsWin()), () => open(saveWin('save'))][i](), side: true };
+    return { title: E.t('rpg.menu.title'), w: 92, rows: () => [{ label: E.t('rpg.menu.items') }, { label: E.t('rpg.menu.equip') }, { label: E.t('rpg.menu.status') }, { label: E.t('rpg.menu.quests') }, { label: E.t('rpg.menu.save'), off: !atCrystal(), note: atCrystal() ? '' : '-' }],
+      pick: i => [() => open(itemsWin()), () => open(whoWin(E.t('rpg.menu.equip'), m => open(slotsWin(m)))), () => open(statusWin()), () => open(questsWin()), () => open(saveWin('save'))][i](), side: true };
   }
   const atCrystal = () => things.some(o => o.kind === 'crystal' && near(o, 30));
-  function itemsWin() {
+  function itemsWin() {   // what an item did, said: its own line (rpg.item.<id>.used)
     const list = () => party.inv.list();
-    return { title: 'ITEMS', w: 170, rows: () => list().length ? list().map(e => ({ label: e.item.name, note: '×' + e.n, icon: R.icon(e.id), off: e.item.kind !== 'use' })) : [{ label: '(nothing)', off: true }],
+    return { title: E.t('rpg.items.title'), w: 170, rows: () => list().length ? list().map(e => ({ label: e.item.name, note: E.t('rpg.count', { count: e.n }), icon: R.icon(e.id), off: e.item.kind !== 'use' })) : [{ label: E.t('rpg.items.nothing'), off: true }],
       foot: w => { const e = list()[w.i]; return e ? e.item.info || '' : ''; },
-      pick: i => { const e = list()[i]; if (!e || e.item.kind !== 'use') return; open(whoWin('Use ' + e.item.name, m => { if (party.use(e.id, m)) { A.sfx('heal'); say(m.name + ': ' + e.item.info.toLowerCase() + '.'); } else { A.sfx('bump'); say('It has no effect.'); } close(); if (!party.inv.has(e.id)) wins[wins.length - 1].i = 0; })); } };
+      pick: i => { const e = list()[i]; if (!e || e.item.kind !== 'use') return; open(whoWin(E.t('rpg.menu.use', { item: e.item.name }), m => { if (party.use(e.id, m)) { A.sfx('heal'); say(E.t('rpg.item.' + e.id + '.used', { name: m.name })); } else { A.sfx('bump'); say(E.t('rpg.items.no_effect')); } close(); if (!party.inv.has(e.id)) wins[wins.length - 1].i = 0; })); } };
   }
-  function whoWin(title, then) { return { title: title.toUpperCase(), w: 110, rows: () => party.members.map(m => ({ label: m.name, note: m.hp + '/' + m.max('hp') })), pick: i => then(party.members[i]), side: true }; }
-  const SLOT_NAMES = { weapon: 'Weapon', armor: 'Armor', helm: 'Helm', accessory: 'Accessory' }, fits = (id, m) => { const it = R.item(id); return !it.for || it.for.split(' ').includes(m.name); };
+  function whoWin(title, then) { return { title: E.lang.upper(title), w: 110, rows: () => party.members.map(m => ({ label: m.name, note: m.hp + '/' + m.max('hp') })), pick: i => then(party.members[i]), side: true }; }
+  const GEAR = ['weapon', 'armor', 'helm', 'accessory'], slotLine = k => E.t('rpg.slot.' + k), fits = (id, m) => { const it = R.item(id); return !it.for || it.for.split(' ').includes(RPG.heroId(m)); };
   function slotsWin(m) {
-    const ks = Object.keys(SLOT_NAMES);
-    return { title: m.name.toUpperCase() + ' · EQUIP', w: 190, rows: () => ks.map(k => ({ label: SLOT_NAMES[k], note: m.equipped[k] ? R.item(m.equipped[k]).name : '-' })), member: m,
-      pick: i => open(gearWin(m, ks[i])) };
+    return { title: E.t('rpg.equip.title', { name: E.lang.upper(m.name) }), w: 190, rows: () => GEAR.map(k => ({ label: slotLine(k), note: m.equipped[k] ? R.item(m.equipped[k]).name : '-' })), member: m,
+      pick: i => open(gearWin(m, GEAR[i])) };
   }
-  function gearWin(m, slot) {
-    const list = () => party.inv.list().filter(e => e.item.kind === slot && fits(e.id, m)), delta = id => Object.entries(m.compare(id)).map(([k, d]) => (d > 0 ? '+' : '') + d + ' ' + k.toUpperCase()).join(' ');
-    return { title: SLOT_NAMES[slot].toUpperCase(), w: 200, member: m,
-      rows: () => [...list().map(e => ({ label: e.item.name, note: delta(e.id) || '=', icon: R.icon(e.id) })), { label: '(remove)', off: !m.equipped[slot] }],
-      pick: i => { const e = list()[i]; if (e) { m.equip(e.id, party.inv); A.sfx('powerup'); say(m.name + ' equips the ' + e.item.name + '.'); } else if (m.equipped[slot]) { m.unequip(slot, party.inv); say('Removed.'); } close(); } };
+  function gearWin(m, slot) {   // each piece with what it changes: +5 ATK (the change as written, a stat's short name a line)
+    const list = () => party.inv.list().filter(e => e.item.kind === slot && fits(e.id, m)), delta = id => Object.entries(m.compare(id)).map(([k, d]) => E.t('rpg.gear.change', { change: (d > 0 ? '+' : '') + d, stat: E.t('rpg.stat.' + k) })).join(' ');
+    return { title: E.lang.upper(slotLine(slot)), w: 200, member: m,
+      rows: () => [...list().map(e => ({ label: e.item.name, note: delta(e.id) || '=', icon: R.icon(e.id) })), { label: E.t('rpg.gear.remove'), off: !m.equipped[slot] }],
+      pick: i => { const e = list()[i]; if (e) { m.equip(e.id, party.inv); A.sfx('powerup'); say(E.t('rpg.say.equips', { name: m.name, item: e.item.name })); } else if (m.equipped[slot]) { m.unequip(slot, party.inv); say(E.t('rpg.say.removed')); } close(); } };
   }
-  function statusWin() { return { title: 'STATUS', w: 120, rows: () => party.members.map(m => ({ label: m.name, note: 'Lv ' + m.level })), pick: () => {}, side: true, status: true, foot: w => { const m = party.members[w.i]; return m.exp + ' EXP · ' + m.next + ' to the next level'; } }; }
-  function questsWin() {
+  function statusWin() { return { title: E.t('rpg.status.title'), w: 120, rows: () => party.members.map(m => ({ label: m.name, note: E.t('rpg.lv', { level: m.level }) })), pick: () => {}, side: true, status: true, foot: w => { const m = party.members[w.i]; return E.t('rpg.status.exp', { exp: NUM(m.exp), next: NUM(m.next) }); } }; }
+  function questsWin() {   // a quest's title and text by its id (a save keeps the words of the language it was made in)
     const q = () => story.quests;
-    return { title: 'QUESTS', w: 200, rows: () => q().length ? q().map(x => ({ label: x.title, note: x.done ? 'Done' : '...' })) : [{ label: '(none yet)', off: true }], pick: () => {}, foot: w => (q()[w.i] || {}).text || '' };
+    return { title: E.t('rpg.quests.title'), w: 200, rows: () => q().length ? q().map(x => ({ label: E.t('rpg.quest.' + x.id, null, x.title), note: x.done ? E.t('rpg.quests.done') : '...' })) : [{ label: E.t('rpg.quests.none'), off: true }], pick: () => {},
+      foot: w => { const x = q()[w.i]; return x ? E.t('rpg.quest.' + x.id + '.text', null, x.text || '') : ''; } };
   }
-  const slotName = s => s === 'auto' ? 'Autosave' : 'Slot ' + (s + 1);
-  const about = s => s.empty ? 'Empty' : s.damaged ? 'Damaged' : s.newer ? 'Newer version' : (s.place || '') + ' · Lv ' + s.level + ' · ' + Math.floor(s.time / 3600) + ':' + String(Math.floor(s.time / 60) % 60).padStart(2, '0');
+  const slotName = s => s === 'auto' ? E.t('engine.saves.auto') : E.t('engine.saves.slot', { n: s + 1 });   // (the engine's own words for them)
+  const about = s => s.empty ? E.t('engine.saves.empty') : s.damaged ? E.t('rpg.save.damaged') : s.newer ? E.t('rpg.save.newer') : E.t('rpg.save.about', { place: s.place || '', level: s.level, time: Math.floor(s.time / 3600) + ':' + String(Math.floor(s.time / 60) % 60).padStart(2, '0') });
   function saveWin(kind, done) {   // the slots (game.saves): save to one (not the autosave), or load one
     const list = () => game.saves.list().filter(s => kind === 'load' || s.slot !== 'auto');
-    return { title: kind === 'save' ? 'SAVE' : 'LOAD', w: 230, done, rows: () => list().map(s => ({ label: slotName(s.slot), note: about(s), off: kind === 'load' && (s.empty || s.damaged || s.newer) })),
-      pick: i => { const s = list()[i]; if (kind === 'save') { game.saves.save(s.slot); A.sfx('confirm'); say('Saved to ' + slotName(s.slot) + '.'); } else if (load(s.slot)) { wins = []; say('Loaded ' + slotName(s.slot) + '.'); } } };
+    return { title: caps(kind === 'save' ? 'rpg.menu.save' : 'rpg.title.load'), w: 230, done, rows: () => list().map(s => ({ label: slotName(s.slot), note: about(s), off: kind === 'load' && (s.empty || s.damaged || s.newer) })),
+      pick: i => { const s = list()[i]; if (kind === 'save') { game.saves.save(s.slot); A.sfx('confirm'); say(E.t('rpg.say.saved', { slot: slotName(s.slot) })); } else if (load(s.slot)) { wins = []; say(E.t('rpg.say.loaded', { slot: slotName(s.slot) })); } } };
   }
-  function shopWin(done) {   // the merchant: buy (the gold you have, what you carry) or sell
+  function shopWin(done) {   // the merchant: buy (the gold you have, what you carry) or sell. A purchase says its own line (rpg.item.<id>.bought)
     const stock = () => SHOP.items.filter(id => id !== 'iron' && id !== 'chain' && id !== 'ring' || story.test('quest:cave'));
-    return { title: 'SHOP', w: 120, done, rows: () => [{ label: 'Buy' }, { label: 'Sell' }, { label: 'Leave' }],
-      pick: i => i === 2 ? close() : open(i === 0 ? { title: 'BUY', w: 210, rows: () => stock().map(id => ({ label: R.item(id).name, note: SHOP.price(id) + ' G', icon: R.icon(id), off: party.gold < SHOP.price(id) })), foot: w => { const id = stock()[w.i]; return id ? R.item(id).info + ' · you have ' + party.inv.count(id) : ''; },
-        pick: k => { const id = stock()[k]; if (SHOP.buy(party, id)) { A.sfx('coin'); say('Bought a' + (/^[AEIOU]/.test(R.item(id).name) ? 'n ' : ' ') + R.item(id).name + '.'); } else { A.sfx('bump'); say('Not enough gold.'); } } }
-        : { title: 'SELL', w: 210, rows: () => party.inv.list().map(e => ({ label: e.item.name, note: e.item.kind === 'key' ? '-' : SHOP.worth(e.id) + ' G', icon: R.icon(e.id), off: e.item.kind === 'key' })), pick: k => { const e = party.inv.list()[k]; if (e && SHOP.sell(party, e.id)) { A.sfx('coin'); say('Sold.'); } } }), side: 'gold' };
+    return { title: E.t('rpg.shop.title'), w: 120, done, rows: () => [{ label: E.t('rpg.shop.buy') }, { label: E.t('rpg.shop.sell') }, { label: E.t('rpg.shop.leave') }],
+      pick: i => i === 2 ? close() : open(i === 0 ? { title: caps('rpg.shop.buy'), w: 210, rows: () => stock().map(id => ({ label: R.item(id).name, note: E.t('rpg.gold', { gold: NUM(SHOP.price(id)) }), icon: R.icon(id), off: party.gold < SHOP.price(id) })), foot: w => { const id = stock()[w.i]; return id ? E.t('rpg.shop.have', { info: R.item(id).info, count: party.inv.count(id) }) : ''; },
+        pick: k => { const id = stock()[k]; if (SHOP.buy(party, id)) { A.sfx('coin'); say(E.t('rpg.item.' + id + '.bought')); } else { A.sfx('bump'); say(E.t('rpg.say.no_gold')); } } }
+        : { title: caps('rpg.shop.sell'), w: 210, rows: () => party.inv.list().map(e => ({ label: e.item.name, note: e.item.kind === 'key' ? '-' : E.t('rpg.gold', { gold: NUM(SHOP.worth(e.id)) }), icon: R.icon(e.id), off: e.item.kind === 'key' })), pick: k => { const e = party.inv.list()[k]; if (e && SHOP.sell(party, e.id)) { A.sfx('coin'); say(E.t('rpg.say.sold')); } } }), side: 'gold' };
   }
   function titleWin() {   // the journey's title: a new one, the last one, any saved one, or the battle alone
     const latest = game.saves.latest();
-    return { title: null, w: 150, rows: () => [{ label: 'New game' }, { label: 'Continue', note: latest ? latest.place : '-', off: !latest }, { label: 'Load', off: !game.saves.any }, { label: 'Battle' }],
+    return { title: null, w: 150, rows: () => [{ label: E.t('rpg.title.new') }, { label: E.t('rpg.title.continue'), note: latest ? latest.place : '-', off: !latest }, { label: E.t('rpg.title.load'), off: !game.saves.any }, { label: E.t('rpg.title.battle') }],
       pick: i => { if (i === 0) { wins = []; fresh(); mode = 'walk'; } else if (i === 1 && latest) { if (load(latest.slot)) wins = []; } else if (i === 2) open(saveWin('load')); else game.go('rpg-battle'); }, title0: true };
   }
   function menuUpdate() {
@@ -1002,15 +1014,16 @@ const JOURNEY = (() => {
   game.saves.write = () => ({ data: { at, x: Math.round(hero.x), y: Math.round(hero.y), party: party.state(), story: story.state() }, place: place(at), level: lead().level });
   function load(slot) {
     let ok = false; const was = game.saves.read;
-    game.saves.read = s => { ok = true; fresh(); party = R.restore(s.data.party); story.restore(s.data.story); crew = null; go(s.data.at, { x: s.data.x, y: s.data.y }); mode = 'walk'; };
+    game.saves.read = s => { ok = true; fresh(); party = R.restore(s.data.party); story.restore(s.data.story); crew = null; go(s.data.at, { x: s.data.x, y: s.data.y }); mode = 'walk';
+      for (const m of party.members) m.name = E.t('rpg.name.' + RPG.heroId(m)); story.vars.hero = E.t('rpg.name.rowan'); };   // (names by id, in this page's language)
     game.saves.load(slot); game.saves.read = was; return ok;
   }
 
   /* ---- UPDATE ---- */
   function walkUpdate(dt) {
     const h = hero, ui = wins.length > 0, near0 = !ui && !story.running && talkable();
-    inp.touchSet('confirm', story.running ? 'NEXT' : ui ? 'OK' : near0 ? (near0.kind ? 'LOOK' : 'TALK') : null, story.running || ui || !!near0);
-    inp.touchSet('skill', 'MENU', !ui && !story.running && mode === 'walk'); inp.touchSet('cancel', 'BACK', ui && !(wins[wins.length - 1] || {}).title0);
+    inp.touchSet('confirm', story.running ? E.t('rpg.touch.next') : ui ? E.t('rpg.touch.ok') : near0 ? E.t(near0.kind ? 'rpg.touch.look' : 'rpg.touch.talk') : null, story.running || ui || !!near0);
+    inp.touchSet('skill', E.t('rpg.touch.menu'), !ui && !story.running && mode === 'walk'); inp.touchSet('cancel', E.t('rpg.back'), ui && !(wins[wins.length - 1] || {}).title0);
     if (dark > 0) { const was = dark; dark -= dt; if (was > .8 && dark <= .8 && onDark) { const f = onDark; onDark = null; f(); } return; }
     if (ui) return menuUpdate();
     story.vars.gold = party.gold;
@@ -1060,7 +1073,7 @@ const JOURNEY = (() => {
   function update(dt) {
     t += dt; noteT -= dt; if (banner) banner.t -= dt; if (end) end += dt;
     if (mode === 'battle') return;   // (the swirl into a battle: the field holds still)
-    if (mode === 'title') { inp.touchSet('confirm', 'OK', true); inp.touchSet('skill', null, false); inp.touchSet('cancel', 'BACK', wins.length > 1); if (!wins.length) open(titleWin()); menuUpdate(); people_(dt); return; }
+    if (mode === 'title') { inp.touchSet('confirm', E.t('rpg.touch.ok'), true); inp.touchSet('skill', null, false); inp.touchSet('cancel', E.t('rpg.back'), wins.length > 1); if (!wins.length) open(titleWin()); menuUpdate(); people_(dt); return; }
     people_(dt); walkUpdate(dt);
   }
 
@@ -1093,11 +1106,11 @@ const JOURNEY = (() => {
   function hud(g, r) {
     if (mode === 'title') {   // the journey's title over its town
       px.blend(g, .55, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#0a0820'));
-      E.font.title(g, 'BRIGHTWATER', r.W / 2, Math.round(r.H * .2), { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#c8602a'], depth: 2 });
-      txt(g, 'AND THE DREAD KNIGHT', r.W / 2, Math.round(r.H * .2) + 30, '#c8d0ff', 'center');
+      E.font.title(g, E.t('rpg.logo'), r.W / 2, Math.round(r.H * .2), { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#c8602a'], depth: 2 });
+      txt(g, E.t('rpg.logo.sub'), r.W / 2, Math.round(r.H * .2) + 30, '#c8d0ff', 'center');
     }
     if (banner && banner.t > 0 && mode !== 'title') { const w = E.font.width(banner.text) + 26; px.blend(g, Math.min(1, banner.t), 'normal', () => { E.ui.box(g, r.W / 2 - w / 2, 10, w, 18, { bg: WIN }); txt(g, banner.text, r.W / 2, 15, '#ffffff', 'center'); }); }
-    if (mode === 'walk' && !wins.length && !story.running) { const s = party.gold + ' G'; txt(g, s, r.W - 8, r.H - 14, GOLD, 'right'); }
+    if (mode === 'walk' && !wins.length && !story.running) { const s = E.t('rpg.gold', { gold: NUM(party.gold) }); txt(g, s, r.W - 8, r.H - 14, GOLD, 'right'); }
     // the windows, each a little right of and below the one under it; cards or the gold beside the top one
     // on a touch screen a row is a thumb's height (46 CSS px), and a window shows what fits, scrolling the rest
     const S = game.screen, rh = inp.lastDevice === 'touch' ? Math.max(11, Math.ceil(46 / (S.S / S.dpr))) : 11;
@@ -1113,12 +1126,12 @@ const JOURNEY = (() => {
           const cx = wx + ww + 6 + 150 <= r.W - 4 ? wx + ww + 6 : 8, cy = cx === 8 ? wy + box.h + 4 : wy;
           party.members.forEach((m, j) => R.card(g, cx, cy + j * 64, m, { portrait: looksRig(m), w: Math.min(150, r.W - cx - 6), bg: w.status && j === w.i ? HOT : WIN }));
         }
-        if (w.side) { const beside = w.side === 'gold' && wx + ww + 98 <= r.W, gx = beside ? wx + ww + 6 : wx, gy = beside ? wy : wy + box.h + 4 + (w.side === true && wx + ww + 156 > r.W ? 3 * 64 : 0); E.ui.box(g, gx, gy, 92, 18, { bg: WIN }); txt(g, party.gold + ' G', gx + 85, gy + 5, GOLD, 'right'); }   // the gold: beside the shop, under the menu (and the cards, upright)
+        if (w.side) { const beside = w.side === 'gold' && wx + ww + 98 <= r.W, gx = beside ? wx + ww + 6 : wx, gy = beside ? wy : wy + box.h + 4 + (w.side === true && wx + ww + 156 > r.W ? 3 * 64 : 0); E.ui.box(g, gx, gy, 92, 18, { bg: WIN }); txt(g, E.t('rpg.gold', { gold: NUM(party.gold) }), gx + 85, gy + 5, GOLD, 'right'); }   // the gold: beside the shop, under the menu (and the cards, upright)
       }
     });
     if (noteT > 0 && saveNote) { const w = E.font.width(saveNote) + 20; E.ui.box(g, r.W / 2 - w / 2, r.H / 2 - 9, w, 18, { bg: HOT }); txt(g, saveNote, r.W / 2, r.H / 2 - 4, '#ffffff', 'center'); }
     if (dark > 0) px.blend(g, clamp(1 - Math.abs(dark - .8) / .8, 0, 1), 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#000000'));
-    if (end) { px.blend(g, Math.min(.7, end * .5), 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#0a0820')); E.font.title(g, 'THE END', r.W / 2, r.H / 2 - 20, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 }); if (end > 1.5) txt(g, inp.label('confirm') + ': WALK ON', r.W / 2, r.H / 2 + 24, '#c8d0ff', 'center'); }
+    if (end) { px.blend(g, Math.min(.7, end * .5), 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#0a0820')); E.font.title(g, E.t('rpg.the_end'), r.W / 2, r.H / 2 - 20, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 }); if (end > 1.5) txt(g, E.t('rpg.walk_on'), r.W / 2, r.H / 2 + 24, '#c8d0ff', 'center'); }
   }
   const rigs = {}, looksRig = m => rigs[m.name] || (rigs[m.name] = rigOf(m.name));
 
@@ -1153,31 +1166,31 @@ const JOURNEY = (() => {
       hold(null); return false;
     };
     const visit = o => { walkTo(o.x, o.y + 13, 6); hero.facing = -Math.PI / 2; tap('confirm'); };
-    const pick = (label, w = wins[wins.length - 1]) => { w.i = Math.max(0, w.rows().findIndex(row => row.label === label)); tap('confirm'); };
+    const pick = (label, w = wins[wins.length - 1]) => { w.i = Math.max(0, w.rows().findIndex(row => row.label === label)); tap('confirm'); }, line = id => E.t(id);   // (a row by its line: any language)
     const person = id => people.find(p => p.id === id), thing = k => things.find(o => o.kind === k);
-    game.go('rpg', null, { fade: 0 }); wait(10); pick('New game'); fought = [];
+    game.go('rpg', null, { fade: 0 }); wait(10); pick(line('rpg.title.new')); fought = [];
     visit(person('elder')); settle(); rep.quest = story.test('quest:cave'); rep.key = party.inv.has('key');
     visit(person('shop')); settle();
-    if (wins.length) { pick('Buy'); for (const id of ['bronze', 'leather', 'potion', 'potion', 'potion']) pick(R.item(id).name); tap('cancel', 2); settle(); }
+    if (wins.length) { pick(line('rpg.shop.buy')); for (const id of ['bronze', 'leather', 'potion', 'potion', 'potion']) pick(R.item(id).name); tap('cancel', 2); settle(); }
     rep.bought = party.inv.has('bronze') && party.inv.has('leather') && party.inv.has('potion', 5);
-    tap('skill'); pick('Equip'); pick('Rowan'); pick('Weapon'); pick('Bronze Sword'); tap('cancel', 3);   // the menu: a sword on Rowan, the vest on Sera
-    tap('skill'); pick('Equip'); pick('Sera'); pick('Armor'); pick('Leather Vest'); tap('cancel', 3);
+    tap('skill'); pick(line('rpg.menu.equip')); pick(line('rpg.name.rowan')); pick(line('rpg.slot.weapon')); pick(R.item('bronze').name); tap('cancel', 3);   // the menu: a sword on Rowan, the vest on Sera
+    tap('skill'); pick(line('rpg.menu.equip')); pick(line('rpg.name.sera')); pick(line('rpg.slot.armor')); pick(R.item('leather').name); tap('cancel', 3);
     rep.equipped = lead().equipped.weapon === 'bronze' && party.members[2].equipped.armor === 'leather';
     visit(thing('chest')); settle(); rep.chest = party.inv.has('hipotion');
     visit(thing('crystal')); for (let i = 0; i < 200 && !wins.length; i++) if (!busy()) step();
-    if (wins.length) { pick('Slot 1'); tap('cancel'); } settle();
-    const saved = game.saves.get(0); rep.saved = !!saved && saved.place === 'Brightwater'; rep.savedGold = party.gold;
+    if (wins.length) { pick(slotName(0)); tap('cancel'); } settle();
+    const saved = game.saves.get(0); rep.saved = !!saved && saved.place === place('town'); rep.savedGold = party.gold;
     walkTo(map.find('exit').x, map.find('exit').y, 4); settle(); rep.world = at === 'world';
     const mouth = map.find('mouth');   // the road north (battles on the way); short of the cave it trains to level 3 on the road, as a player would; then in
     for (let k = 0; k < 30 && lead().level < 3 && at === 'world'; k++) { const y = k % 2 ? 84 : 104; walkTo((roadX(y) + .5) * T, (y + .5) * T, 10, 120 * 60); }
     for (let k = 0; k < 8 && at === 'world'; k++) { walkTo(mouth.x, mouth.y, 6); for (let i = 0; i < 120 * 2 && at === 'world'; i++) { if (busy()) continue; hold([0, -1]); step(); } hold(null); }
     rep.cave = at === 'cave'; rep.levelAtCave = lead().level;
     if (thing('chest')) { visit(thing('chest')); settle(); }
-    if (thing('crystal')) { visit(thing('crystal')); for (let i = 0; i < 200 && !wins.length; i++) if (!busy()) step(); if (wins.length) { pick('Slot 2'); tap('cancel'); } settle(); }
+    if (thing('crystal')) { visit(thing('crystal')); for (let i = 0; i < 200 && !wins.length; i++) if (!busy()) step(); if (wins.length) { pick(slotName(1)); tap('cancel'); } settle(); }
     const kn = people.find(p => p.boss); if (kn) walkTo(kn.x, kn.y + 40, 18);
     for (let i = 0; i < 120 * 600 && (people.some(p => p.boss) || busy()); i++) if (!busy()) { hold([0, -1]); step(); hold(null); }
     settle(); rep.boss = story.get('knightDown') === true && story.test('done:cave'); rep.after = party.members.map(m => m.hp + '/' + m.max('hp')).join(' ') + ' potions ' + party.inv.count('potion'); rep.home = at === 'town'; rep.levels = party.members.map(m => m.level); rep.battles = fought.length; rep.fights = fought.slice(); rep.time = Math.round(game.time);
-    game.go('rpg', null, { fade: 0 }); wait(20); pick('Load'); pick('Slot 1'); wait(20);   // the save from the town's crystal: the journey as it was then
+    game.go('rpg', null, { fade: 0 }); wait(20); pick(line('rpg.title.load')); pick(slotName(0)); wait(20);   // the save from the town's crystal: the journey as it was then
     rep.loaded = { at, quest: story.test('quest:cave'), done: story.test('done:cave'), gold: party.gold, key: party.inv.has('key'), bronze: lead().equipped.weapon === 'bronze' };
     rep.errors = game.errors.length - rep.errors0; delete rep.errors0; hold(null);
     return rep;

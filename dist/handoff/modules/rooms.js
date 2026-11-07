@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ROOMS v0.89.3: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.90.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -36,7 +36,8 @@ let entered = 0; for (let i = 0; i < 480; i++) { hero.update(1 / 120, world.map,
 if (entered !== 1 || world.room.id !== 'b' || !world.seen.has('2,0') || hero.x > 16 * 16 - 4) throw new Error('a to b, then its far wall');
 ```
 Rules: the hero's own update moves it (world.update only changes rooms); keep enemies and pickups per room (by
-world.room.id); a room's walls are its rows: leave an edge open only where a room continues.
+world.room.id); a room's walls are its rows: leave an edge open only where a room continues. Its words are lines:
+engine.rooms.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -46,6 +47,7 @@ if (!E) throw new Error('my-3D2dge module ROOMS: load engine/my-3d2dge.js (or th
  * ROOMS  a world of rooms on a grid of screens: walking between them, the explored map, gates, saves
  * ========================================================================== */
 const { clamp, px } = E;
+E.lang.engine({ 'engine.rooms.map.save': 'S', 'engine.rooms.map.boss': 'B' });   // its words are lines (docs/LANGUAGES.md): the map's save and boss rooms
 class World {
   /** new E.World(game, { id, screen: [20, 12], view: 'side' | 'top', legend, types, rooms, start, transition: 'slide',
    *  make }): a world of rooms (the manual above) */
@@ -153,7 +155,7 @@ class World {
         if (dx) { const X2 = dx > 0 ? X + cell - 1 : X; px.rect(g, X2, Y, 1, cell, wall); if (door) px.rect(g, X2, Y + ((cell - h) >> 1), 1, h, col); }
         else { const Y2 = dy > 0 ? Y + cell - 1 : Y; px.rect(g, X, Y2, cell, 1, wall); if (door) px.rect(g, X + ((cell - h) >> 1), Y2, h, 1, col); }
       }
-      if (k && cell >= 8) E.font.text(g, k === 'save' ? 'S' : 'B', X + cell / 2, Y + (cell >> 1) - 2, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+      if (k && cell >= 8) E.font.text(g, E.t(k === 'save' ? 'engine.rooms.map.save' : 'engine.rooms.map.boss'), X + cell / 2, Y + (cell >> 1) - 2, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
     }
     if (this.here && Math.floor(this.game.real * 3) % 2 === 0) { const [X, Y] = at(this.here[0], this.here[1]), d = Math.max(2, cell >> 2); px.rect(g, X + ((cell - d) >> 1), Y + ((cell - d) >> 1), d, d, '#ffffff'); }
   }

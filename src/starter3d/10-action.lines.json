@@ -1,0 +1,39 @@
+{
+ "lines": {
+  "action3d.boot": "The hall",
+  "action3d.knight": "THE KNIGHT",
+  "action3d.note.wave": "WAVE {wave}",
+  "action3d.hud.hp": "HP",
+  "action3d.hud.wave": "WAVE {wave}/{waves}   SCORE {score}",
+  "action3d.hint.combo": "combo",
+  "action3d.hint.dash": "dash",
+  "action3d.hint.jump": "jump",
+  "action3d.hint.bolt": "bolt",
+  "action3d.hint.lock": "lock",
+  "action3d.hint.camera": "camera",
+  "action3d.over.won": "HALL CLEARED",
+  "action3d.over.all_waves": { "one": "ALL {count} WAVES", "other": "ALL {count} WAVES" },
+  "action3d.over.wave_of": "WAVE {wave} OF {waves}",
+  "action3d.over.defeated": { "one": "{count} DEFEATED", "other": "{count} DEFEATED" },
+  "action3d.over.score": "SCORE {score}"
+ },
+ "notes": {
+  "action3d.boot": "A step on the loading screen while the game builds its hall of stone.",
+  "action3d.knight": "The last wave's boss, an armoured knight: the note as it marches in, and its name over its health bar.",
+  "action3d.hud.hp": "Hit points: the label beside the hero's health bar. Keep it two or three letters.",
+  "action3d.hud.wave": "The top-left corner in play: the wave (as 3/5) and the score, with three spaces between them.",
+  "action3d.hint.combo": "A button prompt's word, after the key (\"J combo\"): the three-hit sword combo. The controls hint lists six such prompts in one row, so keep each word short.",
+  "action3d.hint.dash": "A button prompt's word, after the key: dash.",
+  "action3d.hint.jump": "A button prompt's word, after the key: jump.",
+  "action3d.hint.bolt": "A button prompt's word, after the key: throw an ember bolt (a magic fire shot).",
+  "action3d.hint.lock": "A button prompt's word, after the key: lock on to the nearest monster (Zelda's targeting).",
+  "action3d.hint.camera": "A button prompt's word, after the key: change the camera.",
+  "action3d.over.won": "The title over the end screen when all five waves are beaten.",
+  "action3d.over.all_waves": "The end screen after a win: {count} is the number of waves (5). Another stat follows on the same row.",
+  "action3d.over.wave_of": "The end screen after a loss: the wave the hero fell in, of how many.",
+  "action3d.over.defeated": "The end screen: how many monsters the hero defeated."
+ },
+ "max": {},
+ "names": [],
+ "brief": "The 3D action slice: a torch-lit hall where a lone swordsman fights five waves of monsters (husks, skeletons, slimes, wisps) and then a knight, like Zelda 64's dungeons or Diablo. The hero is a man and is never named; the words are an arcade-style HUD, short button prompts and an end screen, mostly in capitals."
+}

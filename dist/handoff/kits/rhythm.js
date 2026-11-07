@@ -1,5 +1,5 @@
 // The RHYTHM kit's game (four lanes on the music clock: two songs, notes, jumps, holds, a rapping teacher to answer, a dancer and a crowd on the beat, grades, the audio offset), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/37-rhythm.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/37-rhythm.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. rhythm.html plays it; node kits/test.mjs rhythm runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -189,7 +194,7 @@ const RHYTHM = (() => {
     R3: ['c..c..c.........|x..x..x.........', '.........c......|.........x......', '...........c.c..|...........x.x..', '..............c.|..............x.'],
     R4: ['c...............|x...............', '....c...c...c...|....x...x...x...', b16 + b16, '..c.............|..h=====........'] },
     order: 'I R1 R1 R2 R2 R3 R3 R4 R2 R3 R4 R4' };
-  const SONGS = [{ id: 'stepup', name: 'STEP UP', about: 'FOUR LANES: NOTES, JUMPS, HOLDS', chart: STEPUP }, { id: 'rapschool', name: 'RAP SCHOOL', about: 'MASTER BEAT RAPS, YOU ANSWER', chart: RAP, call: true }];
+  const SONGS = [{ id: 'stepup', chart: STEPUP }, { id: 'rapschool', chart: RAP, call: true }].map(s => Object.assign(s, { name: E.t('rhythm.song.' + s.id), about: E.t('rhythm.song.' + s.id + '.about') }));
 
   /* ---- 1. THE STAGE: the dancer, Master Beat, the crowd, the lights; each moves on the music's beat ---- */
   const dancer = { rig: new E.Humanoid({ size: 1.35, build: 'heroic', weapon: null, hair: 'ponytail', outfit: 'tunic', sleeves: 'none', face: { eyes: 'big' }, colors: { cloth: '#e83a8a', pants: '#2a2a4a', hair: '#ffd040', glove: '#ffffff', boot: '#ffffff', trim: '#4ac8ff' } }), pose: null, move: null, mt: 0, hurt: 0, hop: 0 };
@@ -206,8 +211,8 @@ const RHYTHM = (() => {
 
   /* ---- 2. THE GAME: the menu (two songs, calibrate), play, the results; the calibration screen ---- */
   let mode = 'menu', modeT = 0, song = null, rh = null, menuI = 0, cal = null, bot = null, beatOn = null;
-  const MENU = () => [...SONGS.map(s => [s.name, s.about]), ['CALIBRATE', 'THE AUDIO OFFSET: ' + Math.round(game.settings.audioOffset) + ' MS']];
-  const AFTER = [['RETRY', ''], ['SONGS', ''], ['TITLE', '']];
+  const MENU = () => [...SONGS.map(s => [s.name, s.about]), [E.t('rhythm.calibrate'), E.t('rhythm.calibrate.about', { ms: Math.round(game.settings.audioOffset) })]];
+  const AFTER = [[E.t('rhythm.after.retry'), ''], [E.t('rhythm.after.songs'), ''], [E.t('rhythm.after.title'), '']];
   function begin(i) {
     song = SONGS[i]; mode = 'play'; modeT = 0; cheer = 0;
     rh = new E.Rhythm(game, { song: SB.get(song.id), chart: song.chart, lanes: LANES, windows: { perfect: 45, great: 90, good: 135 }, life: .6, lead: 1.5, voice: { wave: 'square', vol: .22, dur: .11 },
@@ -312,40 +317,40 @@ const RHYTHM = (() => {
     r.overlay(g => {
       const W = r.W, H = r.H;
       if (mode === 'menu') {
-        E.font.title(g, 'STEP UP!', W / 2, 14, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ac8', '#c03a8a'], depth: 3 });
-        E.font.text(g, 'FOUR LANES, TWO SONGS, ONE GROOVE', W / 2, 52, '#ffe0f0', { align: 'center', shadow: '#000', outline: false });
+        E.font.title(g, E.t('rhythm.title'), W / 2, 14, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ac8', '#c03a8a'], depth: 3 });
+        E.font.text(g, E.t('rhythm.tagline'), W / 2, 52, '#ffe0f0', { align: 'center', shadow: '#000', outline: false });
         btns(g, buttons(MENU(), W, H)); return;
       }
       if (mode === 'calibrate') {
-        E.font.title(g, 'CALIBRATE', W / 2, 16, { align: 'center', scale: 3, colors: ['#ffffff', '#4ac8ff', '#2a5ac0'], depth: 3 });
+        E.font.title(g, E.t('rhythm.calibrate'), W / 2, 16, { align: 'center', scale: 3, colors: ['#ffffff', '#4ac8ff', '#2a5ac0'], depth: 3 });
         const b = Math.floor(A.pos.beat), on = A.pos.beat - b < .15;
         px.disc(g, W / 2, H * .45, 22, '#000000'); px.disc(g, W / 2, H * .45, 20, on ? (b % 4 === 0 ? '#ffd040' : '#ffffff') : '#2a2a4a');
-        E.font.text(g, touch ? 'TAP ON EACH CLICK YOU HEAR' : 'PRESS A LANE KEY ON EACH CLICK YOU HEAR', W / 2, H * .45 + 34, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        E.font.text(g, cal.done ? 'YOUR OFFSET: ' + cal.result + ' MS  (' + cal.taps + ' TAPS, 12 SETS IT)' : 'TAPS: ' + cal.taps + ' OF 8', W / 2, H * .45 + 48, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
-        E.font.text(g, (touch ? 'BACK' : 'ESCAPE') + ': KEEP THE OLD ONE (' + Math.round(game.settings.audioOffset) + ' MS)', W / 2, H - 50, '#a8b0d8', { align: 'center', outline: false });
+        E.font.text(g, E.t(touch ? 'rhythm.calibrate.how.touch' : 'rhythm.calibrate.how.keys'), W / 2, H * .45 + 34, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, cal.done ? E.t('rhythm.calibrate.done', { ms: String(cal.result), taps: cal.taps }) : E.t('rhythm.calibrate.taps', { taps: cal.taps }), W / 2, H * .45 + 48, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, E.t(touch ? 'rhythm.calibrate.keep.touch' : 'rhythm.calibrate.keep.keys', { ms: Math.round(game.settings.audioOffset) }), W / 2, H - 50, '#a8b0d8', { align: 'center', outline: false });
         return;
       }
       if (mode === 'results') {
         const R = rh, gr = R.failed ? 'F' : R.grade, col = { S: '#ffd040', A: '#6aff6a', B: '#4ac8ff', C: '#ffffff', D: '#a8a8b8', F: '#ff4a4a' }[gr];
-        E.font.text(g, song.name + (R.failed ? '  FAILED' : '  CLEAR!'), W / 2, 12, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, E.t(R.failed ? 'rhythm.result.failed' : 'rhythm.result.clear', { song: song.name }), W / 2, 12, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         E.font.title(g, gr, W / 2, 24, { align: 'center', scale: 6, colors: ['#ffffff', col, E.shade(col, .5)], depth: 4 });
-        const c = R.counts, lines = ['PERFECT ' + c.perfect + '   GREAT ' + c.great, 'GOOD ' + c.good + '   MISS ' + c.miss, 'MAX COMBO ' + R.maxCombo + '   SCORE ' + R.score.toLocaleString('en-US')];
+        const c = R.counts, lines = [E.t('rhythm.result.counts1', { perfect: c.perfect, great: c.great }), E.t('rhythm.result.counts2', { good: c.good, miss: c.miss }), E.t('rhythm.result.combo', { combo: R.maxCombo, score: R.score })];   // (the score in the player's language: 12,500 or 12.500)
         lines.forEach((s, i) => E.font.text(g, s, W / 2, 76 + i * 11, '#ffe7a8', { align: 'center', shadow: '#000', outline: false }));
         if (modeT > 1) btns(g, buttons(AFTER, W, H));
         return;
       }
       if (mode !== 'play' || !rh) return;
       // the score, the life gauge, the song; the combo; the last judgment over its lane's target
-      E.font.text(g, rh.score.toLocaleString('en-US'), 8, 8, '#ffffff', { shadow: '#000', outline: false, scale: 2 });
+      E.font.text(g, E.lang.num(rh.score), 8, 8, '#ffffff', { shadow: '#000', outline: false, scale: 2 });
       E.font.text(g, song.name, 8, 26, '#ffb8e0', { shadow: '#000', outline: false });
       const gw = Math.min(110, W * .3), gx = Math.min(W - gw - 8, cornerX() - gw - 8); px.rect(g, gx - 1, 9, gw + 2, 9, '#ffffff'); px.rect(g, gx, 10, gw, 7, '#1a0a2a'); px.rect(g, gx, 10, Math.round(gw * rh.life), 7, rh.life < .25 ? '#ff4a4a' : rh.life > .8 ? '#6aff6a' : '#ffd040');
-      E.font.text(g, 'LIFE', gx - 4, 10, '#ffffff', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
+      E.font.text(g, E.t('rhythm.life'), gx - 4, 10, '#ffffff', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
       if (rh.combo >= 5) E.font.title(g, String(rh.combo), Lo.hx, Lo.ty - Lo.len * .55, { align: 'center', scale: 3, colors: ['#ffffff', '#ff8ac8', '#8a2a5a'], depth: 2 });
       const L0 = rh.last;
-      if (L0 && game.time - L0.t < .45) { const word = L0.j.toUpperCase(), cl = { perfect: '#ffd040', great: '#6aff6a', good: '#4ac8ff', miss: '#ff4a4a' }[L0.j]; E.font.text(g, word, Lo.hx, Lo.ty - 30 - (game.time - L0.t) * 20, cl, { align: 'center', shadow: '#000', outline: false, scale: 2 }); }
-      if (A.pos.beat < 4) E.font.title(g, A.pos.beat < 2 ? 'READY?' : String(4 - Math.floor(A.pos.beat)), W / 2, H * .3, { align: 'center', scale: 3, colors: ['#ffffff', '#ffd040', '#a06a10'], depth: 2 });
-      if (song.call && A.pos.beat >= 4) { const bar = Math.floor(A.pos.bar); E.font.text(g, bar % 2 === 0 ? 'MASTER BEAT:' : 'YOU:', Lo.mx, Lo.dy - (Lo.tall ? 124 : 100), bar % 2 === 0 ? '#ffd040' : '#ff8ac8', { align: 'center', shadow: '#000', outline: false }); }
-      if (modeT < 6) E.font.text(g, touch ? 'TAP THE COLUMN AS A NOTE MEETS ITS RING' : 'D F J K (OR THE ARROWS) AS A NOTE MEETS ITS RING', W / 2, Lo.ty + 16, '#ffe0f0', { align: 'center', shadow: '#000', outline: false });
+      if (L0 && game.time - L0.t < .45) { const word = E.t('rhythm.judge.' + L0.j), cl = { perfect: '#ffd040', great: '#6aff6a', good: '#4ac8ff', miss: '#ff4a4a' }[L0.j]; E.font.text(g, word, Lo.hx, Lo.ty - 30 - (game.time - L0.t) * 20, cl, { align: 'center', shadow: '#000', outline: false, scale: 2 }); }
+      if (A.pos.beat < 4) E.font.title(g, A.pos.beat < 2 ? E.t('rhythm.ready') : String(4 - Math.floor(A.pos.beat)), W / 2, H * .3, { align: 'center', scale: 3, colors: ['#ffffff', '#ffd040', '#a06a10'], depth: 2 });
+      if (song.call && A.pos.beat >= 4) { const bar = Math.floor(A.pos.bar); E.font.text(g, E.t(bar % 2 === 0 ? 'rhythm.turn.master' : 'rhythm.turn.you'), Lo.mx, Lo.dy - (Lo.tall ? 124 : 100), bar % 2 === 0 ? '#ffd040' : '#ff8ac8', { align: 'center', shadow: '#000', outline: false }); }
+      if (modeT < 6) E.font.text(g, E.t(touch ? 'rhythm.how.touch' : 'rhythm.how.keys'), W / 2, Lo.ty + 16, '#ffe0f0', { align: 'center', shadow: '#000', outline: false });
     });
   }
   function btns(g, B) {

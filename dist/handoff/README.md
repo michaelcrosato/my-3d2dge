@@ -1,4 +1,4 @@
-# my-3D2dge handoff package (v0.89.3)
+# my-3D2dge handoff package (v0.90.0)
 
 Everything a coding agent needs to build, run, test and check a game on the full my-3D2dge engine, in one folder of text
 files. You don't need the engine's repository, and you don't need to read the engine's source below its header.
@@ -49,6 +49,7 @@ lacks.
 | `tools/check.mjs` | plays a game in headless Chromium, switches its views, and reports errors, what is on screen, and `game.debug.snapshot()` |
 | `tools/filmstrip.mjs` | records frames into one picture, to judge motion (`--seed 1` makes it repeatable, `--compare` marks what changed) |
 | `tools/replay.mjs` | replays a recorded play session exactly (`E.session`, a bug seen on a phone) |
+| `docs/LANGUAGES.md`, `tools/lines.mjs`, `tools/lines-scan.mjs` | every word a line (AI Hub Languages v1): the page's `game-lines` block and `E.t`; the engine's own lines put in a page and its blocks checked as the hub checks them; a page played in the test language `en-XA`, listing words left in the code |
 | `docs/ASSETS.md` | the asset card: still objects and materials as data (`r.shape`, `map.solid`, `E.MATERIALS`), the core library, writing one |
 | `tools/asset-find.mjs`, `asset-sheet.mjs`, `asset-set.mjs` | search the core library and the store; draw an object in every view and lint it; cut the few entries a game uses into a set of its own (`asset-lib.mjs` is theirs) |
 | `src/assets/` | the asset store: sets of objects and materials converted from CC0 libraries (Kenney, KayKit, ambientCG), with their catalogs. A game loads one with its script and `E.addAssets(window.ASSETS['kenney-furniture'])`; the Asset Lab shows them all at my-3d2dge.vercel.app/asset-lab |
@@ -68,6 +69,8 @@ node tools/check.mjs game/index.html # play it in a browser: errors, screenshots
 node kits/test.mjs arcade            # a kit, headless: it plays, and its proof gives the same hash twice
 node tools/check.mjs kits/arcade.html#arcade/maze   # a kit in a browser, at a part (its deep link)
 node tools/filmstrip.mjs game/index.html --steps "wait:800 press:Enter wait:500 rec:16:2 down:KeyD wait:600" --seed 1
+node tools/lines.mjs game/index.html # put the engine's own lines (its menus) in the page's game-lines block; --check checks it
+node tools/lines-scan.mjs game/index.html   # play it in en-XA: every word should be a line
 ```
 
 Open `game/index.html` in a browser to play (or serve the folder: `npx serve`). To hand a single file to a person, inline

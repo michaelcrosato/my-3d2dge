@@ -9,6 +9,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete the slices you do not use; this shell (the game, its scenes, the boot steps) stays unless you replace
  * it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter3d/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 const E = My3D2dge, W3 = E.World3D, { clamp, lerp, approach, TAU } = E;
 
@@ -18,7 +21,8 @@ const E = My3D2dge, W3 = E.World3D, { clamp, lerp, approach, TAU } = E;
 const game = new E.Game({ canvas: 'screen', res: 'ps1', expand: true, bg: null, input: W3.INPUT, menu: { settings: W3.SETTINGS } });
 const P = game.particles, A = game.audio;
 const scenes = {}, BOOT = [];    // BOOT: the slices' heavy setup, [label, fn] steps run behind the boot screen
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter3d.slice.<id>, starter3d.slice.<id>.about and starter3d.family.<family>
 const SLICES = [
   { id: 'action', label: 'ACTION', about: 'A 3D ARENA: COMBOS, DASHES AND WAVES', family: 'ACTION ADVENTURE' },
   { id: 'platformer', label: 'PLATFORMER', about: 'A 3D COURSE: ISLANDS, PLATFORMS AND COINS', family: 'PLATFORM' },
@@ -27,31 +31,32 @@ const SLICES = [
   { id: 'racing', label: 'RACING', about: 'A KART CIRCUIT: DRIFTS, ITEMS, A SHORTCUT, TWO PLAYERS', family: 'RACING' },
   { id: 'flight', label: 'FLIGHT', about: 'ON RAILS TO THE BASE, A BOSS IN FREE FLIGHT', family: 'SHOOTER' },
   { id: 'crawler', label: 'CRAWLER', about: 'A DUNGEON IN FIRST PERSON: A PARTY OF FOUR, A CELL AT A TIME', family: 'RPG' }
-];
-// a prompt in the player's own controls ('J Sword', 'X Sword', 'ATTACK Sword' on a touch screen)
+].map(s => Object.assign(s, { label: E.t('starter3d.slice.' + s.id), about: E.t('starter3d.slice.' + s.id + '.about'), family: E.t('starter3d.family.' + s.family.toLowerCase().replace(/ /g, '_')) }));
+// a prompt in the player's own controls ('J Sword', 'X Sword', 'ATTACK Sword' on a touch screen); word is a line (E.t),
+// and the two are a line too (starter3d.prompt), so a language can put them the other way round
 // (a phone or tablet before its first touch counts too: a coarse pointer and nothing else used yet)
 const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch' || (coarse && game.input.lastDevice === 'keyboard');
+const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch' || (coarse && game.input.lastDevice === 'keyboard');
 // START picks too (the touch START, a pad's Start), as Enter does
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
 let active = null;               // the world of the scene that is playing (the shared keys turn its camera)
 
 /* ---- the camera: C cycles the view, the chase camera and first person; V, [ ] and 0 work on the view (and turn the
  * others) ---- */
-const CAMS = ['view', 'chase', 'first'], CAM_NAME = { chase: 'CHASE CAMERA', first: 'FIRST PERSON' };
-const viewName = () => game.view.label.toUpperCase() + ' VIEW';
+const CAMS = ['view', 'chase', 'first'];   // (the chase camera's and first person's names: lines starter3d.camera.<mode>)
+const viewName = () => E.lang.upper(E.t('starter3d.note.view', { view: game.view.label }));
 /** the camera key (input action 'camera'), read in a slice's update */
 function cameraKey(world) {
   if (!game.input.pressed('camera')) return;
-  const c = world.camera, m = CAMS[(CAMS.indexOf(c.mode) + 1) % CAMS.length]; c.set(m); game.note(m === 'view' ? viewName() : CAM_NAME[m]);
+  const c = world.camera, m = CAMS[(CAMS.indexOf(c.mode) + 1) % CAMS.length]; c.set(m); game.note(m === 'view' ? viewName() : E.t('starter3d.camera.' + m));
 }
 addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || game.paused) return;
   if (e.code === 'KeyM') { A.mute(); return; }
   if (active && ['fixed', 'zones'].includes(active.camera.mode)) return;   // (a slice that runs its own camera, or fixed cameras by room: its keys are its own)
   if (e.code === 'KeyV') { game.nextView(); if (active) active.camera.set('view'); game.note(viewName()); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }
-  else if (e.code === 'BracketLeft' || e.code === 'BracketRight') { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter3d.note.camera_reset')); }
+  else if (e.code === 'BracketLeft' || e.code === 'BracketRight') { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter3d.note.turn', { angle: game.yaw })); }
 });
 /** a dark veil over the 3D picture (the title's lower third, a game over) */
 const veil = (g, r, y0, a = .55) => { g.save(); g.fillStyle = '#05030c'; g.globalAlpha = a; g.fillRect(0, y0, r.bw, r.bh - y0); g.restore(); g._c = null; };
@@ -78,7 +83,7 @@ const TITLE_CAST = [
   { x: -18, face: 0, rig: () => new E.Humanoid({ cape: { len: 6, width: 5, seg: 2.5 }, colors: { cloth: '#2f8f86', cape: '#c8452f', capeIn: '#7a2622', hair: '#2e2230' } }) },
   { x: 18, face: 0, rig: () => new E.Humanoid({ weapon: null, hat: 'cap', build: 'heroic', colors: { cloth: '#d83a2a', pants: '#2f5fd0', glove: '#f0f0f0', hat: '#d83a2a' } }) }
 ];
-BOOT.push(['The title stage', () => {
+BOOT.push([E.t('starter3d.boot.title_stage'), () => {
   const w = new W3(game, { level: TITLE_LEVEL, fog: { near: 140, far: 600 }, torchShadows: 1 }), cx = w.width / 2, cy = 6.5 * 16;
   const heroes = TITLE_CAST.map(c => { const a = w.hero({ x: cx + c.x, y: cy, rig: c.rig(), facing: Math.PI / 2 }); a.anim = { pose: null }; return a; });
   const slime = w.mob({ x: cx - 44, y: cy + 30, blob: new E.Blob({ R: 6.2, face: 'front', ears: 'cat' }) }), wisp = w.mob({ x: cx + 44, y: cy + 24, orb: { color: '#c78bff' }, fly: true });
@@ -110,22 +115,24 @@ scenes.title = {
   },
   draw(r) {
     title.world.draw(r);
-    const top = Math.max(10, Math.round(r.H * .1)), my = Math.round(r.H * .58);
+    const top = Math.max(10, Math.round(r.H * .1)), my = Math.round(r.H * .58), lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     titleMenu.y = my;
     r.overlay(g => {
       veil(g, r, my - 14, .5);
-      E.font.title(g, 'my-3D2dge', r.W / 2, top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.title(g, '3D', r.W / 2, top + 36, { align: 'center', scale: 3, colors: ['#e8fcff', '#8af4ff', '#2aa0e0'], depth: 2, depthColor: '#14304a' });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter3d.logo'), r.W / 2, top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.title(g, E.t('starter3d.logo.3d'), r.W / 2, top + logo.h, { align: 'center', scale: 3, colors: ['#e8fcff', '#8af4ff', '#2aa0e0'], depth: 2, depthColor: '#14304a' });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu' : 'Arrows + Enter or click   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter3d.how.touch' : dev === 'gamepad' ? 'starter3d.how.pad' : 'starter3d.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER and COURSE CLEAR: shared by every slice, over its world, frozen where it ended ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 'center', onPick: i => game.go(i === 0 ? over.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter3d.over.retry'), E.t('starter3d.over.title')], { y: 'center', onPick: i => game.go(i === 0 ? over.from : 'title') });
+// a slice ends with game.go('over', { from, world, won, title, lines }): its title and lines are its own lines (E.t), shown
+// as they are (no title on a win: CLEAR!)
 let over = { from: 'title', world: null, won: false, lines: [] };
 scenes.over = {
   input: W3.INPUT,
@@ -134,11 +141,12 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {
     if (over.world) over.world.draw(r);
-    const y = Math.round(r.H / 2) - 70; overMenu.y = y + 70 + over.lines.length * 10;
+    // (the title's height and the lines' measured, not counted: a language the device's font draws has taller ones)
+    const y = Math.round(r.H / 2) - 70, th = E.font.height(1, { scale: 4 }), lh = E.font.lineHeight(); overMenu.y = y + th + 34 + over.lines.length * lh;
     r.overlay(g => {
       veil(g, r, 0, .6);
-      E.font.title(g, over.won ? over.title || 'CLEAR!' : 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: over.won ? ['#fffbe8', '#ffe08a', '#ffb347'] : ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: over.won ? '#3a2008' : '#3a0810' });
-      over.lines.forEach((l, i) => E.font.text(g, l, r.W / 2, y + 44 + i * 10, '#f0e6ff', { align: 'center', shadow: '#000', outline: false }));
+      E.font.title(g, over.won ? over.title || E.t('starter3d.over.clear') : E.t('starter3d.over'), r.W / 2, y, { align: 'center', scale: 4, colors: over.won ? ['#fffbe8', '#ffe08a', '#ffb347'] : ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: over.won ? '#3a2008' : '#3a0810' });
+      over.lines.forEach((l, i) => E.font.text(g, l, r.W / 2, y + th + 8 + i * lh, '#f0e6ff', { align: 'center', shadow: '#000', outline: false }));
     });
     overMenu.draw(r);
   }

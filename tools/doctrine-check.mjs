@@ -23,7 +23,7 @@
 //    writes it), every public name in it has a description, and it answers the lookups of tools/api-index-lookups.json
 //    (D39).
 // 6. the kits' budgets (principle 1; D51): each kit is a whole engine, card and game for a chat model's context, so every 2D
-//    kit (dist/kits/my-3d2dge-<id>.html) is at most 200,000 cl100k tokens and a 3D kit no larger than at v0.59.3 (the kit
+//    kit (dist/kits/my-3d2dge-<id>.html) is at most 216,000 cl100k tokens (D83) and a 3D kit within its own budget (the kit
 //    diet, tools/build.mjs). Counted exactly, with gpt-tokenizer only (an estimate of minified code is too rough here).
 //    Six 2D kits keep budgets of their own (KIT2D: D69); the 3D kits are back at their budgets from before D63 (D70).
 // 7. a builder's copy (D76): the manuals a builder reads (the API card, the guide, the handoff package's README, the single
@@ -70,8 +70,8 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   // a module's manual: 1,500 tokens, or its line here (the modules the genre plan gave 2,500; D50)
   const MODULE_BUDGET = 1500, MODULE_BUDGETS = { grid: 2500, fight: 2500, strategy: 2500, physics: 2500 };
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
-    ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
-    ['the API card (API.md)', read('API.md'), 21300, 3.1],   // (D8, D20, D50, D54, D58, D59, D77, D81: until the owner's review pass)
+    ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10600, 2.95],   // (D83: languages)
+    ['the API card (API.md)', read('API.md'), 22000, 3.1],   // (D8, D20, D50, D54, D58, D59, D77, D81: until the owner's review pass; D83: languages)
     ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 64000, 3.25],   // (D17, D18, D22, D28, D50, D57; D82: 64,000, the owner's word)
     ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 8000, 2.9],   // (D27; 8,000 for the genre plan's M13 and M14: D60)
     ['the asset card (docs/ASSETS.md)', read('docs/ASSETS.md'), 4000, 3.1],   // (D30)
@@ -181,8 +181,8 @@ if (opt('baseline')) {
 {
   let count = null;
   try { const { countTokens } = await import('gpt-tokenizer/encoding/cl100k_base'); count = countTokens; } catch (e) { /* optional */ }
-  const KIT = 200000, KIT2D = { rpg: 243300, shooter: 226300, adventure: 212300, sim: 212300, rts: 210300, brawler: 209300 };   // (D69; D80, D81: the matrix plan's engine, past Part 0's room)   // (a 2D kit; the six that can't get there without losing what they play: D69)
-  const KIT3D = { action: 241039, platformer: 235846, shooter: 310823, horror: 256000, racing: 252000, flight: 254000, crawler: 250000 };   // (a 3D kit: D51, the horror kit's D61, the racing and flight kits' D64; back from D63 by the 3D diet: D70; the crawler's D72)
+  const KIT = 216000, KIT2D = { rpg: 264000, shooter: 242000, adventure: 228000, sim: 229000, rts: 227000, brawler: 225000 };   // (D83: languages, each kit's lines in its head)   // (D69; D80, D81: the matrix plan's engine, past Part 0's room)   // (a 2D kit; the six that can't get there without losing what they play: D69)
+  const KIT3D = { action: 250000, platformer: 244500, shooter: 322000, horror: 268000, racing: 257000, flight: 258000, crawler: 262000 };   // (D83)   // (a 3D kit: D51, the horror kit's D61, the racing and flight kits' D64; back from D63 by the 3D diet: D70; the crawler's D72)
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');
   else {

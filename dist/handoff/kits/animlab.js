@@ -1,5 +1,5 @@
 // The ANIMATION LAB kit's game (every move, pose, skin and view of the character rigs), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/60-animlab.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/60-animlab.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. animlab.html plays it; node kits/test.mjs animlab runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -267,13 +272,19 @@ const ANIMLAB = (() => {
     stance('guard'), stance('ready'),
     gun('POINT', 0), gun('AIM UP', .7), gun('AIM DOWN', -.5)
   ];
-  // the timeline of each animation: [label, seconds, color]. Moves and combos read their phases from the E.MOVES spec
+  // the words shown are lines: a group, an animation, a phase, a move or a skin by its name here (animlab.<kind>.<name>:
+  // 'JUMP / AIR' -> animlab.anim.jump_air); a move added to E.MOVES later shows its own name until it has one
+  const word = (kind, s) => E.t('animlab.' + kind + '.' + s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''), null, s.toUpperCase());
+  const named = a => a.move ? word('move', a.move) : word('anim', a.name);   // an animation's name
+  // the timeline of each animation: [label, seconds, color]. Moves and combos read their phases from the E.MOVES spec (a
+  // combo's say which move: JAB WIND)
   const PH = { WIND: '#f0c040', HIT: '#f05a4a', RECOVER: '#5a9ae8', REST: '#5a5478' }, PAL = ['#7ac8a0', '#d898e0', '#f0b070', '#70b0e8', '#e8e070'];
-  const hitSegs = (m, share = 1, pre = '') => { const s = move(m).spec; return [[pre + 'WIND', s.wind, PH.WIND], [pre + 'HIT', s.active, PH.HIT], [pre + 'RECOVER', s.recover * share, PH.RECOVER]]; };
+  const hitSegs = (m, share = 1, of = null) => { const s = move(m).spec, say = p => of ? E.t('animlab.seg', { move: word('move', of), phase: word('phase', p) }) : word('phase', p);
+    return [[say('WIND'), s.wind, PH.WIND], [say('HIT'), s.active, PH.HIT], [say('RECOVER'), s.recover * share, PH.RECOVER]]; };
   const GROUPS = [...new Set(ANIMS.map(a => a.group))];
   for (const a of ANIMS) {
-    a.segs = a.move ? hitSegs(a.move) : a.combo ? a.combo.flatMap((m, i) => hitSegs(m, i < a.combo.length - 1 ? CHAIN : 1, m.toUpperCase() + ' ')) : a.phases.map((p, i) => [p[0], p[1], PAL[i % 5]]);
-    if (!a.phases) a.segs.push(['REST', REST, PH.REST]);
+    a.segs = a.move ? hitSegs(a.move) : a.combo ? a.combo.flatMap((m, i) => hitSegs(m, i < a.combo.length - 1 ? CHAIN : 1, m)) : a.phases.map((p, i) => [word('phase', p[0]), p[1], PAL[i % 5]]);
+    if (!a.phases) a.segs.push([word('phase', 'REST'), REST, PH.REST]);
     a.len = a.segs.reduce((s, p) => s + p[1], 0);
   }
 
@@ -468,7 +479,7 @@ const ANIMLAB = (() => {
     keysFor = id; keys = [];
     if (!a.rig || !(anim.move || anim.combo)) return keys;
     const view = new E.View('key', 'Key', v.yawDeg, v.pitchDeg, .6, v.zBoost);
-    const list = anim.move ? [['WIND', anim.move, 'wind', 1], ['HIT', anim.move, 'active', 1], ['FOLLOW', anim.move, 'recover', .3]] : anim.combo.map(m => [m.toUpperCase(), m, 'active', 1]);
+    const list = anim.move ? [[word('phase', 'WIND'), anim.move, 'wind', 1], [word('phase', 'HIT'), anim.move, 'active', 1], [word('phase', 'FOLLOW'), anim.move, 'recover', .3]] : anim.combo.map(m => [word('move', m), m, 'active', 1]);
     for (const [label, m, phase, u] of list) {
       const rig = new E.Humanoid(Object.assign({ size: 1.3 }, a.s.rig)), cv = E.mkCanvas(40, 36), g = E.ctx2d(cv), spec = move(m).spec;
       rig.draw(g, 20, 32, view);                 // the first draw tells the rig the view: side views chop in the screen plane
@@ -503,22 +514,26 @@ const ANIMLAB = (() => {
    * The top line stays free for the shell's notes (ZOOM 2x, SIDE VIEW) ---- */
   const WIN = { bg: ['#2c2458', '#0e0a20'], border: '#b0a0e8' }, SEE = Object.assign({ alpha: .75 }, WIN);
   const TXT = { outline: false, shadow: '#07050e' }, TINY = Object.assign({ font: 'tiny' }, TXT), RIGHT = o => Object.assign({ align: 'right' }, o);
-  const LEGEND = ['↑↓ ANIMATION  ←→ SKIN  V VIEW  - = ZOOM  [ ] TURN  0 RESET  F FLIP', 'SPACE PAUSE  . STEP  S SLOW  T TRAIL  B BONES  L LINEUP  J REPLAY  H HUD'];
+  // the keys: two rows of hints, each a line (animlab.legend.<hint>: the lab's own keys as control tags, the shell's camera
+  // keys by name); on a phone, two lines of their own
+  const LEGEND = [['animation', 'skin', 'view', 'zoom', 'turn', 'reset', 'flip'], ['pause', 'step', 'slow', 'trail', 'bones', 'lineup', 'replay', 'hud']];
+  const legend = () => touch() ? [E.t('animlab.legend.touch_pick'), E.t('animlab.legend.touch_buttons')] : LEGEND.map(row => row.map(h => E.t('animlab.legend.' + h)).join('  '));
   function hud(g, r) {
-    const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = anim.group + ' ▸ ', T0 = Math.max(0, Math.round(corner()[1]) - 9);   // T0: under the corner's buttons (they stay up in a lab)
+    const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = word('group', anim.group) + ' ▸ ', T0 = Math.max(0, Math.round(corner()[1]) - 9);   // T0: under the corner's buttons (they stay up in a lab)
     E.ui.box(g, 4, T0 + 11, W - 8, 34, WIN);
-    E.font.title(g, 'ANIMATION LAB', 10, T0 + 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
-    E.font.text(g, lineup ? 'LINEUP: ALL ' + actors.length + ' SKINS' : '← ' + a.s.name + ' →', W - 10, T0 + 15, '#ffffff', RIGHT(TXT));
+    E.font.title(g, E.t('animlab.title'), 10, T0 + 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
+    E.font.text(g, lineup ? E.t('animlab.hud.lineup', { count: actors.length }) : E.t('animlab.hud.skin', { skin: word('skin', a.s.name) }), W - 10, T0 + 15, '#ffffff', RIGHT(TXT));
     E.font.text(g, lead, 10, T0 + 26, '#a8a0d8', TXT);
-    E.font.text(g, anim.name, 10 + E.font.width(lead), T0 + 26, '#ffe070', TXT);
-    const cam = [game.view.label + ' view', 'zoom ' + +game.zoom.toFixed(2) + 'x', game.yaw ? 'turn ' + game.yaw + ' deg' : '', paused ? 'paused' : game.timeScale < 1 ? 'slow .25x' : 'speed 1x'];
+    E.font.text(g, named(anim), 10 + E.font.width(lead), T0 + 26, '#ffe070', TXT);
+    const cam = [E.t('animlab.cam.view', { view: game.view.label }), E.t('animlab.cam.zoom', { zoom: +game.zoom.toFixed(2) }), game.yaw ? E.t('animlab.cam.turn', { angle: game.yaw }) : '',
+      E.t(paused ? 'animlab.cam.paused' : game.timeScale < 1 ? 'animlab.cam.slow' : 'animlab.cam.speed')];
     E.font.text(g, cam.filter(Boolean).join('    '), 10, T0 + 37, paused ? '#ff9a7a' : '#c8c0f0', TINY);
     if (!lineup) {
       // the animation list: the neighbours of the current one, groups in alternating tints
       E.ui.box(g, 4, T0 + 48, 100, 61, SEE);
       for (let k = -3; k <= 3; k++) {
         const n = ANIMS[(ai + k + N) % N], odd = GROUPS.indexOf(n.group) % 2;
-        E.font.text(g, (k ? '  ' : '> ') + n.name, 8, T0 + 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
+        E.font.text(g, (k ? '  ' : '> ') + named(n), 8, T0 + 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
       }
       E.font.text(g, (ai + 1) + '/' + N, 100, T0 + 101, '#8a82b0', RIGHT(TINY));
       // key poses of a move; the one playing now is lit
@@ -543,27 +558,27 @@ const ANIMLAB = (() => {
       t0 += secs;
     }
     px.rect(g, bx + Math.round(Math.min(1, t / anim.len) * bw), by - 2, 1, 11, '#ffffff');
-    E.font.text(g, label + '  ' + t.toFixed(2) + ' / ' + anim.len.toFixed(2) + 's', BW - 2, by + 1, '#ffe8b0', RIGHT(TINY));
-    (touch() ? ['STICK ↑↓ ANIMATION   ←→ SKIN', 'THE BUTTONS: REPLAY, SLOW, HOLD'] : LEGEND).forEach((s, i) => E.font.text(g, s, 10, B - 21 + i * 8, '#b8b0e0', TINY));
+    E.font.text(g, E.t('animlab.hud.time', { phase: label, t: t.toFixed(2), len: anim.len.toFixed(2) }), BW - 2, by + 1, '#ffe8b0', RIGHT(TINY));
+    legend().forEach((s, i) => E.font.text(g, s, 10, B - 21 + i * 8, '#b8b0e0', TINY));
   }
 
   /* ---- UPDATE: keys, then the clock (paused: . steps one 60th of a second) ---- */
   function update(dt) {
     const inp = game.input, vk = game.view.id + game.view.yawDeg;
     if (vk !== viewKey) { viewKey = vk; if (lineup) fit(); play(ai); }   // a new view or turn: moves pick their swing plane again
-    if (inp.pressed('turn')) game.note('TURN ' + game.yaw + ' DEG');     // the pixel font has no degree sign
+    if (inp.pressed('turn')) game.note(E.t('animlab.note.turn', { angle: game.yaw }));     // the pixel font has no degree sign
     if (inp.repeat('up')) play(ai - 1);
     if (inp.repeat('down')) play(ai + 1);
     if (inp.repeat('left')) pick(skin - 1);
     if (inp.repeat('right')) pick(skin + 1);
     if (inp.pressed('replay')) { paused = false; play(ai); }
     if (inp.pressed('hold')) paused = !paused;
-    if (inp.pressed('slow')) { game.timeScale = game.timeScale < 1 ? 1 : .25; game.note(game.timeScale < 1 ? 'SLOW MOTION' : 'FULL SPEED'); }
-    if (inp.pressed('trail')) { trail = !trail; game.note('TRAIL ' + (trail ? 'ON' : 'OFF')); }
-    if (inp.pressed('bones')) { bones = !bones; game.note('SKELETON ' + (bones ? 'ON' : 'OFF')); }
-    if (inp.pressed('flip')) { face = Math.PI - face; play(ai); game.note(Math.cos(face) > 0 ? 'FACING RIGHT' : 'FACING LEFT'); }
+    if (inp.pressed('slow')) { game.timeScale = game.timeScale < 1 ? 1 : .25; game.note(E.t(game.timeScale < 1 ? 'animlab.note.slow' : 'animlab.note.full')); }
+    if (inp.pressed('trail')) { trail = !trail; game.note(E.t(trail ? 'animlab.note.trail_on' : 'animlab.note.trail_off')); }
+    if (inp.pressed('bones')) { bones = !bones; game.note(E.t(bones ? 'animlab.note.bones_on' : 'animlab.note.bones_off')); }
+    if (inp.pressed('flip')) { face = Math.PI - face; play(ai); game.note(E.t(Math.cos(face) > 0 ? 'animlab.note.right' : 'animlab.note.left')); }
     if (inp.pressed('hud')) hidden = !hidden;
-    if (inp.pressed('lineup')) { lineup = !lineup; if (lineup) fit(); else game.setZoom(1.5); play(ai); game.note(lineup ? 'LINEUP: EVERY SKIN' : 'ONE SKIN'); }
+    if (inp.pressed('lineup')) { lineup = !lineup; if (lineup) fit(); else game.setZoom(1.5); play(ai); game.note(E.t(lineup ? 'animlab.note.lineup' : 'animlab.note.one')); }
     if (inp.pressed('back')) game.go('title');
     dum.x = CX + Math.cos(face) * dum.d; dum.y = CY + Math.sin(face) * dum.d;
     if (!paused) tick(dt); else if (inp.pressed('step')) tick(1 / 60);

@@ -1,5 +1,5 @@
 // The ADVENTURE kit's game (a top-down action adventure: a village, ruins and a shrine, a sword, a key and a great door, talk with portraits; Zelda and Secret of Mana), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/10-adventure.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/10-adventure.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. adventure.html plays it; node kits/test.mjs adventure runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -166,7 +171,7 @@ scenes.over = {
  * this one under a dim CURTAIN (they wait, as their monsters do); SCROLL follows the hero. The HUD sits in the corners.
  * ===================================================================================== */
 const ADV = (() => {
-  const T = 16, ROOM = [14 * T, 12 * T], AREAS = ['Mana Village', 'Mossy Ruins', 'Shrine of Mana'];
+  const T = 16, ROOM = [14 * T, 12 * T], AREAS = ['village', 'ruins', 'shrine'].map(a => E.t('adventure.area.' + a));   // the rooms' names (lines)
   const ROWS = [
     // village          ruins             shrine
     ['^^^^^^^^^^^^^^', 'RRRRRRRRRRRRRR', 'XXXXXXXXXXXXXX'],
@@ -282,28 +287,29 @@ const ADV = (() => {
   };
   // spins at the waist; CHARGE: the spin's wind-up, deeper
   const WAIST = { z0: -10, z1: -10 }, CHARGE = { ...E.MOVES.spin, ...WAIST, a0: 2.4, crouch: .6, lean: .6 };
-  // idle: poses in turn; near: turn to the hero (wave: say hello); talk: gestures; chore: a move while kneeling
+  // idle: poses in turn; near: turn to the hero (wave: say hello); talk: gestures; chore: a move while kneeling; their
+  // names and words are lines (adventure.npc.*, adventure.<who>.<n>)
   const NPCS = {
-    elder: { name: 'ELDER', idle: [null, null, 'hips'], near: 56, talk: ['block', null, 'hips', null], lines: [() => 'Rabites overran the Mossy Ruins across the river. Press ' + game.input.label('attack') + ' to swing your sword and clear them out!',
-      'Clear the ruins and the old chest opens. The Mana crystal sleeps in the shrine behind the great door.'] },
-    florist: { name: 'LISE', face: Math.PI, idle: ['kneel', 'kneel', null], near: 36, talk: ['hips', 'cast'],   // tends the flower bed
+    elder: { name: E.t('adventure.npc.elder'), idle: [null, null, 'hips'], near: 56, talk: ['block', null, 'hips', null], lines: [() => E.t('adventure.elder.1'), E.t('adventure.elder.2')] },
+    florist: { name: E.t('adventure.npc.lise'), face: Math.PI, idle: ['kneel', 'kneel', null], near: 36, talk: ['hips', 'cast'],   // tends the flower bed
       chore: () => new E.Attack('plunge', { hand: 'both', a0: -.5, a1: -.9, r0: 4, r1: 9, wind: .3, active: .16, recover: .45 }),
-      lines: ['A rabite got into my garden again! Could you shoo it away?', 'Mind the bats in the ruins. They swoop when you get close!'] },
-    villager: { name: 'PIP', idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: ['Hi! The bridge leads to the Mossy Ruins.', () => 'Keep ' + game.input.label('attack') + ' held after a swing, then let go: a SPIN ATTACK!'] }   // a function: the player's own key
+      lines: [E.t('adventure.lise.1'), E.t('adventure.lise.2')] },
+    villager: { name: E.t('adventure.npc.pip'), idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: [E.t('adventure.pip.1'), () => E.t('adventure.pip.2')] }   // a function: the player's own key ({key:attack})
   };
   // BACKDROP (iso view): a sea of clouds
   const bg = new E.Backdrop({ sky: ['#3a74c8', '#8ac2ea', '#e4f2f4', '#9ccae6', '#5a90c8'], layers: [{ kind: 'clouds', color: '#ffffff', y: .3, height: .16, parallax: .04, drift: 3 },
     { kind: 'clouds', color: '#ffffff', y: .98, height: .4, parallax: .1, drift: 3, seed: 9 }] });
   let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx;
   // CAMERA, the player's choice: 'rooms' slides screen by screen (Zelda), 'scroll' follows the hero (Settings, or C)
-  game.settings.define({ key: 'advCamera', group: 'Adventure', label: 'Camera', options: [['rooms', 'Rooms'], ['scroll', 'Scroll']], value: 'rooms', help: 'Rooms: screen by screen, as Zelda. Scroll: it follows the hero' });
+  const GROUP = E.t('adventure.setting.group');   // (the settings screen's group for the slice's own settings)
+  game.settings.define({ key: 'advCamera', group: GROUP, label: E.t('adventure.setting.camera'), options: ['rooms', 'scroll'].map(v => [v, E.t('adventure.setting.camera.' + v)]), value: 'rooms', help: E.t('adventure.setting.camera.help') });
   // LIGHTING: GPU lights (pools of light and shadows, WebGPU) draw every frame twice and light each pixel: a phone's frame
   // rate pays for them, so Auto keeps them for a computer (its main pointer a mouse or touchpad) and a phone gets Fast (the
   // floor is lit already): the main pointer, as a phone with a stylus has a fine one too
   const gpuWanted = () => game.settings.advLight === 'gpu' || (game.settings.advLight === 'auto' && !!(window.matchMedia && matchMedia('(pointer: fine)').matches));
   const lighting = () => { if (!map) return; if (gpuWanted() && !gpu) gpu = game.enableGPU({ map }); if (gpu) Object.assign(gpu, { map, enabled: gpuWanted(), bands: 24, wrap: .5 }); };
-  game.settings.define({ key: 'advLight', group: 'Adventure', label: 'Lighting', options: [['auto', 'Auto'], ['gpu', 'GPU'], ['fast', 'Fast']], value: 'auto', help: 'GPU: pools of light and shadows (slow on a phone). Fast: smooth on a phone. Auto: GPU on a computer, Fast on a phone', apply: () => { if (game.sceneName === 'adventure') lighting(); } });
-  addEventListener('keydown', e => { if (e.code !== 'KeyC' || e.repeat || game.sceneName !== 'adventure' || game.paused) return; const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note('CAMERA: ' + v.toUpperCase()); });
+  game.settings.define({ key: 'advLight', group: GROUP, label: E.t('adventure.setting.light'), options: ['auto', 'gpu', 'fast'].map(v => [v, E.t('adventure.setting.light.' + v)]), value: 'auto', help: E.t('adventure.setting.light.help'), apply: () => { if (game.sceneName === 'adventure') lighting(); } });
+  addEventListener('keydown', e => { if (e.code !== 'KeyC' || e.repeat || game.sceneName !== 'adventure' || game.paused) return; const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note(E.t('adventure.note.camera', { mode: E.lang.upper(E.t('adventure.setting.camera.' + v)) })); });
   const sliding = () => !!game.cam.room && game.cam.moving;   // a room slide holds the world still
   const roomOf = x => Math.floor(x / ROOM[0]), mod = (a, n) => ((a % n) + n) % n, near = (cx, cy, tag) => map.floorAt((cx + .5) * T, (cy + .5) * T) === tag;
   const txt = (g, s, x, y, c, o) => E.font.text(g, s, x, y, c, { shadow: '#07040c', outline: false, ...o });
@@ -411,7 +417,7 @@ const ADV = (() => {
     fx = []; won = false; keys = 0; gems = 0; area = { room: 0, t: 2.6 }; held = null;
     // the floor is lit already; GPU lighting (if any) adds light pools and shadows
     L.enabled = false; lighting(); mood(MOOD[0]); A.music('adventure');
-    game.input.touchSet('attack', 'SWORD');
+    game.input.touchSet('attack', E.t('adventure.touch.sword'));
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
   const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };   // (at the bottom, clear of the touch buttons)
@@ -460,7 +466,7 @@ const ADV = (() => {
   }
   function update(dt) {
     const h = hero, room = roomOf(h.x), inp = game.input, npc = talkable();
-    inp.touchSet('confirm', talk.open ? 'NEXT' : 'TALK', talk.open || !!npc);   // a CONTEXT button: there only when there is someone to talk to
+    inp.touchSet('confirm', E.t(talk.open ? 'adventure.touch.next' : 'adventure.touch.talk'), talk.open || !!npc);   // a CONTEXT button: there only when there is someone to talk to
     if (held) held.t -= dt;
     for (const n of npcs) npcLife(n, dt);
     if (talk.update(dt)) { poseHero(dt); return; }   // dialog pauses the world
@@ -493,7 +499,7 @@ const ADV = (() => {
     if (chest.hidden && foes.every(f => f.room !== 1 || f.dead)) { chest.hidden = false; poof(chest.x, chest.y, 0, 1.3); P.glints(chest.x, chest.y, 10, 8); A.sfx('secret'); }
     if (!chest.hidden && !chest.open && E.dist(h, chest) < 15) {
       chest.open = true; keys++; held = { spr: KEYS[1], t: 1.6 }; A.sfx('key'); P.glints(h.x, h.y, 40, 10); game.flash('#fff4c0', .15, .5);
-      game.after(1.6, () => say(h, 'HERO', 'I got the SHRINE KEY! Now the great door in the ruins will open.'));
+      game.after(1.6, () => say(h, E.t('adventure.hero'), E.t('adventure.hero.key')));
     }
     // the key opens the door and warps the hero inside
     if (keys > 0 && !gate.open && E.dist(h, gate) < 22) {
@@ -675,18 +681,18 @@ const ADV = (() => {
     const npc = talkable(), R = Math.min(r.W, cornerX()) - 4;
     r.overlay(g => {
       E.ui.box(g, 4, 4, 84, 30, WIN); hero.rig.drawPortrait(g, 9, 9, 20, { zoom: 1.5, cape: false, bg: FACE_BG });
-      txt(g, 'HERO', 36, 8, '#ffe08a', { gradient: ['#fff4c0', '#e8a040'] }); E.ui.hearts(g, 36, 19, hero.hp, hero.max);
+      txt(g, E.t('adventure.hero'), 36, 8, '#ffe08a', { gradient: ['#fff4c0', '#e8a040'] }); E.ui.hearts(g, 36, 19, hero.hp, hero.max);
       const GX = R - 70; E.ui.box(g, GX, 4, 70, 17, WIN); px.sprite(g, GEM, GX + 6, 9); px.sprite(g, KEYS[0], GX + 41, 10);
-      txt(g, String(gems).padStart(3, '0'), GX + 14, 9, '#ffffff'); txt(g, 'x' + keys, GX + 50, 9, '#ffffff');
+      txt(g, String(gems).padStart(3, '0'), GX + 14, 9, '#ffffff'); txt(g, E.t('adventure.hud.keys', { count: keys }), GX + 50, 9, '#ffffff');
       minimap(g, GX, 24);
       if (won) {
         const wy = Math.round(r.H / 2) - 24;
-        E.ui.box(g, r.W / 2 - 90, wy, 180, 48, WIN); E.font.title(g, 'MANA CRYSTAL!', r.W / 2, wy + 7, { align: 'center', scale: 2, colors: ['#ffffff', '#bff8ff', '#4ac8e8'], depth: 1 });
-        return txt(g, 'Gems ' + gems + '    Best ' + best('adventure', gems), r.W / 2, wy + 34, '#ffe08a', { align: 'center' });
+        E.ui.box(g, r.W / 2 - 90, wy, 180, 48, WIN); E.font.title(g, E.t('adventure.won'), r.W / 2, wy + 7, { align: 'center', scale: 2, colors: ['#ffffff', '#bff8ff', '#4ac8e8'], depth: 1 });
+        return txt(g, E.t('adventure.won.score', { gems, best: best('adventure', gems) }), r.W / 2, wy + 34, '#ffe08a', { align: 'center' });
       }
       if (talk.open) return;
       if (!touch()) {
-        const a = prompt('attack', 'Sword'), b = prompt('confirm', 'Talk'), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = r.H - 22;
+        const a = prompt('attack', E.t('adventure.prompt.sword')), b = prompt('confirm', E.t('adventure.prompt.talk')), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = r.H - 22;
         E.ui.box(g, cx, cy, w, 18, WIN); txt(g, a, cx + 8, cy + 5, '#d8d0f0');
         txt(g, b, cx + w - 8 - E.font.width(b), cy + 5, npc && Math.floor(game.real * 3) % 2 ? '#ffe08a' : '#d8d0f0');   // 'Talk' blinks near a villager
       }

@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.89.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.90.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -17,7 +17,8 @@
  *    (coins, bullets, icons) can be pixel sprites written as strings: E.sprite().
  * 4. PIXEL RULES. Draw with E.px (rect, line, disc, ell, poly, sprite...). Every shape
  *    snaps to whole pixels. Never use ctx.arc / ctx.stroke / ctx.fillText on the game
- *    buffer: they anti-alias and break the look. Translucency and glow go through
+ *    buffer: they anti-alias and break the look (E.font alone uses fillText, for letters its
+ *    glyphs lack: readable text in the player's language comes first). Translucency and glow go through
  *    px.blend / polyDither / ddisc / r.glowDisc: stepped alpha and blend modes like PS1
  *    hardware (E.style.trans = 'dither' switches to NES / Genesis style dithering).
  * 5. FRAME ORDER (handled by the Renderer):
@@ -40,6 +41,11 @@
  *    new E.Dialog(game) (markup: {c=#hex}, {w=.5}, {s=12}, {shake}, {wave}, {$name}), new E.Menu(game, items). An HTML
  *    interface (title, pause, settings, help, results, map screens and a HUD with a minimap) from data: new E.Shell(game,
  *    {...}) (21d). Save slots: game.saves (10k).
+ * 8c. LANGUAGES (AI Hub Languages v1; docs/LANGUAGES.md, 6b). Every word a player reads is a line: the page's
+ *    <script type="application/json" id="game-lines"> block, shown with E.t('hud.lives', { count }) (whole sentences with
+ *    {blanks}, plural forms by {count}, {key:jump} for the player's key). A translation step adds a game-translations
+ *    block; the language follows ?lang=, the Language menu, the browser. The fonts draw what they lack with the device's
+ *    font; ?lang=en-XA, zh-XC, ar-XB test a game. Lay text out with E.font.lineHeight() and width(), never counted pixels.
  * 8a. STANDARD FEATURES come with every game (10b): a pause menu with settings and controls the player rebinds, saved
  *    per game (game.settings), full screen (game.fullscreen; a phone's first tap), pausing when the page is hidden, and
  *    input.label(action) for prompts, and a boot (10c): heavy setup in game.start({ boot: { steps } }) runs behind a
@@ -80,7 +86,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.89.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.90.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -559,6 +565,10 @@ class View {
   /** new E.View(id, label, yaw, pitch, scale, zBoost): an orthographic camera (degrees; scale = screen pixels per
    *  world unit; zBoost stretches heights). id: its name ('iso', or yours); label: its name for people ('Isometric') */
   constructor(id, label, yaw, pitch, scale = 1, zBoost = 1) { this.id = id; this.label = label; this.set(yaw, pitch, scale, zBoost); }
+  /** label: its name for people, in the player's language where the engine has a line for it (engine.view.<id>: the
+   *  standard views'); a label of a view's own stays as given */
+  get label() { const id = 'engine.view.' + String(this.id).replace(/[^a-z0-9_]/g, '_'); return typeof E.lang !== 'undefined' && LANG_OWN(ENGINE_LINES, id) === this._label ? E.t(id) : this._label; }
+  set label(v) { this._label = v; }
   /** change the angles and scale in place (game.setView and rotateView use their own copies); returns the view */
   set(yaw, pitch, scale = 1, zBoost = 1) {
     /** yawDeg: the turn about the up axis, degrees (0: north is up the screen; iso is 45); pitchDeg: the tilt, 0
@@ -923,8 +933,9 @@ class Input {
     const L = this._layout && this._layout.get && this._layout.get(code);
     if (/^Key[A-Z]$/.test(code)) return (L || code.slice(3)).toUpperCase();
     if (/^Digit\d$/.test(code)) return L || code.slice(5);
-    if (/^Pad\d+$/.test(code)) return (PAD_GLYPHS[this.padStyle()] || PAD_GLYPHS.xbox)[+code.slice(3)] || code;
-    return CODE_LABELS[code] || (code.startsWith('Numpad') ? 'Num ' + code.slice(6) : code.startsWith('Act:') ? code.slice(4).toUpperCase() : code);
+    if (/^Pad\d+$/.test(code)) { const gl = (PAD_GLYPHS[this.padStyle()] || PAD_GLYPHS.xbox)[+code.slice(3)] || code, w = /^(D-pad|L stick|R stick|Bottom|Right|Left|Top|Select|Start|Home)/.exec(gl); return w ? ENG('pad.' + PAD_WORDS[w[1]]) + gl.slice(w[1].length) : gl; }
+    const lbl = CODE_LABELS[code]; if (lbl) return /[A-Za-z]{2}/.test(lbl) ? ENG('key.' + idPart(code)) : lbl;   // (a name with words in it is a line: engine.key.space)
+    return code.startsWith('Numpad') ? ENG('key.numpad', { key: code.slice(6) }) : code.startsWith('Act:') ? code.slice(4).toUpperCase() : code;
   }
   /** the controller family whose symbols label() shows: glyphs, or with glyphs 'auto' the one its name says */
   padStyle() {
@@ -936,7 +947,7 @@ class Input {
    *  'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕' */
   label(a, device = this.lastDevice) {
     const m = this.map[a]; if (!m) { this._check(a); return ''; }
-    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || a.toUpperCase();
+    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || this._actionCaps(a);
     const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
     const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
     return c ? this.codeLabel(c) : '';
@@ -971,8 +982,11 @@ class Input {
     const t = this._touchSet || (this._touchSet = {}); t[a] = { label, show: !!show };
     const b = this._touchBtns && this._touchBtns[a]; if (b && b.isConnected) this._touchLook(b, a);
   }
+  // an action's name in capitals for its touch button: the game's line action.<name>, else the engine's (engine.action.<name>),
+  // else the action's own name
+  _actionCaps(a) { const id = idPart(a); return E.lang.has('action.' + id) ? E.lang.upper(E.t('action.' + id)) : E.lang.has('engine.action.' + id) ? E.lang.upper(E.t('engine.action.' + id)) : a.toUpperCase(); }
   _touchLook(b, a) {
-    const t = this._touchSet && this._touchSet[a], o = this._touchArgs ? this._touchArgs.o : {}, text = (t && t.label) || (o.labels && o.labels[a]) || a.toUpperCase(), d = t && !t.show ? 'none' : '';
+    const t = this._touchSet && this._touchSet[a], o = this._touchArgs ? this._touchArgs.o : {}, text = (t && t.label) || (o.labels && o.labels[a]) || this._actionCaps(a), d = t && !t.show ? 'none' : '';
     if (b.textContent !== text) b.textContent = text;
     if (b.style.display !== d) { b.style.display = d; if (d) { b._inputPointers && b._inputPointers.clear(); b.classList.remove('on'); this.release('Act:' + a); } }   // (hidden under a finger: let go)
   }
@@ -1011,7 +1025,7 @@ class Input {
     if (!this._cornerMenu) {   // START: the corner's menu button is it; without the corner, a button of its own in the same place
       const st = this._startEl = document.createElement('div'), b = document.createElement('button'); st.dataset.sys = 'touch';
       st.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1);
-      b.dataset.act = 'menu'; b.textContent = 'START'; b.setAttribute('aria-label', 'Start or menu');
+      b.dataset.act = 'menu'; b.textContent = E.lang.upper(ENG('touch.start')); b.setAttribute('aria-label', ENG('touch.start_label'));
       b.style.cssText = 'min-width:44px;height:44px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,.4);background:rgba(20,16,40,.55);color:#fff;font:600 11px system-ui,sans-serif;touch-action:none';
       st.appendChild(b); document.body.appendChild(st); this.bindButtons(st);
     }
@@ -1360,42 +1374,61 @@ const parseFont = (src, mono) => {   // -> { char: { w, runs: [[x, y, n] ...] } 
   return out;
 };
 const FONTS = {
-  normal: { glyphs: parseFont(G57), h: 7, desc: 2, gap: 1, space: 3, upper: false },
-  tiny: { glyphs: parseFont(GLYPHS, 3), h: 5, desc: 0, gap: 2, space: 3, upper: true, mono: 3 }
+  normal: { key: 'normal', glyphs: parseFont(G57), h: 7, desc: 2, gap: 1, space: 3, upper: false },
+  tiny: { key: 'tiny', glyphs: parseFont(GLYPHS, 3), h: 5, desc: 0, gap: 2, space: 3, upper: true, mono: 3 }
 };
 /**
  * Pixel fonts. 'normal' (default) is a 5x7 proportional font with lower case; 'tiny' is the 3x5 upper-case font.
  * text(g, str, x, y, color, opts) where opts is an outline color, false, or
  *   { font: 'normal' | 'tiny', outline: '#0b0814' | false, shadow: '#000' (1 px drop shadow), gradient: ['#fff', '#8ad'] (top to bottom),
  *     scale: 1, align: 'left' | 'center' | 'right', wrap: maxWidthPx, lineGap }
- * '\n' starts a new line. Returns { w, h } of the drawn block. title(...) draws big logo text.
+ * '\n' starts a new line. Returns { w, h } of the drawn block. title(...) draws big logo text. A letter the font lacks
+ * (Chinese, Cyrillic, Arabic, Hindi ...) is drawn with the device's font, a run at a time (section 6b): a line with letters
+ * written right to left is drawn whole, and in a box (wrap) starts at its right edge; in a language whose text needs the
+ * device's font (E.lang.big) lines are taller, to fit it.
  */
 E.font = {
   /** the font used when none is named: 'normal' (5 x 7) or 'tiny' (3 x 5) */
   default: 'normal',
   _f(o) { const n = (o && typeof o === 'object' && o.font) || this.default; return FONTS[n] || FONTS.normal; },
   _o(o) { return typeof o === 'number' ? { scale: o } : (o || {}); },
-  _glyph(f, ch) { return f.glyphs[f.upper ? ch.toUpperCase() : ch] || f.glyphs[ch.toUpperCase()] || f.glyphs['?']; },
+  _g(f, ch) { return f.glyphs[f.upper ? ch.toUpperCase() : ch] || f.glyphs[ch.toUpperCase()]; },
+  _glyph(f, ch) { return this._g(f, ch) || f.glyphs['?']; },
+  _has(f) { return f._has || (f._has = ch => !!this._g(f, ch)); },
+  // a line's widths in the font's pixels (unscaled), the invisible marks (isolates, joiners) taking none
   _lineW(f, line) {
     let w = 0;
-    for (const ch of line) w += ch === ' ' ? f.space + 1 : (f.mono || this._glyph(f, ch).w) + 1;
+    for (const ch of line) { if (ch === ' ') { w += f.space + 1; continue; } const gl = this._g(f, ch); if (!gl && LANG_DEV.ZW.test(ch)) continue; w += (f.mono || (gl || f.glyphs['?']).w) + 1; }
     return Math.max(0, w - 1);
   },
+  // a line's width in pixels at scale sc, the device font's runs measured (g: a context to measure with)
+  _lw(f, line, sc, g) {
+    const R = LANG_DEV.runs(this._has(f), line, f.key); if (!R) return this._lineW(f, line) * sc;
+    const ds = LANG_DEV.size(f.h + f.desc, sc); let w = 0;
+    for (const [d, t] of R) w += (d ? LANG_DEV.measure(g, f.upper ? E.lang.upper(t) : t, ds) : this._lineW(f, t) * sc) + sc;
+    return Math.max(0, w - sc);
+  },
+  // a line's ascent, rows and step at scale sc: taller in a language the device's font draws (E.lang.big)
+  _m(f, o, sc) { return LANG_DEV.metrics(f.h, f.desc, o.lineGap === undefined ? f.gap : o.lineGap, sc, E.lang._ensure().big); },
+  /** true when the font draws every letter of s itself (none from the device's font). opts: { font } */
+  covers(s, o) { const f = this._f(o), has = this._has(f); for (const ch of String(s)) if (ch !== ' ' && ch !== '\n' && !has(ch) && !LANG_DEV.ZW.test(ch)) return false; return true; },
   /** width in pixels of the widest line. opts: a scale number or { font, scale } */
-  width(s, o) { o = this._o(o); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); let m = 0; for (const line of String(s).split('\n')) m = Math.max(m, this._lineW(f, line)); return m * sc; },
+  width(s, o) { o = this._o(o); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); let m = 0; for (const line of String(s).split('\n')) m = Math.max(m, this._lw(f, line, sc)); return m; },
   /** pixels from one line to the next */
-  lineHeight(o) { o = this._o(o); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); return (f.h + f.desc + (o.lineGap === undefined ? f.gap : o.lineGap)) * sc; },
+  lineHeight(o) { o = this._o(o); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); return this._m(f, o, sc).step; },
   /** the height in pixels of that many lines (with o's scale and font, and lineGap between them) */
-  height(lines = 1, o, lineGap) { o = this._o(o); if (lineGap !== undefined) o = Object.assign({}, o, { lineGap }); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); return this.lineHeight(o) * (lines - 1) + (f.h + f.desc) * sc; },
+  height(lines = 1, o, lineGap) { o = this._o(o); if (lineGap !== undefined) o = Object.assign({}, o, { lineGap }); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); const m = this._m(f, o, sc); return m.step * (lines - 1) + m.rows; },
   /** split text into lines no wider than maxW pixels */
   wrap(s, maxW, o) {
-    o = this._o(o); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)), lim = maxW / sc, out = [];
+    o = this._o(o); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)), lim = maxW / sc, out = [], has = this._has(f);
+    const W = t => LANG_DEV.runs(has, t, f.key) ? this._lw(f, t, sc) / sc : this._lineW(f, t);   // (the font's pixels, the device's runs measured)
     for (const para of String(s).split('\n')) {
+      const dw = LANG_DEV.wrap(para, lim, W); if (dw) { out.push(...dw); continue; }   // (Chinese, Japanese, Thai: between words, not at spaces)
       let line = '';
       for (const word of para.split(' ')) {
         const t = line ? line + ' ' + word : word;
-        if (this._lineW(f, t) <= lim || !line) line = t; else { out.push(line); line = word; }
-        while (this._lineW(f, line) > lim && line.length > 1) { let k = line.length - 1; while (k > 1 && this._lineW(f, line.slice(0, k)) > lim) k--; out.push(line.slice(0, k)); line = line.slice(k); }
+        if (W(t) <= lim || !line) line = t; else { out.push(line); line = word; }
+        while (W(line) > lim && line.length > 1) { let k = line.length - 1; while (k > 1 && W(line.slice(0, k)) > lim) k--; out.push(line.slice(0, k)); line = line.slice(k); }
       }
       out.push(line);
     }
@@ -1405,31 +1438,46 @@ E.font = {
    *  outline, shadow, gradient, scale, align, wrap, font }; returns { w, h } */
   text(g, s, x, y, color = '#ffffff', o = '#0b0814') {
     if (o === null || o === false || typeof o === 'string') o = { outline: o };
-    const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)), outline = o.outline === undefined ? '#0b0814' : o.outline, lh = this.lineHeight(o);
+    const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)), outline = o.outline === undefined ? '#0b0814' : o.outline, m = this._m(f, o, sc), lh = m.step;
     const lines = o.wrap ? this.wrap(s, o.wrap, o) : String(s).split('\n');
-    const grad = o.gradient && o.gradient.length ? o.gradient : null, rowsH = f.h + f.desc;
+    const grad = o.gradient && o.gradient.length ? o.gradient : null, top = m.asc - f.h * sc, has = this._has(f), ds = LANG_DEV.size(f.h + f.desc, sc);
     x = Math.round(x); y = Math.round(y);
     let w = 0;
+    const glyphs = (line, lx, ly, ox, oy, c, useGrad) => {   // the pixel font's letters of a line (or a run) from lx
+      let cx = 0;
+      for (const ch of line) {
+        if (ch === ' ') { cx += f.space + 1; continue; }
+        const g0 = this._g(f, ch); if (!g0 && LANG_DEV.ZW.test(ch)) continue;
+        const gl = g0 || f.glyphs['?'], off = f.mono ? Math.floor((f.mono - gl.w) / 2) : 0;
+        for (const [rx, ry, rn] of gl.runs) {
+          px.col(g, useGrad ? grad[Math.min(grad.length - 1, Math.floor(ry / Math.max(1, f.h) * grad.length))] : c);
+          g.fillRect(lx + (cx + off + rx) * sc + ox, ly + ry * sc + oy, rn * sc, sc);
+        }
+        cx += (f.mono || gl.w) + 1;
+      }
+    };
+    const RS = lines.map(line => LANG_DEV.runs(has, line, f.key)), LW = lines.map((line, li) => RS[li] ? this._lw(f, line, sc, g) : this._lineW(f, line) * sc);   // (each line measured once, not once a pass)
     const draw = (ox, oy, c, useGrad) => {
       lines.forEach((line, li) => {
-        const lw = this._lineW(f, line) * sc, lx = x + (o.align === 'center' ? -Math.round(lw / 2) : o.align === 'right' ? -lw : 0), ly = y + li * lh;
+        const R = RS[li], lw = LW[li], ly = y + li * lh;
+        const rtl = !!R && R.length === 1 && LANG_DEV.RTL.test(line), box = rtl && o.wrap && (!o.align || o.align === 'left');   // (right to left in a box: from its right edge)
+        const al = box ? 'right' : o.align, lx = (box ? x + Math.round(o.wrap) : x) + (al === 'center' ? -Math.round(lw / 2) : al === 'right' ? -lw : 0);
         w = Math.max(w, lw);
+        if (!R) { glyphs(line, lx, ly + top, ox, oy, c, useGrad); return; }
         let cx = 0;
-        for (const ch of line) {
-          if (ch === ' ') { cx += f.space + 1; continue; }
-          const gl = this._glyph(f, ch), off = f.mono ? Math.floor((f.mono - gl.w) / 2) : 0;
-          for (const [rx, ry, rn] of gl.runs) {
-            px.col(g, useGrad ? grad[Math.min(grad.length - 1, Math.floor(ry / Math.max(1, f.h) * grad.length))] : c);
-            g.fillRect(lx + (cx + off + rx) * sc + ox, ly + ry * sc + oy, rn * sc, sc);
-          }
-          cx += (f.mono || gl.w) + 1;
+        for (const [d, t] of R) {
+          if (!d) { glyphs(t, lx + cx, ly + top, ox, oy, c, useGrad); cx += this._lineW(f, t) * sc + sc; continue; }
+          const u = f.upper ? E.lang.upper(t) : t;
+          if (useGrad && g.createLinearGradient) { const gr = g.createLinearGradient(0, ly + oy, 0, ly + oy + m.rows); grad.forEach((k, i) => gr.addColorStop(i / Math.max(1, grad.length - 1), k)); g.fillStyle = gr; g._c = null; }
+          else px.col(g, useGrad ? grad[0] : c);
+          LANG_DEV.draw(g, u, lx + cx + ox, ly + m.asc + oy, ds, rtl); cx += LANG_DEV.measure(g, u, ds) + sc;
         }
       });
     };
     if (o.shadow) draw(sc, sc, o.shadow, false);
     if (outline) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) draw(ox, oy, outline, false);   // 1 px at every scale, so 8 and 0 keep their holes
     draw(0, 0, color, !!grad);
-    return { w, h: lh * (lines.length - 1) + rowsH * sc };
+    return { w, h: lh * (lines.length - 1) + m.rows };
   },
   /**
    * Big logo text for title screens: scaled glyphs with a vertical color gradient, an outline and an extruded 3D edge.
@@ -1442,23 +1490,323 @@ E.font = {
     for (let d = depth; d >= 1; d--) this.text(g, s, x + d, y + d, dc, base);
     if (outline) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) this.text(g, s, x + ox, y + oy, outline, base);
     // smooth gradient: one color band per scaled pixel row
-    const rows = f.h * sc, bands = [];
+    const rows = f.h * sc, bands = [], mt = this._m(f, base, sc), top = mt.asc - f.h * sc, has = this._has(f), ds = LANG_DEV.size(f.h + f.desc, sc);
     for (let k = 0; k < rows; k++) { const t = k / Math.max(1, rows - 1) * (colors.length - 1), i = Math.min(colors.length - 2, Math.floor(t)); bands.push(colors.length < 2 ? colors[0] : mix(colors[i], colors[i + 1], t - i)); }
     const lines = String(s).split('\n'), lh = this.lineHeight(base);
     lines.forEach((line, li) => {
-      const lw = this._lineW(f, line) * sc, lx = Math.round(x) + (o.align === 'center' ? -Math.round(lw / 2) : o.align === 'right' ? -lw : 0), ly = Math.round(y) + li * lh;
-      let cx = 0;
-      for (const ch of line) {
-        if (ch === ' ') { cx += f.space + 1; continue; }
-        const gl = this._glyph(f, ch);
-        for (const [rx, ry, rn] of gl.runs) for (let sy = 0; sy < sc; sy++) { px.col(g, bands[Math.min(rows - 1, ry * sc + sy)] || colors[0]); g.fillRect(lx + (cx + rx) * sc, ly + ry * sc + sy, rn * sc, 1); }
-        if (o.shine !== false) for (const [rx, ry, rn] of gl.runs) if (ry === 0) { px.col(g, o.shine || '#ffffff'); g.fillRect(lx + (cx + rx) * sc, ly, rn * sc, 1); }
-        cx += (f.mono || gl.w) + 1;
+      const R = LANG_DEV.runs(has, line, f.key), lw = R ? this._lw(f, line, sc, g) : this._lineW(f, line) * sc, lx0 = Math.round(x) + (o.align === 'center' ? -Math.round(lw / 2) : o.align === 'right' ? -lw : 0), ly = Math.round(y) + li * lh + top;
+      if (R) {   // the device's runs: one gradient top to bottom; the pixel font's: the bands below
+        let cx = 0;
+        for (const [d, t] of R) {
+          if (!d) { this._titleRun(g, f, t, lx0 + cx, ly, sc, bands, rows, colors, o); cx += this._lineW(f, t) * sc + sc; continue; }
+          if (g.createLinearGradient) { const gr = g.createLinearGradient(0, ly - top, 0, ly - top + mt.rows); colors.forEach((k, i) => gr.addColorStop(i / Math.max(1, colors.length - 1), k)); g.fillStyle = gr; g._c = null; } else px.col(g, colors[0]);
+          LANG_DEV.draw(g, t, lx0 + cx, ly - top + mt.asc, ds, R.length === 1 && LANG_DEV.RTL.test(line)); cx += LANG_DEV.measure(g, t, ds) + sc;
+        }
+        return;
       }
+      this._titleRun(g, f, line, lx0, ly, sc, bands, rows, colors, o);
     });
     return { w: this.width(s, base), h: this.height(lines.length, base) };
+  },
+  // title's gradient bands over the pixel font's letters of a line (or a run) from lx
+  _titleRun(g, f, line, lx, ly, sc, bands, rows, colors, o) {
+    let cx = 0;
+    for (const ch of line) {
+      if (ch === ' ') { cx += f.space + 1; continue; }
+      const g0 = this._g(f, ch); if (!g0 && LANG_DEV.ZW.test(ch)) continue;
+      const gl = g0 || f.glyphs['?'];
+      for (const [rx, ry, rn] of gl.runs) for (let sy = 0; sy < sc; sy++) { px.col(g, bands[Math.min(rows - 1, ry * sc + sy)] || colors[0]); g.fillRect(lx + (cx + rx) * sc, ly + ry * sc + sy, rn * sc, 1); }
+      if (o.shine !== false) for (const [rx, ry, rn] of gl.runs) if (ry === 0) { px.col(g, o.shine || '#ffffff'); g.fillRect(lx + (cx + rx) * sc, ly, rn * sc, 1); }
+      cx += (f.mono || gl.w) + 1;
+    }
   }
 };
+
+/* =============================================================================
+ * 6b. LANGUAGES  a game in the player's own language (AI Hub Languages v1: lib/hub/languages.md in the AI Hub). The
+ *    words players read live in the page's <script type="application/json" id="game-lines"> block, each under an id; a
+ *    translation step adds a "game-translations" block later and changes nothing else. E.t(id, values) is a line in the
+ *    player's language: {blanks} filled (numbers in its format), plural forms picked by {count}, {key:jump} the key or
+ *    button that does the action; a translation missing, empty or broken shows the original line. The language: ?lang=
+ *    (the hub's), then the player's choice (saved under 'lang:' + the page's path), the browser's, the game's own.
+ *    ?lang=en-XA, zh-XC or ar-XB make the three test languages from the game's own lines. The fonts draw what their
+ *    glyphs lack with the device's font (section 6), E.Dialog types whole letters at the original line's pace, and the
+ *    engine's own words are lines too (engine.* ids, English until the page's lines say otherwise; E.lang.engineLines())
+ * ============================================================================= */
+// @lang-shared-start (the agent edition has this text too, the same to the letter: contract-test holds it)
+const LANG_RTL = /^(ar|fa|ur|he|ps|sd|ug|yi|ckb|dv)\b/i, LANG_JOINED = /^(ar|fa|ur|ps|sd|ug|ckb)\b/i, LANG_FAKE = ['en-XA', 'zh-XC', 'ar-XB'];
+const LANG_OWN = (o, k) => (o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined);
+const LANG_OK = v => (typeof v === 'string' && v !== '') || (!!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0 && Object.values(v).every(s => typeof s === 'string'));
+const LANG_CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}　-〿＀-￯]/u;
+const LANG_INTL = (k, lang, o) => { const c = LANG_INTL.c || (LANG_INTL.c = new Map()), key = k + '|' + lang + '|' + JSON.stringify(o || ''); if (!c.has(key)) { let v = null; try { v = typeof Intl !== 'undefined' && Intl[k] ? new Intl[k](lang, o) : null; } catch (e) { try { v = new Intl[k]('en', o); } catch (e2) { v = null; } } c.set(key, v); } return c.get(key); };
+/** the engine's own words by id, in English: each part that shows words adds its own where it is written (the menus, the
+ *  saves, the notes, the key names); E.lang.engineLines() lists them */
+const ENGINE_LINES = {};
+/** the player's language: the page's lines and translations, the language chosen, E.t's work (see the section's header) */
+E.lang = {
+  /** code: the language shown ('en', 'es-419', or a test language) */
+  code: 'en',
+  /** source: the game's own language (its game-lines block's) */
+  source: 'en',
+  /** dir: 'ltr' | 'rtl', the language's direction (set it where text is drawn: the fonts and E.Dialog do) */
+  dir: 'ltr',
+  /** available: the languages the page has, its own first */
+  available: ['en'],
+  /** test: true in a test language (en-XA, zh-XC, ar-XB) */
+  test: false,
+  /** asked: the address's ?lang=, or null */
+  asked: null,
+  /** big: true when the language's text needs the device's font (lines grow to fit it: section 6) */
+  big: false,
+  _src: { lines: {} }, _tr: {}, _table: {}, _loaded: false, _len: new Map(),
+  /** read the page's two blocks and choose the language (the first E.t does it; call it again after changing them).
+   *  o, in place of the page and the address (Node, tests): { lines: a game-lines object, translations, lang } */
+  load(o) {
+    const dom = typeof document !== 'undefined' && !!document.getElementById, block = id => { try { return JSON.parse(document.getElementById(id).textContent); } catch (e) { return null; } };
+    const src = o && o.lines ? o.lines : dom ? block('game-lines') : null, tr = o && o.translations ? o.translations : o && o.lines ? null : dom ? block('game-translations') : null;
+    this._src = src && typeof src === 'object' && src.lines && typeof src.lines === 'object' ? src : { language: 'en', lines: {} };
+    this._tr = tr && typeof tr === 'object' && !Array.isArray(tr) ? tr : {};
+    this.source = typeof this._src.language === 'string' && this._src.language ? this._src.language : 'en';
+    this.available = [this.source, ...Object.keys(this._tr).filter(k => k !== this.source && LANG_OWN(this._tr[k], 'lines'))];
+    let asked = o && 'lang' in o ? o.lang || null : null;
+    if (!o && typeof location !== 'undefined') try { asked = new URLSearchParams(location.search).get('lang'); } catch (e) { /* no address */ }
+    this.asked = asked;
+    this.code = this.pick(this.available, asked, !!o); this.test = LANG_FAKE.includes(this.code);
+    this.dir = LANG_RTL.test(this.code) ? 'rtl' : 'ltr';
+    const t = LANG_OWN(this._tr[this.code], 'lines'); this._table = t && typeof t === 'object' ? t : {};
+    this.big = this.test ? this.code !== 'en-XA' : Object.values(this._table).some(l => LANG_OK(l) && !E.font.covers(typeof l === 'string' ? l : Object.values(l).join(' ')));
+    this._loaded = true; this._len.clear();
+    if (dom && document.documentElement && !(o && o.page === false)) document.documentElement.lang = this.code;
+    return this;
+  },
+  _ensure() { if (!this._loaded) this.load(); return this; },
+  /** the language to show among available: asked (?lang=), then the player's saved choice, the browser's languages, the
+   *  game's own. A code matches in full, then the same language in the same writing, then the same language (a browser
+   *  set to zh-TW gets zh-Hant before zh-Hans; es-MX gets es-419). quiet: neither storage nor the browser (Node, tests) */
+  pick(available, asked = this.asked, quiet = false) {
+    if (LANG_FAKE.includes(asked)) return asked;
+    let saved = null, nav = [];
+    if (!quiet && typeof document !== 'undefined') {
+      try { saved = localStorage.getItem('lang:' + location.pathname); } catch (e) { /* storage blocked */ }
+      const S = E.session, rec = S && S.replaying && S.data && S.data.env && S.data.env.languages;   // (a replay: the recorded browser's)
+      nav = rec || (typeof navigator !== 'undefined' && navigator.languages) || [];
+    }
+    const parts = c => { try { const l = new Intl.Locale(c).maximize(); return [l.language, l.script]; } catch (e) { return [String(c).toLowerCase().split('-')[0], '']; } };
+    for (const want of [asked, saved, ...nav].filter(Boolean)) {
+      const [lg, sc] = parts(want);
+      const hit = available.find(a => a.toLowerCase() === String(want).toLowerCase()) || available.find(a => { const p = parts(a); return p[0] === lg && p[1] === sc; }) || available.find(a => parts(a)[0] === lg);
+      if (hit) return hit;
+    }
+    return available[0] || 'en';
+  },
+  /** true when the Language menu should offer a choice: the page has two languages or more and the address names none
+   *  (with ?lang= the hub's own menu is in charge) */
+  offer() { this._ensure(); return this.available.length > 1 && !this.asked; },
+  /** true when the game's lines (or the engine's) have this id */
+  has(id) { this._ensure(); return LANG_OK(LANG_OWN(this._src.lines, id)) || LANG_OK(LANG_OWN(ENGINE_LINES, id)); },
+  /**
+   * a line in the player's language: E.t('hud.lives', { count: 3 }). values fill its {blanks} (a number in the
+   * language's format, wrapped in Unicode isolates in a right-to-left language); {count} picks a plural form ({ zero,
+   * one, two, few, many, other }); {key:jump} is the key or button that does jump on the device in use; other tags
+   * ({c=#hex}, {w=.5}) stay for E.Dialog. A translation missing, empty or broken shows the game's own line (Critical),
+   * an id in neither the game's lines nor the engine's shows fallback, else the id itself
+   */
+  t(id, values, fallback) {
+    this._ensure();
+    const v = values || {}, tr = LANG_OWN(this._table, id), translated = LANG_OK(tr);
+    let src = LANG_OWN(this._src.lines, id), lang = this.source;
+    if (!LANG_OK(src)) { src = LANG_OWN(ENGINE_LINES, id); lang = 'en'; if (!LANG_OK(src)) { src = fallback; if (!LANG_OK(src)) return fallback === undefined ? String(id) : String(fallback); } }
+    if (!translated && !this.test) return this._fill(src, v, lang, false);
+    const out = translated ? this._fill(tr, v, this.code, false) : this._fill(src, v, lang, LANG_OWN(this._src.max, id));
+    if (out !== src) { if (this._len.size > 4000) this._len.clear(); this._len.set(out, this.letters(this._fill(src, v, lang, false))); }   // (the original's length: E.Dialog types it at the original's pace)
+    return out;
+  },
+  // a line (or its plural forms) in lang with its blanks filled; max: a test language's (made before the blanks)
+  _fill(line, v, lang, max) {
+    if (typeof line === 'object') { const n = typeof v.count === 'number' ? v.count : 0, pr = LANG_INTL('PluralRules', lang); line = (n === 0 && line.zero) || (pr && line[pr.select(n)]) || line.other || Object.values(line)[0]; }
+    if (max !== false && this.test) line = this.fake(line, max);
+    const rtl = this.dir === 'rtl', nf = LANG_INTL('NumberFormat', lang);
+    line = String(line).replace(/\{key:(\w+)\}/g, (tag, a) => { const c = this.control(a); return c ? (rtl ? '⁨' + c + '⁩' : c) : tag; }).replace(/\{(\w+)\}/g, (tag, k) => {
+      if (!Object.prototype.hasOwnProperty.call(v, k)) return tag;
+      const x = v[k], s = typeof x === 'number' && nf ? nf.format(x) : String(x);
+      return rtl ? '⁨' + s + '⁩' : s;   // (isolated: a Latin name or a number can't scramble the line round it)
+    });
+    if (!this.test && lang !== this.code && LANG_RTL.test(lang) !== rtl) line = '⁨' + line + '⁩';   // (the game's own line in the other direction)
+    return line;
+  },
+  /** the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a
+   *  function of your own for a game without E.Game's input */
+  control(a) { const g = E.current; return (g && g.input && g.input.map && g.input.map[a] && g.input.label(a)) || a; },
+  /** the original line's letter count for text E.t gave in another language (E.Dialog types it over the original's time), or 0 */
+  sourceLength(text) { return this._len.get(text) || 0; },
+  /** whole letters in s, tags left out (a Chinese, Japanese or Korean character is one) */
+  letters(s) { return this.pieces(String(s).replace(/\{[^{}]*\}/g, ''), 'grapheme').length; },
+  /** what a typewriter reveals one step at a time: whole letters (whole words in Arabic script), a {tag} one step of its
+   *  own. by: 'grapheme' or 'word' to choose */
+  pieces(line, by) {
+    this._ensure();
+    const g = by || (LANG_JOINED.test(this.code) ? 'word' : 'grapheme'), seg = LANG_INTL('Segmenter', this.code, { granularity: g });
+    return String(line).split(/(\{[^{}]*\})/).flatMap((p, i) => (i % 2 ? [p] : seg && seg.segment ? Array.from(seg.segment(p), s => s.segment) : Array.from(p))).filter(p => p !== '');
+  },
+  /** a line's width for max: whole letters, a Chinese, Japanese or Korean character counting two; tags count nothing */
+  width(line) { return this.pieces(String(line).replace(/\{[^{}]*\}/g, ''), 'grapheme').reduce((n, g) => n + (LANG_CJK.test(g) ? 2 : 1), 0); },
+  /** a test language's line, made from the game's own before its blanks are filled: accented and longer in brackets (en-XA,
+   *  exactly max wide when there is one), Chinese characters without spaces (zh-XC), Arabic letters (ar-XB) */
+  fake(line, max, code = this.code) {
+    const HAN = '的一是不了人我在有他这中大来上国个到说们为子和你地出道也时年得就那要下以生会自着去之过家学对', AR = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي';
+    const ACC = { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', n: 'ñ', c: 'ç', A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', N: 'Ñ' };
+    const out = String(line).split(/(\{[^{}]*\})/).map((p, i) => {
+      if (i % 2) return p;
+      if (code === 'zh-XC') return p.replace(/[\p{L}\p{M}]+/gu, w => Array.from({ length: Math.ceil([...w].length / 2) }, (_, k) => HAN[(w.codePointAt(k) * 7 + k) % HAN.length]).join('')).replace(/[,.!?:;]/g, c => '，。！？：；'[',.!?:;'.indexOf(c)]).replace(/[ \t]+/g, '');
+      if (code === 'ar-XB') return p.replace(/\p{L}\p{M}*/gu, c => AR[c.codePointAt(0) % AR.length]);
+      return code === 'en-XA' ? p.replace(/[aeiounc]/gi, c => ACC[c] || c) : p;
+    }).join('');
+    if (code !== 'en-XA') return out;
+    if (max) return '[' + out + '·'.repeat(Math.max(0, max - this.width(out) - 2)) + ']';
+    return out.split('\n').map(p => '[' + p + ' ' + '·'.repeat(Math.ceil(this.width(p) * .4)) + ']').join('\n');
+  },
+  /** a language's name in that language, for the Language menu: Español latinoamericano, 繁體中文 */
+  name(code) { const d = LANG_INTL('DisplayNames', code, { type: 'language' }); let n = code; try { n = (d && d.of(code)) || code; } catch (e) { /* not a code it knows */ } return n.charAt(0).toLocaleUpperCase(code) + n.slice(1); },
+  /** the player picks a language (the Language menu): kept under 'lang:' + the page's path, and the page starts again in
+   *  it. Headless (no page to reload) it changes at once */
+  choose(code) {
+    if (typeof document === 'undefined' || typeof location === 'undefined') { this.load({ lines: this._src, translations: this._tr, lang: code }); return; }
+    try { localStorage.setItem('lang:' + location.pathname, code); } catch (e) { /* storage blocked: this visit only */ }
+    try { location.reload(); } catch (e) { this.load(); }
+  },
+  /** a number in the player's language: num(12500) is 12,500 in English, 12.500 in German (o: Intl.NumberFormat's) */
+  num(n, o) { this._ensure(); const f = LANG_INTL('NumberFormat', this.code, o); return f ? f.format(n) : String(n); },
+  /** a date in the player's language (o: Intl.DateTimeFormat's) */
+  date(d, o) { this._ensure(); const f = LANG_INTL('DateTimeFormat', this.code, o); return f ? f.format(d) : String(d); },
+  /** a list joined in the player's language: list(['Pip', 'Vex', 'Lynx']) is 'Pip, Vex, and Lynx' in English */
+  list(a, o) { this._ensure(); const f = LANG_INTL('ListFormat', this.code, o || { type: 'conjunction' }); return f ? f.format(a.map(String)) : a.join(', '); },
+  /** capitals in the player's language (Turkish i is İ) */
+  upper(s) { this._ensure(); try { return String(s).toLocaleUpperCase(this.test ? 'en' : this.code); } catch (e) { return String(s).toUpperCase(); } },
+  /** names sorted in the player's language: list.sort(E.lang.compare) */
+  compare(a, b) { this._ensure(); try { return String(a).localeCompare(String(b), this.test ? 'en' : this.code); } catch (e) { return a < b ? -1 : a > b ? 1 : 0; } },
+  /** HTML in the page with data-line="id" gets its line (and the direction); call it once the page has loaded */
+  fillPage(root = typeof document !== 'undefined' ? document : null) { if (!root) return; for (const el of root.querySelectorAll('[data-line]')) { el.textContent = this.t(el.dataset.line); el.dir = this.dir; } },
+  /** the engine's own lines by id, in English: put them in the page's game-lines block (tools/lines.mjs does) for the
+   *  translation step to translate the menus with the game */
+  engineLines() { return Object.assign({}, ENGINE_LINES); },
+  /** an engine part's own lines (the 3D engine's, a module's), English by id: engineLines() lists them with the rest */
+  engine(lines) { for (const k in lines) if (/^engine\.[a-z0-9_]+(\.[a-z0-9_]+)*$/.test(k) && LANG_OK(lines[k])) ENGINE_LINES[k] = lines[k]; return this; }
+};
+/* the device's font, for the letters a pixel font lacks (both editions' E.font): a line is cut into runs, the pixel
+   font's and the device's, each of the device's drawn in one call so its letters join; a line with letters written right
+   to left is the device's whole, so its directions settle as they should. Spaces, ASCII punctuation and the invisible
+   marks (isolates, joiners) go with the run before them */
+const LANG_DEV = {
+  family: 'sans-serif',
+  ZW: /[​-‏‪-‮⁦-⁩؜﻿]/, RTL: /[֐-ࣿיִ-﷿ﹰ-ﻼ]/,
+  NOSPACE: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u,
+  _runs: new Map(), _w: new Map(), _mctx: null,
+  /** the device font's size for a pixel font of rows (its height and descent) at scale sc: never under 12 px, the least a
+   *  Chinese, Japanese or Korean character reads at */
+  size(rows, sc) { return Math.max(12, Math.round(rows * sc * 1.2)); },
+  /** a line's ascent, rows and step to the next (pixels at scale sc): the pixel font's, or taller when big (the language's
+   *  text is the device font's: room above and below for its marks) */
+  metrics(h, desc, gap, sc, big) {
+    const rows = (h + desc) * sc; if (!big) return { asc: h * sc, rows, step: rows + gap * sc };
+    const ds = this.size(h + desc, sc), asc = Math.max(h * sc, Math.ceil(ds * .9)), r = asc + Math.max(desc * sc, Math.ceil(ds * .3));
+    return { asc, rows: r, step: r + gap * sc };
+  },
+  /** null when the pixel font draws the whole line (has(ch): it has that glyph), else [[device, text], ...] */
+  runs(has, line, key) {
+    const k = key + '\u0000' + line, hit = this._runs.get(k); if (hit !== undefined) return hit;   // (a line drawn again: one lookup)
+    let any = false, out = null;
+    for (const ch of line) if (ch !== ' ' && ch !== '\n' && !has(ch) && !this.ZW.test(ch)) { any = true; break; }
+    if (any && this.RTL.test(line)) out = [[true, line]];
+    else if (any) {
+      out = []; let pend = '';
+      for (const ch of line) {
+        if (ch === ' ' || this.ZW.test(ch) || /[!-/:-@[-`{-~]/.test(ch)) { pend += ch; continue; }
+        const d = !has(ch), cur = out[out.length - 1];
+        if (cur && cur[0] === d) cur[1] += pend + ch; else if (cur) { cur[1] += pend; out.push([d, ch]); } else out.push([d, pend + ch]);
+        pend = '';
+      }
+      if (pend) { if (out.length) out[out.length - 1][1] += pend; else out.push([false, pend]); }
+    }
+    if (this._runs.size > 2000) this._runs.clear();
+    this._runs.set(k, out); return out;
+  },
+  /** a run's width in pixels at size: measured where a canvas can (g, or one of its own), else reckoned (Node) */
+  measure(g, s, size) {
+    const k = size + '|' + this.family + '|' + s; let w = this._w.get(k); if (w !== undefined) return w;
+    let c = g && g.measureText ? g : this._mctx;
+    if (!c && typeof document !== 'undefined' && document.createElement) try { c = this._mctx = document.createElement('canvas').getContext('2d'); } catch (e) { c = null; }
+    if (c && c.measureText) { c.font = size + 'px ' + this.family; w = Math.ceil(c.measureText(s).width); }
+    else w = Math.ceil(E.lang.pieces(s.replace(this.ZW, ''), 'grapheme').reduce((n, ch) => n + (ch === ' ' ? .3 : LANG_CJK.test(ch) ? 1 : .6), 0) * size);
+    if (this._w.size > 4000) this._w.clear();
+    this._w.set(k, w); return w;
+  },
+  /** draw a run at x with its baseline at base (its colour set already: px.col) */
+  draw(g, s, x, base, size, rtl) { if (!g || !g.fillText) return; g.font = size + 'px ' + this.family; g.textBaseline = 'alphabetic'; g.textAlign = 'left'; g.direction = rtl ? 'rtl' : 'ltr'; g.fillText(s, x, base); },
+  /** a paragraph's lines no wider than lim (width(text)): scripts written without spaces (Chinese, Japanese, Thai) break
+   *  between words (Intl.Segmenter), punctuation kept with the word before it; else null (the font breaks at spaces) */
+  wrap(para, lim, width) {
+    if (!this.NOSPACE.test(para)) return null;
+    const seg = LANG_INTL('Segmenter', E.lang._ensure().code, { granularity: 'word' }), toks = [];
+    for (const s of seg && seg.segment ? Array.from(seg.segment(para)) : Array.from(para, c => ({ segment: c, isWordLike: true }))) {
+      const sp = /^\s+$/.test(s.segment), last = toks[toks.length - 1];
+      if (!sp && !s.isWordLike && last && !last.sp && !/^[(\[{“‘「『（《]/.test(s.segment)) last.t += s.segment; else toks.push({ t: s.segment, sp });
+    }
+    const out = []; let line = '', gap = '';
+    for (const k of toks) {
+      if (k.sp) { if (line) gap = k.t; continue; }
+      const c = line + gap + k.t;
+      if (!line || width(c) <= lim) { line = c; gap = ''; } else { out.push(line); line = k.t; gap = ''; }
+      while (width(line) > lim && line.length > 1) { const g = E.lang.pieces(line, 'grapheme'); let n = g.length - 1; while (n > 1 && width(g.slice(0, n).join('')) > lim) n--; out.push(g.slice(0, n).join('')); line = g.slice(n).join(''); }
+    }
+    out.push(line); return out;
+  }
+};
+/** E.t(id, values): E.lang.t, a line in the player's language */
+E.t = (id, values, fallback) => E.lang.t(id, values, fallback);
+// @lang-shared-end
+/** an id's part from a name: 'frameRate' -> 'frame_rate', 'ShiftLeft' -> 'shift_left' (ids are lower case: the spec's) */
+const idPart = s => String(s).replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+/** the engine's own words: ENG('shell.resume') is the line engine.shell.resume in the player's language */
+const ENG = (id, v) => E.lang.t('engine.' + id, v);
+for (const c in CODE_LABELS) if (/[A-Za-z]{2}/.test(CODE_LABELS[c])) ENGINE_LINES['engine.key.' + idPart(c)] = CODE_LABELS[c];   // (the key names with words in them: Space, Left click)
+for (const a of ['up', 'down', 'left', 'right', 'attack', 'dash', 'skill', 'jump', 'start', 'pause', 'confirm', 'cancel', 'sprint', 'crouch', 'interact', 'block', 'dodge', 'use', 'map', 'fire', 'bomb', 'menu']) ENGINE_LINES['engine.action.' + a] = a.charAt(0).toUpperCase() + a.slice(1);   // (the presets' actions, named on the controls screen)
+const PAD_WORDS = { 'D-pad': 'dpad', 'L stick': 'lstick', 'R stick': 'rstick', Bottom: 'bottom', Right: 'right', Left: 'left', Top: 'top', Select: 'select', Start: 'start', Home: 'home' };   // (a gamepad's words; its makers' names, A or Options, stay)
+for (const w in PAD_WORDS) ENGINE_LINES['engine.pad.' + PAD_WORDS[w]] = w;
+for (const k in E.VIEWS) ENGINE_LINES['engine.view.' + k] = E.VIEWS[k]._label;   // (the standard views' names: Isometric, Side)
+Object.assign(ENGINE_LINES, {
+  'engine.key.numpad': 'Num {key}',
+  // the standard menu (E.Shell's screens), its notices and the corner's button
+  'engine.shell.paused': 'Paused', 'engine.shell.paused_by': 'Paused by P{player}', 'engine.shell.resume': 'Resume', 'engine.shell.settings': 'Settings',
+  'engine.shell.controls': 'Controls', 'engine.shell.help': 'Help', 'engine.shell.map': 'Map', 'engine.shell.back': 'Back', 'engine.shell.close': 'Close',
+  'engine.shell.restore': 'Restore defaults', 'engine.shell.fullscreen': 'Full screen', 'engine.shell.fullscreen_leave': 'Leave full screen', 'engine.shell.save_session': 'Save session',
+  'engine.shell.quit': 'Quit', 'engine.shell.quit_to_title': 'Quit to title', 'engine.shell.quit_to': 'Quit to {scene}', 'engine.shell.quit_title': 'Leave this game?',
+  'engine.shell.quit_text': 'Progress since the last save is lost.', 'engine.shell.keep_playing': 'Keep playing', 'engine.shell.on': 'On', 'engine.shell.off': 'Off',
+  'engine.shell.app': 'App', 'engine.shell.not_here': 'Not here', 'engine.shell.fullscreen_app': 'Opened from the home screen: no browser bars.',
+  'engine.shell.fullscreen_iphone': 'On an iPhone: Share, then Add to Home Screen, plays without the browser\'s bars.', 'engine.shell.fullscreen_blocked': 'This browser or page doesn\'t allow it.',
+  'engine.shell.calibrate': 'Calibrate', 'engine.shell.keep_it': 'Keep it', 'engine.shell.cancel': 'Cancel', 'engine.shell.dismiss': 'Dismiss', 'engine.shell.tutorial': 'Tutorial',
+  'engine.shell.interact': 'Interact', 'engine.shell.hold_to_interact': 'Hold to interact', 'engine.shell.language': 'Language',
+  'engine.shell.distance': '{m} m', 'engine.shell.distance_above': '{m} m  ·  ABOVE YOU', 'engine.shell.distance_below': '{m} m  ·  BELOW YOU',
+  'engine.controls.how': 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.',
+  'engine.controls.keyboard': 'Keyboard', 'engine.controls.controller': 'Controller', 'engine.controls.press': 'Press…',
+  'engine.controls.bind_keys': '{action}, keyboard: {keys}', 'engine.controls.bind_pad': '{action}, controller: {keys}', 'engine.controls.none': 'none', 'engine.controls.player': 'Player {player}',
+  'engine.controls.player_pad': 'Player {player} (controller)', 'engine.controls.player_left': 'Player {player} (left keys)', 'engine.controls.player_right': 'Player {player} (right keys)',
+  'engine.controls.pad_found': 'Controller: {name}', 'engine.controls.pad_none': 'No controller found: press a button on one to connect it.',
+  'engine.controls.press_pad': 'Press a controller button for {action} (Start cancels).', 'engine.controls.press_key': 'Press a key or mouse button for {action} (Escape cancels).',
+  'engine.controls.not_changed': 'Not changed.', 'engine.controls.restored': 'Every control is back to its default.',
+  'engine.controls.reserved': '{key} is kept for the menus. Choose another, or press Escape.', 'engine.controls.taken': '{key} is already {action}. Rebind {action} first, or choose another.',
+  'engine.controls.saved': '{action}: {key}. Saved.',
+  'engine.calibrate.how': 'Tap on each click you hear, in time with it, not before ({taps} of 8). The higher click starts each bar.',
+  'engine.calibrate.done': 'Your sound comes {ms} ms after the beat. Keep it, or tap on to measure again.', 'engine.calibrate.tap': 'Tap',
+  'engine.note.fullscreen_blocked': 'Full screen not allowed here', 'engine.note.pad_lost': 'Controller disconnected', 'engine.note.pad_lost_text': 'Press a button on a controller to use it, or play on.',
+  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
+  // save slots (game.saves)
+  'engine.saves.auto': 'Autosave', 'engine.saves.slot': 'Slot {n}', 'engine.saves.empty': 'Empty', 'engine.saves.damaged': 'Damaged: it cannot be read',
+  'engine.saves.newer': 'From a newer version of the game', 'engine.saves.level': 'Level {level}', 'engine.saves.save': 'Save', 'engine.saves.load': 'Load',
+  'engine.saves.title_save': 'Save your game', 'engine.saves.title_load': 'Load a game', 'engine.saves.blocked': 'Saving is blocked here: these saves last for this visit.',
+  'engine.saves.saved': 'Saved', 'engine.saves.loaded': 'Loaded', 'engine.saves.save_here': 'Save here', 'engine.saves.save_over': 'Save over {slot}?', 'engine.saves.save_over_it': 'Save over it',
+  'engine.saves.lost': '{what} is lost.', 'engine.saves.copy_to': 'Copy to…', 'engine.saves.copy': 'Copy', 'engine.saves.copy_title': 'Copy {slot} to', 'engine.saves.copy_over': 'Copy over {slot}?',
+  'engine.saves.copy_over_it': 'Copy over it', 'engine.saves.erase': 'Erase', 'engine.saves.erase_title': 'Erase {slot}?', 'engine.saves.erase_it': 'Erase it'
+});
 
 /* =============================================================================
  * 7. LIGHTING  per-pixel darkness with dithered bands, lights measured on the ground
@@ -2481,7 +2829,7 @@ class Game {
     const R = this.zoomRange(), b = this._zoomBase; if (!R || !(k > 0) || !this._zoomStd()) return this.zoom;
     const lo = Math.max(ZOOM_PLAYER[0], R[0] / b), hi = Math.min(ZOOM_PLAYER[1], R[1] / b); if (lo > hi) return this.zoom;
     const f = clamp(clamp(+this.settings.zoom || 1, lo, hi) * k, lo, hi); this.settings.set('zoom', f);   // (one carried from a scene with more room starts at this one's end: every step moves it)
-    const z = this._zoomTo || this.zoom; this.note('ZOOM ' + z + 'x' + (f <= lo + 1e-9 && k < 1 ? ' MIN' : f >= hi - 1e-9 && k > 1 ? ' MAX' : ''), 1);
+    const z = this._zoomTo || this.zoom; this.note(E.lang.upper(ENG(f <= lo + 1e-9 && k < 1 ? 'note.zoom_min' : f >= hi - 1e-9 && k > 1 ? 'note.zoom_max' : 'note.zoom', { zoom: z })), 1);
     return z;
   }
   /** the zooms the player may take the camera to here, [min, max] (the scene's camera.zoom, or the game's; a function of
@@ -2573,7 +2921,7 @@ class Game {
     }, { capture: true });
     // the phone's back gesture (and the browser's back button, after a tap) steps back in the game before it leaves the page:
     // an entry of the game's own in the page's history while there is somewhere to go back to (a menu open, a game in play)
-    on(window, 'popstate', e => { if (!this._guard || (e.state && e.state.e3 === 'back')) return; this._guard = false; if (!this.back()) this.note('BACK AGAIN TO LEAVE', 1.5); });
+    on(window, 'popstate', e => { if (!this._guard || (e.state && e.state.e3 === 'back')) return; this._guard = false; if (!this.back()) this.note(E.lang.upper(ENG('note.back_again')), 1.5); });
     on(window, 'pointermove', e => { if (e.pointerType === 'mouse' && e.clientY < 80 && (e.movementX || e.movementY)) this._mouseTop = performance.now(); }, { passive: true });   // (a real mouse moved: not a page's synthetic event)
     this.input.names = (this.o.menu && this.o.menu.controls) || null;
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
@@ -2939,7 +3287,7 @@ class Game {
     this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
     this._ownRun('input', dt);
-    if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
+    if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast(ENG('note.pad_lost'), ENG('note.pad_lost_text')); else this.note(E.lang.upper(ENG('note.pad_lost')), 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
     if (this._fade) { const out = this._fade.out; this._fadeStep(dt); if (out) return; }   // the old scene freezes while it fades out
@@ -3006,8 +3354,8 @@ class Game {
     this._cornerSync();
     if (this.paused && this.pauseOverlay && !(this.shell && this.shell._sys && this.shell.screen)) this.r.overlay(g => {
       const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r._checker, 'repeat'); else { g.fillStyle = '#05030c'; g.globalAlpha = .55; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
-      E.font.text(g, this._players && this._players.length > 1 && this.pausedBy ? 'P' + this.pausedBy + ' PAUSED' : 'PAUSED', r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });   // (several players: who)
-      E.font.text(g, 'PRESS ESC OR START', r.W / 2, r.H / 2 + 8, '#c9c0e0', { align: 'center' });
+      E.font.text(g, E.lang.upper(this._players && this._players.length > 1 && this.pausedBy ? ENG('shell.paused_by', { player: this.pausedBy }) : ENG('shell.paused')), r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });   // (several players: who)
+      E.font.text(g, E.lang.upper(ENG('note.paused_how')), r.W / 2, r.H / 2 + 8, '#c9c0e0', { align: 'center' });
     });
     const fx = this._flash;
     if (fx) { const a = (1 - fx.t / fx.dur) * (fx.k === undefined ? 1 : fx.k); if (a <= 0) this._flash = null; else this.r.overlay(g => { const r = this.r; g.save(); if (E.style.trans === 'dither') { const pat = r._fadePattern(a * .85), c = mkCanvas(4, 4), cg = c.getContext('2d'); cg.drawImage(pat, 0, 0); cg.globalCompositeOperation = 'source-in'; cg.fillStyle = fx.color; cg.fillRect(0, 0, 4, 4); g.fillStyle = g.createPattern(c, 'repeat'); } else { g.fillStyle = fx.color; g.globalAlpha = qa(a * .75); g.globalCompositeOperation = 'lighter'; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; }); }
@@ -3074,6 +3422,20 @@ const STANDARD_SETTINGS = {
   touchSize: { group: 'Touch', label: 'Button size', type: 'slider', value: 62, min: 44, max: 88, step: 2, unit: ' px', apply: g => g.input._touchSync() },
   touchOpacity: { group: 'Touch', label: 'Button opacity', type: 'slider', value: .8, min: .3, max: 1, step: .05, apply: g => g.input._touchSync() }
 };
+for (const k in STANDARD_SETTINGS) {   // their words are the engine's lines: engine.setting.<key>, .help, .<option>; their groups engine.group.<group>
+  const sp = STANDARD_SETTINGS[k], id = 'engine.setting.' + idPart(k);
+  if (sp.label) ENGINE_LINES[id] = sp.label; if (sp.help) ENGINE_LINES[id + '.help'] = sp.help;
+  for (const o of sp.options || []) if (Array.isArray(o) && /[A-Za-z]/.test(o[1])) ENGINE_LINES[id + '.' + idPart(o[0])] = o[1];
+}
+for (const g of ['Display', 'Sound', 'Comfort', 'Controls', 'Controller', 'Touch', 'Game']) ENGINE_LINES['engine.group.' + idPart(g)] = g;
+/** a setting's words in the player's language (part: 'label', 'help', or an option's value): an engine's setting (the
+ *  standard ones, the 3D engine's) shows its line; words a game gave of its own (en, not the engine's) stay as given */
+const settingWords = (key, sp, part, en) => {
+  const id = 'engine.setting.' + idPart(key) + (part === 'label' ? '' : '.' + (part === 'help' ? 'help' : idPart(part)));
+  return en && ENGINE_LINES[id] === en ? E.t(id) : en;
+};
+/** a group's name in the player's language (the standard groups'; a game's own stays as given) */
+const groupWords = g => E.lang.has('engine.group.' + idPart(g)) ? E.t('engine.group.' + idPart(g)) : g;
 /** a value for a setting, checked: the value kept, or undefined when it can't be one */
 function settingValue(sp, v) {
   if (sp.type === 'toggle') return typeof v === 'boolean' ? v : undefined;
@@ -3168,7 +3530,7 @@ class FullScreen {
   enter(quiet) {
     if (this.on || !this.supported) return Promise.resolve(this.on);
     const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
-    const no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this._game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
+    const no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this._game.note(E.lang.upper(ENG('note.fullscreen_blocked')), 2); return false; };
     try { const p = f.call(el, { navigationUI: 'hide' }); this.failed = null; return p && p.then ? p.then(() => true, no) : Promise.resolve(true); } catch (e) { return Promise.resolve(no(e)); }
   }
   /** leave full screen (Escape and the phone's back gesture do it too) */
@@ -3194,8 +3556,8 @@ function makeCorner(game) {
     b.addEventListener('click', e => { e.stopPropagation(); b.blur(); fn(); });   // (blurred, so a later Space or Enter is the game's)
     box.appendChild(b); return b;
   };
-  btn('Menu', () => { if (game.o.menu !== false) game.menu(); else game.input._tapCode('Act:menu'); }).innerHTML = cornerIcon(CORNER_ICONS.menu);   // (menu: false: the touch START)
-  btn('Full screen', () => game.fullscreen.toggle());
+  btn(ENG('corner.menu'), () => { if (game.o.menu !== false) game.menu(); else game.input._tapCode('Act:menu'); }).innerHTML = cornerIcon(CORNER_ICONS.menu);   // (menu: false: the touch START)
+  btn(ENG('shell.fullscreen'), () => game.fullscreen.toggle());
   document.body.appendChild(box); return box;
 }
 /* a page made for phones, once: a viewport that reaches the safe areas (pinch zoom left alone), the home-screen app tags,
@@ -3231,6 +3593,7 @@ function pageSetup(canvas) {
 const BOOT_MESSAGES = ['Reticulating splines', 'Snapping every pixel to the grid', 'Teaching skeletons to walk', 'Counting to 120, every second',
   'Dithering the shadows', 'Untangling the capes', 'Warming up the chip synth', 'Sorting the world by depth', 'Lighting the torches',
   'Bribing the camera', 'Seeding the random numbers', 'Bending knees the inverse way', 'Polishing the parallax', 'Folding the pixels into 3D'];
+BOOT_MESSAGES.forEach((m, i) => { ENGINE_LINES['engine.boot.' + (i + 1)] = m; });   // (lines: the boot screen says them in the player's language)
 const BOOT_CSS = `#e3-boot{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:space-between;gap:14px;background:#05040a;color:#a9a1c8;
 font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:max(16px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));transition:opacity .3s;overflow:auto}
 #e3-boot.out{opacity:0;pointer-events:none}#e3-boot b{color:#f4f0ff;font-size:16px;letter-spacing:.08em}#e3-boot .ok{color:#8fd49a}#e3-boot .no{color:#e8a06a}
@@ -3300,7 +3663,7 @@ Object.assign(BOOT, {
     el.innerHTML = '<pre class="e3-sys"></pre><div><b></b><div class="e3-step">Starting</div><span class="e3-bar"><i style="width:4%"></i></span><div class="e3-quip"></div></div>';
     el.querySelector('b').textContent = title;
     this.el = el; this.game = game; this.lines = []; this.played = false;
-    const msgs = o && o.messages === false ? [] : (o && o.messages) || BOOT_MESSAGES, pick = rng((Date.now() >>> 0) || 1), q = el.querySelector('.e3-quip');   // (its own random numbers: never the game's)
+    const msgs = o && o.messages === false ? [] : (o && o.messages) || BOOT_MESSAGES.map((m, i) => ENG('boot.' + (i + 1))), pick = rng((Date.now() >>> 0) || 1), q = el.querySelector('.e3-quip');   // (its own random numbers: never the game's)
     const quip = () => { if (msgs.length && this.el === el) q.textContent = msgs[Math.floor(pick() * msgs.length)] + '…'; };
     quip(); clearInterval(this._quip); this._quip = setInterval(quip, 1400);
     if (o && o.checks === false) el.querySelector('.e3-sys').hidden = true;
@@ -3778,7 +4141,7 @@ Game.prototype.addPlayer = function (o = {}) {
   q._onBindings = b => this.settings.set('playerBindings', Object.assign({}, this.settings.playerBindings, { [n]: b }));
   P.push(q); _pClaim(this);
   if (this._join && this._join.onJoin) try { this._join.onJoin(q, n); } catch (e) { this.fail('allowJoin onJoin', e); }
-  this.note(q.name + ' JOINED', 1.5); this.audio.sfx('confirm');
+  this.note(E.lang.upper(ENG('note.joined', { player: q.name })), 1.5); this.audio.sfx('confirm');
   return q;
 };
 /** a player leaves (its input, or its number, 2 to 4); player 1 has the whole keyboard back when no one shares it */
@@ -3953,26 +4316,26 @@ class Saves {
   show(mode = 'load', done) {
     const sh = this.game.shell; if (!sh || !sh._menu()) return false;
     const T = s => { const m = Math.floor(s.time / 60); return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); };
-    const name = slot => slot === 'auto' ? 'Autosave' : 'Slot ' + (slot + 1);
-    const about = s => s.empty ? 'Empty' : s.damaged ? 'Damaged: it cannot be read' : s.newer ? 'From a newer version of the game' : [s.place, s.level !== null ? 'Level ' + s.level : '', T(s), s.at ? new Date(s.at).toLocaleDateString() : ''].filter(Boolean).join(' · ');
-    const page = () => sh.show('saves', { kicker: mode === 'save' ? 'Save' : 'Load', title: mode === 'save' ? 'Save your game' : 'Load a game', text: this.blocked ? 'Saving is blocked here: these saves last for this visit.' : '',
-      actions: this.list().filter(s => mode === 'load' || s.slot !== 'auto').map(s => ({ label: name(s.slot) + ' — ' + about(s), fn: () => slot(s) })).concat([['Back', () => sh.back()]]) });
-    const ask = (title, text, label, fn) => sh.show('confirm', { kicker: 'Save', title, text, actions: [{ label: 'Keep it', fn: () => sh.back() }, { label, fn: () => { sh.back(); fn(); } }] });
-    const saved = () => { sh.toast('Saved', name(this._last)); if (done) done(this.get(this._last)); };
+    const name = slot => slot === 'auto' ? ENG('saves.auto') : ENG('saves.slot', { n: slot + 1 }), lost = s => ENG('saves.lost', { what: about(s) });
+    const about = s => s.empty ? ENG('saves.empty') : s.damaged ? ENG('saves.damaged') : s.newer ? ENG('saves.newer') : [s.place, s.level !== null ? ENG('saves.level', { level: s.level }) : '', T(s), s.at ? E.lang.date(new Date(s.at)) : ''].filter(Boolean).join(' · ');
+    const page = () => sh.show('saves', { kicker: ENG(mode === 'save' ? 'saves.save' : 'saves.load'), title: ENG(mode === 'save' ? 'saves.title_save' : 'saves.title_load'), text: this.blocked ? ENG('saves.blocked') : '',
+      actions: this.list().filter(s => mode === 'load' || s.slot !== 'auto').map(s => ({ label: name(s.slot) + ' — ' + about(s), fn: () => slot(s) })).concat([[ENG('shell.back'), () => sh.back()]]) });
+    const ask = (title, text, label, fn) => sh.show('confirm', { kicker: ENG('saves.save'), title, text, actions: [{ label: ENG('shell.keep_it'), fn: () => sh.back() }, { label, fn: () => { sh.back(); fn(); } }] });
+    const saved = () => { sh.toast(ENG('saves.saved'), name(this._last)); if (done) done(this.get(this._last)); };
     const slot = s => {
       const acts = [];
-      if (mode === 'save' && s.slot !== 'auto') acts.push({ label: 'Save here', primary: true, fn: () => {
+      if (mode === 'save' && s.slot !== 'auto') acts.push({ label: ENG('saves.save_here'), primary: true, fn: () => {
         const go = () => { this._last = s.slot; this.save(s.slot); page(); saved(); };
-        if (s.empty) { sh.back(); go(); } else ask('Save over ' + name(s.slot) + '?', about(s) + ' is lost.', 'Save over it', () => { sh.back(); go(); });
+        if (s.empty) { sh.back(); go(); } else ask(ENG('saves.save_over', { slot: name(s.slot) }), lost(s), ENG('saves.save_over_it'), () => { sh.back(); go(); });
       } });
-      if (mode === 'load' && !s.empty) acts.push({ label: 'Load', primary: true, disabled: s.damaged || s.newer, fn: () => { const r = this.load(s.slot); sh.hide(); if (r) { sh.toast('Loaded', name(s.slot)); if (done) done(r); } } });
-      if (!s.empty) acts.push({ label: 'Copy to…', fn: () => sh.show('saves-copy', { kicker: 'Copy', title: 'Copy ' + name(s.slot) + ' to', actions: this.list().filter(t => t.slot !== 'auto' && t.slot !== s.slot).map(t => ({ label: name(t.slot) + ' — ' + about(t), fn: () => {
+      if (mode === 'load' && !s.empty) acts.push({ label: ENG('saves.load'), primary: true, disabled: s.damaged || s.newer, fn: () => { const r = this.load(s.slot); sh.hide(); if (r) { sh.toast(ENG('saves.loaded'), name(s.slot)); if (done) done(r); } } });
+      if (!s.empty) acts.push({ label: ENG('saves.copy_to'), fn: () => sh.show('saves-copy', { kicker: ENG('saves.copy'), title: ENG('saves.copy_title', { slot: name(s.slot) }), actions: this.list().filter(t => t.slot !== 'auto' && t.slot !== s.slot).map(t => ({ label: name(t.slot) + ' — ' + about(t), fn: () => {
         const go = () => { this.copy(s.slot, t.slot); sh.back(); sh.back(); page(); };
-        if (t.empty) go(); else ask('Copy over ' + name(t.slot) + '?', about(t) + ' is lost.', 'Copy over it', go);
-      } })).concat([['Back', () => sh.back()]]) }) });
-      if (!s.empty) acts.push({ label: 'Erase', fn: () => ask('Erase ' + name(s.slot) + '?', about(s) + ' is lost.', 'Erase it', () => { this.erase(s.slot); sh.back(); page(); }) });
-      acts.push(['Back', () => sh.back()]);
-      sh.show('saves-slot', { kicker: mode === 'save' ? 'Save' : 'Load', title: name(s.slot), text: about(s), actions: acts });
+        if (t.empty) go(); else ask(ENG('saves.copy_over', { slot: name(t.slot) }), lost(t), ENG('saves.copy_over_it'), go);
+      } })).concat([[ENG('shell.back'), () => sh.back()]]) }) });
+      if (!s.empty) acts.push({ label: ENG('saves.erase'), fn: () => ask(ENG('saves.erase_title', { slot: name(s.slot) }), lost(s), ENG('saves.erase_it'), () => { this.erase(s.slot); sh.back(); page(); }) });
+      acts.push([ENG('shell.back'), () => sh.back()]);
+      sh.show('saves-slot', { kicker: ENG(mode === 'save' ? 'saves.save' : 'saves.load'), title: name(s.slot), text: about(s), actions: acts });
     };
     if (this.game.pause('menu')) sh._ownPause = true;
     page(); return true;
@@ -3984,8 +4347,8 @@ E.Saves = Saves;
 HOOKS.step.push((game, dt) => { const s = game._saves, sc = game.scene; if (s && sc && (sc.pausable || game.sceneName === 'main')) s.played += dt; });   // time played: the game's scenes, not its titles
 HOOKS.pause = (sh, acts) => {   // the pause menu's Save and Load, with menu: { saves }
   const g = sh._game; if (!(g.o.menu && g.o.menu.saves)) return;
-  if (g.saves.canSave) acts.push(['Save', () => g.saves.show('save')]);
-  acts.push(['Load', () => g.saves.show('load')]);
+  if (g.saves.canSave) acts.push([ENG('saves.save'), () => g.saves.show('save')]);
+  acts.push([ENG('saves.load'), () => g.saves.show('load')]);
 };
 
 /* =============================================================================
@@ -9090,6 +9453,8 @@ const MARKUP = /\{(\/?)(c|s|w|shake|wave)(?:=([^}]*))?\}/g;
 function markup(s, vars) {
   if (s.indexOf('{') < 0) return null;
   let had = false;
+  if (vars && typeof vars === 'object') s = s.replace(/\{(\w+)\}/g, (m, k) => Object.prototype.hasOwnProperty.call(vars, k) && !/^(c|s|w|shake|wave)$/.test(k) ? (had = true, String(vars[k])) : m);   // (a line's {blanks}, as E.t fills them)
+  s = s.replace(/\{key:(\w+)\}/g, (m, a) => (had = true, E.lang.control(a)));   // (the key or button that does it)
   s = s.replace(/\{\$([\w.]+)\}/g, (m, k) => {   // values first: their text is plain
     had = true; let v = vars; for (const p of k.split('.')) v = v == null ? undefined : v[p];
     if (v === undefined) { warn('dialog:' + k, 'Dialog: no value for {$' + k + '} (say\'s vars or the box\'s vars)'); return ''; }
@@ -9153,20 +9518,23 @@ class Dialog {
      *  in pixels; pOpts: its options ({ zoom, turn, bg }) */
     this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {}; this._voice = o.voice;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
-    const d = this._dims(), pages = [], fxs = [];
+    const d = this._dims(), pages = [], fxs = [], rates = [];
     for (const t of Array.isArray(text) ? text : [text]) {
       const mk = markup(String(t), o.vars ? Object.assign({}, this.vars, o.vars) : this.vars), L = E.font.wrap(mk ? mk.text : String(t), d.w - d.tx - 5);
+      const src = E.lang.sourceLength(String(t)), rate = src ? clamp((mk ? mk.text : String(t)).length / src, .25, 4) : 1;   // (a translated line types over the original's time)
       let at = 0; const pos = mk && L.map(line => Array.from(line, ch => {   // each letter's place in the text (wrapping drops the spaces it breaks at: their pauses go to the next letter)
         let w = 0; while (at < mk.text.length && mk.text[at] !== ch) w += mk.wait[at++] || 0;
         const q = at++; return { f: mk.fx[q], w: w + (mk.wait[q] || 0) };
       }));
       for (let k = 0; k < L.length; k += this.lines) {
-        pages.push(L.slice(k, k + this.lines));
+        pages.push(L.slice(k, k + this.lines)); rates.push(rate);
         const ps = pos && [].concat(...pos.slice(k, k + this.lines));
         fxs.push(ps && { fx: ps.map(e => e.f), wait: ps.map(e => e.w) });
       }
     }
     this.pages = pages.length ? pages : [['']]; this.i = 0; this.shown = 0; this.open = true; this.choice = 0;
+    this._rates = rates; this._stops = this.pages.map(pg => { let at = 0; const st = new Set([0]); for (const line of pg) for (const p of E.lang.pieces(line)) st.add(at += p.length); return st; });   // (where whole letters end: typing stops only there)
+    this._plain = this.pages.map(pg => E.font.covers(pg.join(' '))); this._syl = 0; this._rest = 0;   // (the device's letters chirp by syllable)
     this._fx = fxs.some(Boolean) ? fxs : null; this._hold = 0; this._held = -1;   // (the markup's looks and pauses per page letter; the pause running)
     /** name: the speaker's name shown on the box; onDone: called when the last page closes; choices: the answers
      *  offered on the last page, or null; onChoice: called with the index picked */
@@ -9182,22 +9550,33 @@ class Dialog {
   get pageLen() { return this._page.reduce((a, l) => a + l.length, 0); }
   /** true while the page is still typing */
   get typing() { return this.shown < this.pageLen; }
+  // shown cut back to the end of the last whole letter (a whole word in Arabic script): typing reveals no part of one
+  _snap(n) { const st = this._stops && this._stops[this.i]; if (!st) return n; while (n > 0 && !st.has(n)) n--; return n; }
   /** type and turn pages (confirm finishes the line, then turns the page); returns true while open and modal, so
    *  gameplay can wait: if (talk.update(dt)) return; */
   update(dt) {
     if (!this.open) return false;
     const inp = this.game.input, len = this.pageLen, prev = Math.floor(this.shown), mk = this._fx && this._fx[this.i];
-    if (!mk) this.shown = Math.min(len, this.shown + this.speed * dt);
+    const rate = (this._rates && this._rates[this.i]) || 1;
+    if (!mk) this.shown = Math.min(len, this.shown + this.speed * rate * dt);
     else for (let t = dt; t > 1e-9 && this.shown < len;) {   // markup: each letter at its speed, its pause before it
       const n = Math.floor(this.shown);
       if (this._hold > 0) { const u = Math.min(t, this._hold); this._hold -= u; t -= u; continue; }
       if (mk.wait[n] && this._held < n) { this._held = n; this._hold = mk.wait[n]; continue; }
-      const sp = (mk.fx[n] && mk.fx[n].s) || this.speed, u = Math.min(t, (n + 1 - this.shown) / sp);
+      const sp = ((mk.fx[n] && mk.fx[n].s) || this.speed) * rate, u = Math.min(t, (n + 1 - this.shown) / sp);
       this.shown = Math.min(len, this.shown + u * sp); t -= u; if (n + 1 - this.shown < 1e-6) this.shown = n + 1;
     }
-    const vo = this._voice !== undefined ? this._voice : this.voice, now = Math.floor(this.shown);   // (say's voice, for that call, else the box's)
-    if (typeof vo === 'function') { if (now > prev) { const tx = this._page.join(''); for (let n = prev; n < now; n++) try { vo(tx[n], n, this); } catch (e) { this.game.fail('dialog voice', e); } } }
-    else if (vo && now > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(vo);
+    const vo = this._voice !== undefined ? this._voice : this.voice, now = this._snap(Math.floor(this.shown)), was = this._snap(prev);   // (say's voice, for that call, else the box's; whole letters)
+    if (vo && now > was) {
+      const tx = this._page.join(''), st = this._stops && this._stops[this.i], each = f => { for (let a = was; a < now;) { let b = a + 1; while (b < now && st && !st.has(b)) b++; f(tx.slice(a, b), a); a = b; } };
+      if (typeof vo === 'function') each((p, a) => { try { vo(p, a, this); } catch (e) { this.game.fail('dialog voice', e); } });
+      else if (!this._plain || this._plain[this.i]) { if (this._blip++ % 2 === 0) this.game.audio.sfx(vo); }
+      else {   // the device's letters: a chirp a syllable (a Chinese character, a whole letter of Hindi, an Arabic word, two or three letters of an alphabet), none on spaces or punctuation, a rest after a sentence
+        each(p => { if (/\p{Sentence_Terminal}/u.test(p)) this._rest = .2; else if (!/^[\s\p{P}\p{S}]*$/u.test(p)) this._syl += LANG_CJK.test(p) ? 1 : /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}]/u.test(p) ? .4 : 1; });
+        if (this._rest > 0) this._syl = 0; else if (this._syl >= 1) { this._syl -= 1; this.game.audio.sfx(vo); }
+      }
+    }
+    if (this._rest > 0) this._rest -= dt;
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {   // pages turn and the box closes by itself
       this._wait = 0;
@@ -9235,13 +9614,15 @@ class Dialog {
         else { this.portrait._talk = this.typing; this.portrait.drawPortrait(g, px0, py0, d.P, Object.assign({ bg: shade(Array.isArray(this.bg) ? this.bg[0] : this.bg, .12), border: this.border, shadow: false }, this._pOpts)); this.portrait._talk = false; }   // the mouth moves while the text types
       }
       if (this.name) { const nw = E.font.width(this.name) + 12, nx = d.x + (this.portrait ? d.tx - 6 : 4); ui.box(g, nx, d.y - 12, nw, 14, { bg: this.bg, border: this.border }); E.font.text(g, this.name, nx + 6, d.y - 9, this.nameColor, { outline: false, shadow: '#05040a' }); }
-      let left = Math.floor(this.shown);
+      let left = this._snap(Math.floor(this.shown));
       const mk = this._fx && this._fx[this.i], o = { outline: false, shadow: '#05040a' };
-      if (!mk) this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, o); });
+      const at = (line, s, y, c) => LANG_DEV.RTL.test(line) ? E.font.text(g, s, d.x + d.w - 7, y, c, Object.assign({ align: 'right' }, o)) : E.font.text(g, s, d.x + d.tx, y, c, o);   // (right to left: from the box's right edge)
+      if (!mk) this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) at(line, s, d.y + 5 + k * d.lh, this.color); });
       else {   // markup: runs of one look drawn together, trembling and bobbing letters one by one
         let n0 = 0; const t = this.game.real;
         this._page.forEach((line, k) => {
           const shown = Math.min(line.length, Math.max(0, left)), y = d.y + 5 + k * d.lh; left -= line.length;
+          if (LANG_DEV.RTL.test(line)) { if (shown) at(line, line.slice(0, shown), y, this.color); n0 += line.length; return; }   // (right to left: the line whole, so its letters join)
           for (let j = 0; j < shown;) {
             const f = mk.fx[n0 + j] || {}, one = f.shake || f.wave; let e = j + 1;
             if (!one) while (e < shown && mk.fx[n0 + e] === f) e++;
@@ -9414,6 +9795,9 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 const SHELL_THEME = { ink: '#f1e8d6', paper: 'rgba(14,18,22,.86)', accent: '#d9b77c', muted: '#a49d8c', danger: '#e8836a', line: 'rgba(217,183,124,.3)', font: 'system-ui, sans-serif', titleFont: 'Georgia, serif' };
 /** the settings screen's groups, in order (the standard ones; a game's own are 'Game' unless they name another) */
 const SHELL_GROUPS = ['Display', 'Sound', 'Comfort'];
+/** an action's name on the controls screen and the touch buttons: the game's (input.names), its line action.<name>, else
+ *  made from the action ('menuUp' -> 'Menu up') */
+const actionWords = (I, a) => typeof (I.names || {})[a] === 'string' ? I.names[a] : E.lang.has('action.' + idPart(a)) ? E.t('action.' + idPart(a)) : E.lang.has('engine.action.' + idPart(a)) ? E.t('engine.action.' + idPart(a)) : actionName(a);
 /** 'menuUp' -> 'Menu up': an action's name on the controls screen when the game gives none */
 const actionName = a => { const t = String(a).replace(/([a-z])([A-Z0-9])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 class Shell {
@@ -9444,7 +9828,7 @@ class Shell {
     if (game.headless || typeof document === 'undefined') return;
     // rebinding: the next key or mouse button goes to the action being bound (before the game's own listeners see it)
     const signal = game._abort ? game._abort.signal : undefined;
-    addEventListener('keydown', e => { const c = this._cap; if (!c) return; e.preventDefault(); e.stopImmediatePropagation(); if (e.code === 'Escape') this._capEnd('Not changed.'); else if (c.device === 'keys' && !e.repeat) this._capBind(e.code); }, { capture: true, signal });
+    addEventListener('keydown', e => { const c = this._cap; if (!c) return; e.preventDefault(); e.stopImmediatePropagation(); if (e.code === 'Escape') this._capEnd(ENG('controls.not_changed')); else if (c.device === 'keys' && !e.repeat) this._capBind(e.code); }, { capture: true, signal });
     addEventListener('pointerdown', e => { const c = this._cap; if (!c || c.device !== 'keys' || e.pointerType !== 'mouse') return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind('Mouse' + e.button); }, { capture: true, signal });
     addEventListener('wheel', e => { const c = this._cap; if (!c || c.device !== 'keys' || !e.deltaY) return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind(e.deltaY < 0 ? 'WheelUp' : 'WheelDown'); }, { capture: true, signal, passive: false });
     if (!document.getElementById('esh-css')) { const st = document.createElement('style'); st.id = 'esh-css'; st.textContent = SHELL_CSS; document.head.appendChild(st); }
@@ -9532,8 +9916,8 @@ class Shell {
   tutorial(title, text = '', seconds = 15) {
     if (!this.root) return this;
     const e = this._els.tut; e.hidden = !title; this._tutEnd = title ? this._game.real + seconds : 0; if (!title) return this;
-    const x = this._el('button', 'esh-x', '×'); x.setAttribute('aria-label', 'Dismiss'); x.onclick = () => this.tutorial(null);
-    e.replaceChildren(this._el('div', 'esh-k', 'Tutorial'), this._el('b', '', title), this._el('p', 'esh-m', text), x); return this;
+    const x = this._el('button', 'esh-x', '×'); x.setAttribute('aria-label', ENG('shell.dismiss')); x.onclick = () => this.tutorial(null);
+    e.replaceChildren(this._el('div', 'esh-k', ENG('shell.tutorial')), this._el('b', '', title), this._el('p', 'esh-m', text), x); return this;
   }
   /**
    * the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn)
@@ -9553,7 +9937,7 @@ class Shell {
     this._piece('obj', play && s.objective, o => {
       const d = o.at && o.from ? Math.round(Math.hypot(o.at.x - o.from.x, o.at.y - o.from.y) * (this._o.meters || .125)) : null, dz = o.at && o.from ? (o.at.z || 0) - (o.from.z || 0) : 0;
       return [o.step && this._el('div', 'esh-k', o.step), this._el('b', '', o.title), o.text && this._el('p', 'esh-m', o.text),
-        d !== null && this._el('div', 'esh-dist', d + ' m' + (dz > 12 ? '  ·  ABOVE YOU' : dz < -12 ? '  ·  BELOW YOU' : ''))];
+        d !== null && this._el('div', 'esh-dist', ENG(dz > 12 ? 'shell.distance_above' : dz < -12 ? 'shell.distance_below' : 'shell.distance', { m: d }))];
     });
     this._piece('vit', play && (s.status || s.bars || s.counts) && [s.status, s.bars, s.counts], ([sta, bars, cnt]) => {
       const out = [];
@@ -9571,7 +9955,7 @@ class Shell {
     const pr = s.prompt && Object.assign({}, s.prompt, { key: s.prompt.key || (s.prompt.act ? this._game.input.label(s.prompt.act) : 'E') });   // (the key follows the device in use)
     this._piece('pr', play && pr, p => {
       const box = this._el('div'), bar = this._el('div', 'esh-bar'), f = this._el('i'); f.style.width = clamp(p.progress || 0, 0, 1) * 100 + '%'; bar.appendChild(f);
-      box.append(this._el('div', 'esh-k', p.hint || (p.progress !== undefined ? 'Hold to interact' : 'Interact')), this._el('b', '', p.label || ''));
+      box.append(this._el('div', 'esh-k', p.hint || ENG(p.progress !== undefined ? 'shell.hold_to_interact' : 'shell.interact')), this._el('b', '', p.label || ''));
       if (p.progress !== undefined) box.appendChild(bar);
       return [this._el('kbd', '', p.key), box];
     });
@@ -9602,34 +9986,34 @@ class Shell {
    *  that turns with left and right, full screen (with why not, where it can't) */
   _row(key) {
     const S = this._game.settings, sp = S.spec(key); if (!sp) return null;
-    const row = this._el('div', 'esh-row'), lab = this._el('span', '', sp.label || actionName(key)), fs = this._game.fullscreen;
+    const lbl = settingWords(key, sp, 'label', sp.label || actionName(key)), row = this._el('div', 'esh-row'), lab = this._el('span', '', lbl), fs = this._game.fullscreen;
     row.appendChild(lab);
     const help = t => { if (t) lab.appendChild(this._el('small', '', t)); };
     if (sp.type === 'fullscreen') {
-      const can = fs.supported && !fs.standalone, b = this._el('button', '', !can ? (fs.standalone ? 'App' : 'Not here') : fs.on ? 'On' : 'Off');
+      const can = fs.supported && !fs.standalone, b = this._el('button', '', ENG(!can ? (fs.standalone ? 'shell.app' : 'shell.not_here') : fs.on ? 'shell.on' : 'shell.off'));
       b.disabled = !can; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(fs.on)); b.onclick = () => { fs.toggle(); };
-      help(fs.standalone ? 'Opened from the home screen: no browser bars.' : !fs.supported ? (/iP(hone|od)/.test(navigator.userAgent) ? 'On an iPhone: Share, then Add to Home Screen, plays without the browser\'s bars.' : 'This browser or page doesn\'t allow it.') : '');
+      help(fs.standalone ? ENG('shell.fullscreen_app') : !fs.supported ? ENG(/iP(hone|od)/.test(navigator.userAgent) ? 'shell.fullscreen_iphone' : 'shell.fullscreen_blocked') : '');
       row.appendChild(b); return row;
     }
-    help(sp.help);
+    help(settingWords(key, sp, 'help', sp.help));
     if (sp.type === 'slider') {
       const box = this._el('span', 'esh-ctl'), r = this._el('input'), out = this._el('output'), lo = sp.min === undefined ? 0 : sp.min, hi = sp.max === undefined ? 1 : sp.max;
-      const fmt = v => hi <= 1 && lo >= 0 ? Math.round(v * 100) + '%' : Math.round(v * 100) / 100 + (sp.unit || '');
-      Object.assign(r, { type: 'range', min: lo, max: hi, step: sp.step || (hi - lo) / 20, value: S[key] }); r.setAttribute('aria-label', sp.label || key); out.textContent = fmt(S[key]);
+      const fmt = v => hi <= 1 && lo >= 0 ? E.lang.num(v, { style: 'percent' }) : E.lang.num(Math.round(v * 100) / 100) + (sp.unit || '');   // (in the player's language: 70 %, 1,5)
+      Object.assign(r, { type: 'range', min: lo, max: hi, step: sp.step || (hi - lo) / 20, value: S[key] }); r.setAttribute('aria-label', lbl); out.textContent = fmt(S[key]);
       r.oninput = () => { out.textContent = fmt(this._set(key, +r.value)); };
       box.append(r, out);
-      if (sp.calibrate) { const b = this._el('button', 'esh-sel', 'Calibrate'); b.onclick = () => this._calibrate(key); box.appendChild(b); }
+      if (sp.calibrate) { const b = this._el('button', 'esh-sel', ENG('shell.calibrate')); b.onclick = () => this._calibrate(key); box.appendChild(b); }
       row.appendChild(box); return row;
     }
     if (sp.type === 'select') {
-      const opts = (sp.options || []).map(o => Array.isArray(o) ? o : [o, String(o)]), b = this._el('button', 'esh-sel');
-      const show = () => { const o = opts.find(o => o[0] === S[key]) || opts[0]; b.textContent = '‹ ' + (o ? o[1] : '') + ' ›'; b.setAttribute('aria-label', (sp.label || key) + ': ' + (o ? o[1] : '')); };
+      const opts = (sp.options || []).map(o => Array.isArray(o) ? o : [o, String(o)]).map(o => [o[0], settingWords(key, sp, o[0], o[1])]), b = this._el('button', 'esh-sel');
+      const show = () => { const o = opts.find(o => o[0] === S[key]) || opts[0]; b.textContent = '‹ ' + (o ? o[1] : '') + ' ›'; b.setAttribute('aria-label', lbl + ': ' + (o ? o[1] : '')); };
       b._cycle = d => { const i = opts.findIndex(o => o[0] === S[key]); this._set(key, opts[((i < 0 ? 0 : i) + d + opts.length) % opts.length][0]); show(); };
       b.onclick = () => b._cycle(1); show(); row.appendChild(b); return row;
     }
     if (sp.type !== 'toggle') return null;
-    const b = this._el('button', '', S[key] ? 'On' : 'Off'); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(!!S[key]));
-    b.onclick = () => { const v = this._set(key, !S[key]); b.textContent = v ? 'On' : 'Off'; b.setAttribute('aria-checked', String(!!v)); };
+    const b = this._el('button', '', ENG(S[key] ? 'shell.on' : 'shell.off')); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(!!S[key]));
+    b.onclick = () => { const v = this._set(key, !S[key]); b.textContent = ENG(v ? 'shell.on' : 'shell.off'); b.setAttribute('aria-checked', String(!!v)); };
     row.appendChild(b); return row;
   }
   /** the settings screen's rows: Display, Sound and Comfort, then the game's own (standard: false, the game's items only) */
@@ -9640,7 +10024,9 @@ class Shell {
     for (const g of groups) {
       const keys = S.keys(g).filter(k => (k !== 'scale' || this._game.screen._fixedRes()) && (k !== 'fullscreen' || this._game.o.fullscreen !== false) && (k !== 'zoom' || !this._game._zoomStd() || this._game._zooms()) && S.spec(k).type !== 'value');
       if (!keys.length) continue;
-      add(this._el('div', 'esh-k esh-sec', g)); for (const k of keys) add(this._row(k));
+      add(this._el('div', 'esh-k esh-sec', groupWords(g)));
+      if (g === 'Display' && E.lang.offer()) { const row = this._el('div', 'esh-row'), b = this._el('button', 'esh-sel', '‹ ' + E.lang.name(E.lang.code) + ' ›'); b.onclick = () => this._languages(); row.append(this._el('span', '', ENG('shell.language')), b); add(row); }   // (the Language menu: E.lang.offer())
+      for (const k of keys) add(this._row(k));
     }
   }
   /** the controls screen: each action's keys and buttons (press a new one to rebind), the controller's and the touch
@@ -9651,40 +10037,40 @@ class Shell {
     const I = this._ctlI(), names = I.names || {}, st = this._el('div', 'esh-status', this._status || ''); st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite');
     const P = this._game._players; if (P && P.length > 1) {   // a page per player
       const row = this._el('div', 'esh-btns');
-      P.forEach((q, k) => { const b = this._el('button', k === (this._pl || 0) ? 'pri' : '', 'Player ' + (k + 1) + (q.device === 'gamepad' ? ' (controller)' : q.half ? ' (' + q.half + ' keys)' : '')); b.onclick = () => { this._pl = k; this._capEnd(''); this._render(); }; row.appendChild(b); });
+      P.forEach((q, k) => { const b = this._el('button', k === (this._pl || 0) ? 'pri' : '', ENG(q.device === 'gamepad' ? 'controls.player_pad' : q.half === 'left' ? 'controls.player_left' : q.half === 'right' ? 'controls.player_right' : 'controls.player', { player: k + 1 })); b.onclick = () => { this._pl = k; this._capEnd(''); this._render(); }; row.appendChild(b); });
       add(row);
     }
-    add(this._el('p', 'esh-m', 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.'), st);
+    add(this._el('p', 'esh-m', ENG('controls.how')), st);
     const S = this._game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = I._touchArgs && (coarse || I._touched || S.touch === 'on');
-    const touchRows = () => { add(this._el('div', 'esh-k esh-sec', 'Touch')); for (const k of S.keys('Touch')) add(this._row(k)); }, first = touch && I.lastDevice === 'touch';
+    const touchRows = () => { add(this._el('div', 'esh-k esh-sec', groupWords('Touch'))); for (const k of S.keys('Touch')) add(this._row(k)); }, first = touch && I.lastDevice === 'touch';
     if (first) touchRows();   // (a phone in hand: its buttons first)
-    const grid = this._el('div', 'esh-bind'); grid.append(this._el('span'), this._el('small', '', 'Keyboard'), this._el('small', '', 'Controller'));
+    const grid = this._el('div', 'esh-bind'); grid.append(this._el('span'), this._el('small', '', ENG('controls.keyboard')), this._el('small', '', ENG('controls.controller')));
     for (const a of Object.keys(I.map).filter(a => I.rebindable(a))) {
-      const name = typeof names[a] === 'string' ? names[a] : actionName(a); grid.appendChild(this._el('span', '', name));
+      const name = actionWords(I, a); grid.appendChild(this._el('span', '', name));
       for (const d of ['keys', 'pad']) {
         const codes = I.map[a].filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis') && padCode(c) === (d === 'pad')), cap = this._cap && this._cap.a === a && this._cap.device === d;
-        const b = this._el('button', cap ? 'cap' : '', cap ? 'Press…' : codes.map(c => I.codeLabel(c)).join(' / ') || '—');
-        b.setAttribute('aria-label', name + ', ' + (d === 'pad' ? 'controller' : 'keyboard') + ': ' + (codes.map(c => I.codeLabel(c)).join(', ') || 'none'));
+        const b = this._el('button', cap ? 'cap' : '', cap ? ENG('controls.press') : codes.map(c => I.codeLabel(c)).join(' / ') || '—');
+        b.setAttribute('aria-label', ENG(d === 'pad' ? 'controls.bind_pad' : 'controls.bind_keys', { action: name, keys: codes.map(c => I.codeLabel(c)).join(', ') || ENG('controls.none') }));   // (what a screen reader says)
         b.onclick = () => this._capStart(a, d, name); grid.appendChild(b);
       }
     }
     add(grid);
-    const pad = I.padId ? 'Controller: ' + I.padId.replace(/\s*\(.*$/, '') : 'No controller found: press a button on one to connect it.';
-    add(this._el('div', 'esh-k esh-sec', 'Controller'), this._el('p', 'esh-m', pad));
+    const pad = I.padId ? ENG('controls.pad_found', { name: I.padId.replace(/\s*\(.*$/, '') }) : ENG('controls.pad_none');
+    add(this._el('div', 'esh-k esh-sec', groupWords('Controller')), this._el('p', 'esh-m', pad));
     for (const k of S.keys('Controller')) add(this._row(k));
     if (touch && !first) touchRows();
   }
   _capStart(a, device, name) {
     const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)) };
-    this._status = device === 'pad' ? 'Press a controller button for ' + name + ' (Start cancels).' : 'Press a key or mouse button for ' + name + ' (Escape cancels).';
+    this._status = ENG(device === 'pad' ? 'controls.press_pad' : 'controls.press_key', { action: name });
     this._render();
   }
   _capBind(code) {
     const c = this._cap; if (!c) return;
-    const I = this._ctlI(), r = I.rebind(c.a, c.device, code), names = I.names || {}, nm = a => typeof names[a] === 'string' ? names[a] : actionName(a);
-    if (r === 'reserved') { this._status = I.codeLabel(code) + ' is kept for the menus. Choose another, or press Escape.'; this._render(); return; }
-    if (r) { this._status = I.codeLabel(code) + ' is already ' + nm(r) + '. Rebind ' + nm(r) + ' first, or choose another.'; this._render(); return; }
-    this._capEnd(nm(c.a) + ': ' + I.codeLabel(code) + '. Saved.');
+    const I = this._ctlI(), r = I.rebind(c.a, c.device, code), nm = a => actionWords(I, a);
+    if (r === 'reserved') { this._status = ENG('controls.reserved', { key: I.codeLabel(code) }); this._render(); return; }
+    if (r) { this._status = ENG('controls.taken', { key: I.codeLabel(code), action: nm(r) }); this._render(); return; }
+    this._capEnd(ENG('controls.saved', { action: nm(c.a), key: I.codeLabel(code) }));
   }
   /** stop listening for a new binding (msg: what the status line says) */
   _capEnd(msg) { if (!this._cap) { if (msg !== undefined) this._status = msg; return; } this._cap = null; this._status = msg || ''; this._ctlI().clear(); this._render(); }
@@ -9702,9 +10088,9 @@ class Shell {
    *  the offset found, kept with Keep it */
   _calibrate(key) {
     const K = this._game.audio.calibrate(), close = () => { K.stop(); this.back(); };
-    this.show('calibrate', { kicker: 'Sound', title: 'Audio offset', back: close,
-      text: () => K.done ? 'Your sound comes ' + K.result + ' ms after the beat. Keep it, or tap on to measure again.' : 'Tap on each click you hear, in time with it, not before (' + K.taps + ' of 8). The higher click starts each bar.',
-      actions: () => [{ label: 'Tap', primary: true, down: t => { K.tap(t); this.show('calibrate', {}); } }, { label: 'Keep it', disabled: !K.done, fn: () => { this._game.settings.set(key, K.result); close(); } }, ['Cancel', close]] });
+    this.show('calibrate', { kicker: groupWords('Sound'), title: ENG('setting.audio_offset'), back: close,
+      text: () => K.done ? ENG('calibrate.done', { ms: K.result }) : ENG('calibrate.how', { taps: K.taps }),
+      actions: () => [{ label: ENG('calibrate.tap'), primary: true, down: t => { K.tap(t); this.show('calibrate', {}); } }, { label: ENG('shell.keep_it'), disabled: !K.done, fn: () => { this._game.settings.set(key, K.result); close(); } }, [ENG('shell.cancel'), close]] });
   }
   /** build the open screen */
   _render() {
@@ -9718,7 +10104,7 @@ class Shell {
     const add = (...c) => box.append(...c.filter(Boolean));
     add(s.emblem && this._el('div', 'esh-emb', s.emblem), s.kicker && this._el('div', 'esh-k', v(s.kicker)));
     if (title) add(this._el('h1', '', v(s.name || s.title)), s.subtitle && this._el('div', 'esh-sub', v(s.subtitle)));
-    else add(this._el('h2', '', v(s.title) || { pause: this._game._players && this._game._players.length > 1 && this._game.pausedBy ? 'Paused by P' + this._game.pausedBy : 'Paused', settings: 'Settings', controls: 'Controls', help: 'Help', map: 'Map' }[name] || ''));   // (several players: who paused)
+    else add(this._el('h2', '', v(s.title) || { pause: this._game._players && this._game._players.length > 1 && this._game.pausedBy ? ENG('shell.paused_by', { player: this._game.pausedBy }) : ENG('shell.paused'), settings: ENG('shell.settings'), controls: ENG('shell.controls'), help: ENG('shell.help'), map: ENG('shell.map') }[name] || ''));   // (several players: who paused)
     add(v(s.text) && this._el('p', title ? '' : 'esh-m', v(s.text)));
     for (const key of v(s.rows) || []) add(key[0] === '#' ? this._el('div', 'esh-k esh-sec', key.slice(1)) : this._row(key));   // (setting rows on a screen of the game's own: '#' a heading)
     if (name === 'settings') this._settingsRows(add);
@@ -9731,11 +10117,12 @@ class Shell {
       const cv = this._el('canvas', 'esh-map'); cv.width = 720; cv.height = Math.round(720 * s.map.h / s.map.w); this._map(cv, s, true); add(cv);
       if (s.onPick) cv.onclick = e => { const b = cv.getBoundingClientRect(), t = cv._xf, x = ((e.clientX - b.left) * cv.width / b.width - t.ox) / t.k, y = ((e.clientY - b.top) * cv.height / b.height - t.oy) / t.k; s.onPick(x, y); this._map(cv, s, true); };
     }
-    const acts = (name === 'pause' ? [['Resume', () => this.hide()]] : []).concat(v(s.actions) || [], name === 'pause' && this._std && v(this._game.o.menu && this._game.o.menu.items) || []).filter(Boolean);
+    const acts = (name === 'pause' ? [[ENG('shell.resume'), () => this.hide()]] : []).concat(v(s.actions) || [], name === 'pause' && this._std && v(this._game.o.menu && this._game.o.menu.items) || []).filter(Boolean);
     if (name === 'pause') this._pauseActs(acts);
-    if (name === 'settings' && this._std) acts.push(['Controls', () => this.show('controls')], ['Restore defaults', () => { for (const g of SHELL_GROUPS.concat('Game')) this._game.settings.reset(g); this.show('settings'); }]);
-    if (name === 'controls') acts.push(['Restore defaults', () => { this._ctlI().resetBindings(); this._game.settings.reset('Controller'); this._game.settings.reset('Touch'); this._status = 'Every control is back to its default.'; this.show('controls'); }]);
-    if (!acts.length && !title || name === 'settings' || name === 'controls') acts.push(['Back', () => this.back()]);
+    if (title && E.lang.offer()) acts.push([ENG('shell.language') + ': ' + E.lang.name(E.lang.code), () => this._languages()]);
+    if (name === 'settings' && this._std) acts.push([ENG('shell.controls'), () => this.show('controls')], [ENG('shell.restore'), () => { for (const g of SHELL_GROUPS.concat('Game')) this._game.settings.reset(g); this.show('settings'); }]);
+    if (name === 'controls') acts.push([ENG('shell.restore'), () => { this._ctlI().resetBindings(); this._game.settings.reset('Controller'); this._game.settings.reset('Touch'); this._status = ENG('controls.restored'); this.show('controls'); }]);
+    if (!acts.length && !title || name === 'settings' || name === 'controls') acts.push([ENG('shell.back'), () => this.back()]);
     const btns = this._el('div', 'esh-btns'), lists = name === 'settings' || name === 'controls'; acts.forEach((a, i) => btns.appendChild(this._btn(a, i, !lists))); add(btns);
     if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
     add(s.footer && this._el('div', 'esh-m', v(s.footer)));
@@ -9743,28 +10130,31 @@ class Shell {
     // the way out, always in sight: close at the top right (where the menu button was), back at the top left over another
     // screen, and a sideways swipe goes back (a phone's edge swipe would leave the page)
     const nav = [];
-    if (!title) nav.push(this._navBtn('x', 'Close', 'M6 6l12 12M18 6L6 18', () => this._close()));
-    if (this._stack.length > 1) nav.push(this._navBtn('bk', 'Back', 'M15 5l-7 7 7 7', () => this.back()));
+    if (!title) nav.push(this._navBtn('x', ENG('shell.close'), 'M6 6l12 12M18 6L6 18', () => this._close()));
+    if (this._stack.length > 1) nav.push(this._navBtn('bk', ENG('shell.back'), 'M15 5l-7 7 7 7', () => this.back()));
     this._swipe(sh, box, title);
     this._els.scr.replaceChildren(sh, ...nav);
     const all = this._focusables(), f = all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
     top.focus = undefined; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
   }
+  /** the Language menu: the page's languages, each in its own language (E.lang.name); a choice starts the game again in it
+   *  (E.lang.choose). The settings' Display group and a title screen offer it while E.lang.offer() */
+  _languages() { this.show('language', { title: ENG('shell.language'), actions: E.lang.available.map(c => ({ label: E.lang.name(c), primary: c === E.lang.code, fn: () => E.lang.choose(c) })).concat([[ENG('shell.back'), () => this.back()]]) }); }
   /** the standard pause screen's buttons after Resume and the game's own: Settings, Controls, Full screen, Help, Save
    *  session (while the page is recorded: E.session), Quit */
   _pauseActs(acts) {
     const g = this._game, fs = g.fullscreen, M = g.o.menu || {}, quit = M.quit === false ? null : M.quit || 'title', help = this._o.screens && this._o.screens.help;
     if (this._std && HOOKS.pause) HOOKS.pause(this, acts);
-    if (this._std || this._items().length) acts.push(['Settings', () => this.show('settings')]);
-    if (!this._std) { if (help) acts.push(['Help', () => this.show('help')]); return; }
-    acts.push(['Controls', () => this.show('controls')]);
-    if (g.o.fullscreen !== false && fs.supported && !fs.standalone) acts.push([fs.on ? 'Leave full screen' : 'Full screen', () => { fs.toggle(); }]);
-    if (help) acts.push(['Help', () => this.show('help')]);
+    if (this._std || this._items().length) acts.push([ENG('shell.settings'), () => this.show('settings')]);
+    if (!this._std) { if (help) acts.push([ENG('shell.help'), () => this.show('help')]); return; }
+    acts.push([ENG('shell.controls'), () => this.show('controls')]);
+    if (g.o.fullscreen !== false && fs.supported && !fs.standalone) acts.push([ENG(fs.on ? 'shell.fullscreen_leave' : 'shell.fullscreen'), () => { fs.toggle(); }]);
+    if (help) acts.push([ENG('shell.help'), () => this.show('help')]);
     // a recorded page (?record=1) saves its session from the menu: a phone has no console (the share sheet, or a download).
     // Its replay has the button too (doing nothing): the recorded tap on it lands on it, not on the next one (Quit)
-    if (E.session && (E.session.recording || E.session.replaying)) acts.push(['Save session', () => { if (E.session.recording) E.session.share(); }]);
-    if (quit && g.scenes && g.scenes[quit] && g.sceneName !== quit) acts.push(['Quit to ' + (quit === 'title' ? 'title' : actionName(quit).toLowerCase()), () => this.show('confirm', { kicker: 'Quit', title: 'Leave this game?', text: 'Progress since the last save is lost.',
-      actions: [{ label: 'Keep playing', fn: () => this.back() }, { label: 'Quit', fn: () => { this.hide(); g.go(quit); } }] })]);
+    if (E.session && (E.session.recording || E.session.replaying)) acts.push([ENG('shell.save_session'), () => { if (E.session.recording) E.session.share(); }]);
+    if (quit && g.scenes && g.scenes[quit] && g.sceneName !== quit) acts.push([quit === 'title' ? ENG('shell.quit_to_title') : ENG('shell.quit_to', { scene: actionName(quit).toLowerCase() }), () => this.show('confirm', { kicker: ENG('shell.quit'), title: ENG('shell.quit_title'), text: ENG('shell.quit_text'),
+      actions: [{ label: ENG('shell.keep_playing'), fn: () => this.back() }, { label: ENG('shell.quit'), fn: () => { this.hide(); g.go(quit); } }] })]);
   }
   /** draw a TileMap from above: floor, roofs by height, water and grass, then markers and the body at (an arrow) */
   _map(cv, s, large) {
@@ -9836,7 +10226,7 @@ class Shell {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
     const i = I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
     const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
-    if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
+    if (i === 9) this._capEnd(ENG('controls.not_changed')); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
   }
   /** move the focus (or turn a focused slider or choice), keeping it in view */
   _nav(dir) {
@@ -10428,7 +10818,7 @@ const SESSION = (() => {
   };
   const rec = R || { format: 'my3d2dge-session', v: 1, version: E.version, build: E.build, href: location.pathname + location.search + location.hash,
     started: new Date(realDate()).toISOString(), ua: navigator.userAgent, seed: (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0) || 1, clock0: realNow(), epoch0: realDate() - realNow(),
-    env: { innerWidth, innerHeight, devicePixelRatio: window.devicePixelRatio || 1, safe: null, media: {}, fullscreenEnabled: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) },
+    env: { innerWidth, innerHeight, devicePixelRatio: window.devicePixelRatio || 1, safe: null, media: {}, fullscreenEnabled: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled), languages: Array.from(navigator.languages || []) },   // (languages: a replay chooses the game's language as this browser did)
     storage: [], frames: [], events: [], pads: [], checks: [], schema: SCHEMA };
   if (!R) try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); rec.storage.push([k, localStorage.getItem(k)]); } } catch (e) { /* no storage */ }
   else try { localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(k, v); } catch (e) { /* no storage */ }
@@ -10610,7 +11000,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.89.3: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.90.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10639,7 +11029,8 @@ if (cab.die() !== 'again' || cab.die() !== 'again' || cab.die() !== 'over') thro
 cab.start(2); if (cab.die() !== 'next' || cab.p.n !== 2) throw new Error('turns');
 ```
 Rules: tables live in E.store ('arcade:' + id + ':' + mode; kept for the visit where storage is blocked); a demo is the game's own bot (or a recorded input log)
-playing the real rules; the entry and the continue read the game's keys, so hold play while either is open.
+playing the real rules; the entry and the continue read the game's keys, so hold play while either is open. Its words
+are lines: engine.arcade.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -10651,6 +11042,13 @@ if (!E) throw new Error('my-3D2dge module ARCADE: load engine/my-3d2dge.js (or t
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-! ', COLS = ['#ff4a4a', '#ffffff', '#ffe070'];
 const clicked = I => I.clicked ? I.clicked() : null;   // (a tap: the full engine's; the agent edition has none)
 const KEPT = {};   // the tables this visit, beside E.store (they still show where storage is blocked)
+// its words are lines (docs/LANGUAGES.md), English here: the cards and words it shows itself, the HUD, the continue, the
+// entry and the table (a game's own cards and words are its lines)
+E.lang.engine({
+  'engine.arcade.player': 'PLAYER {player}', 'engine.arcade.ready': 'PLAYER {player}, READY!', 'engine.arcade.extra_life': 'EXTRA LIFE!', 'engine.arcade.up': '{player}UP',
+  'engine.arcade.hi': 'HI', 'engine.arcade.demo': 'DEMO', 'engine.arcade.continue': 'CONTINUE?', 'engine.arcade.new_high': 'NEW HIGH SCORE!', 'engine.arcade.ok': 'OK',
+  'engine.arcade.initials': 'ENTER YOUR INITIALS', 'engine.arcade.high_scores': 'HIGH SCORES', 'engine.arcade.rank': '{rank}.'
+});
 class Arcade {
   /** new E.Arcade(game, { id, lives: 3, extra: [] (the scores that give a life) or every (a life each that many points),
    *  credits: null (free play) or the coins a game takes, idle: 20, demo: 30, scores: 6 (the attract mode's seconds),
@@ -10676,7 +11074,7 @@ class Arcade {
     this.players = Array.from({ length: Math.max(1, Math.min(2, players)) }, (_, i) => ({ n: i + 1, score: 0, lives: this.o.lives, save: null, next: this.o.every || (this.o.extra[0] === undefined ? Infinity : this.o.extra[0]) }));
     this.p = this.players[0]; this.mode = 'play'; this.demo = !!o.demo; this.entry = null; this._cont = null; this._cards.length = 0;
     this.hi = Math.max(this.hi, (this.table()[0] || { score: 0 }).score);
-    if (this.players.length > 1) this.card('PLAYER 1', 1.6);
+    if (this.players.length > 1) this.card(E.t('engine.arcade.player', { player: 1 }), 1.6);
     return true;
   }
   /** add points to the player up (at: a world point { x, y, z } where they float up); an extra life at each threshold */
@@ -10685,7 +11083,7 @@ class Arcade {
     p.score += points; this.hi = Math.max(this.hi, p.score);
     while (p.score >= p.next) {
       p.lives++; const every = this.o.every, more = this.o.extra.find(s => s > p.next); p.next = every ? p.next + every : more === undefined ? Infinity : more;
-      this.say('EXTRA LIFE!', 1.2); this.game.audio.sfx('oneup');
+      this.say(E.t('engine.arcade.extra_life'), 1.2); this.game.audio.sfx('oneup');
     }
     if (at) this.game.particles.text(at.x || 0, at.y || 0, (at.z || 0) + 6, points, this.o.colors[2]);
   }
@@ -10697,7 +11095,7 @@ class Arcade {
     for (let k = 1; k <= n; k++) {
       const q = this.players[(i + k) % n]; if (q.lives <= 0) continue;
       if (q === p) return 'again';
-      this.p = q; this.card('PLAYER ' + q.n + ', READY!', 2); return 'next';
+      this.p = q; this.card(E.t('engine.arcade.ready', { player: q.n }), 2); return 'next';
     }
     this.mode = 'over'; return 'over';
   }
@@ -10783,15 +11181,15 @@ class Arcade {
       const [X, Y, W, H] = box || [0, 0, r.W, r.H], cx = X + W / 2, F = E.font, col = this.o.colors, tx = (s, x, y, c, o) => F.text(g, s, x, y, c, Object.assign({ outline: false, shadow: '#000' }, o));
       if (this.o.hud && this.p) {
         const up = n => this.p.n === n && this.mode === 'play' && this.players.length > 1 && Math.floor(this._t * 3) % 2;   // the player up's label blinks
-        tx(up(1) ? '' : '1UP', X + 4, Y + 3, col[0], { font: 'tiny' }); tx(String(this.players[0].score), X + 20, Y + 2, col[1]);
-        tx('HI', cx - 2, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.hi), cx + 2, Y + 2, col[1]);
-        if (this.players[1]) { tx(up(2) ? '' : '2UP', X + W - 4, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.players[1].score), X + W - 20, Y + 2, col[1], { align: 'right' }); }
+        tx(up(1) ? '' : E.t('engine.arcade.up', { player: 1 }), X + 4, Y + 3, col[0], { font: 'tiny' }); tx(String(this.players[0].score), X + 20, Y + 2, col[1]);
+        tx(E.t('engine.arcade.hi'), cx - 2, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.hi), cx + 2, Y + 2, col[1]);
+        if (this.players[1]) { tx(up(2) ? '' : E.t('engine.arcade.up', { player: 2 }), X + W - 4, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.players[1].score), X + W - 20, Y + 2, col[1], { align: 'right' }); }
         for (let i = 0; i < Math.min(6, this.p.lives - 1); i++) { E.px.disc(g, X + 9 + i * 9, Y + H - 7, 3, col[2]); E.px.dot(g, X + 8 + i * 9, Y + H - 8, '#ffffff'); }
       }
       let y = Math.round(Y + H / 2) - 14;
       for (const c of this._cards) { if (c.big) { tx(c.text, cx, y, col[2], { align: 'center', scale: 2 }); y += 20; } else { tx(c.text, cx, y, col[1], { align: 'center' }); y += 11; } }
-      if (this.demo && Math.floor(this._t * 2) % 2 === 0) tx('DEMO', cx, Y + H - 30, col[2], { align: 'center', scale: 2 });
-      if (this._cont && !this.entry) { tx('CONTINUE?', cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 }); }
+      if (this.demo && Math.floor(this._t * 2) % 2 === 0) tx(E.t('engine.arcade.demo'), cx, Y + H - 30, col[2], { align: 'center', scale: 2 });
+      if (this._cont && !this.entry) { tx(E.t('engine.arcade.continue'), cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 }); }
       const e = this.entry;
       if (e) {
         g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
@@ -10800,24 +11198,25 @@ class Arcade {
         const S = this.game.screen, u = Math.max(34, Math.ceil(46 * (S && S.S ? S.dpr / S.S : 0))), cw = u, x0 = Math.round(cx - cw * 1.5), y0 = Math.round(Y + H / 2 - u / 2 - 4);
         const ok = [Math.round(cx - u), y0 + 26 + u + 4, u * 2, u];
         this.wheel = { x: x0, y: y0, cw, up: [y0 - u, y0], down: [y0 + 26, y0 + 26 + u], ok };
-        tx('NEW HIGH SCORE!', cx, y0 - u - 30, col[2], { align: 'center', scale: 2 }); tx(String(e.score), cx, y0 - u - 12, col[1], { align: 'center' });
+        tx(E.t('engine.arcade.new_high'), cx, y0 - u - 30, col[2], { align: 'center', scale: 2 }); tx(String(e.score), cx, y0 - u - 12, col[1], { align: 'center' });
         for (let i = 0; i < 3; i++) {
           const x = x0 + i * cw + cw / 2, on = i === e.i;
           tx(LETTERS[e.name[i]], x, y0 + 4, on && Math.floor(e.t * 4) % 2 ? col[1] : on ? col[2] : col[1], { align: 'center', scale: 3 });
           E.px.poly(g, [[x - 5, y0 - 8], [x + 5, y0 - 8], [x, y0 - 14]], on ? col[0] : '#5a4a6a'); E.px.poly(g, [[x - 5, y0 + 32], [x + 5, y0 + 32], [x, y0 + 38]], on ? col[0] : '#5a4a6a');
         }
-        E.px.rect(g, ok[0], ok[1], ok[2], ok[3], '#2a1a3e'); E.px.rect(g, ok[0], ok[1], ok[2], 1, col[2]); tx('OK', cx, ok[1] + ok[3] / 2 - 3, col[2], { align: 'center' });
-        tx('ENTER YOUR INITIALS', cx, ok[1] + ok[3] + 4, '#c8c0e0', { align: 'center', font: 'tiny' });
+        E.px.rect(g, ok[0], ok[1], ok[2], ok[3], '#2a1a3e'); E.px.rect(g, ok[0], ok[1], ok[2], 1, col[2]); tx(E.t('engine.arcade.ok'), cx, ok[1] + ok[3] / 2 - 3, col[2], { align: 'center' });
+        tx(E.t('engine.arcade.initials'), cx, ok[1] + ok[3] + 4, '#c8c0e0', { align: 'center', font: 'tiny' });
       }
     });
   }
-  /** a table as a screen (the attract mode's, or after a game), its title at y: rank, name, score */
-  drawTable(r, mode = '', y = 40, title = 'HIGH SCORES') {
+  /** a table as a screen (the attract mode's, or after a game), its title at y (HIGH SCORES: the line
+   *  engine.arcade.high_scores): rank, name, score */
+  drawTable(r, mode = '', y = 40, title = E.t('engine.arcade.high_scores')) {
     const t = this.table(mode);
     r.overlay(g => {
       const cx = r.W / 2, col = this.o.colors, tx = (s, x, yy, c, o) => E.font.text(g, s, x, yy, c, Object.assign({ outline: false, shadow: '#000' }, o));
       tx(title, cx, y, col[2], { align: 'center', scale: 2 });
-      for (let i = 0; i < 10; i++) { const e = t[i], yy = y + 26 + i * 11, c = i ? col[1] : col[2]; tx((i + 1) + '.', cx - 52, yy, c, { align: 'right' }); tx(e ? e.name : '---', cx - 42, yy, c); tx(String(e ? e.score : 0), cx + 60, yy, c, { align: 'right' }); }
+      for (let i = 0; i < 10; i++) { const e = t[i], yy = y + 26 + i * 11, c = i ? col[1] : col[2]; tx(E.t('engine.arcade.rank', { rank: i + 1 }), cx - 52, yy, c, { align: 'right' }); tx(e ? e.name : '---', cx - 42, yy, c); tx(String(e ? e.score : 0), cx + 60, yy, c, { align: 'right' }); }
     });
   }
 }
@@ -10825,7 +11224,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.89.3: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.90.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -10875,7 +11274,7 @@ pc.act('pickup', 'key'); game.advance(8);
 if (!pc.has('key')) throw new Error('picked up');
 ```
 Rules: a room's picture is the game's (paint it in room pixels); keep puzzles as rules (data); talk goes through story
-(its nodes, choices and flags: rules test them with if).
+(its nodes, choices and flags: rules test them with if). Its words are lines: engine.click.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -10945,13 +11344,29 @@ E.Walkbox = Walkbox;
  * ========================================================================== */
 const VERBS = [['give', 'GIVE'], ['pickup', 'PICK UP'], ['use', 'USE'], ['open', 'OPEN'], ['look', 'LOOK AT'], ['push', 'PUSH'], ['close', 'CLOSE'], ['talk', 'TALK TO'], ['pull', 'PULL']];
 const ICONS = [['walk', 'WALK'], ['look', 'LOOK'], ['hand', 'HAND'], ['talk', 'TALK']], ICON = Object.fromEntries(ICONS);   // (Sierra's cursor: a right click turns it)
-const VERB = Object.fromEntries(VERBS), COIN = [['look', 'LOOK'], ['talk', 'TALK'], ['use', 'USE']];
+const VERB = Object.fromEntries(VERBS), COIN = [['look', 'LOOK'], ['talk', 'TALK'], ['use', 'USE'], ['pickup', 'TAKE'], ['walk', 'GO']];
+// its words are lines (docs/LANGUAGES.md), English here: the buttons (engine.click.verb.*, .icon.*, .coin.*), the
+// sentence line (engine.click.do.<verb>: 'Pick up {what}'), the icon's word by the pointer, what the hero says when
+// nothing answers (engine.click.no.<verb>)
+const LINES = {
+  'engine.click.do.walk': 'Walk to {what}', 'engine.click.give_to': 'Give {item} to {what}', 'engine.click.use_with': 'Use {item} with {what}',
+  'engine.click.no.look': 'It\'s {name}.', 'engine.click.no.look_item': 'It\'s a {name}.', 'engine.click.no.pickup': 'I can\'t pick that up.', 'engine.click.no.use': 'I can\'t use that.',
+  'engine.click.no.talk': 'It doesn\'t say much.', 'engine.click.no.give': 'I\'d rather keep it.', 'engine.click.no.open': 'It doesn\'t open.', 'engine.click.no.close': 'It doesn\'t close.',
+  'engine.click.no.push': 'It won\'t budge.', 'engine.click.no.pull': 'It won\'t budge.', 'engine.click.no.with': 'That doesn\'t work.'
+};
+const sentence = s => s[0] + s.slice(1).toLowerCase() + ' {what}';   // ('PICK UP' -> 'Pick up {what}')
+for (const [v, s] of VERBS) { LINES['engine.click.verb.' + v] = s; LINES['engine.click.do.' + v] = sentence(s); }
+for (const [v, s] of ICONS) { LINES['engine.click.icon.' + v] = s; if (v !== 'walk') { LINES['engine.click.do_icon.' + v] = sentence(s); LINES['engine.click.hover.' + v] = s + ' {name}'; } }
+for (const [v, s] of COIN) LINES['engine.click.coin.' + v] = s;
+E.lang.engine(LINES);
+// a game's word in small letters, in the player's language (Turkish I is ı)
+const low = s => { try { return String(s).toLocaleLowerCase(E.lang.test ? 'en' : E.lang.code); } catch (e) { return String(s).toLowerCase(); } };
 // Sierra's icons, drawn: feet, an eye, a hand, a mouth
 const PICS = { walk: ['..KK...', '.KSSK..', '.KSSK..', '..KK.KK', '....KSSK', '....KSSK', '.....KK'], look: ['..KKKKK..', '.KWWWWWK.', 'KWWBBBWWK', 'KWWBKBWWK', '.KWWWWWK.', '..KKKKK..'],
   hand: ['..K.K.K..', '.KSKSKSK.', '.KSKSKSKK', '.KSSSSSKS', 'KKSSSSSSK', 'KSSSSSSK.', '.KSSSSK..', '..KKKK...'], talk: ['.KKKKKK.', 'KRRRRRRK', 'KRWWWWRK', 'KRKKKKRK', 'KRRRRRRK', '.KKKKKK.'] };
 const PAINTED = new WeakMap();   // each room's picture, painted once (a room kept between games keeps it)
 const PAL = { K: '#1a1420', S: '#f0c8a0', W: '#ffffff', B: '#3a6ad8', R: '#c83a4a' };
-const NO = { look: n => 'It\'s ' + n.toLowerCase() + '.', pickup: () => 'I can\'t pick that up.', use: () => 'I can\'t use that.', talk: () => 'It doesn\'t say much.', give: () => 'I\'d rather keep it.', open: () => 'It doesn\'t open.', close: () => 'It doesn\'t close.', push: () => 'It won\'t budge.', pull: () => 'It won\'t budge.', with: () => 'That doesn\'t work.' };
+const NO = ['look', 'pickup', 'use', 'talk', 'give', 'open', 'close', 'push', 'pull'];   // (the verbs with a line of their own when nothing answers; others: use's)
 class Click {
   /** new E.Click(game, { rooms, items, rules, hero, ui, story, room, at, on }): see the manual */
   constructor(game, o = {}) {
@@ -11007,8 +11422,8 @@ class Click {
       const own = !item && spot && spot[verb];
       if (rule) this._do(rule); else if (typeof own === 'function') own(this, item); else if (typeof own === 'string' || Array.isArray(own)) this.say(own);
       else if (own) this._do(own);
-      else if (verb === 'look' && inInv) this.say(this.items[target].look || NO.look('a ' + this.items[target].name));
-      else this.say(item ? NO.with() : (NO[verb] || NO.use)(spot ? spot.name : ''));
+      else if (verb === 'look' && inInv) this.say(this.items[target].look || E.t('engine.click.no.look_item', { name: low(this.items[target].name) }));
+      else this.say(E.t('engine.click.no.' + (item ? 'with' : NO.includes(verb) ? verb : 'use'), { name: low(spot ? spot.name : '') }));
       if (this.on.done) this.on.done(this, verb, item, target);
     };
     this.item = null; this.verb = 'walk';
@@ -11136,7 +11551,7 @@ class Click {
       if (this.line) { const w = this.line.who, s = this.line.lines[this.line.i], k = w.k || this.scaleAt(w.y), lines = E.font.wrap(s, Math.min(200, L.W - 16)), x = clamp(w.x * z + L.ox, 70, L.W - 70); lines.forEach((t, i) => E.font.text(g, t, x, Math.max(2, (w.y - 46 * k) * z + L.oy - (lines.length - i) * 9), w.color || '#fff4b0', { align: 'center', shadow: '#000', outline: true })); }
       // the pointer's label: the name of what is under it, beside it
       const p = G.input.pointer(), h = this._hover;
-      if (h && p && !touch && !this._coin && !this.line && this.panel) E.font.text(g, (this.ui === 'icons' && this.verb !== 'walk' ? ICON[this.verb] + ' ' : '') + h.name, clamp(p[0], 30, L.W - 30), Math.max(2, p[1] - 14), '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
+      if (h && p && !touch && !this._coin && !this.line && this.panel) E.font.text(g, this.ui === 'icons' && this.verb !== 'walk' ? E.t('engine.click.hover.' + this.verb, { name: h.name }) : h.name, clamp(p[0], 30, L.W - 30), Math.max(2, p[1] - 14), '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
       if (this._fade) { g.fillStyle = 'rgba(5,4,10,' + Math.min(1, this._fade < 1 ? this._fade : 2 - this._fade).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); }
       if (this.panel) this._panel(g, L, touch);
     });
@@ -11147,13 +11562,13 @@ class Click {
   // the sentence line; the verbs (SCUMM's nine) or the icons (Sierra's), not on a touch screen; the inventory; the coin
   _panel(g, L, touch) {
     const y0 = L.py + 1, h = this._hover, it = this.item && this.items[this.item], verbs = this.ui === 'verbs' && !touch, icons = this.ui === 'icons' && !touch, th = this._thumb();
-    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? h.name.toLowerCase() : '';
-    const words = it ? (this.verb === 'give' ? 'Give ' : 'Use ') + it.name.toLowerCase() + (this.verb === 'give' ? ' to ' : ' with ') + name : touch ? '' : (vb ? vb[0] + vb.slice(1).toLowerCase() + ' ' : h ? '' : 'Walk to ') + name;
+    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? low(h.name) : '';
+    const words = it ? E.t(this.verb === 'give' ? 'engine.click.give_to' : 'engine.click.use_with', { item: low(it.name), what: name }) : touch ? '' : vb ? E.t('engine.click.' + (verbs ? 'do.' : 'do_icon.') + this.verb, { what: name }) : h ? name : E.t('engine.click.do.walk', { what: '' });
     E.font.text(g, words, L.W / 2, y0 + 1, '#c8e8ff', { align: 'center', outline: false });
     const box = (id, x, y, w, hh, label, on, fn, small) => { this.boxes.push({ id, x, y, w, h: hh, fn }); E.ui.box(g, x, y, w, hh, { alpha: .9, bg: on ? '#3a4a9a' : '#141428' }); if (label) E.font.text(g, label, x + w / 2, y + hh / 2 - 3, on ? '#ffffff' : '#9ab0ff', { align: 'center', outline: false, font: small ? 'tiny' : undefined }); };
     let ix = 4;
-    if (verbs) { const bw = 52, bh = 14; VERBS.forEach(([v, s], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, s, this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
-    if (icons) { ICONS.forEach(([v, s], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, s, x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
+    if (verbs) { const bw = Math.max(52, ...VERBS.map(([v]) => E.font.width(E.t('engine.click.verb.' + v), { font: 'tiny' }) + 6)), bh = 14; VERBS.forEach(([v], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, E.t('engine.click.verb.' + v), this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
+    if (icons) { ICONS.forEach(([v], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, E.t('engine.click.icon.' + v), x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
     // the inventory: icons in a row (two in the verbs' panel; a thumb's size on a touch screen), arrows when it is longer
     const S = touch ? th : verbs ? 20 : 24, rows = verbs ? 2 : 1, aw = touch ? th : 14, cols = Math.max(1, Math.floor((L.W - ix - aw - 8) / (S + 2))), per = cols * rows, iy = verbs ? y0 + 11 : touch ? y0 + 10 : y0 + 4;
     this._invAt = clamp(this._invAt, 0, Math.max(0, Math.ceil(this.inv.length / cols) - rows) * cols);
@@ -11166,9 +11581,9 @@ class Click {
     if (this.inv.length > per) { const hh = rows > 1 ? S : S / 2 - 1; box('inv:<', L.W - aw - 4, iy, aw, hh, '<', false, () => { this._invAt -= cols; }); box('inv:>', L.W - aw - 4, iy + hh + 2, aw, hh, '>', false, () => { this._invAt += cols; }); }
     // the coin: the hotspot's verbs round where it was clicked (a thumb's size on a touch screen)
     if (this._coin) {
-      const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v !== 'talk' || C.h.actor || C.h.talk).concat(C.h.pickup ? [['pickup', 'TAKE']] : [], C.h.exit ? [['walk', 'GO']] : []);
+      const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v === 'talk' ? C.h.actor || C.h.talk : v === 'pickup' ? C.h.pickup : v === 'walk' ? C.h.exit : true);
       const bw = sz + 14, all = vs.length * (bw + 3) - 3, x0 = clamp(C.x - all / 2, 2, L.W - all - 2), up = C.y - sz - 12 >= 2, y = up ? C.y - sz - 12 : Math.min(C.y + 12, L.py - sz - 2);   // (a row over the point, or under it near the top)
-      vs.forEach(([v, s], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, s, false, () => this.act(v, C.h.id), true));
+      vs.forEach(([v], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, E.t('engine.click.coin.' + v), false, () => this.act(v, C.h.id), true));
       E.font.text(g, C.h.name, clamp(C.x, 40, L.W - 40), up ? Math.max(2, y - 10) : y + sz + 3, '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
     }
   }
@@ -11185,7 +11600,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.89.3: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.90.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11217,7 +11632,8 @@ for (let i = 0; i < 240; i++) car.update(1 / 120, map, { gas: 1 });
 if (!(car.speed > 150 && car.x > 150 && Math.abs(car.y - 40) < .01)) throw new Error('a car accelerates along its heading');
 ```
 Rules: the angle is a heading (0 east, PI / 2 south) and a mode7 camera's; update cars at the fixed step; a player's
-car takes game.input or its player's input; race.update moves every racer's car, so don't update them yourself.
+car takes game.input or its player's input; race.update moves every racer's car, so don't update them yourself. Its
+words are lines: engine.drive.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -11228,6 +11644,12 @@ if (!E) throw new Error('my-3D2dge module DRIVE: load engine/my-3d2dge.js (or th
  * ========================================================================== */
 const { clamp, angDiff } = E, TAU = Math.PI * 2;
 const SURFACES = { grass: { top: .5, grip: .9 }, sand: { top: .4, grip: .6 }, dirt: { top: .7, grip: .8 }, ice: { grip: .15 }, boost: { boost: .8 } };
+// its words are lines (docs/LANGUAGES.md), English here: a racer's name when none is given, and the HUD's (a place is a
+// line of its own up to the fourth, then the number's: places differ in every language)
+E.lang.engine({
+  'engine.drive.car': 'CAR {number}', 'engine.drive.place.1': '1ST', 'engine.drive.place.2': '2ND', 'engine.drive.place.3': '3RD', 'engine.drive.place.4': '4TH',
+  'engine.drive.place.n': '{place}TH', 'engine.drive.lap': 'LAP {lap}/{laps}', 'engine.drive.go': 'GO!', 'engine.drive.wrong_way': 'WRONG WAY', 'engine.drive.finish': 'FINISH'
+});
 class Car extends E.Body {
   /** new E.Car({ x, y, angle, top, accel, brake, turn, grip, drift, kart, auto, surfaces, ground }): a car (the manual) */
   constructor(o = {}) {
@@ -11320,7 +11742,7 @@ class Race {
   /** a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it */
   add(car, o = {}) {
     const d = this.path.nearest(car.x, car.y), L = this.path.length;
-    const R = { car, name: o.name || 'CAR ' + (this.racers.length + 1), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
+    const R = { car, name: o.name || E.t('engine.drive.car', { number: this.racers.length + 1 }), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
     this.racers.push(R); return R;
   }
   /** an item box at (x, y): a racer that drives through it gets an item (when it holds none) */
@@ -11393,17 +11815,17 @@ class Race {
   hud(r, R, o = {}) {
     const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }, F = E.font, fmt = t => Math.floor(t / 60) + "'" + String(Math.floor(t % 60)).padStart(2, '0') + '"' + String(Math.floor(t * 100 % 100)).padStart(2, '0');
     r.overlay(g => {
-      const x = vp.x + 6, y = vp.y + 6, sfx = ['ST', 'ND', 'RD'][R.place - 1] || 'TH', col = o.color || '#ffffff';
-      F.text(g, R.place + sfx, x, y, R.place === 1 ? '#ffe04a' : col, { scale: 2, shadow: '#000', outline: false });
+      const x = vp.x + 6, y = vp.y + 6, place = R.place <= 4 ? E.t('engine.drive.place.' + R.place) : E.t('engine.drive.place.n', { place: R.place }), col = o.color || '#ffffff';
+      F.text(g, place, x, y, R.place === 1 ? '#ffe04a' : col, { scale: 2, shadow: '#000', outline: false });
       const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
-      F.text(g, 'LAP ' + Math.min(this.o.laps, R.lap + 1) + '/' + this.o.laps, rx, y, col, { align: 'right', shadow: '#000', outline: false });
+      F.text(g, E.t('engine.drive.lap', { lap: Math.min(this.o.laps, R.lap + 1), laps: this.o.laps }), rx, y, col, { align: 'right', shadow: '#000', outline: false });
       F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
       E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;
-      if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : 'GO!', cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
-      if (R.wrong && !R.finished) F.text(g, 'WRONG WAY', cx, cy, '#ff4a3a', { align: 'center', scale: 2, shadow: '#000', outline: false });
-      if (R.finished) F.text(g, 'FINISH', cx, cy, '#ffe04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
+      if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : E.t('engine.drive.go'), cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
+      if (R.wrong && !R.finished) F.text(g, E.t('engine.drive.wrong_way'), cx, cy, '#ff4a3a', { align: 'center', scale: 2, shadow: '#000', outline: false });
+      if (R.finished) F.text(g, E.t('engine.drive.finish'), cx, cy, '#ffe04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
     });
   }
 }
@@ -11411,7 +11833,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.89.3: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.90.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11457,6 +11879,7 @@ if (m.phase !== 'over' || m.wins[m.winner] < 2) throw new Error('a match ends wi
 ```
 Rules: a fighter reads its input at the engine's 120 Hz step (motions too), so update it once a step; f.update(dt, ctl) takes an
 E.Input or a CPU's intent ({ x, y: -1..1 on screen, press: a button, do: a move id }); frame data is in frames at 60.
+Its words are lines: engine.fight.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -11475,6 +11898,16 @@ const BTN = ['lp', 'hp', 'lk', 'hk'];
 // what a move does by its button when the spec doesn't say: [dmg, stun, block, push]
 const BASE = { lp: [30, 13, 9, 70], hp: [80, 20, 15, 120], lk: [35, 14, 10, 80], hk: [90, 21, 16, 130] };
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.h && b.z < a.z + a.h;
+// its words are lines (docs/LANGUAGES.md), English here: a fighter's name when none is given, the calls, the combo, the
+// training's frame data and buttons, the character select
+const FRAMES = '{move}  STARTUP {startup}  ACTIVE {active}  RECOVERY {recovery}';
+E.lang.engine({
+  'engine.fight.fighter': 'FIGHTER', 'engine.fight.round': 'ROUND {round}', 'engine.fight.fight': 'FIGHT!', 'engine.fight.ko': 'K.O.', 'engine.fight.time': 'TIME',
+  'engine.fight.draw': 'DRAW', 'engine.fight.perfect': 'PERFECT', 'engine.fight.wins': '{name} WINS', 'engine.fight.hits': { one: '{count} HIT', other: '{count} HITS' },
+  'engine.fight.frames.down': FRAMES + '  KNOCKDOWN', 'engine.fight.frames.hit': FRAMES + '  ON HIT {adv}', 'engine.fight.frames.block': FRAMES + '  ON BLOCK {adv}',
+  'engine.fight.button.lp': 'LP', 'engine.fight.button.hp': 'HP', 'engine.fight.button.lk': 'LK', 'engine.fight.button.hk': 'HK',
+  'engine.fight.select': 'SELECT YOUR FIGHTER', 'engine.fight.ready': 'READY', 'engine.fight.vs': 'VS', 'engine.fight.cpu': 'CPU', 'engine.fight.player': 'P{player}'
+});
 
 /** the floor the fighters stand on when no level is given: z 0 between walls at x0 and x1 (a Platformer's level) */
 class FightStage {
@@ -11499,7 +11932,7 @@ class Fighter {
    *  back: 60, jump: 390, jumpX: 90, moves, throwBtn: 'hp', throwRange, throwDmg: 120, input }) */
   constructor(game, o = {}) {
     /** game: the game it fights in; name: its name on the HUD */
-    this.game = game; this.name = o.name || 'FIGHTER';
+    this.game = game; this.name = o.name || E.t('engine.fight.fighter');
     /** rig: its E.Humanoid (drawn and posed from its state every step) */
     this.rig = o.rig instanceof E.Humanoid ? o.rig : new E.Humanoid(Object.assign({ size: 2.6, build: 'heroic', weapon: null }, o.rig));
     const sz = this.rig.o.size;
@@ -11831,7 +12264,7 @@ class Match {
     this.f[0].reset(mid - 60, 1); this.f[1].reset(mid + 60, -1);
     /** phase: 'intro' | 'fight' | 'ko' | 'win' | 'over'; clock: the round's seconds left; call: the words on the screen
      *  (ROUND 1, FIGHT!, K.O., TIME, PERFECT), or null */
-    this.phase = this.o.training ? 'fight' : 'intro'; this._t = 0; this.clock = this.o.time; this.winner = null; this.call = this.o.training ? null : 'ROUND ' + this.round; this._slow = 0;
+    this.phase = this.o.training ? 'fight' : 'intro'; this._t = 0; this.clock = this.o.time; this.winner = null; this.call = this.o.training ? null : E.t('engine.fight.round', { round: this.round }); this._slow = 0;
   }
   _control(i) {
     if (this.phase !== 'fight') return null;
@@ -11857,11 +12290,11 @@ class Match {
       for (const f of this.f) f.meter = 100 * (f.o.bars || 1);
       return;
     }
-    if (this.phase === 'intro') { if (this._t > 1.1) this.call = 'FIGHT!'; if (this._t > 1.8) { this.phase = 'fight'; this.call = null; this._t = 0; } }
+    if (this.phase === 'intro') { if (this._t > 1.1) this.call = E.t('engine.fight.fight'); if (this._t > 1.8) { this.phase = 'fight'; this.call = null; this._t = 0; } }
     else if (this.phase === 'fight') {
       this.clock = Math.max(0, this.clock - dt);
       if (a.ko || b.ko || this.clock <= 0) {
-        this.phase = 'ko'; this._t = 0; this.call = a.ko || b.ko ? 'K.O.' : 'TIME';
+        this.phase = 'ko'; this._t = 0; this.call = E.t(a.ko || b.ko ? 'engine.fight.ko' : 'engine.fight.time');
         this.winner = a.ko && b.ko ? null : a.ko ? 1 : b.ko ? 0 : a.life === b.life ? null : a.life > b.life ? 0 : 1;
         if (a.ko || b.ko) { this.game.timeScale = .35; this._slow = .9; this.game.flash('#ffffff', .2); this.game.audio.sfx('boom'); }
       }
@@ -11869,12 +12302,12 @@ class Match {
       if (this._slow > 0 && (this._slow -= dt / Math.max(.01, this.game.timeScale)) <= 0) this.game.timeScale = 1;
       if (this._t > 2.2 && [a, b].every(f => f.body.onGround && !f.thrown)) {
         this.phase = 'win'; this._t = 0;
-        if (this.winner === null) { this.wins[0]++; this.wins[1]++; this.call = 'DRAW'; }
-        else { const w = this.f[this.winner]; this.wins[this.winner]++; w.win = true; this.call = w.life >= w.o.life ? 'PERFECT' : w.name + ' WINS'; this.game.audio.sfx('powerup'); }
+        if (this.winner === null) { this.wins[0]++; this.wins[1]++; this.call = E.t('engine.fight.draw'); }
+        else { const w = this.f[this.winner]; this.wins[this.winner]++; w.win = true; this.call = w.life >= w.o.life ? E.t('engine.fight.perfect') : E.t('engine.fight.wins', { name: w.name }); this.game.audio.sfx('powerup'); }
       }
     } else if (this.phase === 'win' && this._t > 2.6) {
       const done = this.wins.map(n => n >= this.o.rounds);
-      if (done[0] !== done[1]) { this.phase = 'over'; this.winner = done[0] ? 0 : 1; this.call = this.f[this.winner].name + ' WINS'; if (this.o.onEnd) this.o.onEnd(this.winner); }
+      if (done[0] !== done[1]) { this.phase = 'over'; this.winner = done[0] ? 0 : 1; this.call = E.t('engine.fight.wins', { name: this.f[this.winner].name }); if (this.o.onEnd) this.o.onEnd(this.winner); }
       else this.startRound();
     }
   }
@@ -11895,14 +12328,14 @@ class Match {
       for (let w = 0; w < this.o.rounds; w++) { const sx = flip ? x + w * 9 : x + bw - 7 - w * 9; px.disc(g, sx + 3, y + 16, 3, w < this.wins[i] ? '#ffd23a' : '#3a2a4a'); }
       const mb = Math.round(bw * .6), mx = flip ? W - 12 - mb : 12, my = H - 12, mk = f.meter / 100, full = mk >= 1;
       E.ui.bar(g, mx, my, mb, 6, mk % 1 || (full ? 1 : 0), full && Math.floor(this.game.real * 6) % 2 ? '#a0f0ff' : '#3a8aff');
-      if (f.combo > 1 && f.stun > 0) font.title(g, f.combo + ' HITS', flip ? 14 : W - 14, y + 44, { scale: 2, align: flip ? 'left' : 'right', colors: CALL });
+      if (f.combo > 1 && f.stun > 0) font.title(g, E.t('engine.fight.hits', { count: f.combo }), flip ? 14 : W - 14, y + 44, { scale: 2, align: flip ? 'left' : 'right', colors: CALL });
     });
     if (!this.o.training) { const box = Math.round(W / 2); E.ui.box(g, box - 15, y - 6, 30, 22, { bg: ['#2a1a4a', '#120a28'] }); font.title(g, String(Math.ceil(this.clock)).padStart(2, '0'), box, y - 3, { scale: 2, align: 'center', colors: ['#ffffff', '#c8d8ff'] }); }
     if (this.call) font.title(g, this.call, W / 2, H / 2 - 30, { scale: 4, align: 'center', colors: CALL, depth: 3 });
     if (this.o.training) {   // frame data and player 1's last second of inputs
-      const L = this.f[0].last; if (L) font.text(g, L.id.toUpperCase() + '  STARTUP ' + L.startup + '  ACTIVE ' + L.active + '  RECOVERY ' + L.recovery + (L.adv === null ? '  KNOCKDOWN' : '  ON ' + L.on.toUpperCase() + ' ' + (L.adv > 0 ? '+' : '') + L.adv), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false, font: 'tiny' });
+      const L = this.f[0].last; if (L) font.text(g, E.t('engine.fight.frames.' + (L.adv === null ? 'down' : L.on), { move: E.lang.upper(L.id), startup: L.startup, active: L.active, recovery: L.recovery, adv: L.adv === null ? '' : E.lang.num(L.adv, { signDisplay: 'exceptZero' }) }), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false, font: 'tiny' });
       const I = this.inputs[0], hist = I && I.history ? I.history.slice(-12) : [], mir = { 1: 3, 3: 1, 4: 6, 6: 4, 7: 9, 9: 7 };   // (numpad digits, as the fighter faces)
-      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).join('+').toUpperCase(), 12, y + 36 + k * 8, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' }));
+      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).map(p => E.t('engine.fight.button.' + p)).join('+'), 12, y + 36 + k * 8, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' }));
     }
   }
 }
@@ -11941,19 +12374,19 @@ class FightSelect {
   draw(r) {
     r.overlay(g => {
       const W = r.W, H = r.H, n = this.roster.length, s = Math.min(46, Math.floor((W - 40) / n) - 6), x0 = Math.round(W / 2 - (n * (s + 6) - 6) / 2), y = H - s - 34;
-      E.font.title(g, 'SELECT YOUR FIGHTER', W / 2, 10, { scale: 2, align: 'center', colors: CALL });
+      E.font.title(g, E.t('engine.fight.select'), W / 2, 10, { scale: 2, align: 'center', colors: CALL });
       for (let i = 0; i < 2; i++) {
         const e = this.roster[this.at[i]], big = Math.min(96, Math.round(H * .42)), bx = i ? W - 16 - big : 16;
         this.rigs[this.at[i]].drawPortrait(g, bx, 36, big, { zoom: 2.4, turn: i ? -.6 : .6, bg: i ? ['#ff8a6a', '#5a1a2a'] : ['#6ab0ff', '#1a2a5a'], border: E.PLAYER_COLORS[i] });
         E.font.text(g, e.name, bx + big / 2, 40 + big, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         if (e.about) E.font.text(g, e.about, bx + big / 2, 50 + big, '#c8b8e8', { align: 'center', outline: false, font: 'tiny' });
-        if (this.picks[i]) E.font.text(g, 'READY', bx + big / 2, 30, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
+        if (this.picks[i]) E.font.text(g, E.t('engine.fight.ready'), bx + big / 2, 30, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
       }
-      E.font.title(g, 'VS', W / 2, 70, { scale: 3, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] });
+      E.font.title(g, E.t('engine.fight.vs'), W / 2, 70, { scale: 3, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] });
       this.rects = this.roster.map((e, k) => [x0 + k * (s + 6), y, s, s]);   // (where a tap picks)
       this.roster.forEach((e, k) => {
         const x = x0 + k * (s + 6); this.rigs[k].drawPortrait(g, x, y, s, { zoom: 2, turn: .5 });
-        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? 'CPU' : 'P' + (i + 1), x + s / 2, y + s + 6, c, { align: 'center', outline: false, font: 'tiny' }); }
+        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? E.t('engine.fight.cpu') : E.t('engine.fight.player', { player: i + 1 }), x + s / 2, y + s + 6, c, { align: 'center', outline: false, font: 'tiny' }); }
       });
     });
   }
@@ -11962,7 +12395,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.89.3: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.90.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12145,7 +12578,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.89.3: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.90.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12554,7 +12987,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.89.3: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.90.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12763,7 +13196,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.89.3: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.90.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13130,7 +13563,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.89.3: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.90.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13337,7 +13770,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.89.3: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.90.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13500,7 +13933,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.89.3: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.90.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13537,7 +13970,8 @@ let entered = 0; for (let i = 0; i < 480; i++) { hero.update(1 / 120, world.map,
 if (entered !== 1 || world.room.id !== 'b' || !world.seen.has('2,0') || hero.x > 16 * 16 - 4) throw new Error('a to b, then its far wall');
 ```
 Rules: the hero's own update moves it (world.update only changes rooms); keep enemies and pickups per room (by
-world.room.id); a room's walls are its rows: leave an edge open only where a room continues.
+world.room.id); a room's walls are its rows: leave an edge open only where a room continues. Its words are lines:
+engine.rooms.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -13547,6 +13981,7 @@ if (!E) throw new Error('my-3D2dge module ROOMS: load engine/my-3d2dge.js (or th
  * ROOMS  a world of rooms on a grid of screens: walking between them, the explored map, gates, saves
  * ========================================================================== */
 const { clamp, px } = E;
+E.lang.engine({ 'engine.rooms.map.save': 'S', 'engine.rooms.map.boss': 'B' });   // its words are lines (docs/LANGUAGES.md): the map's save and boss rooms
 class World {
   /** new E.World(game, { id, screen: [20, 12], view: 'side' | 'top', legend, types, rooms, start, transition: 'slide',
    *  make }): a world of rooms (the manual above) */
@@ -13654,7 +14089,7 @@ class World {
         if (dx) { const X2 = dx > 0 ? X + cell - 1 : X; px.rect(g, X2, Y, 1, cell, wall); if (door) px.rect(g, X2, Y + ((cell - h) >> 1), 1, h, col); }
         else { const Y2 = dy > 0 ? Y + cell - 1 : Y; px.rect(g, X, Y2, cell, 1, wall); if (door) px.rect(g, X + ((cell - h) >> 1), Y2, h, 1, col); }
       }
-      if (k && cell >= 8) E.font.text(g, k === 'save' ? 'S' : 'B', X + cell / 2, Y + (cell >> 1) - 2, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+      if (k && cell >= 8) E.font.text(g, E.t(k === 'save' ? 'engine.rooms.map.save' : 'engine.rooms.map.boss'), X + cell / 2, Y + (cell >> 1) - 2, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
     }
     if (this.here && Math.floor(this.game.real * 3) % 2 === 0) { const [X, Y] = at(this.here[0], this.here[1]), d = Math.max(2, cell >> 2); px.rect(g, X + ((cell - d) >> 1), Y + ((cell - d) >> 1), d, d, '#ffffff'); }
   }
@@ -13681,11 +14116,11 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.89.3: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.90.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
-The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the inventory grid of a Resident Evil.
+The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger) and a Resident Evil's inventory grid.
 - const rpg = new E.RPG({ items, monsters, status, curve }). items: { id: { name, kind: 'use' | 'weapon' | 'armor' |
   'helm' | 'accessory' | 'key', price, stack (99), heal, mp, cure: ['poison'], revive (a share of HP), stats: { atk: 4 }
   (worn: slot = its kind), size: [w, h] (grid cells), icon (a sprite; else one for its kind), info } }. monsters: { id:
@@ -13725,8 +14160,8 @@ if (won.exp !== 36 || party.gold !== 64 || hero.level < 2 || hero.max('hp') !== 
 hero.hp = 5; shop.buy(party, 'potion'); if (!party.use('potion', hero) || hero.hp !== 35 || party.inv.has('potion')) throw new Error('a potion drunk');
 if (rpg.restore(JSON.parse(JSON.stringify(party.state()))).members[0].stat('atk') !== hero.stat('atk')) throw new Error('saved and back');
 ```
-Rules: ids in the save, never objects; a battle reads members' stat() and writes their hp and mp back; draw windows
-in r.overlay; randomness is Math.random's (a proof seeds it).
+Rules: ids in the save, never objects; a battle reads members' stat() and writes their hp and mp back; randomness is
+Math.random's (a proof seeds it). Its words are lines: engine.rpg.*.
 */
 (function (E) {
 'use strict';
@@ -13741,12 +14176,18 @@ const STATUS = {   // the default effects: hurt and heal (a share of max HP a ti
   stop: { skip: true, turns: 2, color: '#c0c0c0' }, silence: { mute: true, turns: 4, color: '#e0e0a0' }, haste: { spd: 1.5, turns: 5, color: '#ffd060' }, slow: { spd: .5, turns: 5, color: '#6a8ac0' }
 };
 const copy = v => JSON.parse(JSON.stringify(v));
+// its words are lines (docs/LANGUAGES.md), English here: a member's name when none is given, a card's labels and stats,
+// the default effects' names (a game's own effect shows its name in capitals)
+const LINES = { 'engine.rpg.hero': 'Hero', 'engine.rpg.level': 'Lv {level}', 'engine.rpg.hp': 'HP', 'engine.rpg.mp': 'MP' };
+for (const k of ['atk', 'def', 'mag', 'spd']) LINES['engine.rpg.stat.' + k] = k.toUpperCase() + ' {value}';   // ('ATK {value}')
+for (const k in STATUS) LINES['engine.rpg.status.' + k] = k.toUpperCase();   // ('POISON')
+E.lang.engine(LINES);
 class Member {
   /** a party member (rpg.member(o): the manual above) */
   constructor(rpg, o = {}) {
     /** rpg: its rules; name; level; base: its stats at level 1; growth: what each level adds; equipped: its gear by
      *  slot; effects: its status effects (turns left, 0 till cured); data: the game's own (a rig's look, skills) */
-    this.rpg = rpg; this.name = o.name || 'Hero'; this.level = o.level || 1; this.base = Object.assign({ hp: 30, mp: 0, atk: 5, def: 5, mag: 5, spd: 5 }, o.stats);
+    this.rpg = rpg; this.name = o.name || E.t('engine.rpg.hero'); this.level = o.level || 1; this.base = Object.assign({ hp: 30, mp: 0, atk: 5, def: 5, mag: 5, spd: 5 }, o.stats);
     this.growth = Object.assign({}, o.growth); this.equipped = Object.assign({}, o.equip); this.effects = Object.assign({}, o.effects); this.data = o.data || {};
     /** exp: experience gained in all; hp, mp: what it has now */
     this.exp = o.exp !== undefined ? o.exp : rpg.curve(this.level); this.hp = o.hp !== undefined ? o.hp : this.max('hp'); this.mp = o.mp !== undefined ? o.mp : this.max('mp');
@@ -13996,11 +14437,11 @@ class RPG {
     const w = o.w || 150, h = 62, P = o.portrait, tx = x + (P ? 34 : 7), t = (s, a, b, c, al) => E.font.text(g, String(s), a, b, c, { outline: false, shadow: '#0a0820', align: al });
     E.ui.box(g, x, y, w, h, { bg: o.bg || ['#6c8cff', '#0a0a48'] });
     if (P) P.drawPortrait(g, x + 4, y + 4, 26, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: m.dead ? '#808080' : undefined });
-    t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t('Lv ' + m.level, x + w - 7, y + 5, '#ffe08a', 'right');
+    t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t(E.t('engine.rpg.level', { level: m.level }), x + w - 7, y + 5, '#ffe08a', 'right');
     const bar = (lab, v, mx, by, c) => { E.font.text(g, lab, tx, by, '#9ad0ff', { font: 'tiny', outline: false }); t(v + '/' + mx, x + w - 7, by - 2, '#ffffff', 'right'); E.ui.bar(g, tx + 12, by + 7, x + w - tx - 19, 3, mx ? v / mx : 0, c, { bg: '#2a2650' }); };
-    bar('HP', m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar('MP', m.mp, m.max('mp'), y + 30, '#5aa0ff');
-    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, k.toUpperCase() + ' ' + Math.round(m.stat(k)), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
-    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.join(' ').toUpperCase(), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
+    bar(E.t('engine.rpg.hp'), m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar(E.t('engine.rpg.mp'), m.mp, m.max('mp'), y + 30, '#5aa0ff');
+    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, E.t('engine.rpg.stat.' + k, { value: Math.round(m.stat(k)) }), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
+    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.map(k => E.lang.has('engine.rpg.status.' + k) ? E.t('engine.rpg.status.' + k) : E.lang.upper(k)).join(' '), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
     return { w, h };
   }
 }
@@ -14008,7 +14449,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.89.3: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.90.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14162,7 +14603,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.89.3: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.90.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14370,7 +14811,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.89.3: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.90.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14422,13 +14863,14 @@ rts.order([w], 'gather', mine); rts.train(hall, 'worker'); game.advance(20);
 if (rts.side('blue').res.gold <= 50 || rts.of('blue', 'worker').length !== 2) throw new Error('gather, train');
 ```
 Rules: units are the module's; read them, draw them, give them orders; a building blocks its cells (map.block), so
-flow fields go round it. The same orders give the same game.
+flow fields go round it. The same orders give the same game. Its words are lines: engine.strategy.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
 if (!E) throw new Error('my-3D2dge module STRATEGY: load engine/my-3d2dge.js (the full engine) first');
 if (!E.Grid) throw new Error('my-3D2dge module STRATEGY: load engine/modules/grid.js first');
 const { clamp, px } = E, hyp = Math.hypot;
+E.lang.engine({ 'engine.strategy.clock': 'DAY {day}  {time}' });   // its words are lines (docs/LANGUAGES.md): the clock's label
 
 /* =============================================================================
  * STRATEGY  units, buildings and resources on a TileMap; their orders, production, fog, selection and an AI
@@ -14770,8 +15212,8 @@ class Clock {
   get minute() { return Math.floor(this.t % 1 * 60); }
   /** true from 20:00 to 6:00 */
   get night() { const h = this.t % 24; return h >= 20 || h < 6; }
-  /** 'DAY 2  14:30' */
-  label() { return 'DAY ' + this.day + '  ' + String(this.hour).padStart(2, '0') + ':' + String(Math.floor(this.minute / 10) * 10).padStart(2, '0'); }
+  /** 'DAY 2  14:30' (the line engine.strategy.clock) */
+  label() { return E.t('engine.strategy.clock', { day: this.day, time: String(this.hour).padStart(2, '0') + ':' + String(Math.floor(this.minute / 10) * 10).padStart(2, '0') }); }
   /** the light by the hour: { ambient (.12 at night .. 1 at noon), color (the sky's tint: blue night, warm dawn and dusk) } */
   light() {
     const h = this.t % 24, sun = clamp(Math.sin((h - 6) / 12 * Math.PI), 0, 1), dusk = clamp(1 - Math.abs(h - 6.5) / 1.5, 0, 1) + clamp(1 - Math.abs(h - 19) / 1.5, 0, 1);
@@ -14811,7 +15253,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.89.3: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.90.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

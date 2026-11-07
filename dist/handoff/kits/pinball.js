@@ -1,5 +1,5 @@
 // The PINBALL kit's game (one table: flippers, bumpers, a ramp, drop targets, a spinner, a kickback, a mission, multiball, tilt, a dot-matrix display), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/33-pinball.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/33-pinball.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. pinball.html plays it; node kits/test.mjs pinball runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -173,7 +178,7 @@ scenes.over = {
  * ===================================================================================== */
 const PINBALL = (() => {
   const TW = 240, TL = 520, BR = 5, TAU = Math.PI * 2, px = E.px, mx = x => 222 - x;   // (the playfield is 8..214 wide: mx mirrors it)
-  E.VIEWS.pinball = E.VIEWS.pinball || new E.View('pinball', 'Table', 0, 62, 1, 1);
+  E.VIEWS.pinball = E.VIEWS.pinball || new E.View('pinball', E.t('pinball.view'), 0, 62, 1, 1);
   const V = E.VIEWS.pinball, BY = V.by, BZ = V.bz;   // (a table point (x, y, z) is r.w(x, y, z) on the screen)
   // a driving tune in E minor (the step sequencer's format)
   const SONG = { bpm: 138, steps: 4, tracks: [
@@ -235,34 +240,34 @@ const PINBALL = (() => {
     if (F.bumpers.includes(o)) { o.lit = .15; add(100, o); st.hits++; A.sfx('kick', { vol: .5, pitch: 1 + (F.bumpers.indexOf(o)) * .12 }); P.sparks(o.x, o.y, 10, 6); return; }
     if (o === F.slingL || o === F.slingR) { o.lit = .12; add(10); A.sfx('punch', { vol: .35 }); return; }
     if (o === F.L || o === F.R) return;
-    const d = drops.find(t => t.b === o); if (d && !d.down) { d.down = true; d.b.off = true; add(500, d.b); st.targets++; A.sfx('bump'); if (drops.every(t => t.down)) { st.rampLit = true; add(5000); say('RAMP LIT', 2); A.sfx('powerup'); modeT = 0; dropsUp = 2.5; } return; }
+    const d = drops.find(t => t.b === o); if (d && !d.down) { d.down = true; d.b.off = true; add(500, d.b); st.targets++; A.sfx('bump'); if (drops.every(t => t.down)) { st.rampLit = true; add(5000); say(E.t('pinball.dmd.ramp_lit'), 2); A.sfx('powerup'); modeT = 0; dropsUp = 2.5; } return; }
     if (info && info.speed > 160) A.sfx('land', { vol: Math.min(.4, info.speed / 1500) });
   }
   let dropsUp = 0;
   function enter(s, b) {
     if (s === F.rampIn && !b.onRamp && b.vy < -120) { b.onRamp = true; b.layer = 2; b.mask = 2; A.sfx('whoosh', { vol: .3 }); return; }
     if (s === F.rampOut && b.onRamp) { b.onRamp = false; b.layer = 1; b.mask = 0xffff; ramp(b); return; }
-    const l = lanes.find(q => q.s === s); if (l) { if (!l.on) { l.on = true; add(1000, b); A.sfx('blip'); st.laneHits++; } if (lanes.every(q => q.on)) { lanes.forEach(q => { q.on = false; }); st.mult = Math.min(5, st.mult + 1); st.kickLit = true; F.kick.catch.armed = true; say('BONUS ' + st.mult + 'X', 2); A.sfx('oneup'); } return; }
+    const l = lanes.find(q => q.s === s); if (l) { if (!l.on) { l.on = true; add(1000, b); A.sfx('blip'); st.laneHits++; } if (lanes.every(q => q.on)) { lanes.forEach(q => { q.on = false; }); st.mult = Math.min(5, st.mult + 1); st.kickLit = true; F.kick.catch.armed = true; say(E.t('pinball.dmd.bonus', { mult: st.mult }), 2); A.sfx('oneup'); } return; }
     if (s === F.laneTop && st.inLane) { st.inLane = false; F.gate.off = false; st.saveT = 8; return; }
     if (s === F.spinner) { const n = Math.min(12, Math.floor(Math.abs(b.vy) / 60)); F.spin += n; st.spins += n; add(50 * n); if (n) A.sfx('blip', { vol: .2, pitch: 1.6 }); return; }
   }
   function exit(s, b) { if (s === F.rampIn && b.onRamp && b.vy > 0) { b.onRamp = false; b.layer = 1; b.mask = 0xffff; } }   // (it fell back down the ramp)
   function ramp(b) {
     add(st.rampLit ? 10000 : 5000, b); A.sfx('powerup'); P.glints(b.x, b.y, 10, 10, '#a8f0ff', 14);
-    if (st.rampLit) { st.ramps++; if (st.ramps >= 3) { st.jackLit = true; st.rampLit = false; st.ramps = 0; say('JACKPOT LIT', 2.5); } else say('WARP ' + st.ramps, 1.5); } else say('RAMP', 1);
+    if (st.rampLit) { st.ramps++; if (st.ramps >= 3) { st.jackLit = true; st.rampLit = false; st.ramps = 0; say(E.t('pinball.dmd.jackpot_lit'), 2.5); } else say(E.t('pinball.dmd.warp', { ramps: st.ramps }), 1.5); } else say(E.t('pinball.dmd.ramp'), 1);
   }
   function caught(k, b) {
-    if (k === F.kick) { st.kickLit = false; k.catch.armed = false; say('KICKBACK', 1.5); A.sfx('whoosh'); return; }
+    if (k === F.kick) { st.kickLit = false; k.catch.armed = false; say(E.t('pinball.dmd.kickback'), 1.5); A.sfx('whoosh'); return; }
     if (k === F.saucer) {
       add(2500, b); A.sfx('secret');
-      if (st.jackLit) { st.jackLit = false; st.jackpots++; add(50000, b); say('JACKPOT', 3, true); A.sfx('oneup'); game.flash('#ffffff', .25); P.glints(k.x, k.y, 30, 30, '#ffe080', 20);
-        if (!st.multi) { st.multi = true; say('STAR STORM', 3, true); for (let i = 0; i < 2; i++) { const nb = newBall(false); nb.x = 111 + (i ? 10 : -10); nb.y = 140; nb.vy = 200; nb.vx = i ? 120 : -120; } st.saveT = 10; } }
+      if (st.jackLit) { st.jackLit = false; st.jackpots++; add(50000, b); say(E.t('pinball.dmd.jackpot'), 3, true); A.sfx('oneup'); game.flash('#ffffff', .25); P.glints(k.x, k.y, 30, 30, '#ffe080', 20);
+        if (!st.multi) { st.multi = true; say(E.t('pinball.dmd.star_storm'), 3, true); for (let i = 0; i < 2; i++) { const nb = newBall(false); nb.x = 111 + (i ? 10 : -10); nb.y = 140; nb.vy = 200; nb.vx = i ? 120 : -120; } st.saveT = 10; } }
     }
   }
   function drain(b) {
     world.remove(b); balls.splice(balls.indexOf(b), 1);
     if (balls.length) { if (balls.length === 1) st.multi = false; return; }
-    if (st.saveT > 0 && !st.tilted) { say('BALL SAVED', 2); A.sfx('heal'); newBall(); return; }
+    if (st.saveT > 0 && !st.tilted) { say(E.t('pinball.dmd.ball_saved'), 2); A.sfx('heal'); newBall(); return; }
     A.sfx('die'); st.multi = false;
     const bonus = (st.spins * 20 + st.hits * 50 + st.targets * 300 + st.laneHits * 400) * st.mult;
     mode = 'bonus'; modeT = 0; st.bonus = st.tilted ? 0 : bonus;
@@ -271,10 +276,10 @@ const PINBALL = (() => {
     if (st.bonus) add(st.bonus); st.bonus = 0; st.spins = st.hits = st.targets = st.laneHits = 0; st.mult = 1; st.tilted = false; st.tilt = 0;
     const r = cab.die();
     if (r === 'over') { over(); return; }
-    st.ball++; mode = 'play'; modeT = 0; say('BALL ' + st.ball, 1.5); newBall();
+    st.ball++; mode = 'play'; modeT = 0; say(E.t('pinball.dmd.ball', { ball: st.ball }), 1.5); newBall();
   }
   function over() {
-    mode = 'over'; modeT = 0; A.music(null); say('GAME OVER', 4, true);
+    mode = 'over'; modeT = 0; A.music(null); say(E.t('pinball.dmd.game_over'), 4, true);
     const s = cab.p.score; if (!demo && cab.qualifies(s)) { mode = 'entry'; cab.enter(s, '', () => { mode = 'table'; modeT = 0; }); }
   }
 
@@ -287,7 +292,7 @@ const PINBALL = (() => {
     game.input.touchEnabled = false; game.input.zones = null; L.enabled = false; game.follow(null); A.music(null);
   }
   function begin(asDemo) {
-    table(); balls = []; st = fresh(); demo = !!asDemo; cab.start(1, { demo }); mode = 'play'; modeT = 0; newBall(); say('BALL 1', 1.5); if (!demo) A.music(SONG);
+    table(); balls = []; st = fresh(); demo = !!asDemo; cab.start(1, { demo }); mode = 'play'; modeT = 0; newBall(); say(E.t('pinball.dmd.ball', { ball: 1 }), 1.5); if (!demo) A.music(SONG);
   }
   function update(dt) {
     const I = game.input; modeT += dt; if (dmd.msg && (dmd.msg.t -= dt) <= 0) dmd.msg = null;
@@ -314,7 +319,7 @@ const PINBALL = (() => {
       if (ctl.p) plungeT = Math.min(1, plungeT + dt * 1.2);
       else if (plungeT > 0 || swipe > 0) { const k = Math.max(plungeT, Math.min(1, swipe / 70)), b = lanePlunge(); b.vy = -(380 + 560 * k); plungeT = 0; swipe = 0; A.sfx('whoosh'); }
     } else { plungeT = 0; swipe = 0; }
-    if (ctl.n && balls.length) { for (const b of balls) { b.vx += (b.x < 111 ? 1 : -1) * 40; b.vy -= 60; } st.tilt += 1.2; game.shake(.15, 3); A.sfx('bump', { vol: .4 }); if (st.tilt > 3.5 && !st.tilted) { st.tilted = true; say('TILT', 4, true); A.sfx('cancel'); } else if (st.tilt > 2.2) say('DANGER', 1); }
+    if (ctl.n && balls.length) { for (const b of balls) { b.vx += (b.x < 111 ? 1 : -1) * 40; b.vy -= 60; } st.tilt += 1.2; game.shake(.15, 3); A.sfx('bump', { vol: .4 }); if (st.tilt > 3.5 && !st.tilted) { st.tilted = true; say(E.t('pinball.dmd.tilt'), 4, true); A.sfx('cancel'); } else if (st.tilt > 2.2) say(E.t('pinball.dmd.danger'), 1); }
     // the world, then what left it
     world.step(dt);
     for (const b of balls.slice()) { if (b.y > 515) drain(b); }
@@ -358,13 +363,13 @@ const PINBALL = (() => {
     px.disc(g, 52, 336, 7, '#2a7a5a'); px.disc(g, 50, 334, 5, '#4aaa6a'); px.disc(g, 54, 338, 2, '#2a6a4a'); px.dot(g, 48, 332, '#9af0b0');   // (a green moon: nothing a ball could be taken for)
     for (let i = 0; i < 260; i++) { const x = h(i, 1) * TW, y = h(i, 2) * TL, c = h(i, 3) < .2 ? '#ffffff' : h(i, 3) < .6 ? '#a8b0ff' : '#5a5aa0'; px.dot(g, x, y, c); }
     // the logo across the middle, the lane lines, the apron
-    E.font.title(g, 'NEBULA', 111, 262, { align: 'center', scale: 2, colors: ['#ffe0ff', '#ff8ae8', '#a03ac8'], depth: 2 });
-    E.font.title(g, 'RUN', 111, 280, { align: 'center', scale: 2, colors: ['#e0ffff', '#6ae0ff', '#2a7ac8'], depth: 2 });
+    E.font.title(g, E.t('pinball.logo.top'), 111, 262, { align: 'center', scale: 2, colors: ['#ffe0ff', '#ff8ae8', '#a03ac8'], depth: 2 });
+    E.font.title(g, E.t('pinball.logo.bottom'), 111, 280, { align: 'center', scale: 2, colors: ['#e0ffff', '#6ae0ff', '#2a7ac8'], depth: 2 });
     // neon lane lines: the inlanes, the orbit, the ramp's way in; arrows to the shots
     for (const [a, b, c] of [[[28, 334], [28, 414], '#5a6aff'], [[mx(28), 334], [mx(28), 414], '#5a6aff'], [[17, 160], [17, 300], '#ff5ac8'], [[170, 330], [176, 306], '#4ae0ff'], [[182, 330], [176, 306], '#4ae0ff']]) { px.line(g, a[0], a[1], b[0], b[1], E.shade(c, -.3), 3); px.line(g, a[0], a[1], b[0], b[1], c); }
     for (const [x, y, c] of [[176, 345, '#4ae0ff'], [22, 318, '#ff5ac8'], [111, 140, '#ffd040']]) px.poly(g, [[x, y - 9], [x - 6, y + 2], [x + 6, y + 2]], E.shade(c, -.55));
     px.poly(g, [[8, 470], [64, 470], [74, 520], [8, 520]], '#1a1630'); px.poly(g, [[214, 470], [158, 470], [148, 520], [214, 520]], '#1a1630');
-    E.font.text(g, 'SHOOT AGAIN', 111, 498, '#5a4a7a', { align: 'center', outline: false, font: 'tiny' });
+    E.font.text(g, E.t('pinball.shoot_again'), 111, 498, '#5a4a7a', { align: 'center', outline: false, font: 'tiny' });
     // the inserts: unlit glass (lit each frame where they shine)
     for (const L of INSERTS) { px.disc(g, L.x, L.y, L.r, E.shade(L.c, -.62)); px.disc(g, L.x - 1, L.y - 1, Math.max(1, L.r - 2), E.shade(L.c, -.45)); }
     // the plunger lane's floor
@@ -450,10 +455,10 @@ const PINBALL = (() => {
       const a = up >= 12 ? E.mkCanvas(TW, up) : null, b = down >= 12 ? E.mkCanvas(TW, down) : null, h = E.hash2;
       if (a) { const g = E.ctx2d(a); for (let y = 0; y < up; y++) px.rect(g, 0, y, TW, 1, E.mix('#0c0a2a', '#2a1050', y / up)); for (let i = 0; i < 90; i++) px.dot(g, h(i, 7) * TW, h(i, 8) * up, h(i, 9) < .3 ? '#ffffff' : '#8a80c0');
         for (let k = 3; k >= 1; k--) px.ddisc(g, TW * .7, up * .55, Math.min(up, 90) * k / 3, '#8a3aaa', .2);
-        if (up > 70) { px.disc(g, 40, up * .7, 12, '#4aaa6a'); px.disc(g, 37, up * .7 - 3, 7, '#8ae0a0'); E.font.title(g, 'NEBULA', TW / 2, up / 2 - 26, { align: 'center', scale: 3, colors: ['#ffe0ff', '#ff8ae8', '#a03ac8'], depth: 3 }); E.font.title(g, 'RUN', TW / 2, up / 2 + 2, { align: 'center', scale: 3, colors: ['#e0ffff', '#6ae0ff', '#2a7ac8'], depth: 3 }); }
+        if (up > 70) { px.disc(g, 40, up * .7, 12, '#4aaa6a'); px.disc(g, 37, up * .7 - 3, 7, '#8ae0a0'); E.font.title(g, E.t('pinball.logo.top'), TW / 2, up / 2 - 26, { align: 'center', scale: 3, colors: ['#ffe0ff', '#ff8ae8', '#a03ac8'], depth: 3 }); E.font.title(g, E.t('pinball.logo.bottom'), TW / 2, up / 2 + 2, { align: 'center', scale: 3, colors: ['#e0ffff', '#6ae0ff', '#2a7ac8'], depth: 3 }); }
         px.rect(g, 0, up - 3, TW, 3, '#4a3a6a'); px.rect(g, 0, up - 3, TW, 1, '#8a7aaa'); }
       if (b) { const g = E.ctx2d(b); for (let y = 0; y < down; y++) px.rect(g, 0, y, TW, 1, E.mix('#3a3a4a', '#14121c', Math.min(1, y / 40))); px.rect(g, 0, 0, TW, 6, '#c8c8d8'); px.rect(g, 0, 6, TW, 2, '#6a6a7a');
-        if (down > 60) { px.rect(g, TW / 2 - 40, 24, 80, Math.min(70, down - 30), '#2a2830'); for (const x of [TW / 2 - 22, TW / 2 + 14]) { px.rect(g, x, 34, 10, 16, '#8a8a9a'); px.rect(g, x + 4, 37, 2, 10, '#1a1820'); px.rect(g, x - 1, 54, 12, 5, '#c84040'); } E.font.text(g, 'INSERT COIN', TW / 2, 64, '#c8c8d8', { align: 'center', outline: false, font: 'tiny' }); } }
+        if (down > 60) { px.rect(g, TW / 2 - 40, 24, 80, Math.min(70, down - 30), '#2a2830'); for (const x of [TW / 2 - 22, TW / 2 + 14]) { px.rect(g, x, 34, 10, 16, '#8a8a9a'); px.rect(g, x + 4, 37, 2, 10, '#1a1820'); px.rect(g, x - 1, 54, 12, 5, '#c84040'); } E.font.text(g, E.t('pinball.insert_coin'), TW / 2, 64, '#c8c8d8', { align: 'center', outline: false, font: 'tiny' }); } }
       glass = { key, a, b };
     }
     r.decal(g => { if (glass.a) g.drawImage(glass.a, Math.round(ox), dmdH); if (glass.b) g.drawImage(glass.b, Math.round(ox), bottom); });
@@ -474,12 +479,14 @@ const PINBALL = (() => {
    * loop), its dots orange on black; above the table, or down a wide screen's side ---- */
   function dmdBox(W, H) { const k = W >= 300 && H >= 420 ? 2 : 1, w = 128 * k + 6, h = 32 * k + 6, side = (W - TW) / 2 >= w + 8; return { k, w, h: side ? 0 : h, x: side ? 6 : Math.round((W - w) / 2), y: side ? Math.round(H / 2 - h / 2) : 2, ww: w, hh: h }; }
   function dmdText() {
-    const s = cab && cab.p ? cab.p.score : 0, sc = s.toLocaleString('en-US');
-    if (mode === 'title') { const ph = Math.floor(modeT / 3) % 3; return ph === 0 ? ['NEBULA RUN', 'PRESS START'] : ph === 1 ? ['HIGH SCORE', (cab.table('')[0] || { score: 0 }).score.toLocaleString('en-US')] : ['3 BALLS', 'LAST ' + (cab.p ? cab.p.score.toLocaleString('en-US') : '0')]; }
-    if (mode === 'bonus') return ['BONUS ' + st.mult + 'X', st.bonus.toLocaleString('en-US')];
-    if (mode === 'over' || mode === 'entry' || mode === 'table') return ['GAME OVER', sc];
+    const s = cab && cab.p ? cab.p.score : 0, sc = E.lang.num(s);   // (scores in the player's language: 12,500 or 12.500)
+    if (mode === 'title') { const ph = Math.floor(modeT / 3) % 3; return ph === 0 ? [E.t('pinball.name'), E.t('pinball.dmd.press_start')] : ph === 1 ? [E.t('pinball.dmd.high_score'), E.lang.num((cab.table('')[0] || { score: 0 }).score)] : [E.t('pinball.dmd.balls', { count: 3 }), E.t('pinball.dmd.last', { score: cab.p ? cab.p.score : 0 })]; }
+    if (mode === 'bonus') return [E.t('pinball.dmd.bonus', { mult: st.mult }), E.lang.num(st.bonus)];
+    if (mode === 'over' || mode === 'entry' || mode === 'table') return [E.t('pinball.dmd.game_over'), sc];
     if (dmd.msg) return dmd.msg.big ? [dmd.msg.s, sc, 1] : [dmd.msg.s, sc];
-    return [sc, (demo ? 'DEMO  ' : '') + 'BALL ' + st.ball + (st.multi ? '  STORM' : '') + (st.tilted ? '  TILT' : '')];
+    let ball = E.t('pinball.dmd.ball', { ball: st.ball });   // (each state wraps the line: DEMO  BALL 2  STORM  TILT)
+    if (st.multi) ball = E.t('pinball.dmd.with_storm', { status: ball }); if (st.tilted) ball = E.t('pinball.dmd.with_tilt', { status: ball }); if (demo) ball = E.t('pinball.dmd.with_demo', { status: ball });
+    return [sc, ball];
   }
   function hud(r) {
     const W = r.W, H = r.H, B = dmdBox(W, H), lines = dmdText(), key = lines.join('|') + (lines[2] ? Math.floor(game.time * 4) % 2 : '');
@@ -492,10 +499,10 @@ const PINBALL = (() => {
     }
     r.overlay(g => {
       E.ui.box(g, B.x, B.y, B.ww, B.hh, { bg: '#080404', border: '#5a3a2a', gradient: false }); g.drawImage(dmdCv, B.x + 3, B.y + 3);
-      if (mode === 'play' && lanePlunge() && !bot) { const tc = game.input.lastDevice === 'touch'; E.font.text(g, tc ? 'SWIPE UP TO LAUNCH' : 'HOLD SPACE, LET GO TO LAUNCH', W / 2, H - 14, '#ffd8a0', { align: 'center', shadow: '#000', outline: false }); if (plungeT) E.ui.bar(g, W / 2 - 30, H - 22, 60, 4, plungeT, '#ff9a30'); }
-      if (mode === 'title' && !demo) E.font.text(g, game.input.lastDevice === 'touch' ? 'TAP TO PLAY' : 'ENTER TO PLAY', W / 2, H - 14, '#ffd8a0', { align: 'center', shadow: '#000', outline: false });
+      if (mode === 'play' && lanePlunge() && !bot) { const tc = game.input.lastDevice === 'touch'; E.font.text(g, tc ? E.t('pinball.how.launch.touch') : E.lang.upper(E.t('pinball.how.launch.keys')), W / 2, H - 14, '#ffd8a0', { align: 'center', shadow: '#000', outline: false }); if (plungeT) E.ui.bar(g, W / 2 - 30, H - 22, 60, 4, plungeT, '#ff9a30'); }
+      if (mode === 'title' && !demo) E.font.text(g, game.input.lastDevice === 'touch' ? E.t('pinball.how.play.touch') : E.lang.upper(E.t('pinball.how.play.keys')), W / 2, H - 14, '#ffd8a0', { align: 'center', shadow: '#000', outline: false });
     });
-    if (mode === 'table') { r.overlay(g => { g.fillStyle = 'rgba(0,0,0,.78)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cab.drawTable(r, '', Math.max(B.h + 8, Math.round(H / 2 - 82)), 'NEBULA RUN HIGH SCORES'); }
+    if (mode === 'table') { r.overlay(g => { g.fillStyle = 'rgba(0,0,0,.78)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cab.drawTable(r, '', Math.max(B.h + 8, Math.round(H / 2 - 82)), E.t('pinball.table')); }
     else cab.draw(r);
   }
 

@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module DRIVE v0.89.3: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.90.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -31,7 +31,8 @@ for (let i = 0; i < 240; i++) car.update(1 / 120, map, { gas: 1 });
 if (!(car.speed > 150 && car.x > 150 && Math.abs(car.y - 40) < .01)) throw new Error('a car accelerates along its heading');
 ```
 Rules: the angle is a heading (0 east, PI / 2 south) and a mode7 camera's; update cars at the fixed step; a player's
-car takes game.input or its player's input; race.update moves every racer's car, so don't update them yourself.
+car takes game.input or its player's input; race.update moves every racer's car, so don't update them yourself. Its
+words are lines: engine.drive.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -42,6 +43,12 @@ if (!E) throw new Error('my-3D2dge module DRIVE: load engine/my-3d2dge.js (or th
  * ========================================================================== */
 const { clamp, angDiff } = E, TAU = Math.PI * 2;
 const SURFACES = { grass: { top: .5, grip: .9 }, sand: { top: .4, grip: .6 }, dirt: { top: .7, grip: .8 }, ice: { grip: .15 }, boost: { boost: .8 } };
+// its words are lines (docs/LANGUAGES.md), English here: a racer's name when none is given, and the HUD's (a place is a
+// line of its own up to the fourth, then the number's: places differ in every language)
+E.lang.engine({
+  'engine.drive.car': 'CAR {number}', 'engine.drive.place.1': '1ST', 'engine.drive.place.2': '2ND', 'engine.drive.place.3': '3RD', 'engine.drive.place.4': '4TH',
+  'engine.drive.place.n': '{place}TH', 'engine.drive.lap': 'LAP {lap}/{laps}', 'engine.drive.go': 'GO!', 'engine.drive.wrong_way': 'WRONG WAY', 'engine.drive.finish': 'FINISH'
+});
 class Car extends E.Body {
   /** new E.Car({ x, y, angle, top, accel, brake, turn, grip, drift, kart, auto, surfaces, ground }): a car (the manual) */
   constructor(o = {}) {
@@ -134,7 +141,7 @@ class Race {
   /** a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it */
   add(car, o = {}) {
     const d = this.path.nearest(car.x, car.y), L = this.path.length;
-    const R = { car, name: o.name || 'CAR ' + (this.racers.length + 1), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
+    const R = { car, name: o.name || E.t('engine.drive.car', { number: this.racers.length + 1 }), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
     this.racers.push(R); return R;
   }
   /** an item box at (x, y): a racer that drives through it gets an item (when it holds none) */
@@ -207,17 +214,17 @@ class Race {
   hud(r, R, o = {}) {
     const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }, F = E.font, fmt = t => Math.floor(t / 60) + "'" + String(Math.floor(t % 60)).padStart(2, '0') + '"' + String(Math.floor(t * 100 % 100)).padStart(2, '0');
     r.overlay(g => {
-      const x = vp.x + 6, y = vp.y + 6, sfx = ['ST', 'ND', 'RD'][R.place - 1] || 'TH', col = o.color || '#ffffff';
-      F.text(g, R.place + sfx, x, y, R.place === 1 ? '#ffe04a' : col, { scale: 2, shadow: '#000', outline: false });
+      const x = vp.x + 6, y = vp.y + 6, place = R.place <= 4 ? E.t('engine.drive.place.' + R.place) : E.t('engine.drive.place.n', { place: R.place }), col = o.color || '#ffffff';
+      F.text(g, place, x, y, R.place === 1 ? '#ffe04a' : col, { scale: 2, shadow: '#000', outline: false });
       const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
-      F.text(g, 'LAP ' + Math.min(this.o.laps, R.lap + 1) + '/' + this.o.laps, rx, y, col, { align: 'right', shadow: '#000', outline: false });
+      F.text(g, E.t('engine.drive.lap', { lap: Math.min(this.o.laps, R.lap + 1), laps: this.o.laps }), rx, y, col, { align: 'right', shadow: '#000', outline: false });
       F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
       E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;
-      if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : 'GO!', cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
-      if (R.wrong && !R.finished) F.text(g, 'WRONG WAY', cx, cy, '#ff4a3a', { align: 'center', scale: 2, shadow: '#000', outline: false });
-      if (R.finished) F.text(g, 'FINISH', cx, cy, '#ffe04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
+      if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : E.t('engine.drive.go'), cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
+      if (R.wrong && !R.finished) F.text(g, E.t('engine.drive.wrong_way'), cx, cy, '#ff4a3a', { align: 'center', scale: 2, shadow: '#000', outline: false });
+      if (R.finished) F.text(g, E.t('engine.drive.finish'), cx, cy, '#ffe04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
     });
   }
 }

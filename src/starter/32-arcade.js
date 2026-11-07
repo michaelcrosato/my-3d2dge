@@ -21,7 +21,7 @@
 const ARCADE = (() => {
   const KEYS = Object.assign({}, E.Input.SHMUP, { thrust: ['Pad2', 'Pad5'], warp: ['KeyX', 'KeyK', 'ShiftLeft', 'Mouse2', 'Pad1', 'Pad6'], classic: ['KeyC', 'Pad3'] });
   delete KEYS.bomb;
-  game.settings.define({ key: 'arcadeLook', group: 'Arcade', label: 'Look', options: [['remaster', 'Remaster'], ['classic', 'Classic']], value: 'remaster', help: 'Remaster: lit, with HD rigs and glowing lines. Classic: as the cabinets first looked. C switches it in play' });
+  game.settings.define({ key: 'arcadeLook', group: E.t('arcade.setting.group'), label: E.t('arcade.setting.look'), options: [['remaster', E.t('arcade.setting.look.remaster')], ['classic', E.t('arcade.setting.look.classic')]], value: 'remaster', help: E.t('arcade.setting.look.help') });
   const classic = () => game.settings.arcadeLook === 'classic';
   // the cabinet's own tune (the step sequencer's format): A minor, a bouncing bass
   const SONG = { bpm: 132, steps: 4, tracks: [
@@ -152,7 +152,7 @@ const ARCADE = (() => {
           else { deathT = 1.5; A.sfx('die'); return; }
         }
       }
-      if (!seeds.size && !power.size) { level++; cab.card('MAZE ' + level, 2); A.sfx('oneup'); if (level === 2 && !demo) intermission(); build(); reset(); readyT = 2.2; }
+      if (!seeds.size && !power.size) { level++; cab.card(E.t('arcade.maze.card', { level }), 2); A.sfx('oneup'); if (level === 2 && !demo) intermission(); build(); reset(); readyT = 2.2; }
     }
     // after the death's turn: a life gone; the other player's maze (two players, each keeps theirs), or the end
     function lost() {
@@ -244,18 +244,18 @@ const ARCADE = (() => {
           if (w.blue) L.add(p.x, p.y, 6, 22, .5, { color: '#6a7aff' });
         }
       }
-      if (readyT > 0) r.overlay(g => E.font.text(g, 'READY!', X0 + MW * C8 / 2, Y0 + (HY + 6) * C8 + 1, '#ffe040', { align: 'center', outline: false, shadow: '#000' }));
+      if (readyT > 0) r.overlay(g => E.font.text(g, E.t('arcade.maze.ready'), X0 + MW * C8 / 2, Y0 + (HY + 6) * C8 + 1, '#ffe040', { align: 'center', outline: false, shadow: '#000' }));
     }
     function drawInter(r) {
       r.overlay(g => {
         const a = inter, y = Y0 + TUN * C8 + 4, x = X0 + a.x;
-        E.font.text(g, 'INTERMISSION', X0 + MW * C8 / 2, Y0 + 8 * C8, '#ffe070', { align: 'center', outline: false, shadow: '#000' });
+        E.font.text(g, E.t('arcade.maze.intermission'), X0 + MW * C8 / 2, Y0 + 8 * C8, '#ffe070', { align: 'center', outline: false, shadow: '#000' });
         if (!a.big) { px.disc(g, x, y, 4, '#ffe040'); px.disc(g, x - 20, y - 1, 4, '#ff4a4a'); px.rect(g, x - 24, y - 1, 9, 4, '#ff4a4a'); }
         else { px.disc(g, x + 30, y - 1, 4, '#2a3aff'); px.rect(g, x + 26, y - 1, 9, 4, '#2a3aff'); px.disc(g, x, y, 11, '#ffe040'); px.poly(g, [[x, y], [x - 12, y - 6], [x - 12, y + 6]], '#000000'); }
       });
     }
     return {
-      id: 'maze', label: 'MAZE', res: [232, 270], about: 'EAT EVERY SEED, DODGE FOUR WISPS', hue: ['#ffe040', '#4ae8ff', '#ff4a8a'], touch: [], extra: [10000], light: .5,
+      id: 'maze', label: E.t('arcade.maze'), res: [232, 270], about: E.t('arcade.maze.about'), hue: ['#ffe040', '#4ae8ff', '#ff4a8a'], touch: [], extra: [10000], light: .5,
       begin(c, isDemo) { cab = c; demo = !!isDemo; over = false; level = 1; inter = null; wisps = wisps || null; build(); reset(); },
       revive() { over = false; reset(); },   // after a continue: the same maze, everyone back in place
       force() { over = true; },
@@ -281,7 +281,7 @@ const ARCADE = (() => {
     let cab, demo, foes, shots, bombs, ship, wave, sway, dead, over, readyT, stars = [], X0 = 0, Y0 = 0;
     // a wave: five groups of eight fly in from alternate sides, a loop on the way, each to its own place (Catmull paths)
     function newWave() {
-      foes = []; wave++; cab.card('STAGE ' + wave, 1.8); readyT = Math.max(readyT, .6);
+      foes = []; wave++; cab.card(E.t('arcade.formation.card', { wave }), 1.8); readyT = Math.max(readyT, .6);
       SLOTS.forEach((s, i) => {
         const group = Math.floor(i / 8), side = group % 2 ? 1 : -1, k = i % 8;
         const path = new E.Path([[FW / 2 + side * 150, -20], [FW / 2 + side * 70, 80], [FW / 2 - side * 20, 170], [FW / 2 - side * 70, 120], [FW / 2 - side * 30, 70], [s.x, s.y]], { smooth: 'catmull' });
@@ -360,7 +360,7 @@ const ARCADE = (() => {
       if (dead <= 0 && !over && (readyT <= 0 || Math.floor(readyT * 8) % 2)) r.sprite(x0 + ship.x, y0 + ship.y, 0, SHIP, { anchor: 'center', glow: cl ? 0 : .4 });
     }
     return {
-      id: 'formation', label: 'FORMATION', res: [232, 270], about: 'MOTHS FLY IN, FORM UP AND DIVE', hue: ['#4a8aff', '#ff4a4a', '#ffe040'], touch: ['fire'], extra: [20000, 70000], light: 0, fills: true,
+      id: 'formation', label: E.t('arcade.formation'), res: [232, 270], about: E.t('arcade.formation.about'), hue: ['#4a8aff', '#ff4a4a', '#ffe040'], touch: ['fire'], extra: [20000, 70000], light: 0, fills: true,
       begin, revive() { over = false; ship.x = FW / 2; bombs.length = 0; readyT = 1.4; }, force() { over = true; }, step, draw,
       box: () => [X0, Y0, FW, FH], edges: () => [X0 - 2, X0 + FW + 2],
       get over() { return over; }, get level() { return wave; },
@@ -374,7 +374,7 @@ const ARCADE = (() => {
     let cab, demo, ship, rocks, shots, saucer, over, wave, deadT, readyT, sparks, X0 = 0, Y0 = 0;
     // a rock: a ring of lumpy points; size 3 big, 2, 1 small; the smaller, the faster
     const rock = (x, y, size) => { const n = 8 + size * 2, R = [0, 5, 10, 18][size], a = Math.random() * TAU, sp = (52 - size * 11) * (.6 + Math.random() * .6); return { x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, size, R, rot: 0, spin: (Math.random() - .5) * 2, pts: Array.from({ length: n }, (_, i) => { const t = i / n * TAU, k = .75 + Math.random() * .35; return [Math.cos(t) * R * k, Math.sin(t) * R * k]; }) }; };
-    function newWave() { wave++; rocks = []; for (let i = 0; i < 3 + wave; i++) { const edge = Math.random() < .5; rocks.push(rock(edge ? 0 : Math.random() * RW, edge ? Math.random() * RH : 0, 3)); } if (wave > 1) cab.card('WAVE ' + wave, 1.4); }
+    function newWave() { wave++; rocks = []; for (let i = 0; i < 3 + wave; i++) { const edge = Math.random() < .5; rocks.push(rock(edge ? 0 : Math.random() * RW, edge ? Math.random() * RH : 0, 3)); } if (wave > 1) cab.card(E.t('arcade.rocks.card', { wave }), 1.4); }
     const home = () => Object.assign(ship, { x: RW / 2, y: RH / 2, vx: 0, vy: 0, a: -Math.PI / 2 });
     function begin(c, isDemo) { cab = c; demo = !!isDemo; wave = 0; over = false; shots = []; saucer = null; sparks = []; deadT = 0; readyT = 1.2; ship = { cool: 0, thrust: false }; layout(); home(); newWave(); }
     const wd = (a, b, s) => E.wrapDiff(a, b, s), far = (a, b) => Math.hypot(wd(a.x, b.x, RW), wd(a.y, b.y, RH));
@@ -462,7 +462,7 @@ const ARCADE = (() => {
       });
     }
     return {
-      id: 'rocks', label: 'ROCKS', res: [320, 240], about: 'TURN, THRUST, SPLIT THE ROCKS', hue: ['#c8d8ff', '#8ab8ff', '#ff8a4a'], touch: ['fire', 'thrust', 'warp'], every: 10000, light: 0, fills: true,
+      id: 'rocks', label: E.t('arcade.rocks'), res: [320, 240], about: E.t('arcade.rocks.about'), hue: ['#c8d8ff', '#8ab8ff', '#ff8a4a'], touch: ['fire', 'thrust', 'warp'], every: 10000, light: 0, fills: true,
       begin, revive() { over = false; home(); readyT = 1.4; }, force() { over = true; }, step, draw,
       box: () => [X0, Y0, RW, RH], edges: () => [X0 - 2, X0 + RW + 2],
       get over() { return over; }, get level() { return wave; },
@@ -481,7 +481,7 @@ const ARCADE = (() => {
     // the end: each player's initials in turn (the best first) where they make the table, then the table
     const ending = (order = cab.players.slice().sort((a, b) => b.score - a.score)) => {
       const p = order.shift(); if (!p) { stage = 'table'; tableT = 0; A.music(null); return; }
-      if (cab.qualifies(p.score)) { stage = 'entry'; if (cab.players.length > 1) cab.say('PLAYER ' + p.n, 30); cab.enter(p.score, '', () => { cab.clear(); ending(order); }); } else ending(order);
+      if (cab.qualifies(p.score)) { stage = 'entry'; if (cab.players.length > 1) cab.say(E.t('arcade.player', { n: p.n }), 30); cab.enter(p.score, '', () => { cab.clear(); ending(order); }); } else ending(order);
     };
     const scene = {
       view: 'overhead', views: ['overhead'], input: KEYS, res: G.res, expand: true, pausable: true, touch: G.touch, camera: { zoom: false },
@@ -489,14 +489,14 @@ const ARCADE = (() => {
         demo = !!(d && d.demo); demoT = 0; stage = 'play'; tableT = 0;
         game.follow(null); game.cam.bounds = null; game.focus(game.W / 2, game.H / 2, 0); game.cam.snap = true;
         L.enabled = !classic() && G.light > 0; L.ambient = G.light; L.dark = [4, 2, 14]; L.refresh();
-        if (G.id === 'rocks') { game.input.touchSet('thrust', 'THRUST'); game.input.touchSet('warp', 'WARP'); }
+        if (G.id === 'rocks') { game.input.touchSet('thrust', E.lang.upper(E.t('action.thrust'))); game.input.touchSet('warp', E.lang.upper(E.t('action.warp'))); }
         cab.start(demo ? 1 : players, { demo }); G.begin(cab, demo); A.music(null);
       },
       exit() { L.enabled = false; },
       back() { game.go('arcade'); return true; },
       update(dt) {
         const I = game.input; game.focus(game.W / 2, game.H / 2, 0);
-        if (I.pressed('classic')) { game.settings.set('arcadeLook', classic() ? 'remaster' : 'classic'); L.enabled = !classic() && G.light > 0; game.note(classic() ? 'CLASSIC LOOK' : 'REMASTER'); }
+        if (I.pressed('classic')) { game.settings.set('arcadeLook', classic() ? 'remaster' : 'classic'); L.enabled = !classic() && G.light > 0; game.note(E.t(classic() ? 'arcade.note.classic' : 'arcade.note.remaster')); }
         cab.update(dt);
         if (demo) { demoT += dt; if (I.anyPressed() || I.clicked() || demoT > 30 || G.over) { front.endDemo(); game.go('arcade', { scores: G.id }, { fade: 'black' }); return; } G.step(dt, I); return; }
         if (cab.entry || cab.continuing) return;
@@ -506,7 +506,7 @@ const ARCADE = (() => {
       },
       draw(r) {
         G.draw(r); const [e0, e1] = G.edges(), b = G.box(); cabinet(r, e0, e1, G.hue, G.fills ? 0 : b[1], G.fills ? r.H : b[1] + b[3], G.label);
-        if (stage === 'table') { r.overlay(g => { g.fillStyle = 'rgba(0,0,0,.78)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cab.drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), G.label + ' HIGH SCORES'); }
+        if (stage === 'table') { r.overlay(g => { g.fillStyle = 'rgba(0,0,0,.78)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cab.drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), E.t('arcade.table', { game: G.label })); }
         else cab.draw(r, G.box());
       },
       /** the end of a game, now, with score (tools/phone-test.mjs: the way to the table): lives to none; the continue when
@@ -547,7 +547,7 @@ const ARCADE = (() => {
         px.rect(g, 0, r.H - 30, r.W, 30, '#1a0a26'); for (let x = 0; x < r.W; x += 16) px.rect(g, x + ((x / 16) % 2) * 8, r.H - 30, 8, 1, '#3a1a4a');
         // the cabinets in a row, as tall as they can stand (to 1.9 times their width), centred on a tall screen
         const n = GAMES.length, w = Math.min(84, Math.floor((r.W - 24) / n) - 8), gap = 8, x0 = Math.round(r.W / 2 - (n * w + (n - 1) * gap) / 2), hgt = Math.min(Math.round(w * 1.9), r.H - 50 - top - 70), y = Math.max(50 + top, Math.round((r.H - hgt) / 2 - 10));
-        E.font.title(g, 'ARCADE', r.W / 2, y - 40, { align: 'center', scale: 4, colors: ['#ffffff', '#ffe040', '#ff8a40', '#ff4a8a'], depth: 3 });
+        E.font.title(g, E.t('arcade.title'), r.W / 2, y - 40, { align: 'center', scale: 4, colors: ['#ffffff', '#ffe040', '#ff8a40', '#ff4a8a'], depth: 3 });
         cabsAt = [];
         GAMES.forEach((G, i) => {   // a cabinet: a lit marquee, a screen showing the game's own picture, the control panel
           const x = x0 + i * (w + gap), on = i === pick, sh = Math.round(hgt * .5);
@@ -564,16 +564,16 @@ const ARCADE = (() => {
           px.blend(g, .12, 'add', () => px.rect(g, sx, sy, sw, 3, '#ffffff'));
           const py = sy + sh + 5; px.rect(g, x + 3, py, w - 6, Math.max(10, hgt - (py - y) - 14), '#140c22');
           px.disc(g, x + 14, py + 8, 4, '#ff4a4a'); px.rect(g, x + 13, py + 1, 2, 7, '#c8c8d0'); px.disc(g, x + w - 22, py + 8, 3, '#ffe040'); px.disc(g, x + w - 12, py + 8, 3, '#4ae8ff');
-          const hi = cabs[G.id].table()[0]; E.font.text(g, 'HI ' + (hi ? hi.score : 0), x + w / 2, y + hgt - 10, '#c8b8f0', { align: 'center', outline: false, font: 'tiny' });
+          const hi = cabs[G.id].table()[0]; E.font.text(g, E.t('arcade.hi', { score: String(hi ? hi.score : 0) }), x + w / 2, y + hgt - 10, '#c8b8f0', { align: 'center', outline: false, font: 'tiny' });
           if (on) { const k = Math.floor(t * 3) % 2 ? '#ffffff' : '#ffe040'; px.rect(g, x - 2, y - 2, w + 4, 2, k); px.rect(g, x - 2, y + hgt, w + 4, 2, k); px.rect(g, x - 2, y, 2, hgt, k); px.rect(g, x + w, y, 2, hgt, k); }
         });
         // one or two players (up and down, or a tap on it)
         const by = y + hgt + 6, bw = 96, bh = touch() ? 34 : 16; cabsAt.push([Math.round(r.W / 2 - bw / 2), by, bw, bh]);   // (a thumb's size on a touch screen)
-        px.rect(g, r.W / 2 - bw / 2, by, bw, bh, '#2a1a3e'); E.font.text(g, players === 1 ? '< 1 PLAYER >' : '< 2 PLAYERS >', r.W / 2, by + bh / 2 - 3, '#ffe7a8', { align: 'center', outline: false });
+        px.rect(g, r.W / 2 - bw / 2, by, bw, bh, '#2a1a3e'); E.font.text(g, E.t('arcade.players', { count: players }), r.W / 2, by + bh / 2 - 3, '#ffe7a8', { align: 'center', outline: false });
         E.font.text(g, GAMES[pick].about, r.W / 2, r.H - 22, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
-        E.font.text(g, touch() ? 'TAP A CABINET TO PLAY' : game.input.lastDevice === 'gamepad' ? 'D-PAD + ' + game.input.label('confirm') + '   Y CLASSIC LOOK' : 'ARROWS + ENTER   C CLASSIC LOOK', r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+        E.font.text(g, touch() ? E.t('arcade.how.touch') : game.input.lastDevice === 'gamepad' ? E.t('arcade.how.pad') : E.lang.upper(E.t('arcade.how.keys')), r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
       });
-      if (showTable) { r.overlay(g => { g.fillStyle = 'rgba(4,2,12,.88)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cabs[showTable].drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), GAMES.find(G => G.id === showTable).label + ' HIGH SCORES'); }
+      if (showTable) { r.overlay(g => { g.fillStyle = 'rgba(4,2,12,.88)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cabs[showTable].drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), E.t('arcade.table', { game: GAMES.find(G => G.id === showTable).label })); }
     },
     back() { game.go('title'); return true; },
     /** the bot (tools/kits-test.mjs): each game played by its own demo pilot, from a seed, until it clears two stages (or

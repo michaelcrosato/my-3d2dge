@@ -1,0 +1,35 @@
+{
+ "lines": {
+  "platformer3d.boot": "The course",
+  "platformer3d.hud.coins": "COINS {coins}",
+  "platformer3d.hud.stars": "STARS {stars}/{of}",
+  "platformer3d.note.star": "STAR {star} OF {of}",
+  "platformer3d.note.checkpoint": "CHECKPOINT",
+  "platformer3d.sign.1": "THREE STARS ARE HIDDEN ON THE COURSE.",
+  "platformer3d.sign.2": "THE FLAG IS FAR TO THE NORTH. GOOD LUCK!",
+  "platformer3d.hint.jump": "jump (twice: double)",
+  "platformer3d.hint.dash": "dash",
+  "platformer3d.hint.camera": "camera",
+  "platformer3d.over.won": "COURSE CLEAR",
+  "platformer3d.over.stars": "STARS {stars} OF {of}   COINS {coins}",
+  "platformer3d.over.time": "TIME {time} S",
+  "platformer3d.over.lost": "COINS {coins}   STARS {stars} OF {of}"
+ },
+ "notes": {
+  "platformer3d.boot": "A step on the loading screen while the game builds the course of grass islands.",
+  "platformer3d.hud.stars": "The stars found of the three hidden ones, as 1/3.",
+  "platformer3d.note.star": "A hidden star just found: the first, second or third of three.",
+  "platformer3d.note.checkpoint": "A checkpoint flag reached: a fall now starts again here.",
+  "platformer3d.sign.1": "A signpost at the start: the first of its two rows (the box is about 40 letters wide).",
+  "platformer3d.sign.2": "The signpost's second row. The goal flag is at the far (north) end of the course.",
+  "platformer3d.hint.jump": "A button prompt's word, after the key (\"Space jump (twice: double)\"): press it again in the air for a double jump.",
+  "platformer3d.hint.dash": "A button prompt's word, after the key: dash.",
+  "platformer3d.hint.camera": "A button prompt's word, after the key: change the camera.",
+  "platformer3d.over.won": "The title over the end screen when the goal flag is reached.",
+  "platformer3d.over.time": "The time the course took: {time} in seconds (12.5), S for seconds.",
+  "platformer3d.over.lost": "The end screen after the last heart is lost."
+ },
+ "max": {},
+ "names": [],
+ "brief": "The 3D platformer slice: a sunny course of grass islands over the void, like Mario 64 or Spyro, run from the start to a flag in the north, with coins, three hidden stars, slimes to stomp and checkpoint flags. The hero is a man in a red cap and is never named; the words are a short HUD, notes, a signpost's hint and the end screen, in capitals, cheerful in tone."
+}

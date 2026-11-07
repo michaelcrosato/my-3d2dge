@@ -1,0 +1,46 @@
+{
+ "lines": {
+  "kart.title": "KART",
+  "kart.menu.race": "RACE",
+  "kart.menu.vs": "VS (2 PLAYERS)",
+  "kart.menu.back": "BACK",
+  "kart.menu.again": "RACE AGAIN",
+  "kart.menu.menu": "MENU",
+  "kart.join": "PLAYER 2: PRESS 2 OR START ON A PAD",
+  "kart.results.row": "{place}. {name}",
+  "kart.name.nova": "NOVA",
+  "kart.name.luma": "LUMA",
+  "kart.name.brakk": "BRAKK",
+  "kart.name.iris": "IRIS",
+  "kart.name.tok": "TOK",
+  "kart.name.rook": "ROOK",
+  "action.gas": "Gas",
+  "action.brake": "Brake",
+  "action.drift": "Drift",
+  "action.item": "Item"
+ },
+ "notes": {
+  "kart.title": "The kart racer's title, on its menu.",
+  "kart.menu.race": "A mode: you against five CPU drivers.",
+  "kart.menu.vs": "A mode: two players in a split screen (VS: versus).",
+  "kart.menu.back": "Back to the title screen (a menu entry).",
+  "kart.menu.again": "After the race: race once more.",
+  "kart.menu.menu": "After the race: back to the kart menu.",
+  "kart.join": "2 is the key on a keyboard, START the button on a gamepad: keep them as they are.",
+  "kart.results.row": "A row of the results: {place} is the finishing place (1 to 6, a plain number), {name} the driver's name.",
+  "action.gas": "Accelerate: an action's name on the controls screen.",
+  "action.brake": "An action's name on the controls screen and its touch button.",
+  "action.drift": "Hop into a bend and slide through it: an action's name on the controls screen and its touch button.",
+  "action.item": "Use the item you hold (a boost, a shell, a peel): an action's name on the controls screen and its touch button."
+ },
+ "max": {},
+ "names": [
+  "NOVA",
+  "LUMA",
+  "BRAKK",
+  "IRIS",
+  "TOK",
+  "ROOK"
+ ],
+ "brief": "The kart racer: Mode 7 karts in the spirit of Super Mario Kart. Six drivers (NOVA, LUMA, BRAKK, IRIS, TOK and ROOK: made-up names, gender not stated) race three laps of a meadow circuit, you against five CPU drivers or two players in a split screen. Arcade tone: short words in capitals."
+}

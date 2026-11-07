@@ -14,13 +14,14 @@
 const ROAD = (() => {
   const A = game.audio, SEG = 200, KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2'], gear: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5', 'Pad7'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
-  /* ---- THE STAGE: five stretches, each its colors and sky; checkpoints between them; the goal at the end ---- */
+  /* ---- THE STAGE: five stretches, each its colors and sky; checkpoints between them; the goal at the end. The words on
+   * the road (an area's name, the signs, the arches) are lines (road.*) ---- */
   const AREAS = [
-    { name: 'COCONUT BEACH', sky: 'ocean', colors: { grass: ['#e8d8a0', '#dccb90'], rumble: ['#f0f0f0', '#d83030'] } },
-    { name: 'GREEN HILLS', sky: 'day', colors: { grass: ['#4aa848', '#3e9a3e'], rumble: ['#f0f0f0', '#3050c0'] } },
-    { name: 'CLIFF TUNNEL', sky: 'day', colors: { grass: ['#6a5a48', '#5e5040'], rumble: ['#f0f0f0', '#d83030'] } },
-    { name: 'DESERT AT DUSK', sky: 'dusk', colors: { grass: ['#d8a060', '#c89050'], rumble: ['#f0e0c0', '#b04820'], road: ['#6a6070', '#625868'] } },
-    { name: 'CITY NIGHTS', sky: 'city-night', colors: { grass: ['#2a2a3a', '#24243a'], rumble: ['#e0e0f0', '#e0b030'], road: ['#4a4a58', '#444452'], lane: '#e0d060' } }];
+    { name: E.t('road.area.beach'), sky: 'ocean', colors: { grass: ['#e8d8a0', '#dccb90'], rumble: ['#f0f0f0', '#d83030'] } },
+    { name: E.t('road.area.hills'), sky: 'day', colors: { grass: ['#4aa848', '#3e9a3e'], rumble: ['#f0f0f0', '#3050c0'] } },
+    { name: E.t('road.area.tunnel'), sky: 'day', colors: { grass: ['#6a5a48', '#5e5040'], rumble: ['#f0f0f0', '#d83030'] } },
+    { name: E.t('road.area.desert'), sky: 'dusk', colors: { grass: ['#d8a060', '#c89050'], rumble: ['#f0e0c0', '#b04820'], road: ['#6a6070', '#625868'] } },
+    { name: E.t('road.area.city'), sky: 'city-night', colors: { grass: ['#2a2a3a', '#24243a'], rumble: ['#e0e0f0', '#e0b030'], road: ['#4a4a58', '#444452'], lane: '#e0d060' } }];
   const road = new E.Road({ segment: SEG, lanes: 3, draw: 200, fog: null });
   const AT = [];   // where each area starts (a segment)
   const stretch = (ai, parts) => { AT.push(road.segs.length); for (const [n, o] of parts) road.add(n, Object.assign({ colors: AREAS[ai].colors }, o)); };
@@ -43,20 +44,20 @@ const ROAD = (() => {
     else if (a === 2) road.place(z, side * 1.7, ROCK, 70);
     else if (a === 3) road.place(z, side * (1.5 + r / 120), r < 70 ? CACTUS : ROCK, 60);
     else road.place(z, side * (2 + r / 200), bldg(900 + r * 8, 1600 + r * 30, ['#2a2a4a', '#3a2a4a', '#2a3a4a'][r % 3], '#ffd870'), 1);
-    if (r < 12) road.place(z + SEG * 2, -side * 1.4, sign(['SLOW', 'GOAL', 'TURN'][r % 3]), 1);
+    if (r < 12) road.place(z + SEG * 2, -side * 1.4, sign(E.t('road.sign.' + ['slow', 'goal', 'turn'][r % 3])), 1);
   }
-  CHECKS.forEach((z, i) => road.place(z, 0, arch('CHECKPOINT', '#2a8a3a'), 1));
-  road.place(GOAL, 0, arch('GOAL', '#d02a2a'), 1);
+  CHECKS.forEach((z, i) => road.place(z, 0, arch(E.t('road.arch.checkpoint'), '#2a8a3a'), 1));
+  road.place(GOAL, 0, arch(E.t('road.arch.goal'), '#d02a2a'), 1);
   const SONGS = [
-    { name: 'SEA BREEZE', bpm: 132, steps: 4, tracks: [
+    { name: E.t('road.song.breeze'), bpm: 132, steps: 4, tracks: [
       { wave: 'square', vol: .06, notes: 'E5 . G5 A5 . G5 E5 D5 | C5 . D5 E5 . . . . | E5 . G5 A5 . B5 A5 G5 | A5 . G5 E5 . . D5 .' },
       { wave: 'triangle', vol: .26, notes: 'A2 . A3 . A2 . A3 . | F2 . F3 . F2 . F3 . | C3 . C4 . C3 . C4 . | G2 . G3 . G2 . G3 .' },
       { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s . h h' }] },
-    { name: 'SUNSET DRIVE', bpm: 112, steps: 4, tracks: [
+    { name: E.t('road.song.sunset'), bpm: 112, steps: 4, tracks: [
       { wave: 'pulse12', vol: .06, notes: 'D5 - - F5 E5 - D5 - | C5 - - - A4 - - - | D5 - - F5 A5 - G5 - | F5 - E5 - D5 - - -' },
       { wave: 'triangle', vol: .26, notes: 'D3 . . D3 . . A2 . | F2 . . F2 . . C3 . | G2 . . G2 . . D3 . | A2 . . A2 . . C3 .' },
       { wave: 'drums', vol: .06, notes: 'k . . h s . . h k . k h s . . h' }] },
-    { name: 'NEON HIGHWAY', bpm: 150, steps: 4, tracks: [
+    { name: E.t('road.song.neon'), bpm: 150, steps: 4, tracks: [
       { wave: 'square', vol: .05, notes: 'A4 A5 E5 A4 G5 E5 C5 G4 | F4 F5 C5 F4 E5 C5 A4 E4 | G4 G5 D5 G4 F5 D5 B4 F4 | E4 E5 B4 E4 G#5 E5 B4 G#4' },
       { wave: 'triangle', vol: .26, notes: 'A1 A2 A1 A2 A1 A2 A1 A2 | F1 F2 F1 F2 F1 F2 F1 F2 | G1 G2 G1 G2 G1 G2 G1 G2 | E1 E2 E1 E2 E1 E2 E1 E2' },
       { wave: 'drums', vol: .07, notes: 'k h s h k h s h k h s h k k s h' }] }];
@@ -80,7 +81,7 @@ const ROAD = (() => {
   }
   function update(dt) {
     const I = game.input; t += dt;
-    for (const k of ['brake', 'gear']) I.touchSet(k, k === 'gear' ? (gear ? 'HIGH' : 'LOW') : null, mode === 'drive');
+    for (const k of ['brake', 'gear']) I.touchSet(k, k === 'gear' ? E.t(gear ? 'road.gear.high' : 'road.gear.low') : null, mode === 'drive');
     if (mode === 'radio') {
       if (I.pressed('left') || I.pressed('right')) { song = (song + (I.pressed('left') ? 2 : 1)) % 3; A.music(SONGS[song]); A.sfx('select'); }
       const tap = I.clicked && I.clicked(); if (tap) { const k = Math.floor(tap[0] / (game.W / 3)); if (k === song) begin(); else { song = clamp(k, 0, 2); A.music(SONGS[song]); A.sfx('select'); } }
@@ -135,27 +136,27 @@ const ROAD = (() => {
     road.draw(r, { z: cz, x: mode === 'radio' ? 0 : x, h: H, turn, cars: traffic });
     r.overlay(g => {
       if (mode === 'radio') {
-        E.font.title(g, 'ROAD', W / 2, 26, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
-        E.font.text(g, 'PICK A SONG', W / 2, Hs / 2 - 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.title(g, E.t('road.title'), W / 2, 26, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
+        E.font.text(g, E.t('road.radio'), W / 2, Hs / 2 - 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         SONGS.forEach((s, k) => { const xx = Math.round(W * (k + .5) / 3); E.ui.box(g, xx - 46, Hs / 2 - 14, 92, 26, { bg: k === song ? '#3a2a6a' : '#141a3a', border: k === song ? '#ffe04a' : '#8888aa' }); E.font.text(g, s.name, xx, Hs / 2 - 4, k === song ? '#ffe04a' : '#c8c8e0', { align: 'center', outline: false, font: 'tiny' }); });
-        E.font.text(g, (touch() ? 'TAP A SONG, TAP IT AGAIN TO DRIVE' : 'LEFT / RIGHT, THEN ' + I.label('confirm')), W / 2, Hs / 2 + 24, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+        E.font.text(g, E.t(touch() ? 'road.radio.touch' : 'road.radio.keys'), W / 2, Hs / 2 + 24, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
         return;
       }
       const p = road.project(z + ahead, x, 0), cs = Math.max(.6, Hs / 200);
       if (p) { drawCar(g, p[0], p[1], cs, crash > 0 ? Math.sin(crash * 18) * 1.5 : I.move()[0], Math.abs(x) > 1.05 && speed > 20); if (crash > 0) { const al = g.globalAlpha; g.globalAlpha = .7; for (let k = 0; k < 4; k++) E.px.disc(g, p[0] + Math.sin(t * 7 + k * 2) * 16 * cs, p[1] - (12 + k * 6 + (t * 30 % 6)) * cs, (3 + k * 1.5) * cs, k % 2 ? '#d8d8d8' : '#a8a8b0'); g.globalAlpha = al; } }
       // the HUD: the clock, the speed and gear, the score, the stage's progress
-      E.font.text(g, 'TIME', W / 2, 4, '#ffe04a', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+      E.font.text(g, E.t('road.hud.time'), W / 2, 4, '#ffe04a', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
       E.font.text(g, String(Math.ceil(clock)), W / 2, 12, clock < 10 && Math.floor(t * 4) % 2 ? '#ff4030' : '#ffffff', { align: 'center', scale: 3, shadow: '#000', outline: false });
-      E.font.text(g, 'SCORE ' + score, 6, 6, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' });
-      const bx = Math.min(cornerX(), W) - 6; E.font.text(g, kmh() + ' KM/H', bx, Hs - 26, '#ffffff', { align: 'right', scale: 2, shadow: '#000', outline: false });
-      E.font.text(g, gear ? 'HIGH' : 'LOW', bx, Hs - 10, gear ? '#ff9a3a' : '#5ae05a', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
+      E.font.text(g, E.t('road.hud.score', { score: String(score) }), 6, 6, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' });
+      const bx = Math.min(cornerX(), W) - 6; E.font.text(g, E.t('road.hud.speed', { speed: kmh() }), bx, Hs - 26, '#ffffff', { align: 'right', scale: 2, shadow: '#000', outline: false });
+      E.font.text(g, E.t(gear ? 'road.gear.high' : 'road.gear.low'), bx, Hs - 10, gear ? '#ff9a3a' : '#5ae05a', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
       const pw = Math.min(120, W / 3), px0 = 6, py = 16; E.px.rect(g, px0, py, pw, 3, '#203050'); E.px.rect(g, px0, py, pw * Math.min(1, (z + ahead) / GOAL), 3, '#ffe04a');
       for (const c of CHECKS) E.px.rect(g, px0 + pw * c / GOAL, py - 1, 1, 5, '#5ae05a');
-      if (banner) E.font.text(g, (banner.check ? 'EXTENDED PLAY! ' : '') + banner.text, W / 2, Hs * .3, banner.check ? '#5ae05a' : '#ffffff', { align: 'center', scale: 2, shadow: '#000', outline: false });
+      if (banner) E.font.text(g, banner.check ? E.t('road.banner.check', { area: banner.text }) : banner.text, W / 2, Hs * .3, banner.check ? '#5ae05a' : '#ffffff', { align: 'center', scale: 2, shadow: '#000', outline: false });
       if (mode === 'over' || mode === 'goal') {
-        E.font.title(g, mode === 'goal' ? 'GOAL!' : 'GAME OVER', W / 2, Hs * .3, { scale: 3, align: 'center', colors: mode === 'goal' ? ['#fff6d0', '#ffd060', '#e8782a'] : ['#ffffff', '#ff8a6a', '#c0302a'] });
-        E.font.text(g, 'SCORE ' + score + '   DISTANCE ' + Math.round((z + ahead) / GOAL * 100) + '%', W / 2, Hs * .3 + 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        if (endT > 1.5) E.font.text(g, prompt('confirm', 'TO DRIVE AGAIN'), W / 2, Hs * .3 + 44, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+        E.font.title(g, E.t(mode === 'goal' ? 'road.goal' : 'road.over'), W / 2, Hs * .3, { scale: 3, align: 'center', colors: mode === 'goal' ? ['#fff6d0', '#ffd060', '#e8782a'] : ['#ffffff', '#ff8a6a', '#c0302a'] });
+        E.font.text(g, E.t('road.end', { score: String(score), distance: Math.round((z + ahead) / GOAL * 100) }), W / 2, Hs * .3 + 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        if (endT > 1.5) E.font.text(g, prompt('confirm', E.t('road.again')), W / 2, Hs * .3 + 44, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
       }
     });
   }

@@ -1,5 +1,5 @@
 // The ROAD kit's game (a pseudo-3D coast road against the clock: curves, hills, a tunnel, traffic, checkpoints, a radio), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/66-road.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/66-road.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. road.html plays it; node kits/test.mjs road runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -172,13 +177,14 @@ scenes.over = {
 const ROAD = (() => {
   const A = game.audio, SEG = 200, KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2'], gear: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5', 'Pad7'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
-  /* ---- THE STAGE: five stretches, each its colors and sky; checkpoints between them; the goal at the end ---- */
+  /* ---- THE STAGE: five stretches, each its colors and sky; checkpoints between them; the goal at the end. The words on
+   * the road (an area's name, the signs, the arches) are lines (road.*) ---- */
   const AREAS = [
-    { name: 'COCONUT BEACH', sky: 'ocean', colors: { grass: ['#e8d8a0', '#dccb90'], rumble: ['#f0f0f0', '#d83030'] } },
-    { name: 'GREEN HILLS', sky: 'day', colors: { grass: ['#4aa848', '#3e9a3e'], rumble: ['#f0f0f0', '#3050c0'] } },
-    { name: 'CLIFF TUNNEL', sky: 'day', colors: { grass: ['#6a5a48', '#5e5040'], rumble: ['#f0f0f0', '#d83030'] } },
-    { name: 'DESERT AT DUSK', sky: 'dusk', colors: { grass: ['#d8a060', '#c89050'], rumble: ['#f0e0c0', '#b04820'], road: ['#6a6070', '#625868'] } },
-    { name: 'CITY NIGHTS', sky: 'city-night', colors: { grass: ['#2a2a3a', '#24243a'], rumble: ['#e0e0f0', '#e0b030'], road: ['#4a4a58', '#444452'], lane: '#e0d060' } }];
+    { name: E.t('road.area.beach'), sky: 'ocean', colors: { grass: ['#e8d8a0', '#dccb90'], rumble: ['#f0f0f0', '#d83030'] } },
+    { name: E.t('road.area.hills'), sky: 'day', colors: { grass: ['#4aa848', '#3e9a3e'], rumble: ['#f0f0f0', '#3050c0'] } },
+    { name: E.t('road.area.tunnel'), sky: 'day', colors: { grass: ['#6a5a48', '#5e5040'], rumble: ['#f0f0f0', '#d83030'] } },
+    { name: E.t('road.area.desert'), sky: 'dusk', colors: { grass: ['#d8a060', '#c89050'], rumble: ['#f0e0c0', '#b04820'], road: ['#6a6070', '#625868'] } },
+    { name: E.t('road.area.city'), sky: 'city-night', colors: { grass: ['#2a2a3a', '#24243a'], rumble: ['#e0e0f0', '#e0b030'], road: ['#4a4a58', '#444452'], lane: '#e0d060' } }];
   const road = new E.Road({ segment: SEG, lanes: 3, draw: 200, fog: null });
   const AT = [];   // where each area starts (a segment)
   const stretch = (ai, parts) => { AT.push(road.segs.length); for (const [n, o] of parts) road.add(n, Object.assign({ colors: AREAS[ai].colors }, o)); };
@@ -201,20 +207,20 @@ const ROAD = (() => {
     else if (a === 2) road.place(z, side * 1.7, ROCK, 70);
     else if (a === 3) road.place(z, side * (1.5 + r / 120), r < 70 ? CACTUS : ROCK, 60);
     else road.place(z, side * (2 + r / 200), bldg(900 + r * 8, 1600 + r * 30, ['#2a2a4a', '#3a2a4a', '#2a3a4a'][r % 3], '#ffd870'), 1);
-    if (r < 12) road.place(z + SEG * 2, -side * 1.4, sign(['SLOW', 'GOAL', 'TURN'][r % 3]), 1);
+    if (r < 12) road.place(z + SEG * 2, -side * 1.4, sign(E.t('road.sign.' + ['slow', 'goal', 'turn'][r % 3])), 1);
   }
-  CHECKS.forEach((z, i) => road.place(z, 0, arch('CHECKPOINT', '#2a8a3a'), 1));
-  road.place(GOAL, 0, arch('GOAL', '#d02a2a'), 1);
+  CHECKS.forEach((z, i) => road.place(z, 0, arch(E.t('road.arch.checkpoint'), '#2a8a3a'), 1));
+  road.place(GOAL, 0, arch(E.t('road.arch.goal'), '#d02a2a'), 1);
   const SONGS = [
-    { name: 'SEA BREEZE', bpm: 132, steps: 4, tracks: [
+    { name: E.t('road.song.breeze'), bpm: 132, steps: 4, tracks: [
       { wave: 'square', vol: .06, notes: 'E5 . G5 A5 . G5 E5 D5 | C5 . D5 E5 . . . . | E5 . G5 A5 . B5 A5 G5 | A5 . G5 E5 . . D5 .' },
       { wave: 'triangle', vol: .26, notes: 'A2 . A3 . A2 . A3 . | F2 . F3 . F2 . F3 . | C3 . C4 . C3 . C4 . | G2 . G3 . G2 . G3 .' },
       { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s . h h' }] },
-    { name: 'SUNSET DRIVE', bpm: 112, steps: 4, tracks: [
+    { name: E.t('road.song.sunset'), bpm: 112, steps: 4, tracks: [
       { wave: 'pulse12', vol: .06, notes: 'D5 - - F5 E5 - D5 - | C5 - - - A4 - - - | D5 - - F5 A5 - G5 - | F5 - E5 - D5 - - -' },
       { wave: 'triangle', vol: .26, notes: 'D3 . . D3 . . A2 . | F2 . . F2 . . C3 . | G2 . . G2 . . D3 . | A2 . . A2 . . C3 .' },
       { wave: 'drums', vol: .06, notes: 'k . . h s . . h k . k h s . . h' }] },
-    { name: 'NEON HIGHWAY', bpm: 150, steps: 4, tracks: [
+    { name: E.t('road.song.neon'), bpm: 150, steps: 4, tracks: [
       { wave: 'square', vol: .05, notes: 'A4 A5 E5 A4 G5 E5 C5 G4 | F4 F5 C5 F4 E5 C5 A4 E4 | G4 G5 D5 G4 F5 D5 B4 F4 | E4 E5 B4 E4 G#5 E5 B4 G#4' },
       { wave: 'triangle', vol: .26, notes: 'A1 A2 A1 A2 A1 A2 A1 A2 | F1 F2 F1 F2 F1 F2 F1 F2 | G1 G2 G1 G2 G1 G2 G1 G2 | E1 E2 E1 E2 E1 E2 E1 E2' },
       { wave: 'drums', vol: .07, notes: 'k h s h k h s h k h s h k k s h' }] }];
@@ -238,7 +244,7 @@ const ROAD = (() => {
   }
   function update(dt) {
     const I = game.input; t += dt;
-    for (const k of ['brake', 'gear']) I.touchSet(k, k === 'gear' ? (gear ? 'HIGH' : 'LOW') : null, mode === 'drive');
+    for (const k of ['brake', 'gear']) I.touchSet(k, k === 'gear' ? E.t(gear ? 'road.gear.high' : 'road.gear.low') : null, mode === 'drive');
     if (mode === 'radio') {
       if (I.pressed('left') || I.pressed('right')) { song = (song + (I.pressed('left') ? 2 : 1)) % 3; A.music(SONGS[song]); A.sfx('select'); }
       const tap = I.clicked && I.clicked(); if (tap) { const k = Math.floor(tap[0] / (game.W / 3)); if (k === song) begin(); else { song = clamp(k, 0, 2); A.music(SONGS[song]); A.sfx('select'); } }
@@ -293,27 +299,27 @@ const ROAD = (() => {
     road.draw(r, { z: cz, x: mode === 'radio' ? 0 : x, h: H, turn, cars: traffic });
     r.overlay(g => {
       if (mode === 'radio') {
-        E.font.title(g, 'ROAD', W / 2, 26, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
-        E.font.text(g, 'PICK A SONG', W / 2, Hs / 2 - 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.title(g, E.t('road.title'), W / 2, 26, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
+        E.font.text(g, E.t('road.radio'), W / 2, Hs / 2 - 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         SONGS.forEach((s, k) => { const xx = Math.round(W * (k + .5) / 3); E.ui.box(g, xx - 46, Hs / 2 - 14, 92, 26, { bg: k === song ? '#3a2a6a' : '#141a3a', border: k === song ? '#ffe04a' : '#8888aa' }); E.font.text(g, s.name, xx, Hs / 2 - 4, k === song ? '#ffe04a' : '#c8c8e0', { align: 'center', outline: false, font: 'tiny' }); });
-        E.font.text(g, (touch() ? 'TAP A SONG, TAP IT AGAIN TO DRIVE' : 'LEFT / RIGHT, THEN ' + I.label('confirm')), W / 2, Hs / 2 + 24, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+        E.font.text(g, E.t(touch() ? 'road.radio.touch' : 'road.radio.keys'), W / 2, Hs / 2 + 24, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
         return;
       }
       const p = road.project(z + ahead, x, 0), cs = Math.max(.6, Hs / 200);
       if (p) { drawCar(g, p[0], p[1], cs, crash > 0 ? Math.sin(crash * 18) * 1.5 : I.move()[0], Math.abs(x) > 1.05 && speed > 20); if (crash > 0) { const al = g.globalAlpha; g.globalAlpha = .7; for (let k = 0; k < 4; k++) E.px.disc(g, p[0] + Math.sin(t * 7 + k * 2) * 16 * cs, p[1] - (12 + k * 6 + (t * 30 % 6)) * cs, (3 + k * 1.5) * cs, k % 2 ? '#d8d8d8' : '#a8a8b0'); g.globalAlpha = al; } }
       // the HUD: the clock, the speed and gear, the score, the stage's progress
-      E.font.text(g, 'TIME', W / 2, 4, '#ffe04a', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+      E.font.text(g, E.t('road.hud.time'), W / 2, 4, '#ffe04a', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
       E.font.text(g, String(Math.ceil(clock)), W / 2, 12, clock < 10 && Math.floor(t * 4) % 2 ? '#ff4030' : '#ffffff', { align: 'center', scale: 3, shadow: '#000', outline: false });
-      E.font.text(g, 'SCORE ' + score, 6, 6, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' });
-      const bx = Math.min(cornerX(), W) - 6; E.font.text(g, kmh() + ' KM/H', bx, Hs - 26, '#ffffff', { align: 'right', scale: 2, shadow: '#000', outline: false });
-      E.font.text(g, gear ? 'HIGH' : 'LOW', bx, Hs - 10, gear ? '#ff9a3a' : '#5ae05a', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
+      E.font.text(g, E.t('road.hud.score', { score: String(score) }), 6, 6, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' });
+      const bx = Math.min(cornerX(), W) - 6; E.font.text(g, E.t('road.hud.speed', { speed: kmh() }), bx, Hs - 26, '#ffffff', { align: 'right', scale: 2, shadow: '#000', outline: false });
+      E.font.text(g, E.t(gear ? 'road.gear.high' : 'road.gear.low'), bx, Hs - 10, gear ? '#ff9a3a' : '#5ae05a', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
       const pw = Math.min(120, W / 3), px0 = 6, py = 16; E.px.rect(g, px0, py, pw, 3, '#203050'); E.px.rect(g, px0, py, pw * Math.min(1, (z + ahead) / GOAL), 3, '#ffe04a');
       for (const c of CHECKS) E.px.rect(g, px0 + pw * c / GOAL, py - 1, 1, 5, '#5ae05a');
-      if (banner) E.font.text(g, (banner.check ? 'EXTENDED PLAY! ' : '') + banner.text, W / 2, Hs * .3, banner.check ? '#5ae05a' : '#ffffff', { align: 'center', scale: 2, shadow: '#000', outline: false });
+      if (banner) E.font.text(g, banner.check ? E.t('road.banner.check', { area: banner.text }) : banner.text, W / 2, Hs * .3, banner.check ? '#5ae05a' : '#ffffff', { align: 'center', scale: 2, shadow: '#000', outline: false });
       if (mode === 'over' || mode === 'goal') {
-        E.font.title(g, mode === 'goal' ? 'GOAL!' : 'GAME OVER', W / 2, Hs * .3, { scale: 3, align: 'center', colors: mode === 'goal' ? ['#fff6d0', '#ffd060', '#e8782a'] : ['#ffffff', '#ff8a6a', '#c0302a'] });
-        E.font.text(g, 'SCORE ' + score + '   DISTANCE ' + Math.round((z + ahead) / GOAL * 100) + '%', W / 2, Hs * .3 + 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        if (endT > 1.5) E.font.text(g, prompt('confirm', 'TO DRIVE AGAIN'), W / 2, Hs * .3 + 44, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+        E.font.title(g, E.t(mode === 'goal' ? 'road.goal' : 'road.over'), W / 2, Hs * .3, { scale: 3, align: 'center', colors: mode === 'goal' ? ['#fff6d0', '#ffd060', '#e8782a'] : ['#ffffff', '#ff8a6a', '#c0302a'] });
+        E.font.text(g, E.t('road.end', { score: String(score), distance: Math.round((z + ahead) / GOAL * 100) }), W / 2, Hs * .3 + 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        if (endT > 1.5) E.font.text(g, prompt('confirm', E.t('road.again')), W / 2, Hs * .3 + 44, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
       }
     });
   }

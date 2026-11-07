@@ -58,14 +58,14 @@ const KART = (() => {
   let mini = null;
   const miniMap = () => mini || (mini = (() => { const c = E.mkCanvas(N, N), g = c.getContext('2d'); for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) { const t = map.floorTags[cy * N + cx], w = map.cell(cx, cy) > 0; g.fillStyle = w ? 'rgba(0,0,0,0)' : t === 'grass' || t === 'sand' ? 'rgba(40,90,40,.6)' : '#d8d8e0'; g.fillRect(cx, cy, 1, 1); } return c; })());
 
-  /* ---- THE DRIVERS: six HD rigs, each in a kart of its own colors ---- */
+  /* ---- THE DRIVERS: six HD rigs, each in a kart of its own colors; their names are lines (kart.name.*) ---- */
   const CAST = [
-    { name: 'NOVA', kart: '#e83030', rig: { hair: 'short', hat: 'cap', colors: { cloth: '#e83030', pants: '#2f5fd0', hair: '#5a3018', hat: '#e83030' } } },
-    { name: 'LUMA', kart: '#3aa850', rig: { hair: 'ponytail', colors: { cloth: '#3aa850', pants: '#f0e8d0', hair: '#e8c060' } } },
-    { name: 'BRAKK', kart: '#e8a020', rig: { build: 'bulky', hair: 'spiky', colors: { cloth: '#e8a020', pants: '#5a3a2a', hair: '#2a1a10' } } },
-    { name: 'IRIS', kart: '#c050e0', rig: { hair: 'long', colors: { cloth: '#c050e0', pants: '#3a2a5a', hair: '#f0f0f8' } } },
-    { name: 'TOK', kart: '#30b8e0', rig: { hat: { style: 'band', color: '#ffffff' }, colors: { cloth: '#30b8e0', pants: '#1a3a5a', hair: '#1a1a1a' } } },
-    { name: 'ROOK', kart: '#5a5a6a', rig: { hood: true, colors: { cloth: '#3a3a48', pants: '#22222c', hair: '#1a1a1a' } } }
+    { name: E.t('kart.name.nova'), kart: '#e83030', rig: { hair: 'short', hat: 'cap', colors: { cloth: '#e83030', pants: '#2f5fd0', hair: '#5a3018', hat: '#e83030' } } },
+    { name: E.t('kart.name.luma'), kart: '#3aa850', rig: { hair: 'ponytail', colors: { cloth: '#3aa850', pants: '#f0e8d0', hair: '#e8c060' } } },
+    { name: E.t('kart.name.brakk'), kart: '#e8a020', rig: { build: 'bulky', hair: 'spiky', colors: { cloth: '#e8a020', pants: '#5a3a2a', hair: '#2a1a10' } } },
+    { name: E.t('kart.name.iris'), kart: '#c050e0', rig: { hair: 'long', colors: { cloth: '#c050e0', pants: '#3a2a5a', hair: '#f0f0f8' } } },
+    { name: E.t('kart.name.tok'), kart: '#30b8e0', rig: { hat: { style: 'band', color: '#ffffff' }, colors: { cloth: '#30b8e0', pants: '#1a3a5a', hair: '#1a1a1a' } } },
+    { name: E.t('kart.name.rook'), kart: '#5a5a6a', rig: { hood: true, colors: { cloth: '#3a3a48', pants: '#22222c', hair: '#1a1a1a' } } }
   ];
   const rigOf = c => new E.Humanoid(Object.assign({ size: .85, weapon: null }, c.rig));   // (made afresh each race: a rig's blinks draw on Math.random, so a race replays exactly)
   const SONG = { bpm: 148, steps: 4, tracks: [
@@ -74,8 +74,8 @@ const KART = (() => {
     { wave: 'drums', vol: .07, notes: 'k . h k s . h . k . h k s . h h' }] };
 
   let mode = 'menu', vs = false, race = null, players = [], cams = [], over = 0, t = 0;
-  const menu = new E.Menu(game, ['RACE', 'VS (2 PLAYERS)', 'BACK'], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
-  const after = new E.Menu(game, ['RACE AGAIN', 'MENU'], { onPick: i => i === 0 ? start(vs) : toMenu() });
+  const menu = new E.Menu(game, [E.t('kart.menu.race'), E.t('kart.menu.vs'), E.t('kart.menu.back')], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
+  const after = new E.Menu(game, [E.t('kart.menu.again'), E.t('kart.menu.menu')], { onPick: i => i === 0 ? start(vs) : toMenu() });
   function toMenu() { mode = 'menu'; race = null; game.splitScreen(0); A.music('title'); }
   function versus() { if (game.players.length >= 2) start(true); else { mode = 'join'; A.sfx('select'); } }
   /** a race: six karts on the grid (the players' at the back, as Super Mario Kart starts you), items in rows */
@@ -151,8 +151,8 @@ const KART = (() => {
       const p = LINE.at(t * 40); m7.cam = { x: p.x, y: p.y, h: 60, angle: p.angle, pitch: 14, fov: 70 }; trees(m7.cam);
       m7.draw(r);
       r.overlay(g => {
-        E.font.title(g, 'KART', W / 2, 30, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
-        if (mode === 'join') E.font.text(g, 'PLAYER 2: PRESS 2 OR START ON A PAD', W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.title(g, E.t('kart.title'), W / 2, 30, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
+        if (mode === 'join') E.font.text(g, E.t('kart.join'), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false });
       });
       if (mode === 'menu') { menu.y = Math.round(H / 2) - 6; menu.draw(r); }
       return;
@@ -180,7 +180,7 @@ const KART = (() => {
     r.overlay(g => {
       const w = 170, h = 16 + race.racers.length * 11, x = Math.round((W - w) / 2), y = Math.round(H / 2 - h / 2 - 20);
       E.ui.box(g, x, y, w, h, { bg: '#141a3a', border: '#e8e4ff' });
-      race.racers.slice().sort((a, b) => a.place - b.place).forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? Math.floor(R.time / 60) + "'" + (R.time % 60).toFixed(2).padStart(5, '0') : '--'; E.font.text(g, R.place + '. ' + R.name, x + 8, yy, players.includes(R) ? '#ffe04a' : '#ffffff', { outline: false }); E.font.text(g, fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
+      race.racers.slice().sort((a, b) => a.place - b.place).forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? Math.floor(R.time / 60) + "'" + (R.time % 60).toFixed(2).padStart(5, '0') : '--'; E.font.text(g, E.t('kart.results.row', { place: R.place, name: R.name }), x + 8, yy, players.includes(R) ? '#ffe04a' : '#ffffff', { outline: false }); E.font.text(g, fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
     });
     after.y = Math.round(H / 2) + 52; after.draw(r);
   }

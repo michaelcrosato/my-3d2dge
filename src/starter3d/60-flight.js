@@ -16,8 +16,8 @@ const FLIGHT = (() => {
   const PI = Math.PI, U = 16;
   const KEYS = Object.assign({}, W3.INPUT, { fire: ['KeyJ', 'Space', 'Mouse0', 'Pad0'], roll: ['KeyK', 'KeyQ', 'Pad4', 'Pad5'], boost: ['ShiftLeft', 'ShiftRight', 'KeyL', 'Pad1'], brake: ['KeyX', 'KeyH', 'Pad2'] });
   for (const k of ['attack', 'dash', 'skill', 'jump', 'lock']) delete KEYS[k];
-  const TOUCH = ['brake', 'boost', 'roll', 'fire'], TOUCH_LABELS = { fire: 'FIRE', roll: 'ROLL', boost: 'BOOST', brake: 'BRAKE' };
-  const INVERT = { key: 'invertFlight', label: 'Invert flight', group: 'Game', value: false, help: 'Up on the stick dives, as a pilot\'s stick does.' };
+  const TOUCH = ['brake', 'boost', 'roll', 'fire'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t((a === 'fire' ? 'engine.action.' : 'action.') + a))]));   // (the actions' names: FIRE, ROLL, BOOST, BRAKE)
+  const INVERT = { key: 'invertFlight', label: E.t('flight3d.setting.invert'), group: 'Game', value: false, help: E.t('flight3d.setting.invert.help') };
 
   /* ---- THE WORLD: a terrain. The sea (height 0), rock islands by the rail, the coast (a diagonal line: x + y = 30,500),
    * the base's plateau beyond it, mountains further in, and a bay carved out of them for the flagship ---- */
@@ -51,9 +51,9 @@ const FLIGHT = (() => {
   const RINGS = [[3500, 0, 0, 's'], [3720, 60, 20, 's'], [3940, 120, 30, 's'], [4160, 60, 10, 's'], [5800, -100, -30, 'g'], [10200, 0, 50, 's'], [12600, -80, 0, 's'], [16400, 60, 40, 'g']];
   const TURRETS = Array.from({ length: 10 }, (_, k) => [12900 + k * 420, k % 2 ? 1 : -1, 140 + (k * 37) % 110]);
   const MASTS = Array.from({ length: 8 }, (_, k) => [13300 + k * 480, ((k * 53) % 9 - 4) * 30]);
-  const CALLS = [[150, 'KESTREL', 'Stay with me! Their base is past the islands.'], [800, 'KESTREL', 'Fighters, dead ahead!'], [3300, 'KESTREL', 'Rings! Fly through them to mend your shield.'],
-    [7500, 'KESTREL', 'I\'ve got one on my tail! Get it off me!'], [9100, 'KESTREL', 'More behind us! Hold your fire till they pass.'], [12400, 'KESTREL', 'Turrets on the plateau. Roll to turn their shots aside!'],
-    [13300, 'KESTREL', 'Weave through those masts!'], [RL - 900, 'KESTREL', 'That\'s their flagship in the bay. Hit the engines first!']];
+  const KESTREL = E.t('flight3d.kestrel');   // (the radio's words are lines: flight3d.radio.<id>)
+  const CALLS = [[150, KESTREL, 'stay'], [800, KESTREL, 'fighters'], [3300, KESTREL, 'rings'], [7500, KESTREL, 'tail'], [9100, KESTREL, 'behind'], [12400, KESTREL, 'turrets'],
+    [13300, KESTREL, 'masts'], [RL - 900, KESTREL, 'flagship']];
 
   let world, ship, rnd = Math.random, mode = 'play', t = 0, scripted = false, ended = 0, endT = 0, freed = false, boss = null;
   let foes = [], shots = [], lasers = [], rings = [], turrets = [], masts = [], wave = 0, call = 0, score = 0, hits = 0, lock = null;
@@ -61,13 +61,13 @@ const FLIGHT = (() => {
   const camT = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 };   // the camera's target: the rail's point, drawn a little after the ship
   const talk = new E.Dialog(game, { lines: 2, place: 'top', border: '#8ad0ff' });
   const PILOT = new E.Humanoid({ hair: 'short', colors: { cloth: '#3a6ad8', pants: '#2a3a5a', hair: '#e8c060', skin: '#e8b890' } });
-  const radio = (name, line) => { if (!scripted) talk.say(line, { name, auto: 2.6, modal: false, alpha: .75, portrait: PILOT, portraitOpts: { zoom: 3, turn: .4 } }); };
+  const radio = (name, id) => { if (!scripted) talk.say(E.t('flight3d.radio.' + id), { name, auto: 2.6, modal: false, alpha: .75, portrait: PILOT, portraitOpts: { zoom: 3, turn: .4 } }); };
   const SONG = { bpm: 140, steps: 4, tracks: [
     { wave: 'square', vol: .055, notes: 'A4 . C5 E5 . A5 . G5 | F5 . E5 C5 . D5 . E5 | A4 . C5 E5 . A5 . B5 | C6 . B5 G5 . E5 . . ' },
     { wave: 'triangle', vol: .26, notes: 'A2 A2 E3 A2 A2 E3 A2 G2 | F2 F2 C3 F2 G2 G2 D3 G2 | A2 A2 E3 A2 A2 E3 A2 G2 | F2 F2 G2 G2 A2 A2 A2 A2' },
     { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s . h h' }] };
 
-  BOOT.push(['The sea and the base', () => {
+  BOOT.push([E.t('flight3d.boot'), () => {
     world = new W3(game, { terrain: { size: 32768, cell: 64, chunk: 32, height, color, far: 9000, physics: 0, detail: 1.1, rock: { colors: ['#8a8478', '#a09a8c', '#6e685e', '#b4ad9c'], band: 40, slope: [.4, .6] } },
       sky: { top: '#3a78d8', horizon: '#d8ecff', ground: '#3a6aa8', sun: '#fff4d0', haze: .25 }, fog: { color: '#cfe4f8', near: 2600, far: 8800 },
       ambient: ['#d8e4ff', '#5a7aa0', 2], sun: { color: '#fff4dc', intensity: 2.8, dir: [-.4, .5, -.7], area: 900 }, torchLights: 0, glowLights: 6, camera: { mode: 'behind', far: 12000 }, onDraw });
@@ -143,8 +143,8 @@ const FLIGHT = (() => {
     q.hp -= dmg; if (q.hp > 0) return;
     q.alive = false; score += q.type === 'part' ? 1000 : q.type === 'turret' ? 300 : 100; hits++;
     P.fire(q.x, q.y, q.z, 10, { size: 9, speed: 80 }); P.bits(q.x, q.y, q.z, 8, ['#5a5a6a', '#8a8a9a', '#ff9a3a']); game.shake(q.type === 'part' ? 5 : 2); if (!scripted) A.sfx('explode', { vol: .5 });
-    if (q.chase) radio('KESTREL', 'Thanks! I owe you one.');
-    if (q.type === 'part' && boss.parts.every(p => !p.alive)) { boss.core = true; radio('KESTREL', 'The core\'s open! Now!'); }
+    if (q.chase) radio(KESTREL, 'thanks');
+    if (q.type === 'part' && boss.parts.every(p => !p.alive)) { boss.core = true; radio(KESTREL, 'core'); }
   }
   function moveShots(dt) {
     const L = targets();
@@ -215,14 +215,14 @@ const FLIGHT = (() => {
     // the stage's script: waves, radio calls, the end of the rails
     while (wave < WAVES.length && ship.d >= WAVES[wave][0]) spawn(WAVES[wave++]);
     while (call < CALLS.length && ship.d >= CALLS[call][0]) { radio(CALLS[call][1], CALLS[call][2]); call++; }
-    if (!freed && ship.d >= RL - 20) { freed = true; ship.o.rail = null; ship.o.bounds = BOUNDS; ship.pitch = 0; foes = []; shots = []; if (!scripted) A.music(BOSS_SONG); radio('KESTREL', 'All range mode! Take it down!'); }
+    if (!freed && ship.d >= RL - 20) { freed = true; ship.o.rail = null; ship.o.bounds = BOUNDS; ship.pitch = 0; foes = []; shots = []; if (!scripted) A.music(BOSS_SONG); radio(KESTREL, 'free'); }
     // the fighters, turrets and masts
     for (const f of foes) if (f.alive) {
       if (f.type === 'mine') { moveMine(f, dt); continue; }
       moveFoe(f, dt); if (!f.alive || f.t < 0) continue;
       f.cool -= dt; if (f.cool <= 0 && !f.chase && f.d > ship.d + 150) { f.cool = 1.8 + rnd() * 1.6; fireAt(f, 480, .15); }
       if (Math.hypot(f.x - ship.x, f.y - ship.y, f.z - ship.z) < 22) { hurt(10); hurtFoe(f, 9, f.x, f.y, f.z); }
-      if (f.chase) { S.wingT += dt; if (S.wingT > 9) { f.alive = false; S.wing -= 40; radio('KESTREL', 'I\'m hit! I\'ll make it.'); } }
+      if (f.chase) { S.wingT += dt; if (S.wingT > 9) { f.alive = false; S.wing -= 40; radio(KESTREL, 'hit'); } }
     }
     foes = foes.filter(f => f.alive);
     for (const q of turrets) if (q.alive) {
@@ -278,17 +278,17 @@ const FLIGHT = (() => {
     const g0 = r, W = r.W, H = r.H;
     r.overlay(g => {
       E.ui.bar(g, 8, H - 16, 90, 7, S.shield / 100, S.shield > 30 ? '#4ae07a' : '#ff5a3a', { bg: '#1a1a2a', border: '#e8e4ff' });
-      E.font.text(g, 'SHIELD', 8, H - 26, '#c8d8ff', { font: 'tiny', shadow: '#000', outline: false });
+      E.font.text(g, E.t('flight3d.hud.shield'), 8, H - 26, '#c8d8ff', { font: 'tiny', shadow: '#000', outline: false });
       E.ui.bar(g, 104, H - 16, 50, 7, S.boost, '#4ac0ff', { bg: '#1a1a2a', border: '#e8e4ff' });
-      E.font.text(g, 'HITS ' + hits, W - 8, 8, '#ffe04a', { align: 'right', shadow: '#000', outline: false });
+      E.font.text(g, E.t('flight3d.hud.hits', { hits }), W - 8, 8, '#ffe04a', { align: 'right', shadow: '#000', outline: false });
       E.font.text(g, String(score).padStart(6, '0'), W - 8, 18, '#ffffff', { align: 'right', font: 'tiny', shadow: '#000', outline: false });
       // the reticle: where the lasers go (a point ahead of the nose); the lock: a box on its target
       const f = nose(500), p = world.project(ship.x + f[0], ship.y + f[1], ship.z + f[2]);
       if (p && !ended) { const c = S.charge >= 1 ? '#ff4a3a' : '#7aff8a'; g.strokeStyle = c; g.lineWidth = 1; g.strokeRect(Math.round(p[0]) - 5.5, Math.round(p[1]) - 5.5, 11, 11); E.px.rect(g, Math.round(p[0]), Math.round(p[1]), 1, 1, c); }
       if (lock && lock.alive !== false) { const q = world.project(lock.x, lock.y, lock.z); if (q) { g.strokeStyle = '#ff4a3a'; g.lineWidth = 1; const s = 9 + Math.sin(t * 12) * 2; g.strokeRect(Math.round(q[0] - s) + .5, Math.round(q[1] - s) + .5, s * 2, s * 2); } }
       if (S.charge > 0 && S.charge < 1) E.ui.bar(g, W / 2 - 20, H - 10, 40, 4, S.charge, '#ff9a3a', { bg: '#1a1a2a' });
-      if (freed && (boss.alive || boss.dying > 0)) { const left = boss.parts.reduce((n, p) => n + Math.max(0, p.hp), 0) + Math.max(0, boss.hp); E.font.text(g, 'FLAGSHIP', W / 2, 8, '#ffb0a0', { align: 'center', font: 'tiny', shadow: '#000', outline: false }); E.ui.bar(g, W / 2 - 50, 16, 100, 5, left / 70, '#ff5a3a', { bg: '#1a1a2a', border: '#e8e4ff' }); }
-      if (ended > 0) E.font.title(g, 'MISSION COMPLETE', W / 2, H * .36, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
+      if (freed && (boss.alive || boss.dying > 0)) { const left = boss.parts.reduce((n, p) => n + Math.max(0, p.hp), 0) + Math.max(0, boss.hp); E.font.text(g, E.t('flight3d.hud.flagship'), W / 2, 8, '#ffb0a0', { align: 'center', font: 'tiny', shadow: '#000', outline: false }); E.ui.bar(g, W / 2 - 50, 16, 100, 5, left / 70, '#ff5a3a', { bg: '#1a1a2a', border: '#e8e4ff' }); }
+      if (ended > 0) E.font.title(g, E.t('flight3d.complete'), W / 2, H * .36, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
     });
     talk.draw(g0);
   }
@@ -361,7 +361,7 @@ const FLIGHT = (() => {
     update(dt) {
       talk.update(dt);
       step(dt, controls());
-      if (ended && endT > (ended > 0 ? 4 : 2.5)) game.go('over', { from: 'flight', world, won: ended > 0, title: ended > 0 ? 'MISSION COMPLETE' : null, lines: ['HITS ' + hits + '   SCORE ' + score, ended > 0 ? 'THE FLAGSHIP IS DOWN' : 'SHOT DOWN'] });
+      if (ended && endT > (ended > 0 ? 4 : 2.5)) game.go('over', { from: 'flight', world, won: ended > 0, title: ended > 0 ? E.t('flight3d.complete') : null, lines: [E.t('flight3d.over.score', { hits, score: E.lang.num(score, { useGrouping: false }) }), E.t(ended > 0 ? 'flight3d.over.won' : 'flight3d.over.lost')] });
     },
     draw(r) { world.draw(r); hud(r); },
     get world() { return world; }, get hero() { return ship; }, get ship() { return ship; }, get state() { return S; }, get foes() { return foes; }, get boss() { return boss; },

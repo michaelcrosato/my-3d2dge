@@ -1,5 +1,5 @@
 // The RTS kit's game (real-time strategy: workers, gold, a barracks and a stable, three kinds to fight, fog, an enemy camp that builds and attacks in waves), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/48-rts.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/48-rts.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. rts.html plays it; node kits/test.mjs rts runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -173,6 +178,7 @@ scenes.over = {
  * from its build order and waves); this slice draws (rigs, buildings as E.SHAPES, the fog), runs the HUD and its
  * commands, and the minimap (E.Shell). bot() gives the Vale an AI of its own that plays the match to its end, twice the
  * same (tools/kits-test.mjs). Deep link: #rts.
+ * WORDS: every name, button and alert is a line (src/starter/48-rts.lines.json, rts.* ids, shown with E.t).
  * ===================================================================================== */
 const RTS = (() => {
   const T = 16, POP = 40, BLUE = '#3a6ad0', RED = '#c03a3a';
@@ -234,16 +240,17 @@ const RTS = (() => {
   const TYPES = { 1: { h: 18, top: '#8a8676', side: '#5e584c', face: 'rock', roof: 'rock' } };
 
   /* ---- 1. THE KINDS (the strategy module's data): three to fight and one to work; the hall, two to build, the mines.
-   * look: the rig (its cloth the side's color); melee: a sword's swing; bow: an arrow flies ---- */
+   * look: the rig (its cloth the side's color); melee: a sword's swing; bow: an arrow flies. name: a line (rts.kind.<id>);
+   * several of a kind selected: rts.many.<id>, its plural forms ---- */
   const KINDS = {
-    worker:   { name: 'WORKER', many: 'WORKERS', hp: 30, tall: 19, speed: 38, atk: 3, range: 8, rate: 1.2, sight: 5, cost: { gold: 50 }, time: 7, gather: 8, look: { size: .58, hat: 'cap', weapon: null, outfit: 'shirt', sleeves: 'short' }, team: 'hat' },
-    footman:  { name: 'FOOTMAN', many: 'FOOTMEN', hp: 60, tall: 20, speed: 33, atk: 7, range: 9, rate: 1, sight: 6, cost: { gold: 70 }, time: 9, melee: true, look: { size: .64, hat: { style: 'helmet', color: '#a8a8b4' }, armor: true, weapon: 'sword' } },
-    archer:   { name: 'ARCHER', many: 'ARCHERS', hp: 40, tall: 20, speed: 33, atk: 5, range: 52, rate: 1.4, sight: 7, cost: { gold: 80 }, time: 10, bow: true, look: { size: .62, hood: true, weapon: null, sleeves: 'long' } },
-    knight:   { name: 'KNIGHT', many: 'KNIGHTS', hp: 120, tall: 23, speed: 46, atk: 11, range: 10, rate: 1.1, sight: 7, cost: { gold: 150 }, time: 13, melee: true, r: 6, look: { size: .72, build: 'heroic', hat: { style: 'helmet', color: '#d8d8e0' }, armor: true, weapon: 'sword', cape: { len: 5, width: 4, seg: 2.2 } } },
-    hall:     { name: 'HALL', building: true, w: 3, h: 3, hp: 1800, depot: true, makes: ['worker'], sight: 7, shape: 'rts-hall' },
-    barracks: { name: 'BARRACKS', building: true, w: 3, h: 3, hp: 700, makes: ['footman', 'archer'], cost: { gold: 150 }, time: 24, sight: 5, shape: 'rts-barracks' },
-    stable:   { name: 'STABLE', building: true, w: 3, h: 3, hp: 600, makes: ['knight'], cost: { gold: 200 }, time: 28, sight: 5, shape: 'rts-stable' },
-    mine:     { name: 'GOLD MINE', resource: 'gold', amount: 4000, w: 2, h: 2, shape: 'rts-mine' }
+    worker:   { name: E.t('rts.kind.worker'), hp: 30, tall: 19, speed: 38, atk: 3, range: 8, rate: 1.2, sight: 5, cost: { gold: 50 }, time: 7, gather: 8, look: { size: .58, hat: 'cap', weapon: null, outfit: 'shirt', sleeves: 'short' }, team: 'hat' },
+    footman:  { name: E.t('rts.kind.footman'), hp: 60, tall: 20, speed: 33, atk: 7, range: 9, rate: 1, sight: 6, cost: { gold: 70 }, time: 9, melee: true, look: { size: .64, hat: { style: 'helmet', color: '#a8a8b4' }, armor: true, weapon: 'sword' } },
+    archer:   { name: E.t('rts.kind.archer'), hp: 40, tall: 20, speed: 33, atk: 5, range: 52, rate: 1.4, sight: 7, cost: { gold: 80 }, time: 10, bow: true, look: { size: .62, hood: true, weapon: null, sleeves: 'long' } },
+    knight:   { name: E.t('rts.kind.knight'), hp: 120, tall: 23, speed: 46, atk: 11, range: 10, rate: 1.1, sight: 7, cost: { gold: 150 }, time: 13, melee: true, r: 6, look: { size: .72, build: 'heroic', hat: { style: 'helmet', color: '#d8d8e0' }, armor: true, weapon: 'sword', cape: { len: 5, width: 4, seg: 2.2 } } },
+    hall:     { name: E.t('rts.kind.hall'), building: true, w: 3, h: 3, hp: 1800, depot: true, makes: ['worker'], sight: 7, shape: 'rts-hall' },
+    barracks: { name: E.t('rts.kind.barracks'), building: true, w: 3, h: 3, hp: 700, makes: ['footman', 'archer'], cost: { gold: 150 }, time: 24, sight: 5, shape: 'rts-barracks' },
+    stable:   { name: E.t('rts.kind.stable'), building: true, w: 3, h: 3, hp: 600, makes: ['knight'], cost: { gold: 200 }, time: 28, sight: 5, shape: 'rts-stable' },
+    mine:     { name: E.t('rts.kind.mine'), resource: 'gold', amount: 4000, w: 2, h: 2, shape: 'rts-mine' }
   };
   // the buildings, as E.SHAPES (team: the side's banners and trim)
   Object.assign(E.SHAPES, {
@@ -286,10 +293,10 @@ const RTS = (() => {
         if (u.K.bow) arrows.push({ x: u.x, y: u.y, tx: t.x, ty: t.y, t: 0, d: Math.hypot(t.x - u.x, t.y - u.y) / 160 });
         if (u.K.melee || u.K.gather) u.swing = .45;
         if (rts.visible(t) && onScreen(t)) { if (++hits % 3 === 0) A.sfx(u.K.bow ? 'shoot' : 'hit'); }
-        if (t.side === 'blue' && (!alert || game.time - alert.t > 8) && !auto) { alert = { x: t.x, y: t.y, t: game.time }; if (!onScreen(t)) { say(t.building ? 'YOUR ' + t.K.name + ' IS UNDER ATTACK' : 'YOUR PEOPLE ARE UNDER ATTACK', '#ff9a7a'); A.sfx('warp'); } }
+        if (t.side === 'blue' && (!alert || game.time - alert.t > 8) && !auto) { alert = { x: t.x, y: t.y, t: game.time }; if (!onScreen(t)) { say(t.building ? E.t('rts.say.attacked', { kind: t.K.name }) : E.t('rts.say.people_attacked'), '#ff9a7a'); A.sfx('warp'); } }
       },
       death(u) {
-        if (u.resource) { say('A GOLD MINE RUNS DRY', '#ffd860'); return; }
+        if (u.resource) { say(E.t('rts.say.dry'), '#ffd860'); return; }
         stats[u.side === 'blue' ? 'lost' : 'killed']++;
         if (u.building) { ruins.push({ x: u.x, y: u.y, r: u.r }); if (rts.visible(u)) { game.particles.explosion(u.x, u.y, 12, 1.4); A.sfx('explode'); } }
         else if (u.rig) dying.push({ x: u.x, y: u.y, rig: u.rig, t: 0, side: u.side });
@@ -299,7 +306,7 @@ const RTS = (() => {
         if (u.K.gather && !b.rally) { const m = rts.units.filter(o => o.resource).sort((a, c) => Math.hypot(a.x - b.x, a.y - b.y) - Math.hypot(c.x - b.x, c.y - b.y))[0]; if (m) rts.order([u], 'gather', m); }   // (a new worker goes to the nearest mine)
         if (u.side === 'blue') { stats.made++; if (!auto) A.sfx('blip'); }
       },
-      built(b) { if (b.side === 'blue' && !auto) { say(b.K.name + ' IS BUILT', '#a8ffb0'); A.sfx('powerup'); } },
+      built(b) { if (b.side === 'blue' && !auto) { say(E.t('rts.say.built', { kind: b.K.name }), '#a8ffb0'); A.sfx('powerup'); } },
       gathered(u, n) { if (u.side === 'blue') stats.gold += n; },
       ordered() { A.sfx('select'); }
     } });
@@ -320,7 +327,7 @@ const RTS = (() => {
     game.cam.free = { bounds: [0, 0, map.w * T, map.h * T] }; game.focus(hall.x + 40, hall.y - 30); game.cam.snap = true;
     game.input.touchEnabled = false; L.enabled = false; A.music(SONG);
     ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: the minimap; it keeps the pause menu)
-    banner = { s: 'THE VALE WAR', t: 0, c: '#ffe070' }; say('BURN THE ASH CLAN\'S CAMP, ACROSS THE RIVER', '#ffe8b0');
+    banner = { s: E.t('rts.banner'), t: 0, c: '#ffe070' }; say(E.t('rts.say.goal'), '#ffe8b0');
   }
   const rigOf = u => new E.Humanoid(Object.assign({}, u.K.look, u.K.team === 'hat' ? { hat: { style: u.K.look.hat, color: u.side === 'blue' ? '#3a5ab0' : '#a02a2a' } } : {}, { colors: Object.assign({ cloth: u.side === 'blue' ? BLUE : RED, hair: u.side === 'blue' ? '#5a3a1a' : '#2a2020', cape: u.side === 'blue' ? '#2a4aa0' : '#8a2020', capeIn: '#3a2a2a', pants: '#4a4038' }, u.K.look.colors) }));
   // on the screen now (the camera's whole-pixel offset), with a margin: the rigs that move, the sounds that play
@@ -334,29 +341,29 @@ const RTS = (() => {
     if (b) {
       if (b.progress < 1) return out;
       for (const k of b.K.makes || []) out.push({ id: 'train', kind: k, label: KINDS[k].name, cost: KINDS[k].cost.gold, off: !rts.afford('blue', KINDS[k].cost) || b.queue.length >= 5 || rts.of('blue').filter(u => !u.building).length >= POP });
-      if (b.queue.length) out.push({ id: 'cancel', label: 'CANCEL' });
+      if (b.queue.length) out.push({ id: 'cancel', label: E.t('rts.cmd.cancel') });
       return out;
     }
     if (sel.every(u => u.K.gather)) for (const k of ['barracks', 'stable']) out.push({ id: 'build', kind: k, label: KINDS[k].name, cost: KINDS[k].cost.gold, off: !rts.afford('blue', KINDS[k].cost) });
-    else out.push({ id: 'amove', label: 'A-MOVE' });
-    out.push({ id: 'stop', label: 'STOP' });
+    else out.push({ id: 'amove', label: E.t('rts.cmd.amove') });
+    out.push({ id: 'stop', label: E.t('rts.cmd.stop') });
     return out.slice(0, 3);
   }
   function command(c) {
-    if (!c || c.off) { A.sfx('bump'); if (c && c.cost && !rts.afford('blue', { gold: c.cost })) say('NOT ENOUGH GOLD', '#ffb070'); return; }
+    if (!c || c.off) { A.sfx('bump'); if (c && c.cost && !rts.afford('blue', { gold: c.cost })) say(E.t('rts.say.no_gold'), '#ffb070'); return; }
     const sel = rts.selected.filter(u => !u.dead);
     if (c.id === 'train') { rts.train(sel[0], c.kind); A.sfx('confirm'); }
     else if (c.id === 'cancel') { rts.cancel(sel[0]); A.sfx('cancel'); }
     else if (c.id === 'stop') { rts.order(sel, 'stop'); A.sfx('cancel'); }
-    else if (c.id === 'amove') { amoving = true; A.sfx('blip'); say(touch() ? 'TAP WHERE THEY FIGHT THEIR WAY TO' : 'CLICK WHERE THEY FIGHT THEIR WAY TO', '#ffd0a0'); }
+    else if (c.id === 'amove') { amoving = true; A.sfx('blip'); say(E.t(touch() ? 'rts.say.amove.touch' : 'rts.say.amove.mouse'), '#ffd0a0'); }
     else if (c.id === 'build') { mode = 'place'; const at = groundAt([game.W / 2, game.H / 2]) || [sel[0].x, sel[0].y]; placing = { kind: c.kind, cx: Math.floor(at[0] / T) - 1, cy: Math.floor(at[1] / T) - 1, by: sel[0] }; A.sfx('blip'); }
   }
   // the world point under a screen point (the ground's cell: map.pick, or the ground plane)
   const groundAt = p => { const h = map.pick(p[0], p[1]); return h ? [h.x, h.y] : game.view.toGround(p[0] + Math.floor(game.cam.x), p[1] + Math.floor(game.cam.y)); };
   function place() {
-    const p = placing; if (!rts.canPlace(p.kind, p.cx, p.cy)) { A.sfx('bump'); say('IT CANNOT STAND THERE', '#ffb070'); return; }
+    const p = placing; if (!rts.canPlace(p.kind, p.cx, p.cy)) { A.sfx('bump'); say(E.t('rts.say.cannot'), '#ffb070'); return; }
     const by = p.by && !p.by.dead ? p.by : rts.selected.find(u => !u.dead && u.K.gather) || blueOf('worker')[0];
-    if (by && rts.order([by], 'build', { kind: p.kind, cx: p.cx, cy: p.cy })) { A.sfx('confirm'); say(KINDS[p.kind].name + ': A WORKER IS ON HIS WAY', '#a8ffb0'); }
+    if (by && rts.order([by], 'build', { kind: p.kind, cx: p.cx, cy: p.cy })) { A.sfx('confirm'); say(E.t('rts.say.on_way', { kind: KINDS[p.kind].name }), '#a8ffb0'); }
     mode = 'play'; placing = null;
   }
 
@@ -409,10 +416,10 @@ const RTS = (() => {
     }
     for (const a of arrows) a.t += dt / Math.max(.05, a.d); arrows = arrows.filter(a => a.t < 1);
     for (const d of dying) d.t += dt; dying = dying.filter(d => d.t < 1.6);
-    if (rts.time >= CLAN.waves.first - 20 && wave === 0 && !auto) { wave = 1; say('THE ASH CLAN IS ARMING: THEY WILL CROSS SOON', '#ffb070'); }
+    if (rts.time >= CLAN.waves.first - 20 && wave === 0 && !auto) { wave = 1; say(E.t('rts.say.arming'), '#ffb070'); }
   }
   function end(won) { over = { won, t: 0 }; rts.selected = []; mode = 'play'; placing = null; if (!auto) A.sfx(won ? 'powerup' : 'die'); }
-  const endMenu = new E.Menu(game, ['PLAY AGAIN', 'TITLE'], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title') });
+  const endMenu = new E.Menu(game, [E.t('rts.again'), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title') });
 
   /* ---- 5. DRAWING: the floor, the woods, the buildings (shapes, their side's colors; a site going up), the bodies, the
    * arrows, the fog over it all, then the rings and bars, the plan of a building being placed, the HUD ---- */
@@ -460,46 +467,47 @@ const RTS = (() => {
       px.rect(g, 8, 7, 5, 5, '#ffd040'); px.rect(g, 9, 8, 2, 2, '#fff2a0');
       E.font.text(g, String(rts.side('blue').res.gold || 0), 16, 6, '#ffe8a0', { outline: false });
       const army = rts.of('blue').filter(u => !u.building).length, mm = Math.floor(stats.t / 60), ss = Math.floor(stats.t % 60);
-      E.font.text(g, 'PEOPLE ' + army + '/' + POP, 46, 7, '#c8d8ff', { outline: false, font: 'tiny' });
+      E.font.text(g, E.t('rts.hud.people', { count: army, max: POP }), 46, 7, '#c8d8ff', { outline: false, font: 'tiny' });
       E.font.text(g, mm + ':' + String(ss).padStart(2, '0'), 111, 7, '#a8a0c0', { align: 'right', outline: false, font: 'tiny' });
       // the selection: its name, its health, what it is making; its commands
       const cmds = mode === 'place' ? [] : commands(), bw = 62, bh = tc ? th : 16, py = H - bh - 22;
       if (sel.length) {
-        const u = sel[0], one = sel.length === 1, label = one ? u.K.name : sel.length + ' ' + (sel.every(s => s.kind === u.kind) ? u.K.many || u.K.name : 'SELECTED');
+        const u = sel[0], one = sel.length === 1, label = one ? u.K.name : E.t(sel.every(s => s.kind === u.kind) ? 'rts.many.' + u.kind : 'rts.many.mixed', { count: sel.length });
         E.ui.box(g, 3, py - 2, Math.max(150, cmds.length * (bw + 2) + 8), bh + 23, { alpha: .82 });
         E.font.text(g, label, 8, py + 1, '#ffe8b0', { outline: false });
         if (one) { E.ui.bar(g, 8, py + 11, 60, 3, u.hp / u.max, u.hp > u.max * .35 ? '#5ad86a' : '#ff4a4a'); E.font.text(g, Math.ceil(u.hp) + '/' + u.max, 72, py + 10, '#c8c0d8', { outline: false, font: 'tiny' }); }
-        if (one && u.queue && u.queue.length) { const q = u.queue[0], k = q.t / (KINDS[q.kind].time || 1); E.font.text(g, 'MAKING ' + KINDS[q.kind].name + (u.queue.length > 1 ? ' +' + (u.queue.length - 1) : ''), 100, py + 2, '#a8ffb0', { outline: false, font: 'tiny' }); E.ui.bar(g, 100, py + 11, 44, 3, k, '#ffd060'); }
-        if (one && u.progress < 1) E.font.text(g, 'GOING UP ' + Math.floor(u.progress * 100) + '%', 100, py + 2, '#ffd060', { outline: false, font: 'tiny' });
+        if (one && u.queue && u.queue.length) { const q = u.queue[0], k = q.t / (KINDS[q.kind].time || 1); E.font.text(g, u.queue.length > 1 ? E.t('rts.hud.making_more', { kind: KINDS[q.kind].name, more: u.queue.length - 1 }) : E.t('rts.hud.making', { kind: KINDS[q.kind].name }), 100, py + 2, '#a8ffb0', { outline: false, font: 'tiny' }); E.ui.bar(g, 100, py + 11, 44, 3, k, '#ffd060'); }
+        if (one && u.progress < 1) E.font.text(g, E.t('rts.hud.going_up', { percent: Math.floor(u.progress * 100) }), 100, py + 2, '#ffd060', { outline: false, font: 'tiny' });
         cmds.forEach((c, i) => {
           const b = { x: 7 + i * (bw + 2), y: py + 17, w: bw, h: bh, c }; boxes.cmds.push(b);
           E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: c.off ? '#1a1828' : '#2a3a7a' });
           E.font.text(g, c.label, b.x + 4, b.y + b.h / 2 - 3, c.off ? '#6a6680' : '#ffffff', { outline: false, font: 'tiny' });
           if (c.cost) E.font.text(g, String(c.cost), b.x + b.w - 3, b.y + b.h / 2 - 3, c.off ? '#6a6680' : '#ffd860', { align: 'right', outline: false, font: 'tiny' });
-          if (!tc) E.font.text(g, ['Z', 'X', 'C'][i], b.x + b.w - 3, b.y - 6, '#8a86a0', { align: 'right', outline: false, font: 'tiny' });
+          if (!tc) E.font.text(g, game.input.label(HOTKEYS[i]), b.x + b.w - 3, b.y - 6, '#8a86a0', { align: 'right', outline: false, font: 'tiny' });
         });
       }
       // a building's plan: PLACE and CANCEL on a touch screen (a tap moves it), else the hint
       if (mode === 'place') {
         const ok = rts.canPlace(placing.kind, placing.cx, placing.cy);
-        if (tc) [['place', 'PLACE', ok], ['cancel', 'CANCEL', true]].forEach(([id, s, on], i) => { const b = { id, x: 7 + i * 66, y: H - th - 6, w: 62, h: th }; boxes.place.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: on ? '#2a5a3a' : '#3a1a1a' }); E.font.text(g, s, b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false }); });
-        E.font.text(g, KINDS[placing.kind].name + (tc ? ': TAP WHERE IT STANDS' : ': CLICK WHERE IT STANDS, RIGHT CLICK CANCELS'), W / 2, 22, ok ? '#a8ffb0' : '#ffb0a0', { align: 'center', shadow: '#000', outline: false });
+        if (tc) [['place', E.t('rts.place.place'), ok], ['cancel', E.t('rts.place.cancel'), true]].forEach(([id, s, on], i) => { const b = { id, x: 7 + i * 66, y: H - th - 6, w: 62, h: th }; boxes.place.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: on ? '#2a5a3a' : '#3a1a1a' }); E.font.text(g, s, b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false }); });
+        E.font.text(g, E.t(tc ? 'rts.place.touch' : 'rts.place.mouse', { kind: KINDS[placing.kind].name }), W / 2, 22, ok ? '#a8ffb0' : '#ffb0a0', { align: 'center', shadow: '#000', outline: false });
       }
       // HALL, ARMY and IDLE on the left of a touch screen (keys H and R)
-      if (tc) ['hall', 'army', 'idle'].forEach((id, i) => { const b = { id, x: 3, y: 22 + i * (th + 3), w: 40, h: th }; boxes.side.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .82 }); E.font.text(g, id.toUpperCase(), b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
+      if (tc) ['hall', 'army', 'idle'].forEach((id, i) => { const b = { id, x: 3, y: 22 + i * (th + 3), w: 40, h: th }; boxes.side.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .82 }); E.font.text(g, E.t('rts.side.' + id), b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
       // the banner, the message
       if (banner && banner.t < 2.4) { const a = banner.t < .3 ? banner.t / .3 : banner.t > 1.9 ? (2.4 - banner.t) / .5 : 1; px.blend(g, a * .7, 'normal', () => px.rect(g, 0, H / 2 - 26, W, 30, '#0a0816')); E.font.title(g, banner.s, W / 2, H / 2 - 22, { align: 'center', scale: 2, colors: ['#ffffff', banner.c, E.mix(banner.c, '#000000', .5)] }); }
       if (msg && msg.t < 3) E.font.text(g, msg.s, W / 2, mode === 'place' ? 34 : 22, msg.c, { align: 'center', shadow: '#000', outline: false });
-      if (!tc && !sel.length && stats.t < 40) E.font.text(g, 'CLICK OR DRAG TO SELECT  RIGHT CLICK ORDERS  H HALL  R ARMY', W / 2, H - 9, '#a8a0c0', { align: 'center', outline: false, font: 'tiny' });
+      if (!tc && !sel.length && stats.t < 40) E.font.text(g, E.t('rts.hint'), W / 2, H - 9, '#a8a0c0', { align: 'center', outline: false, font: 'tiny' });
     });
     if (over && over.t > 1.6) endMenu.draw(r);
   }
   function overDraw(g, W, H) {
     const k = Math.min(1, over.t / .8), cy = Math.round(H / 2);
     g.fillStyle = 'rgba(4,2,10,' + (.6 * k).toFixed(2) + ')'; g.fillRect(0, 0, game.r.bw, game.r.bh); E.px.reset(g);
-    E.font.title(g, over.won ? 'VICTORY' : 'DEFEAT', W / 2, cy - 64, { align: 'center', scale: 3, colors: over.won ? ['#fff8d0', '#ffd060', '#e07a2a'] : ['#ffd0d0', '#ff5a5a', '#8a1a2a'] });
-    const t = stats.t, lines = [over.won ? 'THE ASH CLAN\'S CAMP IS BURNED' : 'THE VALE HAS FALLEN', 'TIME ' + Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') + '   GOLD MINED ' + stats.gold,
-      'MADE ' + stats.made + '   LOST ' + stats.lost + '   FOES FELLED ' + stats.killed];
+    E.font.title(g, E.t(over.won ? 'rts.over.victory' : 'rts.over.defeat'), W / 2, cy - 64, { align: 'center', scale: 3, colors: over.won ? ['#fff8d0', '#ffd060', '#e07a2a'] : ['#ffd0d0', '#ff5a5a', '#8a1a2a'] });
+    const t = stats.t, NUM = n => E.lang.num(n, { useGrouping: false });   // (gold past 999 without a thousands mark, as always)
+    const lines = [E.t(over.won ? 'rts.over.burned' : 'rts.over.fallen'), E.t('rts.over.time', { time: Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'), gold: NUM(stats.gold) }),
+      E.t('rts.over.stats', { made: NUM(stats.made), lost: NUM(stats.lost), killed: NUM(stats.killed) })];
     lines.forEach((s, i) => E.font.text(g, s, W / 2, cy - 20 + i * 11, i ? '#e8e0f0' : '#ffe070', { align: 'center', shadow: '#000', outline: false }));
     endMenu.y = cy + 22;
   }

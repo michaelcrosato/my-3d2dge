@@ -1487,3 +1487,38 @@ An entry:
   to keep a few hundred tokens of margin costs more than it saves. 64,000 leaves room for the next versions' names.
 - **Answered:** yes: the owner's word (2026-11-05)
 - **Landed in:** v0.89.0
+
+## D83 · 2026-11-07 · The budgets raised for languages, on the owner's word
+
+- **Principle:** 1 (agent-readable: the manuals and the kits have measured budgets), under D69, D80, D81 and D82
+- **Call:** AI Hub Languages v1 in the engine and the kits (v0.90.0) takes room in every manual and every kit: the
+  language section (6b: `E.lang`, `E.t`, the device's font for what the pixel fonts lack), the engine's own words as
+  lines, and each kit's `game-lines` block (the engine's 209 lines and the kit's own, in its `<head>`, where a
+  translation step reads them). The budgets go up: the agent edition's header 10,600 tokens (from 10,000), the API card
+  22,000 (from 21,300), and the kits (`tools/doctrine-check.mjs`): a 2D kit at most 216,000 (from 200,000); the six 2D
+  kits' own: rpg 264,000, shooter 242,000, adventure 228,000, sim 229,000, rts 227,000, brawler 225,000; the 3D kits':
+  action 250,000, platformer 244,500, shooter 322,000, horror 268,000, racing 257,000, flight 258,000, crawler 262,000.
+  Each is what the kit measured with the language section and its lines (v0.90.0), with 2,500 to 3,500 of room.
+- **Why:** the owner set the goal "increase the budgets, go ahead and implement this support". The words a player reads
+  have to be in the page for the hub's translation step to find them, so a kit's lines can't move to the index; the
+  language code serves every game on the hub. A kit that later sheds its lines' tokens (a shorter brief, the engine's
+  lines shared by the hub) gives its budget back.
+- **Answered:** yes: the owner's word (2026-11-07)
+- **Landed in:** v0.90.0
+
+## D84 · 2026-11-07 · The fonts draw what their glyphs lack with the device's font
+
+- **Principle:** 7 (common ground: the device's fonts for the world's writing systems) and 8 (quality under the hood),
+  over the engine's own look rule (the header's rule 4: never `fillText` on the game's buffer)
+- **Call:** `E.font` (both editions) draws a letter its pixel glyphs lack with the device's font, a run at a time, each
+  run in one `fillText` so its letters join: a line with letters written right to left is drawn whole; Chinese,
+  Japanese and Korean at 12 pixels or more; in a language whose text needs the device's font, lines are taller
+  (`E.lang.big`). The pixel font still draws every letter it has, so English, Spanish, French and the other Latin-letter
+  languages it covers look exactly as before (the kits' films are the same, pixel for pixel). Game code still never calls
+  `fillText` itself.
+- **Why:** the AI Hub's languages page puts readable text in the player's language before a strict pixel style, and a
+  pixel font with every writing system is out of reach (Chinese alone is thousands of glyphs; Arabic and Hindi letters
+  change shape with their neighbours). What would change it: a pixel font that covers a language, which the engine would
+  then prefer for it.
+- **Answered:** yes: the owner's goal (2026-11-07), and the hub's spec
+- **Landed in:** v0.90.0

@@ -1,5 +1,5 @@
 // The PUZZLE kit's game (falling blocks and falling pairs that chain, versus with a second player or the CPU; Tetris, Puyo Puyo), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 159 (src/starter/35-puzzle.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 164 (src/starter/35-puzzle.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. puzzle.html plays it; node kits/test.mjs puzzle runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -11,6 +11,9 @@
  * To make your own game: change the slice closest to your genre into yours, with its own title, play and game-over
  * scenes, and delete this menu and the slices you do not use; this shell (the game, its scenes, prompt, best and the
  * proof) stays unless you replace it. Deep links: #<slice> starts a slice, #<slice>/<part> jumps into a part.
+ * WORDS: every word a player reads is a line in the page's game-lines block (in <head>), shown with E.t('id', values), so
+ * the game can be played in any language a translation adds (AI Hub Languages v1; ?lang=en-XA, zh-XC or ar-XB test it).
+ * Each part's lines live beside it in the repo (src/starter/<part>.lines.json); the build writes the block.
  * ======================================================================== */
 (() => {
 'use strict';
@@ -24,9 +27,11 @@ const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
-// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
-const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
-// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
+// word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it), as lines:
+// starter.slice.<id>, starter.slice.<id>.about and starter.family.<family>
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
@@ -50,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-];
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -58,9 +63,9 @@ const SLICES = [
 const camOpt = () => (game.scene && game.scene.camera) || {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
-  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
+  if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
@@ -123,26 +128,26 @@ scenes.title = {
   },
   draw(r) {
     const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
-    titleMenu.y = 76 + top;
+    titleMenu.y = 76 + top + (E.lang.big ? E.font.lineHeight({ scale: 4 }) - 40 : 0);   // (below a taller logo)
     titleBg.draw(r);
     stage.draw(r);
     for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
     for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
+    const lh = E.font.lineHeight();   // (lines measured, not counted: a language the device's font draws has taller ones)
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
-      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+      const logo = E.font.title(g, E.t('starter.logo'), r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, E.t('starter.tagline'), r.W / 2, 12 + top + logo.h, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 4 - lh, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter or click   V view   - = zoom   M mute';
-    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = E.t(dev === 'touch' ? 'starter.how.touch' : dev === 'gamepad' ? 'starter.how.pad' : 'starter.how.keys');
+    r.text(how, r.W / 2, r.H - 6 - 2 * lh, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
 /* ---- GAME OVER: shared by every slice ---- */
-const overMenu = new E.Menu(game, ['Retry', 'Title'], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
+const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
@@ -152,7 +157,7 @@ scenes.over = {
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
-    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+    overBg.draw(r); r.overlay(g => E.font.title(g, E.t('starter.over'), r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
 
@@ -202,9 +207,9 @@ const PUZZLE = (() => {
   const save = () => ({ mode, R, field, W, H, cur, hold, held, queue, bag, fallT, lockT, resets, softT, score, lines, level, chain, clearing, popping, over, flash, time, popped, touchX, touchY, downT, swept });
   const load = b => { ({ mode, R, field, W, H, cur, hold, held, queue, bag, fallT, lockT, resets, softT, score, lines, level, chain, clearing, popping, over, flash, time, popped, touchX, touchY, downT, swept } = b); };
   const G = () => new E.Grid(W, H);
-  const pick = new E.Menu(game, ['BLOCKS', 'PAIRS'], { y: 0, onPick: i => i === 2 ? versus() : begin(i ? 'pairs' : 'blocks') });   // (VERSUS joins the list once a second player is in)
-  const after = new E.Menu(game, ['RETRY', 'OTHER GAME', 'TITLE'], { y: 0, onPick: i => i === 0 ? begin(over.kind) : i === 1 ? begin(over.kind === 'blocks' ? 'pairs' : 'blocks') : game.go('title') });
-  const rematch = new E.Menu(game, ['REMATCH', 'TITLE'], { y: 0, onPick: i => i ? game.go('title') : versus(VS.cpu) });
+  const VERSUS = E.t('puzzle.menu.versus'), pick = new E.Menu(game, [E.t('puzzle.menu.blocks'), E.t('puzzle.menu.pairs')], { y: 0, onPick: i => i === 2 ? versus() : begin(i ? 'pairs' : 'blocks') });   // (VERSUS joins the list once a second player is in)
+  const after = new E.Menu(game, [E.t('puzzle.menu.retry'), E.t('puzzle.menu.other'), E.t('puzzle.menu.title')], { y: 0, onPick: i => i === 0 ? begin(over.kind) : i === 1 ? begin(over.kind === 'blocks' ? 'pairs' : 'blocks') : game.go('title') });
+  const rematch = new E.Menu(game, [E.t('puzzle.menu.rematch'), E.t('puzzle.menu.title')], { y: 0, onPick: i => i ? game.go('title') : versus(VS.cpu) });
   const mascot = new E.Humanoid({ size: 1.3, outfit: 'robe', hair: 'ponytail', weapon: null, sleeves: 'long', colors: { cloth: '#e04a8a', hair: '#3a2a6a', trim: '#f0d060', skin: '#f0c8a0' } });
 
   /* ---- 3. BLOCKS: spawn, fits, move, rotate (kicks), lock, clear ---- */
@@ -282,7 +287,7 @@ const PUZZLE = (() => {
   /* ---- 5b. VERSUS: two fields side by side from one seed (the same pieces), each player's own input (a CPU in tests);
    * two lines or more cleared send rows to the other field (2: 1, 3: 2, 4: 4), rising at its next piece; the first to
    * top out loses ---- */
-  const vsX = i => Math.round(game.W * (i ? .75 : .25)), vsJoin = () => { if (game.players.length > 1 && !pick.items.includes('VERSUS')) pick.items.push('VERSUS'); };
+  const vsX = i => Math.round(game.W * (i ? .75 : .25)), vsJoin = () => { if (game.players.length > 1 && !pick.items.includes(VERSUS)) pick.items.push(VERSUS); };
   function versus(cpu = [false, false]) {
     const seed = 1 + Math.floor(Math.random() * 1e6);
     VS = { b: [], in: [game.players[0], game.players[1] || null], cpu, pend: [0, 0], sent: [0, 0], out: 0, at: 0, cpuT: [0, 0], rate: .7, err: .08 };
@@ -312,9 +317,9 @@ const PUZZLE = (() => {
       load(VS.b[i]); CX = vsX(i); drawField(r);
       const b = fieldBox(), pend = VS.pend[i], lost = VS.loser;
       r.overlay(g => {
-        E.font.text(g, VS.cpu[i] ? 'CPU' : 'P' + (i + 1), b.x + b.w / 2, b.y - 13, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, VS.cpu[i] ? E.t('puzzle.vs.cpu') : E.t('puzzle.vs.player', { n: i + 1 }), b.x + b.w / 2, b.y - 13, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
         if (pend) px.rect(g, b.x - 4, b.y + b.h - Math.min(b.h, pend * b.c), 3, Math.min(b.h, pend * b.c), '#ff4a4a');   // the rows on their way
-        if (lost !== undefined) E.font.title(g, lost === i ? 'LOSE' : 'WIN!', b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: lost === i ? ['#d8d8e8', '#6a6a80'] : ['#fff8d0', '#ffd040', '#ff7a2a'] });
+        if (lost !== undefined) E.font.title(g, E.t(lost === i ? 'puzzle.vs.lose' : 'puzzle.vs.win'), b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: lost === i ? ['#d8d8e8', '#6a6a80'] : ['#fff8d0', '#ffd040', '#ff7a2a'] });
       });
     }
     CX = null; load(VS.b[0]);
@@ -431,24 +436,24 @@ const PUZZLE = (() => {
   }
   function panels(g, b, kind) {
     const c = Math.max(6, Math.floor(b.c * .6)), rx = b.x + b.w + 10, lx = b.x - 10, mini = (k, x, y, sz) => { for (const [a, bb] of cellsOf(k, 0)) block(g, x + a * sz, y + bb * sz, sz, COLOR[k]); };
-    E.font.text(g, 'NEXT', rx, b.y, '#c8b8ff', { outline: false, font: 'tiny' });
+    E.font.text(g, E.t('puzzle.next'), rx, b.y, '#c8b8ff', { outline: false, font: 'tiny' });
     if (kind === 'blocks') {
       queue.slice(0, 5).forEach((k, i) => mini(k, rx, b.y + 9 + i * c * 2.6, i ? Math.max(4, c - 2) : c));
-      E.font.text(g, 'HOLD', lx, b.y, '#c8b8ff', { outline: false, font: 'tiny', align: 'right' });
+      E.font.text(g, E.t('puzzle.hold'), lx, b.y, '#c8b8ff', { outline: false, font: 'tiny', align: 'right' });
       if (hold) mini(hold, lx - c * 4, b.y + 9, c);
     } else queue.slice(0, 2).forEach(([p, q], i) => { blob(g, rx, b.y + 10 + i * 30, c * 1.6, q, 0); blob(g, rx, b.y + 10 + i * 30 + c * 1.6, c * 1.6, p, 0); });
     const sy = b.y + b.h - 50, tx = rx;
-    [['SCORE', score], [kind === 'blocks' ? 'LINES' : 'POPPED', lines], ['LEVEL', level]].forEach(([k, v], i) => {
+    [[E.t('puzzle.score'), score], [E.t(kind === 'blocks' ? 'puzzle.lines' : 'puzzle.popped'), lines], [E.t('puzzle.level'), level]].forEach(([k, v], i) => {
       E.font.text(g, k, tx, sy + i * 17, '#a898e0', { outline: false, font: 'tiny' }); E.font.text(g, String(v), tx, sy + i * 17 + 7, '#ffffff', { outline: false });
     });
-    if (kind === 'pairs' && chain > 1 && popping) E.font.title(g, chain + ' CHAIN!', b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: ['#fff8d0', '#ffd040', '#ff7a2a'] });
+    if (kind === 'pairs' && chain > 1 && popping) E.font.title(g, E.t('puzzle.chain', { chain }), b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: ['#fff8d0', '#ffd040', '#ff7a2a'] });
   }
   function menuScreen(r) {
     r.overlay(g => {
-      E.font.title(g, 'PUZZLE', r.W / 2, 34, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ad8', '#c04ae8'], depth: 3 });
-      E.font.text(g, pick.i === 2 ? 'VERSUS: CLEAR TWO ROWS OR MORE TO SEND THEM ACROSS' : pick.i ? 'FALLING PAIRS: FOUR OF A COLOUR POP, CHAINS SCORE MORE' : 'FALLING BLOCKS: FILL A ROW TO CLEAR IT', r.W / 2, r.H - 22, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
-      const two = game.players.length > 1, keysOf = I => I.name + ' ' + (I.half === 'right' ? 'ARROWS' : I.half ? 'WASD' : 'STICK') + '  ' + [['rotate', 'TURN'], ['drop', 'DROP'], ['hold', 'HOLD']].map(([a, w]) => I.label(a) + ' ' + w).join('  ');   // (two: each player's own keys)
-      E.font.text(g, two ? game.players.map(keysOf).join('     ') : touch() ? 'DRAG MOVE   TAP ROTATE   FLICK DOWN DROP   FLICK UP HOLD' : 'ARROWS MOVE   UP / X ROTATE   SPACE DROP   C HOLD', r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+      E.font.title(g, E.t('puzzle.title'), r.W / 2, 34, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ad8', '#c04ae8'], depth: 3 });
+      E.font.text(g, E.t(pick.i === 2 ? 'puzzle.about.versus' : pick.i ? 'puzzle.about.pairs' : 'puzzle.about.blocks'), r.W / 2, r.H - 22, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
+      const two = game.players.length > 1, keysOf = I => E.t('puzzle.how.player', { player: E.t('puzzle.vs.player', { n: I.player }), move: E.t(I.half === 'right' ? 'puzzle.how.arrows' : I.half ? 'puzzle.how.wasd' : 'puzzle.how.stick'), rotate: I.label('rotate'), drop: I.label('drop'), hold: I.label('hold') });   // (two: each player's own keys)
+      E.font.text(g, two ? game.players.map(keysOf).join('     ') : touch() ? E.t('puzzle.how.touch') : E.lang.upper(E.t('puzzle.how.keys')), r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
     });
     pick.y = 92; pick.draw(r);
   }
@@ -456,9 +461,9 @@ const PUZZLE = (() => {
     r.overlay(g => {
       const k = Math.min(1, over.t / .6), y = Math.round(r.H / 2) - 50;
       g.fillStyle = 'rgba(6,2,16,' + (.7 * k).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g);
-      E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 3, colors: ['#ffffff', '#ff8ad8', '#c04ae8'] });
-      [['SCORE', over.score + (over.score >= over.best ? '  BEST!' : '')], [over.kind === 'blocks' ? 'LINES' : 'POPPED', over.lines], ['LEVEL', over.level], ['BEST', over.best]].forEach(([a, v], i) =>
-        E.font.text(g, a + '  ' + v, r.W / 2, y + 34 + i * 10, i ? '#e8d8ff' : '#ffe070', { align: 'center', shadow: '#000', outline: false }));
+      E.font.title(g, E.t('puzzle.over'), r.W / 2, y, { align: 'center', scale: 3, colors: ['#ffffff', '#ff8ad8', '#c04ae8'] });
+      [E.t(over.score >= over.best ? 'puzzle.over.score_best' : 'puzzle.over.score', { score: String(over.score) }), E.t(over.kind === 'blocks' ? 'puzzle.over.lines' : 'puzzle.over.popped', { lines: String(over.lines) }), E.t('puzzle.over.level', { level: String(over.level) }), E.t('puzzle.over.best', { best: String(over.best) })].forEach((s, i) =>
+        E.font.text(g, s, r.W / 2, y + 34 + i * 10, i ? '#e8d8ff' : '#ffe070', { align: 'center', shadow: '#000', outline: false }));
       after.y = y + 80;
     });
     if (over.t > 1) after.draw(r);
