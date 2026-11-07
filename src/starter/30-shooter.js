@@ -339,7 +339,7 @@ const SHOOT = (() => {
     foes = []; items = []; craters = []; fx = []; shots = shots || new E.Bullets(game, { plane: 'ground', max: 1200 }); shots.clear();
     for (const [kind, x, y, a] of GROUND) unit(kind, x, y, { a: a ?? D, aim: a ?? D });
     clouds = [0, 1, 2, 3, 4, 5, 6].map(i => ({ x: cloudX(), y: i * 70 - 80, art: CLOUDS[i % 3], high: i > 3 }));
-    lives = 2; bombs = 3; score = 0; power = 1; boss = null; won = 0; fireT = 0; warnT = 0; cab.start(1); ending = null; radio(PILOT, 'EAGLE 1', 'Fortress sighted over the valley. Weapons free!', { point: true, aim: .9, expr: 'smile' });
+    lives = 2; bombs = 3; score = 0; power = 1; boss = null; won = 0; fireT = 0; warnT = 0; cab.start(1); ending = null; radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.sighted'), { point: true, aim: .9, expr: 'smile' });
   }
   const cloudX = () => { const m = Math.max(0, (W - WW) / 2); return E.rand(-30 - m, WW - 60 + m); };   // across the whole screen
   const shoot = (x, y, vels, art = 'orb') => shots.burst({ x, y, z: 20, r: art === 'big' ? 3 : 2, life: 7, team: 'foe', art }, vels);
@@ -352,7 +352,7 @@ const SHOOT = (() => {
   function hitShip() {   // not while out or shielded: a hit-stop, a .4 s spin-out (see draw), then the blast
     if (ship.respawn > 0 || ship.inv > 0) return; ship.respawn = 2; lives--; power = Math.max(1, power - 1); shots.clear('foe');
     game.freeze(.06); game.after(.4, () => boom(ship.x, ship.y, 2, { air: true }));
-    if (!talk.open) radio(PILOT, 'EAGLE 1', "I'm hit! Coming back around!", { expr: 'wince' }, { upright: true });   // face-on, not bowed
+    if (!talk.open) radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.hit'), { expr: 'wince' }, { upright: true });   // face-on, not bowed
   }
   function bomb() {   // a carpet of blasts sweeps up the screen and scorches it
     bombs--; ship.inv = Math.max(ship.inv, 2); shots.clear('foe'); game.flash('#fff0d0', .4, .8); game.shake(5); A.sfx('boom');
@@ -378,7 +378,7 @@ const SHOOT = (() => {
       game.shake(dt * 20);
       if ((f.dying -= dt) > 0) return;
       f.gone = true; boss = null; won = t; best('shooter', score); A.music('victory'); game.after(2.8, () => {   // a dip (anticipation), then the fists pump; zoomed out so they show
-        const mood = { pose: 'crouch', expr: 'smile' }; radio(PILOT, 'EAGLE 1', 'Target down. Heading home!', mood, { zoom: 2.3, headY: .62 }); game.after(.2, () => mood.pose = 'cheer');
+        const mood = { pose: 'crouch', expr: 'smile' }; radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.down'), mood, { zoom: 2.3, headY: .62 }); game.after(.2, () => mood.pose = 'cheer');
       }); game.after(7, () => game.go('shooter-horizontal', { score, lives }, { fade: 'white' }));   // the crash; on to stage 2
       boom(f.x, f.y, 4); for (let i = 0; i < 8; i++) game.after(i * .06, () => boom(f.x + E.rand(-45, 45), f.y + E.rand(-40, 40), 2, { sound: false, shake: 0, freeze: false }));
       add({ k: 'ring', x: f.x, y: f.y, r: 170, life: 1 }); game.flash('#fff4e0', 1.1, 1); game.shake(8); craters.push(crater0(f.x, f.y, 24, 14), crater0(f.x - 34, f.y + 18, 10, 8)); return;
@@ -410,7 +410,7 @@ const SHOOT = (() => {
     talk.update(dt);   // radio chatter (not modal)
     while (wave < TIMELINE.length && t >= TIMELINE[wave][0]) TIMELINE[wave++][1]();
     // the fortress: a warning, and HQ's call (zoomed out and turned so the raised fist stays in frame; a low camera clears the brim)
-    if (scroll <= 0 && warnT === 0 && !won) { warnT = 3.4; A.music(null); radio(HQ, 'HQ', 'A flying fortress! Shoot off its gun pods first!', { point: true, aim: .6, expr: 'angry' }, { pitch: 4, zoom: 2, turn: .7 }); for (let i = 0; i < 4; i++) game.after(i * .75, () => A.sfx({ wave: 'square', freq: 'A5', to: 'D5', dur: .45, vol: .25 })); }
+    if (scroll <= 0 && warnT === 0 && !won) { warnT = 3.4; A.music(null); radio(HQ, E.t('shooter.name.hq'), E.t('shooter.radio.fortress'), { point: true, aim: .6, expr: 'angry' }, { pitch: 4, zoom: 2, turn: .7 }); for (let i = 0; i < 4; i++) game.after(i * .75, () => A.sfx({ wave: 'square', freq: 'A5', to: 'D5', dur: .45, vol: .25 })); }
     if (warnT > 0 && (warnT -= dt) <= 0) {   // the boss: a core and two gun pods
       boss = { kind: 'boss', x: WW / 2, y: scroll - 90, t: 0, flash: -1, fire: 2, n: 0, aim: D, kick: 0, trail: 1, air: true, scale: 1, spin: 0, dying: 0, parts: [-1, 1, 0].map(s => ({ s, hp: s ? 90 : 380, r: s ? 15 : 30, aim: D, kick: 0, pts: s ? 5000 : 50000 })) };
       boss.parts.forEach(p => Object.assign(p, { boss, x: boss.x, y: boss.y, max: p.hp })); foes.push(boss); A.music('boss');
@@ -547,26 +547,26 @@ const SHOOT = (() => {
     const band = (y, h, c) => { px.blend(g, .6, 'normal', () => px.rect(g, 0, y, W, h, c)); for (const yy of [y, y + h - 1]) px.rect(g, 0, yy, W, 1, GOLD); };   // see-through band, gold rules
     // pilot portrait; score, lives, bombs
     PILOT.drawPortrait(g, 4, 4, 21, { zoom: 2.2, turn: .4, upright: false, bg: ship.respawn > 0 ? RED : BLUE, border: GOLD });
-    win(27, 2, 74, 25, BLUE); txt(g, '1P', 31, 5, '#ffd36a'); txt(g, pad(score), 46, 5, '#fff', { gradient: ['#ffffff', '#9ac0ff'] });
+    win(27, 2, 74, 25, BLUE); txt(g, E.t('shooter.hud.player'), 31, 5, '#ffd36a'); txt(g, pad(score), 46, 5, '#fff', { gradient: ['#ffffff', '#9ac0ff'] });
     for (let i = 0; i < lives; i++) px.sprite(g, LIFE, 31 + i * 10, 16); for (let i = 0; i < bombs; i++) px.sprite(g, BOMBI, 94 - i * 7, 17);
     // hi-score; lit power chevrons run hot
     const R = Math.min(W, cornerX());   // (clear of the corner's menu button)
-    win(R - 76, 2, 74, 25, RED); txt(g, 'HI', R - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(score, E.store.get('best:shooter', 0))), R - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
-    txt(g, power < 4 ? 'POW' : 'MAX', R - 72, 17, '#ffd36a');
+    win(R - 76, 2, 74, 25, RED); txt(g, E.t('shooter.hud.hi'), R - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(score, E.store.get('best:shooter', 0))), R - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
+    txt(g, E.t(power < 4 ? 'shooter.hud.pow' : 'shooter.hud.max'), R - 72, 17, '#ffd36a');
     for (let i = 0; i < 4; i++) { const x = R - 48 + i * 10, on = i < power; px.poly(g, [[x, 16], [x + 5, 16], [x + 9, 20], [x + 5, 24], [x, 24], [x + 4, 20]], on ? ['#ffd040', '#ffa030', '#ff6a30', '#ff3a5a'][i] : '#5a6494'); px.line(g, x + 1, 16, x + 5, 16, on ? '#fff4c0' : '#9aa4d0'); }
     if (boss) {   // a pale damage trail drains after the health
-      const f = boss.parts[2].hp / boss.parts[2].max, w = Math.round(118 * f), o = Math.round(mid) - 120; win(o + 44, 30, 152, 13, RED); txt(g, 'BOSS', o + 48, 33, '#ff9a8a');
+      const f = boss.parts[2].hp / boss.parts[2].max, w = Math.round(118 * f), o = Math.round(mid) - 120; win(o + 44, 30, 152, 13, RED); txt(g, E.t('shooter.hud.boss'), o + 48, 33, '#ff9a8a');
       E.ui.bar(g, o + 72, 34, 120, 6, boss.trail, '#ffe8b0', { border: '#140b12', bg: '#2a0a12' }); px.rect(g, o + 73, 35, w, 4, boss.flash > 0 ? '#ff8a90' : '#e8404a'); px.rect(g, o + 73, 35, w, 1, '#ff9aa0');
     }
     if (t < INTRO) {   // stage card above the radio call; nobody fires until it clears
-      band(40, 62, '#080a1c'); E.font.title(g, 'STAGE 1', mid, 46, { align: 'center', scale: 3 });
-      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, (touch() ? 'DRAG to fly, AUTO-FIRE' : prompt('fire', 'shot')) + '     ' + prompt('bomb', 'bomb'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys
+      band(40, 62, '#080a1c'); E.font.title(g, E.t('shooter.stage1'), mid, 46, { align: 'center', scale: 3 });
+      txt(g, E.t('shooter.stage1.name'), mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, E.t(touch() ? 'shooter.stage1.touch' : 'shooter.stage1.keys'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys ({key:fire})
     }
     if (warnT > 0) {
       band(60, 62, '#2a0406');
-      E.font.title(g, 'WARNING', mid, 75, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(warnT * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); txt(g, 'A HUGE ENEMY APPROACHES', mid, 101, '#ffd0c0', { align: 'center' });
+      E.font.title(g, E.t('shooter.warning'), mid, 75, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(warnT * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); txt(g, E.t('shooter.warning.huge'), mid, 101, '#ffd0c0', { align: 'center' });
     }
-    if (won && t - won > 2.2) { win(Math.round(mid) - 108, 64, 216, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(score), mid, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
+    if (won && t - won > 2.2) { win(Math.round(mid) - 108, 64, 216, 52, BLUE); E.font.title(g, E.t('shooter.clear'), mid, 70, { align: 'center', scale: 3 }); txt(g, E.t('shooter.clear.score', { score: pad(score) }), mid, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
   }
   /* ---- 10. THE ARCADE FRAME (the arcade module): a continue when the last ship is lost, initials on a letter wheel for a
    * score that makes the table, the table, then the title. Both stages share it; the HUD stays the slice's own ---- */
@@ -581,7 +581,7 @@ const SHOOT = (() => {
     return !!ending && !(ending === 'cont' && !cab.continuing && !cab.entry);
   }
   function frameDraw(r) {
-    if (ending === 'table') { r.overlay(g => { px.blend(g, .8, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#05060c')); }); cab.drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), 'SHOOTER HIGH SCORES'); }
+    if (ending === 'table') { r.overlay(g => { px.blend(g, .8, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#05060c')); }); cab.drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), E.t('shooter.table')); }
     else cab.draw(r);
   }
 
@@ -621,7 +621,7 @@ const SHOOT = (() => {
     function mid() {
       s.lock = true; A.music('boss');
       foe('mid', s.x + w + 60, 120, { hp: 70, max: 70, r: 22, pts: 10000, art: [BOMBER, 'bomber', 2], path: new E.Path([[.78, .3], [.62, .5], [.78, .72], [.9, .5]].map(([u, v]) => [u * w, v * BAND]), { closed: true, smooth: 'catmull' }), d: 0, enter: 1.6, fire: 1.4, n: 0, leave: 28 });
-      radio(PILOT, 'EAGLE 1', 'A cruiser! Hit it while it turns!', { point: true, expr: 'angry' });
+      radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.cruiser'), { point: true, expr: 'angry' });
     }
     // the core: a battleship at the screen's right edge, its core behind three walls (each shot away), guns above and below
     function core() {
@@ -631,7 +631,7 @@ const SHOOT = (() => {
     function begin(d) {
       s = { x: 0, t: 0, lock: false, wave: 0, score: (d && d.score) || 0, lives: d && d.lives !== undefined ? d.lives : 2, warn: 0, won: 0, ship: { x: 60, y: 120, inv: 2, dead: 0, bank: 0, gun: 0, cool: 0 }, speed: 0, missile: false, weapon: 'shot', options: 0, shield: 0, cursor: -1, mcool: 0, boss: null };
       foes = []; caps = []; mis = []; trail = Array.from({ length: TRAIL * 4 + 1 }, () => [60, 120]); fx = []; shots = shots || new E.Bullets(game, { plane: 'ground', max: 1200 }); shots.clear();
-      cab.start(1); ending = null; game.after(.5, () => radio(PILOT, 'EAGLE 1', 'Into the caverns! Grab the capsules and power up!', { point: true, aim: .9, expr: 'smile' }));
+      cab.start(1); ending = null; game.after(.5, () => radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.caverns'), { point: true, aim: .9, expr: 'smile' }));
     }
     const powerOff = () => Object.assign(s, { speed: 0, missile: false, weapon: 'shot', options: 0, shield: 0, cursor: -1 });
     function hit() {   // the ship lost: every power with it (Gradius), back in from the left a moment later
@@ -717,7 +717,7 @@ const SHOOT = (() => {
         boom(f.x, f.y, f.kind === 'core' ? 4 : f.kind === 'mid' ? 3 : f.kind === 'carrier' ? 2 : .9, { air: f.air });
         if (f.cap || (f.group && --f.group.left === 0)) caps.push({ x: f.x, y: f.y, t: 0 });
         if (f.kind === 'mid') { s.lock = false; A.music(CAVERN); caps.push({ x: f.x - 10, y: f.y - 10, t: 0 }, { x: f.x + 10, y: f.y + 10, t: 0 }); }
-        if (f.kind === 'core') { s.won = s.t; shots.clear('foe'); A.music('victory'); for (let i = 0; i < 8; i++) game.after(i * .12, () => boom(f.x + E.rand(-50, 50), f.y + E.rand(-40, 40), 2, { air: true, sound: i % 3 === 0, shake: 0, freeze: false })); game.flash('#fff4e0', 1, 1); game.after(2.5, () => radio(PILOT, 'EAGLE 1', 'Core destroyed. Mission complete!', { pose: 'cheer', expr: 'smile' })); game.after(6, () => endGame(s.score)); }
+        if (f.kind === 'core') { s.won = s.t; shots.clear('foe'); A.music('victory'); for (let i = 0; i < 8; i++) game.after(i * .12, () => boom(f.x + E.rand(-50, 50), f.y + E.rand(-40, 40), 2, { air: true, sound: i % 3 === 0, shake: 0, freeze: false })); game.flash('#fff4e0', 1, 1); game.after(2.5, () => radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.core'), { pose: 'cheer', expr: 'smile' })); game.after(6, () => endGame(s.score)); }
       }
       for (const f of foes) if (f.group && f.gone && f.hp > 0 && f.group.left > 0) f.group.left = -1;   // one got away: no capsule for that six
       if (p.dead <= 0) shots.hit([p], hit, 'foe');
@@ -795,24 +795,24 @@ const SHOOT = (() => {
     function hudH(g, r) {   // the vertical stage's windows (pilot, score and lives; HI), the power bar along the foot, the boss's health
       const W2 = r.W, H2 = r.H, mid0 = W2 / 2, win = (x, y, ww, hh, bg) => E.ui.box(g, x, y, ww, hh, { bg, border: GOLD, alpha: .8 });
       PILOT.drawPortrait(g, 4, 4, 21, { zoom: 2.2, turn: .4, upright: false, bg: s.ship.dead > 0 ? RED : BLUE, border: GOLD });
-      win(27, 2, 74, 25, BLUE); txt(g, '1P', 31, 5, '#ffd36a'); txt(g, pad(s.score), 46, 5, '#fff', { gradient: ['#ffffff', '#9ac0ff'] });
+      win(27, 2, 74, 25, BLUE); txt(g, E.t('shooter.hud.player'), 31, 5, '#ffd36a'); txt(g, pad(s.score), 46, 5, '#fff', { gradient: ['#ffffff', '#9ac0ff'] });
       for (let i = 0; i < s.lives; i++) px.sprite(g, LIFE, 31 + i * 10, 16);
-      const R = Math.min(W2, cornerX()); win(R - 76, 2, 74, 25, RED); txt(g, 'HI', R - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(s.score, cab.hi, E.store.get('best:shooter', 0))), R - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
-      txt(g, 'SPD ' + (s.speed + 1) + (s.options ? '  OPT ' + s.options : ''), R - 72, 17, '#ffd36a', { font: 'tiny' });
+      const R = Math.min(W2, cornerX()); win(R - 76, 2, 74, 25, RED); txt(g, E.t('shooter.hud.hi'), R - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(s.score, cab.hi, E.store.get('best:shooter', 0))), R - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
+      txt(g, E.t(s.options ? 'shooter.hud.speed_options' : 'shooter.hud.speed', { speed: s.speed + 1, options: s.options }), R - 72, 17, '#ffd36a', { font: 'tiny' });
       const bw = Math.min(50, Math.floor((W2 - 16) / 6)), bx = Math.round(mid0 - bw * 3), by = H2 - 16 - (touch() ? 70 : 0);
       BAR.forEach((k, i) => {   // the lit slot blinks; a power you hold is drawn dim
         const lit = i === s.cursor, had = (k === 'SPEED' && s.speed >= 4) || (k === 'MISSILE' && s.missile) || (k === 'DOUBLE' && s.weapon === 'double') || (k === 'LASER' && s.weapon === 'laser') || (k === 'OPTION' && s.options >= 4) || (k === 'SHIELD' && s.shield > 0);
         E.ui.box(g, bx + i * bw, by, bw - 2, 12, { bg: lit ? (game.real * 6 % 2 < 1 ? ['#ff8a30', '#a03a10'] : ['#ffd040', '#c86a10']) : BLUE, border: GOLD, alpha: lit ? 1 : .8 });
-        txt(g, k, bx + i * bw + bw / 2 - 1, by + 4, lit ? '#1a0a00' : had ? '#7a84b0' : '#ffffff', { align: 'center', font: 'tiny', shadow: lit ? false : '#05060c' });
+        txt(g, E.t('shooter.power.' + k.toLowerCase()), bx + i * bw + bw / 2 - 1, by + 4, lit ? '#1a0a00' : had ? '#7a84b0' : '#ffffff', { align: 'center', font: 'tiny', shadow: lit ? false : '#05060c' });
       });
       const f = foes.find(o => o.kind === 'core' || o.kind === 'mid');
-      if (f) { const o = Math.round(mid0) - 120, k = f.hp / f.max; win(o + 44, 30, 152, 13, RED); txt(g, f.kind === 'mid' ? 'CRUISER' : 'CORE', o + 48, 33, '#ff9a8a'); E.ui.bar(g, o + 96, 34, 96, 6, k, '#e8404a', { border: '#140b12', bg: '#2a0a12' }); }
-      if (s.t < INTRO) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 50, W2, 62, '#080a1c')); E.font.title(g, 'STAGE 2', mid0, 56, { align: 'center', scale: 3 }); txt(g, 'CRYSTAL CAVERNS', mid0, 84, '#fff', { align: 'center', gradient: ['#ffffff', '#b8e8ff'] }); txt(g, (touch() ? 'DRAG to fly, POWER takes the lit slot' : prompt('fire', 'shot') + '   ' + prompt('bomb', 'power up')), mid0, 97, '#c8d0f0', { align: 'center' }); }
-      if (s.warn > 0) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 70, W2, 50, '#2a0406')); E.font.title(g, 'WARNING', mid0, 80, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(s.warn * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); }
-      if (s.won && s.t - s.won > 2 && !ending) { win(Math.round(mid0) - 108, 64, 216, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid0, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(s.score), mid0, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
+      if (f) { const o = Math.round(mid0) - 120, k = f.hp / f.max; win(o + 44, 30, 152, 13, RED); txt(g, E.t(f.kind === 'mid' ? 'shooter.hud.cruiser' : 'shooter.hud.core'), o + 48, 33, '#ff9a8a'); E.ui.bar(g, o + 96, 34, 96, 6, k, '#e8404a', { border: '#140b12', bg: '#2a0a12' }); }
+      if (s.t < INTRO) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 50, W2, 62, '#080a1c')); E.font.title(g, E.t('shooter.stage2'), mid0, 56, { align: 'center', scale: 3 }); txt(g, E.t('shooter.stage2.name'), mid0, 84, '#fff', { align: 'center', gradient: ['#ffffff', '#b8e8ff'] }); txt(g, E.t(touch() ? 'shooter.stage2.touch' : 'shooter.stage2.keys'), mid0, 97, '#c8d0f0', { align: 'center' }); }
+      if (s.warn > 0) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 70, W2, 50, '#2a0406')); E.font.title(g, E.t('shooter.warning'), mid0, 80, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(s.warn * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); }
+      if (s.won && s.t - s.won > 2 && !ending) { win(Math.round(mid0) - 108, 64, 216, 52, BLUE); E.font.title(g, E.t('shooter.clear'), mid0, 70, { align: 'center', scale: 3 }); txt(g, E.t('shooter.clear.score', { score: pad(s.score) }), mid0, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
     }
     const scene = { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [320, 240], expand: true, pausable: true, touch: ['fire', 'bomb'], propSize: 1, camera: { zoom: false },
-      enter(d) { begin(d); w = game.W; h = game.H; game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music(CAVERN); L.enabled = false; if (gpu) gpu.enabled = false; game.input.touchSet('fire', null, false); game.input.touchSet('bomb', 'POWER'); game.input.steer = 'drag'; },
+      enter(d) { begin(d); w = game.W; h = game.H; game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music(CAVERN); L.enabled = false; if (gpu) gpu.enabled = false; game.input.touchSet('fire', null, false); game.input.touchSet('bomb', E.t('shooter.touch.power')); game.input.steer = 'drag'; },
       exit() { game.cam.smooth = .18; game.input.steer = 'stick'; game.input.touchSet('bomb', null); }, update, draw,
       state: () => ({ x: Math.round(s.x), ship: [Math.round(s.ship.x - s.x), Math.round(s.ship.y)], score: s.score, lives: s.lives, power: [s.speed, s.missile, s.weapon, s.options, s.shield, s.cursor], boss: !!foes.find(f => f.kind === 'core'), won: !!s.won, ending, table: cab.table() }),
       end(score) { s.score = score; s.lives = -1; s.ship.dead = 1e9; ending = 'cont'; endGame(score); },   // for tests: the end, now

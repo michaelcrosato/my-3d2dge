@@ -44,9 +44,9 @@ const PUZZLE = (() => {
   const save = () => ({ mode, R, field, W, H, cur, hold, held, queue, bag, fallT, lockT, resets, softT, score, lines, level, chain, clearing, popping, over, flash, time, popped, touchX, touchY, downT, swept });
   const load = b => { ({ mode, R, field, W, H, cur, hold, held, queue, bag, fallT, lockT, resets, softT, score, lines, level, chain, clearing, popping, over, flash, time, popped, touchX, touchY, downT, swept } = b); };
   const G = () => new E.Grid(W, H);
-  const pick = new E.Menu(game, ['BLOCKS', 'PAIRS'], { y: 0, onPick: i => i === 2 ? versus() : begin(i ? 'pairs' : 'blocks') });   // (VERSUS joins the list once a second player is in)
-  const after = new E.Menu(game, ['RETRY', 'OTHER GAME', 'TITLE'], { y: 0, onPick: i => i === 0 ? begin(over.kind) : i === 1 ? begin(over.kind === 'blocks' ? 'pairs' : 'blocks') : game.go('title') });
-  const rematch = new E.Menu(game, ['REMATCH', 'TITLE'], { y: 0, onPick: i => i ? game.go('title') : versus(VS.cpu) });
+  const VERSUS = E.t('puzzle.menu.versus'), pick = new E.Menu(game, [E.t('puzzle.menu.blocks'), E.t('puzzle.menu.pairs')], { y: 0, onPick: i => i === 2 ? versus() : begin(i ? 'pairs' : 'blocks') });   // (VERSUS joins the list once a second player is in)
+  const after = new E.Menu(game, [E.t('puzzle.menu.retry'), E.t('puzzle.menu.other'), E.t('puzzle.menu.title')], { y: 0, onPick: i => i === 0 ? begin(over.kind) : i === 1 ? begin(over.kind === 'blocks' ? 'pairs' : 'blocks') : game.go('title') });
+  const rematch = new E.Menu(game, [E.t('puzzle.menu.rematch'), E.t('puzzle.menu.title')], { y: 0, onPick: i => i ? game.go('title') : versus(VS.cpu) });
   const mascot = new E.Humanoid({ size: 1.3, outfit: 'robe', hair: 'ponytail', weapon: null, sleeves: 'long', colors: { cloth: '#e04a8a', hair: '#3a2a6a', trim: '#f0d060', skin: '#f0c8a0' } });
 
   /* ---- 3. BLOCKS: spawn, fits, move, rotate (kicks), lock, clear ---- */
@@ -124,7 +124,7 @@ const PUZZLE = (() => {
   /* ---- 5b. VERSUS: two fields side by side from one seed (the same pieces), each player's own input (a CPU in tests);
    * two lines or more cleared send rows to the other field (2: 1, 3: 2, 4: 4), rising at its next piece; the first to
    * top out loses ---- */
-  const vsX = i => Math.round(game.W * (i ? .75 : .25)), vsJoin = () => { if (game.players.length > 1 && !pick.items.includes('VERSUS')) pick.items.push('VERSUS'); };
+  const vsX = i => Math.round(game.W * (i ? .75 : .25)), vsJoin = () => { if (game.players.length > 1 && !pick.items.includes(VERSUS)) pick.items.push(VERSUS); };
   function versus(cpu = [false, false]) {
     const seed = 1 + Math.floor(Math.random() * 1e6);
     VS = { b: [], in: [game.players[0], game.players[1] || null], cpu, pend: [0, 0], sent: [0, 0], out: 0, at: 0, cpuT: [0, 0], rate: .7, err: .08 };
@@ -154,9 +154,9 @@ const PUZZLE = (() => {
       load(VS.b[i]); CX = vsX(i); drawField(r);
       const b = fieldBox(), pend = VS.pend[i], lost = VS.loser;
       r.overlay(g => {
-        E.font.text(g, VS.cpu[i] ? 'CPU' : 'P' + (i + 1), b.x + b.w / 2, b.y - 13, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, VS.cpu[i] ? E.t('puzzle.vs.cpu') : E.t('puzzle.vs.player', { n: i + 1 }), b.x + b.w / 2, b.y - 13, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
         if (pend) px.rect(g, b.x - 4, b.y + b.h - Math.min(b.h, pend * b.c), 3, Math.min(b.h, pend * b.c), '#ff4a4a');   // the rows on their way
-        if (lost !== undefined) E.font.title(g, lost === i ? 'LOSE' : 'WIN!', b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: lost === i ? ['#d8d8e8', '#6a6a80'] : ['#fff8d0', '#ffd040', '#ff7a2a'] });
+        if (lost !== undefined) E.font.title(g, E.t(lost === i ? 'puzzle.vs.lose' : 'puzzle.vs.win'), b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: lost === i ? ['#d8d8e8', '#6a6a80'] : ['#fff8d0', '#ffd040', '#ff7a2a'] });
       });
     }
     CX = null; load(VS.b[0]);
@@ -273,24 +273,24 @@ const PUZZLE = (() => {
   }
   function panels(g, b, kind) {
     const c = Math.max(6, Math.floor(b.c * .6)), rx = b.x + b.w + 10, lx = b.x - 10, mini = (k, x, y, sz) => { for (const [a, bb] of cellsOf(k, 0)) block(g, x + a * sz, y + bb * sz, sz, COLOR[k]); };
-    E.font.text(g, 'NEXT', rx, b.y, '#c8b8ff', { outline: false, font: 'tiny' });
+    E.font.text(g, E.t('puzzle.next'), rx, b.y, '#c8b8ff', { outline: false, font: 'tiny' });
     if (kind === 'blocks') {
       queue.slice(0, 5).forEach((k, i) => mini(k, rx, b.y + 9 + i * c * 2.6, i ? Math.max(4, c - 2) : c));
-      E.font.text(g, 'HOLD', lx, b.y, '#c8b8ff', { outline: false, font: 'tiny', align: 'right' });
+      E.font.text(g, E.t('puzzle.hold'), lx, b.y, '#c8b8ff', { outline: false, font: 'tiny', align: 'right' });
       if (hold) mini(hold, lx - c * 4, b.y + 9, c);
     } else queue.slice(0, 2).forEach(([p, q], i) => { blob(g, rx, b.y + 10 + i * 30, c * 1.6, q, 0); blob(g, rx, b.y + 10 + i * 30 + c * 1.6, c * 1.6, p, 0); });
     const sy = b.y + b.h - 50, tx = rx;
-    [['SCORE', score], [kind === 'blocks' ? 'LINES' : 'POPPED', lines], ['LEVEL', level]].forEach(([k, v], i) => {
+    [[E.t('puzzle.score'), score], [E.t(kind === 'blocks' ? 'puzzle.lines' : 'puzzle.popped'), lines], [E.t('puzzle.level'), level]].forEach(([k, v], i) => {
       E.font.text(g, k, tx, sy + i * 17, '#a898e0', { outline: false, font: 'tiny' }); E.font.text(g, String(v), tx, sy + i * 17 + 7, '#ffffff', { outline: false });
     });
-    if (kind === 'pairs' && chain > 1 && popping) E.font.title(g, chain + ' CHAIN!', b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: ['#fff8d0', '#ffd040', '#ff7a2a'] });
+    if (kind === 'pairs' && chain > 1 && popping) E.font.title(g, E.t('puzzle.chain', { chain }), b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: ['#fff8d0', '#ffd040', '#ff7a2a'] });
   }
   function menuScreen(r) {
     r.overlay(g => {
-      E.font.title(g, 'PUZZLE', r.W / 2, 34, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ad8', '#c04ae8'], depth: 3 });
-      E.font.text(g, pick.i === 2 ? 'VERSUS: CLEAR TWO ROWS OR MORE TO SEND THEM ACROSS' : pick.i ? 'FALLING PAIRS: FOUR OF A COLOUR POP, CHAINS SCORE MORE' : 'FALLING BLOCKS: FILL A ROW TO CLEAR IT', r.W / 2, r.H - 22, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
-      const two = game.players.length > 1, keysOf = I => I.name + ' ' + (I.half === 'right' ? 'ARROWS' : I.half ? 'WASD' : 'STICK') + '  ' + [['rotate', 'TURN'], ['drop', 'DROP'], ['hold', 'HOLD']].map(([a, w]) => I.label(a) + ' ' + w).join('  ');   // (two: each player's own keys)
-      E.font.text(g, two ? game.players.map(keysOf).join('     ') : touch() ? 'DRAG MOVE   TAP ROTATE   FLICK DOWN DROP   FLICK UP HOLD' : 'ARROWS MOVE   UP / X ROTATE   SPACE DROP   C HOLD', r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+      E.font.title(g, E.t('puzzle.title'), r.W / 2, 34, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ad8', '#c04ae8'], depth: 3 });
+      E.font.text(g, E.t(pick.i === 2 ? 'puzzle.about.versus' : pick.i ? 'puzzle.about.pairs' : 'puzzle.about.blocks'), r.W / 2, r.H - 22, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
+      const two = game.players.length > 1, keysOf = I => E.t('puzzle.how.player', { player: E.t('puzzle.vs.player', { n: I.player }), move: E.t(I.half === 'right' ? 'puzzle.how.arrows' : I.half ? 'puzzle.how.wasd' : 'puzzle.how.stick'), rotate: I.label('rotate'), drop: I.label('drop'), hold: I.label('hold') });   // (two: each player's own keys)
+      E.font.text(g, two ? game.players.map(keysOf).join('     ') : touch() ? E.t('puzzle.how.touch') : E.lang.upper(E.t('puzzle.how.keys')), r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
     });
     pick.y = 92; pick.draw(r);
   }
@@ -298,9 +298,9 @@ const PUZZLE = (() => {
     r.overlay(g => {
       const k = Math.min(1, over.t / .6), y = Math.round(r.H / 2) - 50;
       g.fillStyle = 'rgba(6,2,16,' + (.7 * k).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g);
-      E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 3, colors: ['#ffffff', '#ff8ad8', '#c04ae8'] });
-      [['SCORE', over.score + (over.score >= over.best ? '  BEST!' : '')], [over.kind === 'blocks' ? 'LINES' : 'POPPED', over.lines], ['LEVEL', over.level], ['BEST', over.best]].forEach(([a, v], i) =>
-        E.font.text(g, a + '  ' + v, r.W / 2, y + 34 + i * 10, i ? '#e8d8ff' : '#ffe070', { align: 'center', shadow: '#000', outline: false }));
+      E.font.title(g, E.t('puzzle.over'), r.W / 2, y, { align: 'center', scale: 3, colors: ['#ffffff', '#ff8ad8', '#c04ae8'] });
+      [E.t(over.score >= over.best ? 'puzzle.over.score_best' : 'puzzle.over.score', { score: String(over.score) }), E.t(over.kind === 'blocks' ? 'puzzle.over.lines' : 'puzzle.over.popped', { lines: String(over.lines) }), E.t('puzzle.over.level', { level: String(over.level) }), E.t('puzzle.over.best', { best: String(over.best) })].forEach((s, i) =>
+        E.font.text(g, s, r.W / 2, y + 34 + i * 10, i ? '#e8d8ff' : '#ffe070', { align: 'center', shadow: '#000', outline: false }));
       after.y = y + 80;
     });
     if (over.t > 1) after.draw(r);
