@@ -43,7 +43,7 @@ export function gameLines(parts, o = {}) {
   const out = { version: 1, language: 'en', lines: {}, notes: {}, max: {}, names: [], brief: '' }, briefs = [];
   for (const p of parts) {
     const L = partLines(p); if (!L) continue;
-    for (const k of ['lines', 'notes', 'max']) for (const [id, v] of Object.entries(L[k] || {})) { if (k === 'lines' && id in out.lines) throw new Error(p + ': line ' + id + ' is another part\'s too'); out[k][id] = v; }
+    for (const k of ['lines', 'notes', 'max']) for (const [id, v] of Object.entries(L[k] || {})) { if (k === 'lines' && id in out.lines && JSON.stringify(out.lines[id]) !== JSON.stringify(v)) throw new Error(p + ': line ' + id + ' is another part\'s too, in other words'); out[k][id] = v; }   // (the same line in two parts, action.thrust, is one)
     for (const n of L.names || []) if (!out.names.includes(n)) out.names.push(n);
     if (L.brief) briefs.push(L.brief);
     if (L.wordPlay) out.wordPlay = true;
