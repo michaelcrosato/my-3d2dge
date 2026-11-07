@@ -3,7 +3,8 @@ my-3D2dge 3D v0.89.3: real 3D worlds under my-3D2dge games (three.js r182 and Ra
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
-its exact fixed steps, scenes, input, pause menu, settings, touch buttons, sound, the rigs and their moves, the HUD. This
+its exact fixed steps, scenes, input, pause menu, settings, touch buttons, sound, the rigs and their moves, the HUD, its
+words (E.t: the page's game-lines, docs/LANGUAGES.md; this engine's settings are lines too, engine.setting.look3d ...). This
 module simulates and draws the world under the game's clear canvas. Everything is drawn by code: levels written as text,
 textures pixel by pixel, characters by the 2D engine's rigs (as cards, or as 3D puppets on the same joints), props and
 pickups from four shapes. No image, model or sound files.

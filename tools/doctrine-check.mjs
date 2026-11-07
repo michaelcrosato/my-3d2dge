@@ -70,8 +70,8 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   // a module's manual: 1,500 tokens, or its line here (the modules the genre plan gave 2,500; D50)
   const MODULE_BUDGET = 1500, MODULE_BUDGETS = { grid: 2500, fight: 2500, strategy: 2500, physics: 2500 };
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
-    ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
-    ['the API card (API.md)', read('API.md'), 21300, 3.1],   // (D8, D20, D50, D54, D58, D59, D77, D81: until the owner's review pass)
+    ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10600, 2.95],   // (D83: languages)
+    ['the API card (API.md)', read('API.md'), 22000, 3.1],   // (D8, D20, D50, D54, D58, D59, D77, D81: until the owner's review pass; D83: languages)
     ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 64000, 3.25],   // (D17, D18, D22, D28, D50, D57; D82: 64,000, the owner's word)
     ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 8000, 2.9],   // (D27; 8,000 for the genre plan's M13 and M14: D60)
     ['the asset card (docs/ASSETS.md)', read('docs/ASSETS.md'), 4000, 3.1],   // (D30)
