@@ -1,8 +1,8 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference, read whole: every single file carries it (a genre kit, `dist/my-3d2dge.html`, the compact one), and so does the handoff package. This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back: search it for what you need. Its paths are the repository's (github.com/michaelcrosato/my-3d2dge); the handoff package's `README.md` says which of them it holds. Everything here matches `engine/my-3d2dge.js` v0.90.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference, read whole: every single file carries it (a genre kit, `dist/my-3d2dge.html`, the compact one), and so does the handoff package. This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back: search it for what you need. Its paths are the repository's (github.com/michaelcrosato/my-3d2dge); the handoff package's `README.md` says which of them it holds. Everything here matches `engine/my-3d2dge.js` v0.91.0.
 
-A coding agent that reads files gets the handoff package (`dist/handoff/`: the full engine readable, the cards, the tools, every 2D kit's game and a template game) or the agent edition alone (`dist/my-3d2dge-agent.js`: the essential engine in one readable file, its header, about 8k tokens, a complete manual with three example games). Games written for the agent edition run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
+A coding agent that reads files gets the handoff package (`dist/handoff/`: the full engine and the 3D engine readable, the cards, the tools, every kit's game, 2D and 3D, and a template game for each) or the agent edition alone (`dist/my-3d2dge-agent.js`: the essential engine in one readable file, its header, about 8k tokens, a complete manual with three example games). Games written for the agent edition run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
 ## North star
 
@@ -357,7 +357,7 @@ if (game.debug.snapshot().hero[2] !== 32) throw new Error('the hero should have 
 ```
 
 ### The handoff package
-`dist/handoff/` (on the site: `/handoff/`; `node tools/handoff.mjs --zip <file>` zips it for a chat) holds what a coding agent needs to build on the full engine without the repository: both editions, each module on its own (`modules/`), `API.md`, `API-INDEX.md`, this guide, the tools that check, film and replay a game, the asset card with its tools and the store, a `package.json` pinning Playwright, `game/` (a template game with a headless test) and `kits/` (each 2D genre kit's game, readable, with the page that plays it and a headless test). Its `README.md` says where to start; `tools/build.mjs` writes it from `src/handoff/`. It leaves out the 3D engine and its kits (on the site and in the repository).
+`dist/handoff/` (on the site: `/handoff/`; `node tools/handoff.mjs --zip <file>` zips it for a chat) holds what a coding agent needs to build a game, 2D or 3D, without the repository: both editions, each module on its own (`modules/`), the 3D engine (`my-3d2dge-3d.js`) with the libraries it loads (`vendor/`), `API.md`, `API-INDEX.md`, this guide, the tools that check, film and replay a game (`tools/check.mjs` serves a 3D page), the asset card with its tools and the store, a `package.json` pinning Playwright, `kits/` (every genre kit's game, readable, with the page that plays it: `<id>` in 2D, with a headless test, `3d-<id>` in 3D), `game/` (a 2D template game with a headless test) and `game3d/` (a 3D one: the 3D manual's quick start). Its `README.md` opens with a map of where to look; `tools/build.mjs` writes it from `src/handoff/`.
 
 ### Modules (general systems in files of their own)
 A module (`engine/modules/<name>.js`) holds one general system that several genres share, outside the core, so that only the games that use it carry it. It loads after the engine, in a `<script>` of its own, and attaches its names to `My3D2dge`; its header is its manual (what it holds, its API, a complete example, its rules), and the index has a section for it. Its manual's third line says whether it also loads after the agent edition, and which modules it needs first.
@@ -402,7 +402,7 @@ A genre kit (`dist/kits/my-3d2dge-<genre>.html`) is the engine, the API card and
   - replay on the build it was recorded on: its version and build are in the file.
 
 ## Genre recipes
-Each recipe names the kit to start from (`kits/<id>.js` in the handoff package). The 3D ones build on the 3D engine, whose kits are on the site and in the repository, not in the handoff package.
+Each recipe names the kit to start from (`kits/<id>.js` in the handoff package). The 3D ones build on the 3D engine: their kits are `kits/3d-<id>.js` there.
 
 **Side-scroller (Mario, Mega Man, Castlevania).**
 ```js
@@ -645,7 +645,7 @@ The engine files carry the engine; the repo (github.com/michaelcrosato/my-3d2dge
 
 **Starters**: `dist/kits/my-3d2dge-<genre>.html`, one vertical slice per genre (21 of them: the README's kits list, the API card's playbook), each a complete game to copy from (in the handoff package, `kits/`).
 
-**Real 3D**: `dist/my-3d2dge-3d.js` puts a three.js and Rapier world under a game (make the game with `bg: null`); its header is its manual, with a complete game. Its kits, `dist/kits/my-3d2dge-3d-<action|platformer|shooter|horror|racing|flight|crawler>.html`, are served, not opened from a disk (they load `vendor/`); the handoff package leaves them out. `docs/ENGINE-3D.md` says how it fits the engine.
+**Real 3D**: `dist/my-3d2dge-3d.js` puts a three.js and Rapier world under a game (make the game with `bg: null`); its header is its manual, with a complete game. Its kits, `dist/kits/my-3d2dge-3d-<action|platformer|shooter|horror|racing|flight|crawler>.html`, are served, not opened from a disk (they load `vendor/`); the handoff package carries the 3D engine, `vendor/`, every 3D kit's game readable (`kits/3d-<id>.js`) and a 3D template (`game3d/`). `docs/ENGINE-3D.md` says how it fits the engine.
 
 ## Performance
 - **Rigs:** projection costs microseconds. The outline composite is the expensive part, so crowds should use `outline: false`.
@@ -663,4 +663,4 @@ The engine files carry the engine; the repo (github.com/michaelcrosato/my-3d2dge
 - Sounds for jumping, hitting, pickups and dying; music per scene.
 - Positions and speeds are in world units, `dt` is used everywhere, and nothing draws with anti-aliased canvas calls.
 - Every view in `views` looks right (press `V`), and the skeleton overlay and slow motion look right.
-- `node tools/check.mjs <your page>` (`game/index.html` in the handoff package) passes; look at its screenshots, not only its exit code.
+- `node tools/check.mjs <your page>` (`game/index.html` in the handoff package; a 3D page, `game3d/index.html`, it serves) passes; look at its screenshots, not only its exit code.

@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.90.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.91.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -24,7 +24,8 @@ way you see fit): its sections start with "/* ===" and a number.
 <script type="module" src="/dist/my-3d2dge-3d.js"></script>  this file
 <script type="module" src="game.js"></script>                your game, a module (const E = My3D2dge;)
 Inlined into a page's own script tag instead, this file ends the page at its first closing script tag (this header has
-four): write each with a backslash before its slash, as the build's single files do.
+four): write each with a backslash before its slash, as the build's single files do. In the handoff package this page
+is game3d/index.html, its paths relative (../vendor/, ../my-3d2dge.js, ../my-3d2dge-3d.js); kits/3d-<id>.html the same.
 
 ## Mental model
 - The 2D engine's units: x east, y south, z up; 16 units = 1 metre = 1 tile; speeds in units a second; angles in
