@@ -1,0 +1,32 @@
+{
+ "lines": {
+  "rooftop.title": "ROOFTOP",
+  "rooftop.title.how": "Climb with {key:jump}  take the gem  stay unseen",
+  "rooftop.title.press": "Press {key:start}",
+  "rooftop.controls.jump": "Jump and climb",
+  "rooftop.goal.gem": "Take the gem",
+  "rooftop.goal.gem.text": "It lies on the roof",
+  "rooftop.goal.climbing": "Climb: up, and jump to leap",
+  "rooftop.goal.down": "Bring it down",
+  "rooftop.goal.down.text": "Back to the street with it",
+  "rooftop.hud.seen": "Seen",
+  "rooftop.hud.stamina": "Stamina",
+  "rooftop.keys.move": "Move",
+  "rooftop.keys.jump": "Jump, climb, glide",
+  "rooftop.end.won": "STOLEN",
+  "rooftop.end.lost": "CAUGHT",
+  "rooftop.end.again": "Press {key:start} to try again"
+ },
+ "notes": {
+  "rooftop.title.how": "Three short hints on the title, two spaces apart, shown in capitals. {key:jump} is the player's key or button for jump.",
+  "rooftop.hud.seen": "A bar that fills while the guard sees you.",
+  "rooftop.end.won": "You stole the gem and got away.",
+  "rooftop.end.lost": "The guard caught you."
+ },
+ "max": {
+  "rooftop.hud.seen": 10,
+  "rooftop.hud.stamina": 10
+ },
+ "names": [],
+ "brief": "Rooftop: a short night-time heist in a small town square. The player, a hooded thief whose gender is never said, climbs onto a roof, takes a gem and gets back to the street without the guard seeing them. The words are terse game instructions; address the player with the familiar \"you\"."
+}

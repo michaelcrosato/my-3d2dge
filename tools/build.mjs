@@ -361,7 +361,8 @@ const fill = s => boot(s.replaceAll('{{VERSION}}', GLOBAL.VERSION).replaceAll('{
 for (const [to, from] of HANDOFF) {
   mkdirSync(dirname(join(root, H, to)), { recursive: true });
   const text = readFileSync(join(root, from), 'utf8');
-  writeFileSync(join(root, H, to), from.startsWith('src/handoff/') && !from.endsWith('.js') && !from.endsWith('.mjs') ? fill(text) : text);
+  const lines = from === 'src/handoff/game/index.html' ? blockHTML(gameLines(['src/handoff/game/game.js'], { modules: [] })) : null;   // (the template game's words, in its page's head)
+  writeFileSync(join(root, H, to), (from.startsWith('src/handoff/') && !from.endsWith('.js') && !from.endsWith('.mjs') ? fill(text) : text).replace('<!-- @lines -->', () => lines || ''));
 }
 // the store: a page of its own listing every set (what each holds, from its header; the folder itself has no page), and
 // one line for it on the index

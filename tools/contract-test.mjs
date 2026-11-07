@@ -1398,6 +1398,56 @@ function shellHeadless(E, ed) {
   check(`${ed}: E.Shell headless: the pause screen follows game.paused, back() resumes`, opened === 'pause' && ui.screen === null && !game.paused && ui.root === null, opened + ' ' + ui.screen + ' ' + game.paused);
 }
 
+// LANGUAGES (AI Hub Languages v1, section 6b): E.t's blanks, plural forms, numbers, control tags and the Critical
+// fallback; the language chosen as the spec orders it; the three test languages; whole letters; the fonts' widths and
+// wraps with the device's font; the Dialog's pace; the engine's own lines; and the shared text the same in both editions
+{
+  const SRC = { version: 1, language: 'en', lines: { 'menu.start': 'Start', 'hud.lives': { zero: 'No lives left', one: '{count} life left', other: '{count} lives left' }, score: 'Score {points}', jump: 'Press {key:jump} to jump', relay: '{c=#ffd36a}{player}{/c}, the relay is dark.', hp: 'HP', hi: 'Hello there, traveler.' }, max: { hp: 4 } };
+  const TR = { 'es-419': { by: 't', lines: { 'menu.start': 'Empezar', 'hud.lives': { zero: 'Sin vidas', one: 'Te queda {count} vida', other: 'Te quedan {count} vidas' }, score: '', hi: 'Hola, viajero que llegas de muy lejos.' } },
+    ru: { by: 't', lines: { 'hud.lives': { one: 'Осталась {count} жизнь', few: 'Осталось {count} жизни', many: 'Осталось {count} жизней', other: '{count}' } } }, ar: { by: 't', lines: { score: 'النقاط {points}' } },
+    'zh-Hans': { lines: { 'menu.start': '开始' } }, 'zh-Hant': { lines: { 'menu.start': '開始' } }, 'pt-BR': { lines: { 'menu.start': 'Começar' } } };
+  for (const [ed, file] of EDITIONS) {
+    const E = load(file), L = E.lang, at = lang => { L.load({ lines: SRC, translations: TR, lang }); return L; };
+    at();
+    check(`${ed}: E.t: a line, plural forms by {count} (zero its own), a number in the language's format, the id itself when there is no line`,
+      E.t('menu.start') === 'Start' && E.t('hud.lives', { count: 0 }) === 'No lives left' && E.t('hud.lives', { count: 1 }) === '1 life left' && E.t('hud.lives', { count: 12500 }) === '12,500 lives left' && E.t('score', { points: 1234.5 }) === 'Score 1,234.5' && E.t('nope') === 'nope' && E.t('nope', null, 'Fallback') === 'Fallback',
+      [E.t('hud.lives', { count: 12500 }), E.t('score', { points: 1234.5 })].join(' | '));
+    at('es-MX');
+    check(`${ed}: E.t (Critical): a translation empty, missing or broken shows the original line; es-MX gets es-419`, L.code === 'es-419' && E.t('menu.start') === 'Empezar' && E.t('hud.lives', { count: 3 }) === 'Te quedan 3 vidas' && E.t('score', { points: 7 }) === 'Score 7' && E.t('hp') === 'HP', L.code + ' ' + E.t('score', { points: 7 }));
+    L.load({ lines: SRC, translations: '{"es-419": broken', lang: 'es-419' });
+    const broken = E.t('menu.start');
+    at('ru'); const ru = [1, 3, 5, 21].map(n => E.t('hud.lives', { count: n }));
+    check(`${ed}: E.t: Russian's plural forms (one also covers 21), a broken block shows the original`, broken === 'Start' && ru.join('|') === 'Осталась 1 жизнь|Осталось 3 жизни|Осталось 5 жизней|Осталась 21 жизнь', broken + ' ' + ru.join('|'));
+    at('ar');
+    check(`${ed}: E.t right to left: values isolated (U+2068, U+2069), the game's own line isolated where no translation, dir 'rtl', the device's font needed (big)`, L.dir === 'rtl' && E.t('score', { points: 7 }) === 'النقاط ⁨7⁩' && E.t('hp') === '⁨HP⁩' && L.big === true, JSON.stringify(E.t('score', { points: 7 })));
+    const picked = ['zh-TW', 'zh-CN', 'pt-PT', 'fr'].map(c => at(c).code).join(' ');
+    check(`${ed}: the language: in full, then the same language and writing (zh-TW gets zh-Hant), then the same language (pt-PT gets pt-BR), else the game's own`, picked === 'zh-Hant zh-Hans pt-BR en', picked);
+    at('en-XA'); const xa = [E.t('menu.start'), E.t('hp'), E.t('relay', { player: 'ROWAN' })];
+    at('zh-XC'); const xc = [E.t('menu.start'), E.t('relay', { player: 'ROWAN' })], xcBig = L.big;
+    at('ar-XB'); const xb = E.t('relay', { player: 'ROWAN' });
+    check(`${ed}: the test languages: en-XA accented, bracketed and longer (exactly max wide with one), zh-XC Chinese characters without spaces, ar-XB right to left; tags kept, values filled after`,
+      xa[0] === '[Stárt ··]' && xa[1] === '[HP]' && xa[2] === '[{c=#ffd36a}ROWAN{/c}, thé réláy ís dárk. ········]' && /^[一-鿿]+$/.test(xc[0]) && xc[1].startsWith('{c=#ffd36a}ROWAN{/c}，') && !/ /.test(xc[1]) && xcBig && L.dir === 'rtl' && /^\{c=#ffd36a\}⁨ROWAN⁩\{\/c\}, [؀-ۿ ]+\.$/.test(xb),
+      JSON.stringify([xa, xc, xb]));
+    at();
+    check(`${ed}: whole letters: pieces() keeps a Hindi letter whole and a tag one piece; width() counts a Chinese character two`, JSON.stringify(L.pieces('नमस्ते {w=.5}hi')) === JSON.stringify(['न', 'म', 'स्ते', ' ', '{w=.5}', 'h', 'i']) && L.width('你好{x}ab') === 6, JSON.stringify(L.pieces('नमस्ते {w=.5}hi')));
+    check(`${ed}: the fonts: covers() says what they draw; letters they lack are measured (the device's font), Chinese wraps between words, English still at spaces`,
+      E.font.covers('Héllo ñ ¿?') && !E.font.covers('Привет') && E.font.width('你好世界') > 30 && E.font.wrap('这是一个很长的句子，没有空格可以断行。', 60).length > 2 && JSON.stringify(E.font.wrap('a short line that wraps at spaces as before', 60)) === JSON.stringify(['a short line', 'that wraps', 'at spaces', 'as before']),
+      JSON.stringify(E.font.wrap('这是一个很长的句子，没有空格可以断行。', 60)));
+    const typed = lang => { at(lang); const g = new E.Game({ headless: true }); g.start({ update() {}, draw() {} }); const d = new E.Dialog(g, { speed: 20 }), got = []; d.say(E.t('hi'), { voice: p => got.push(p) }); let t = 0; while (d.typing && t < 10) { d.update(1 / 120); t += 1 / 120; } g.destroy && g.destroy(); return [Math.round(t * 100) / 100, got.length]; };
+    const [en, es] = [typed(), typed('es-419')];
+    check(`${ed}: E.Dialog types a translated line over the original's time (22 letters at 20 a second: 1.1 s for its 38)`, en[0] === 1.1 && es[0] === 1.1 && es[1] === 38, JSON.stringify([en, es]));
+    const eng = L.engineLines(), ids = Object.keys(eng);
+    check(`${ed}: the engine's own lines: ids of the spec's form, English text`, ids.every(k => /^engine\.[a-z0-9_]+(\.[a-z0-9_]+)*$/.test(k)) && Object.values(eng).every(v => typeof v === 'string' && v) && (ed === 'agent' || (ids.length > 150 && eng['engine.shell.resume'] === 'Resume' && eng['engine.setting.volume'] === 'Volume')), ids.length + ' lines');
+  }
+  const shared = f => { const s = readFileSync(join(root, f), 'utf8'), a = s.indexOf('// @lang-shared-start'), b = s.indexOf('// @lang-shared-end'); return a < 0 || b < 0 ? null : s.slice(a, b); };
+  check('both editions: section 6b\'s shared text is the same to the letter (between @lang-shared-start and @lang-shared-end)', shared(EDITIONS[0][1]) !== null && shared(EDITIONS[0][1]) === shared(EDITIONS[1][1]));
+  const LT = await import('./lines.mjs'), page = b => '<html><head>' + b + '</head><body></body></html>';
+  const good = page(LT.blockHTML({ version: 1, language: 'en', lines: { a: 'Hi {name}', n: { one: '{count} x', other: '{count} xs' } } }) + LT.blockHTML({ ru: { by: 't', lines: { a: 'Привет {name}', n: { one: '{count} x', few: '{count} y', many: '{count} z', other: '{count} w' } } } }, 'game-translations'));
+  const bad = page(LT.blockHTML({ version: 1, language: 'en', lines: { a: 'Hi {name}', n: { one: '{count} x', other: '{count} xs' } } }) + LT.blockHTML({ ru: { by: 't', lines: { a: 'Привет', n: { one: '{count} x', other: '{count} w' }, zz: 'x' } } }, 'game-translations'));
+  const g1 = LT.check(good), b1 = LT.check(bad);
+  check('tools/lines.mjs --check: a translation with the original\'s tags and plural forms is kept; a lost tag, a missing form or an unknown id is not', !g1.errors.length && b1.errors.length === 3, JSON.stringify([g1.errors, b1.errors]));
+}
+
 // ---- in the browser: the game loop, on a virtual clock that only moves when the test says so
 const CLOCK = () => {
   let now = 0, due = [];
@@ -1668,6 +1718,17 @@ for (const [ed, file] of EDITIONS) {
     for (const [f, b] of [['down', 'right'], ['down', 'left'], ['up', 'left'], ['down', 'left'], ['up', 'right'], ['up', 'left']]) { await page.mouse[f]({ button: b }); seen.push(await page.evaluate(() => ['fire', 'aim'].filter(a => __g.input.down(a)).join('+') || '-')); }
     await page.close();
     check(`${ed}: the mouse's chorded buttons: right held, a left click fires and lets go; right let go first, left stays held`, seen.join(' ') === 'aim fire+aim aim fire+aim fire -' && !errors.length, seen.join(' ') + ' ' + errors.join(' | '));
+  }
+  { // the device's font draws what the pixel font lacks: Chinese lights far more pixels than '??' would; an Arabic line in a
+    // box (wrap) ends at the box's right edge; a mixed line puts the pixel letters and the device's on one baseline
+    const page = await browser.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message)); await page.setContent(html);
+    const r = await page.evaluate(() => {
+      const E = My3D2dge, cv = document.createElement('canvas'); cv.width = 200; cv.height = 40; const g = cv.getContext('2d');
+      const lit = (f, box) => { g.clearRect(0, 0, 200, 40); f(); const d = g.getImageData(0, 0, 200, 40).data; let n = 0, x0 = 999, x1 = -1; for (let i = 3; i < d.length; i += 4) if (d[i] > 128) { n++; const x = (i >> 2) % 200; x0 = Math.min(x0, x); x1 = Math.max(x1, x); } return { n, x0, x1 }; };
+      return { han: lit(() => E.font.text(g, '你好', 4, 4, '#fff', false)), qq: lit(() => E.font.text(g, '??', 4, 4, '#fff', false)), ar: lit(() => E.font.text(g, 'مرحبا بالعالم', 10, 4, '#fff', { outline: false, wrap: 150 })), w: E.font.width('你好') };
+    });
+    await page.close();
+    check(`${ed}: the fonts draw letters they lack with the device's font (你好 lights ${r.han.n} pixels, ?? ${r.qq.n}); an Arabic line in a box ends at its right edge (x ${r.ar.x1} of 160)`, r.han.n > 2 * r.qq.n && r.w >= 20 && r.ar.n > 20 && r.ar.x1 >= 150 && r.ar.x1 <= 161 && r.ar.x0 > 20 && !errors.length, JSON.stringify(r) + ' ' + errors.join(' | '));
   }
   if (ed === 'full') {
     const T = {}; for (const hz of [60, 90, 120, 144]) T[hz] = await run(TIMELINE, hz);

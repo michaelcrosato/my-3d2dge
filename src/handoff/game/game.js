@@ -9,12 +9,13 @@
 // and input.label() puts the player's own key or button in a prompt. The night is canvas lighting (game.lights): an
 // ambient, and lights added every draw (a street lamp, the gem's glow), the same in every browser and every check. The
 // HUD is HTML (E.Shell: the objective with its distance, the guard's alert, your keys), over the pixels; the title and
-// end screens are pixel art.
+// end screens are pixel art. Every word a player reads is a line (index.html's game-lines block; E.t('id', values)), so
+// a translation can add languages without touching this code: docs/LANGUAGES.md in the repository, ?lang=en-XA tests it.
 // Copy it and make it your game. Test it headless: node game/test.mjs. Check it in a browser: node tools/check.mjs game/index.html
 (() => {
 const E = My3D2dge;
 const game = new E.Game({ canvas: 'screen', res: 'snes', expand: true, view: 'iso', views: ['iso', 'threequarter'],   // expand: full screen at any shape (the HUD anchors to r.W, r.H)
-  menu: { controls: { jump: 'Jump and climb', attack: false, dash: false, skill: false } },   // (this game uses moves and jump only)
+  menu: { controls: { jump: E.t('rooftop.controls.jump'), attack: false, dash: false, skill: false } },   // (this game uses moves and jump only)
   draw: true });   // (headless too: game/test.mjs draws every advance on a stand-in, so a draw error shows in game.errors)
 const ui = new E.Shell(game);   // the HTML HUD (it keeps the standard pause menu); headless, it draws nothing
 const ROOF = 32;
@@ -54,9 +55,9 @@ const title = {
   draw(r) {
     r.sky(['#141030', '#3a2a60']);
     const m = Math.round(r.H / 2);   // centred on any screen
-    r.overlay(g => E.font.title(g, 'ROOFTOP', r.W / 2, m - 52, { scale: 3, align: 'center' }));
-    r.text(('CLIMB WITH ' + game.input.label('jump') + '  TAKE THE GEM  STAY UNSEEN').toUpperCase(), r.W / 2, m + 8, '#e8e0ff', { align: 'center' });
-    r.text(('PRESS ' + game.input.label('start')).toUpperCase(), r.W / 2, m + 38, '#ffffff', { align: 'center', shadow: '#000' });
+    r.overlay(g => E.font.title(g, E.t('rooftop.title'), r.W / 2, m - 52, { scale: 3, align: 'center' }));
+    r.text(E.lang.upper(E.t('rooftop.title.how')), r.W / 2, m + 8, '#e8e0ff', { align: 'center' });   // ({key:jump}: the player's own key or button)
+    r.text(E.lang.upper(E.t('rooftop.title.press')), r.W / 2, m + 38, '#ffffff', { align: 'center', shadow: '#000' });
   }
 };
 
@@ -82,9 +83,9 @@ const play = {
     heroRig.update(dt, hero.rigState());
     guardRig.update(dt, { x: guard.x, y: guard.y, z: guard.z, vx: guard.vx, vy: 0, facing: guard.facing, stance: 'ready' });
     // the HUD, from this step's state (E.Shell redraws only what changed; the keys hide on a touch screen)
-    ui.hud({ objective: got ? { title: 'Bring it down', text: 'Back to the street with it' } : { title: 'Take the gem', text: hero.wall ? 'Climb: up, and jump to leap' : 'It lies on the roof', at: { x: gem.x, y: gem.y, z: ROOF }, from: hero },
-      bars: [{ label: 'Seen', value: Math.min(alert, 1.2), max: 1.2, color: '#ff6040' }, { label: 'Stamina', value: hero.stamina, max: hero.staminaMax, color: hero.exhausted ? '#ff6040' : '#7ad06a' }],
-      keys: [[['up', 'left', 'down', 'right'].map(a => I.label(a)).join(''), 'Move'], [I.label('jump'), 'Jump, climb, glide']] });
+    ui.hud({ objective: got ? { title: E.t('rooftop.goal.down'), text: E.t('rooftop.goal.down.text') } : { title: E.t('rooftop.goal.gem'), text: E.t(hero.wall ? 'rooftop.goal.climbing' : 'rooftop.goal.gem.text'), at: { x: gem.x, y: gem.y, z: ROOF }, from: hero },
+      bars: [{ label: E.t('rooftop.hud.seen'), value: Math.min(alert, 1.2), max: 1.2, color: '#ff6040' }, { label: E.t('rooftop.hud.stamina'), value: hero.stamina, max: hero.staminaMax, color: hero.exhausted ? '#ff6040' : '#7ad06a' }],
+      keys: [[['up', 'left', 'down', 'right'].map(a => I.label(a)).join(''), E.t('rooftop.keys.move')], [I.label('jump'), E.t('rooftop.keys.jump')]] });
   },
   draw(r) {
     map.drawFloor(r); map.queueWalls(r);   // (the floor runs on past the map to the screen's edges: map.outside)
@@ -111,8 +112,8 @@ const end = {
   draw(r) {
     r.sky(won ? ['#103020', '#2a6a48'] : ['#301010', '#6a2a2a']);
     const m = Math.round(r.H / 2);
-    r.overlay(g => E.font.title(g, won ? 'STOLEN' : 'CAUGHT', r.W / 2, m - 42, { scale: 3, align: 'center' }));
-    r.text(('PRESS ' + game.input.label('start') + ' TO TRY AGAIN').toUpperCase(), r.W / 2, m + 28, '#ffffff', { align: 'center', shadow: '#000' });
+    r.overlay(g => E.font.title(g, E.t(won ? 'rooftop.end.won' : 'rooftop.end.lost'), r.W / 2, m - 42, { scale: 3, align: 'center' }));
+    r.text(E.lang.upper(E.t('rooftop.end.again')), r.W / 2, m + 28, '#ffffff', { align: 'center', shadow: '#000' });
   }
 };
 
