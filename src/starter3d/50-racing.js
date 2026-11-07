@@ -43,14 +43,14 @@ const RACING = (() => {
     legend: { '~': { ground: 'water', colors: { base: '#3a7ac8', dark: '#2a66b0', light: '#5a9ae0' } }, T: { shape: 'tree', scale: 1.4 }, k: { shape: 'bush', scale: 1.3 }, o: { shape: 'rock', scale: 1.5 } } };
 
   /* ---- THE DRIVERS: six rigs, each in a kart of its own color ---- */
-  const CAST = [
+  const CAST = [   // (their names are lines: racing3d.driver.<name>)
     { name: 'NOVA', kart: '#e83030', rig: { hair: 'short', hat: 'cap', colors: { cloth: '#e83030', pants: '#2f5fd0', hair: '#5a3018', hat: '#e83030' } } },
     { name: 'LUMA', kart: '#3aa850', rig: { hair: 'ponytail', colors: { cloth: '#3aa850', pants: '#f0e8d0', hair: '#e8c060' } } },
     { name: 'BRAKK', kart: '#e8a020', rig: { build: 'bulky', hair: 'spiky', colors: { cloth: '#e8a020', pants: '#5a3a2a', hair: '#2a1a10' } } },
     { name: 'IRIS', kart: '#c050e0', rig: { hair: 'long', colors: { cloth: '#c050e0', pants: '#3a2a5a', hair: '#f0f0f8' } } },
     { name: 'TOK', kart: '#30b8e0', rig: { hat: { style: 'band', color: '#ffffff' }, colors: { cloth: '#30b8e0', pants: '#1a3a5a', hair: '#1a1a1a' } } },
     { name: 'ROOK', kart: '#5a5a6a', rig: { hood: true, colors: { cloth: '#3a3a48', pants: '#22222c', hair: '#1a1a1a' } } }
-  ];
+  ].map(c => Object.assign(c, { name: E.t('racing3d.driver.' + c.name.toLowerCase()) }));
   const rigOf = c => new E.Humanoid(Object.assign({ size: .85, weapon: null }, c.rig));   // (made afresh each race: a rig takes its own stream from one draw of Math.random, so a race replays exactly)
   const SONG = { bpm: 152, steps: 4, tracks: [
     { wave: 'square', vol: .06, notes: 'E5 . G5 B5 . G5 E5 . | F5 . A5 C6 . A5 F5 . | G5 . B5 D6 . B5 G5 . | A5 . F5 D5 . E5 F5 .' },
@@ -60,10 +60,10 @@ const RACING = (() => {
   let world, track, short, race = null, mode = 'menu', vs = false, players = [], over = 0, t = 0, scripted = false;
   // shots stop at the walls (E.Race asks the map); a kart's own shell is fired from inside the road
   const MAP = { collide: b => { const q = track.where(b.x, b.y); return Math.abs(q.across) > EDGE + 2 && Math.hypot(b.x - 590, b.y - 860) > 110; } };
-  const menu = new E.Menu(game, ['RACE', 'VS (2 PLAYERS)', 'BACK'], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
-  const after = new E.Menu(game, ['RACE AGAIN', 'MENU'], { onPick: i => i === 0 ? start(vs) : toMenu() });
+  const menu = new E.Menu(game, [E.t('racing3d.menu.race'), E.t('racing3d.menu.vs'), E.t('racing3d.menu.back')], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
+  const after = new E.Menu(game, [E.t('racing3d.after.again'), E.t('racing3d.after.menu')], { onPick: i => i === 0 ? start(vs) : toMenu() });
 
-  BOOT.push(['The racing valley', () => {
+  BOOT.push([E.t('racing3d.boot'), () => {
     world = new W3(game, { level: LEVEL, fog: { color: '#cfe4f4', near: 700, far: 1900 }, sky: ['#4a8ae0', '#cfe4f4'], ambient: ['#e0eaff', '#6a7a4a', 2.2],
       sun: { color: '#fff4dc', intensity: 2.6, dir: [-.5, .4, -.7], area: 600 }, torchLights: 0, camera: { mode: 'behind', far: 2400 }, onDraw });
     track = world.track({ path: LINE, width: HALF * 2, kerb: KERB, bank: .3, wallH: 16, pads: PADS, off: 'grass', gaps: [[OFF - 50, OFF + 34, 1], [ON - 34, ON + 50, 1]] });
@@ -133,7 +133,7 @@ const RACING = (() => {
       if (mode === 'menu') menu.update(dt); else if (game.players.length >= 2) start(true); else if (I.pressed('cancel')) mode = 'menu';
       return;
     }
-    if (I.pressed('camera')) { const c = world.camera, m = c.mode === 'behind' ? 'view' : 'behind'; c.set(m); game.note(m === 'behind' ? 'BEHIND THE KART' : game.view.label.toUpperCase() + ' VIEW'); }
+    if (I.pressed('camera')) { const c = world.camera, m = c.mode === 'behind' ? 'view' : 'behind'; c.set(m); game.note(m === 'behind' ? E.t('racing3d.note.behind') : E.lang.upper(E.t('racing3d.note.view', { view: game.view.label }))); }
     // the camera behind each kart: further back and wider on a screen held upright (the track shows past the kart)
     const tall = game.H > game.W * (vs ? .5 : 1);
     for (const c of world.cameras) Object.assign(c.behind, { dist: tall ? 92 : 62, height: tall ? 34 : 22, ahead: 40, lag: 5, fov: tall ? 78 : 66 });
@@ -167,15 +167,15 @@ const RACING = (() => {
     const W = r.W, H = r.H;
     if (mode === 'menu' || mode === 'join') {
       r.overlay(g => {
-        E.font.title(g, 'RACING', W / 2, Math.max(10, Math.round(H * .1)), { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'], depth: 3 });
-        if (mode === 'join') E.font.text(g, 'PLAYER 2: PRESS 2 OR START ON A PAD', W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.title(g, E.t('racing3d.title'), W / 2, Math.max(10, Math.round(H * .1)), { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'], depth: 3 });
+        if (mode === 'join') E.font.text(g, E.t('racing3d.join'), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false });
       });
       if (mode === 'menu') { menu.y = Math.round(H / 2) - 6; menu.draw(r); }
       return;
     }
     const i = r.viewport ? r.viewport.i : 0, me = players[i];
     if (me) race.hud(r, me, { color: vs ? (i ? '#ffd080' : '#a0d8ff') : '#ffffff' });
-    if (me && me.car.drifting && me.car.charge >= 1) r.overlay(g => E.font.text(g, me.car.charge >= 2 ? 'TURBO!' : 'DRIFT', (r.viewport ? r.viewport.x : 0) + 8, (r.viewport ? r.viewport.y : 0) + 50, me.car.charge >= 2 ? '#ffa030' : '#5ac8ff', { shadow: '#000', outline: false, font: 'tiny' }));
+    if (me && me.car.drifting && me.car.charge >= 1) r.overlay(g => E.font.text(g, E.t(me.car.charge >= 2 ? 'racing3d.hud.turbo' : 'racing3d.hud.drift'), (r.viewport ? r.viewport.x : 0) + 8, (r.viewport ? r.viewport.y : 0) + 50, me.car.charge >= 2 ? '#ffa030' : '#5ac8ff', { shadow: '#000', outline: false, font: 'tiny' }));
     if (!vs && me && !(game.input.touchArea && game.input.touchArea())) r.overlay(g => {   // the map: the circuit, the shortcut, every kart a dot (yours blinking)
       const S = Math.max(48, Math.min(76, Math.round(H / 3.6))), X = 4, Y = H - S * WH / WW - 6, k = S / WW, line = (pts, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); pts.forEach((p, j) => j ? g.lineTo(X + p.x * k, Y + p.y * k) : g.moveTo(X + p.x * k, Y + p.y * k)); g.stroke(); };
       g.save(); g.globalAlpha = .8; line([...MAP_PTS, MAP_PTS[0]], '#20202a', 4); line([...MAP_PTS, MAP_PTS[0]], '#d8d8e0', 2); line([0, .5, 1].map(f => SHORT.at(f * SHORT.length)), '#b08a58', 1.5); g.restore(); g._c = null;
@@ -188,7 +188,7 @@ const RACING = (() => {
     r.overlay(g => {
       const w = 170, h = 16 + race.racers.length * 11, x = Math.round((W - w) / 2), y = Math.round(H / 2 - h / 2 - 20);
       E.ui.box(g, x, y, w, h, { bg: '#141a3a', border: '#e8e4ff' });
-      race.racers.slice().sort((a, b) => a.place - b.place).forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? Math.floor(R.time / 60) + "'" + (R.time % 60).toFixed(2).padStart(5, '0') : '--'; E.font.text(g, R.place + '. ' + R.name, x + 8, yy, players.includes(R) ? '#ffe04a' : '#ffffff', { outline: false }); E.font.text(g, fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
+      race.racers.slice().sort((a, b) => a.place - b.place).forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? Math.floor(R.time / 60) + "'" + (R.time % 60).toFixed(2).padStart(5, '0') : '--'; E.font.text(g, E.t('racing3d.board.row', { place: R.place, name: R.name }), x + 8, yy, players.includes(R) ? '#ffe04a' : '#ffffff', { outline: false }); E.font.text(g, fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
     });
     after.y = Math.round(H / 2) + 52; after.draw(r);
   }

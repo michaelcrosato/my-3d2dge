@@ -89,7 +89,7 @@ const ACTION = (() => {
   let world = null, flow = null, hero = null, H = null, rnd = Math.random, lamp = null;
   let wave = 0, kills = 0, score = 0, tokens = 0, nextTurn = 0, boss = null, ended = 0, hint = 0;
   const enemies = [], corpses = [], shots = [];
-  BOOT.push(['The hall', () => { world = new W3(game, { level: LEVEL, torchShadows: 1, torchLights: 8, lights: 2, ambient: ['#6a64a0', '#2a2438', 6] }); flow = world.flow(); lamp = world.light({ color: '#c9c2ec', reach: 160, power: 20 }); }]);
+  BOOT.push([E.t('action3d.boot'), () => { world = new W3(game, { level: LEVEL, torchShadows: 1, torchLights: 8, lights: 2, ambient: ['#6a64a0', '#2a2438', 6] }); flow = world.flow(); lamp = world.light({ color: '#c9c2ec', reach: 160, power: 20 }); }]);
 
   /** a fresh hall: the hero at his mark, the crates and barrels, wave 1 on its way (seed: the fight's randomness) */
   function reset(seed = 1) {
@@ -110,7 +110,7 @@ const ACTION = (() => {
   function nextWave(first) {
     const W = WAVES[wave++]; if (!W) return;
     for (const [type, n] of Object.entries(W)) for (let i = 0; i < n; i++) spawn(type);
-    game.note(boss ? 'THE KNIGHT' : 'WAVE ' + wave, 1.8); if (!first) A.sfx('powerup');
+    game.note(boss ? E.t('action3d.knight') : E.t('action3d.note.wave', { wave }), 1.8); if (!first) A.sfx('powerup');
   }
   function spawn(type) {
     const [x, y] = world.randomFloor(rnd, 90, hero.x, hero.y), k = KINDS[type];
@@ -303,21 +303,21 @@ const ACTION = (() => {
     for (const e of enemies) if (e.fell) e.place(...world.randomFloor(rnd, 60, hero.x, hero.y));   // (thrown off the world: back on the floor)
     // a wave cleared: the hero cheers and the next marches in; the last one ends it
     if (!enemies.length && !H.dead && H.cheer <= 0 && !ended && corpses.every(c => c.deadT > .8)) {
-      if (wave >= WAVES.length) { ended = 1; H.cheer = 2; game.after(2.4, () => game.go('over', { from: 'action', world, won: true, title: 'HALL CLEARED', lines: ['ALL ' + WAVES.length + ' WAVES   ' + kills + ' DEFEATED', 'SCORE ' + score] })); A.music('victory'); }
+      if (wave >= WAVES.length) { ended = 1; H.cheer = 2; game.after(2.4, () => game.go('over', { from: 'action', world, won: true, title: E.t('action3d.over.won'), lines: [E.t('action3d.over.all_waves', { count: WAVES.length }) + '   ' + E.t('action3d.over.defeated', { count: kills }), E.t('action3d.over.score', { score })] })); A.music('victory'); }
       else { H.cheer = 1.6; P.glints(hero.x, hero.y, hero.z + 26, 14, '#ffd36a'); game.after(1.6, () => nextWave()); }
     }
-    if (H.dead && H.deadT > 1.6 && !ended) { ended = 1; game.go('over', { from: 'action', world, lines: ['WAVE ' + wave + ' OF ' + WAVES.length + '   ' + kills + ' DEFEATED', 'SCORE ' + score] }); }
+    if (H.dead && H.deadT > 1.6 && !ended) { ended = 1; game.go('over', { from: 'action', world, lines: [E.t('action3d.over.wave_of', { wave, waves: WAVES.length }) + '   ' + E.t('action3d.over.defeated', { count: kills }), E.t('action3d.over.score', { score })] }); }
     world.step(dt);
   }
 
   /* ---- THE HUD: health, the wave, the score; the knight's bar; the controls for a few seconds ---- */
   function hud(g, r) {
     const x = 6, y = 6, top = 0;
-    E.font.text(g, 'HP', x, y + top + 1, '#ffd6d6', { outline: '#0b0814' });
+    E.font.text(g, E.t('action3d.hud.hp'), x, y + top + 1, '#ffd6d6', { outline: '#0b0814' });
     E.ui.bar(g, x + 14, y + top, 72, 7, H.hp / H.max, H.hp > 30 ? '#e0463c' : '#ff7a3a');
-    E.font.text(g, 'WAVE ' + wave + '/' + WAVES.length + '   SCORE ' + score, x, y + top + 11, '#f0e6ff', { outline: '#0b0814' });
-    if (boss && boss.alive) { const w = Math.min(180, r.W - 40); E.font.text(g, 'THE KNIGHT', r.W / 2, r.H - 26, '#ffd36a', { align: 'center', outline: '#0b0814' }); E.ui.bar(g, r.W / 2 - w / 2, r.H - 16, w, 8, boss.hp / boss.max, '#c8452f'); }
-    if (hint > 0 && !touch()) E.font.text(g, prompt('attack', 'combo') + '   ' + prompt('dash', 'dash') + '   ' + prompt('jump', 'jump') + '   ' + prompt('skill', 'bolt') + '   ' + prompt('lock', 'lock') + '   C camera', r.W / 2, r.H - 40, '#e8e0ff', { align: 'center', outline: '#0b0814', font: 'tiny' });
+    E.font.text(g, E.t('action3d.hud.wave', { wave, waves: WAVES.length, score }), x, y + top + 11, '#f0e6ff', { outline: '#0b0814' });
+    if (boss && boss.alive) { const w = Math.min(180, r.W - 40); E.font.text(g, E.t('action3d.knight'), r.W / 2, r.H - 26, '#ffd36a', { align: 'center', outline: '#0b0814' }); E.ui.bar(g, r.W / 2 - w / 2, r.H - 16, w, 8, boss.hp / boss.max, '#c8452f'); }
+    if (hint > 0 && !touch()) E.font.text(g, prompt('attack', E.t('action3d.hint.combo')) + '   ' + prompt('dash', E.t('action3d.hint.dash')) + '   ' + prompt('jump', E.t('action3d.hint.jump')) + '   ' + prompt('skill', E.t('action3d.hint.bolt')) + '   ' + prompt('lock', E.t('action3d.hint.lock')) + '   ' + prompt('camera', E.t('action3d.hint.camera')), r.W / 2, r.H - 40, '#e8e0ff', { align: 'center', outline: '#0b0814', font: 'tiny' });
   }
 
   /* ---- the controls this step, from the camera ---- */

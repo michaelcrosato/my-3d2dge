@@ -17,7 +17,7 @@
 const CRAWLER = (() => {
   const C = 32, PI = Math.PI, EYE = 25, STEP_T = .28, TURN_T = .2, MOVE_T = .4;
   // the four ways, a quarter turn apart: 0 north, 1 east, 2 south, 3 west
-  const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0], YAW = d => -PI / 2 + d * PI / 2, WAYS = ['N', 'E', 'S', 'W'];
+  const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0], YAW = d => -PI / 2 + d * PI / 2, WAYS = ['n', 'e', 's', 'w'].map(w => E.t('crawler3d.compass.' + w));
   /* ---- THE VAULTS: one character a cell (2 metres: 2 x 2 of the level's tiles). # wall, . floor, @ the start (facing
    * north), n a wall with a brazier in a niche, L a wall with a lever, G a gate (raised by what is wired to it), K a gate
    * with an iron lock, P a plate (raises a gate), T a plate that springs darts, X the stair out, i the iron key, h a
@@ -53,12 +53,14 @@ const CRAWLER = (() => {
   const LEVEL = { rows, ground: 'flagstone', colors: { base: '#4a4656', dark: '#34303e', light: '#5a5668' }, side: 'brick', color: '#4e4858', legend: {} };
   const mid = c => c * C + C / 2;
 
-  /* ---- THE PARTY: two in front who fight, two behind who cast; each one's portrait is its rig's (drawPortrait) ---- */
+  /* ---- THE PARTY: two in front who fight, two behind who cast; each one's portrait is its rig's (drawPortrait); their
+   * names are lines (crawler3d.name.<name>) ---- */
   const PARTY = [
     { name: 'BRAM', role: 'FIGHTER', hp: 46, speed: 100, hit: [8, 13], rig: { build: 'heroic', hat: { style: 'helmet', color: '#8a92a0' }, colors: { cloth: '#7a3a2e', pants: '#3a3440', hair: '#4a2e1e', skin: '#d8a888', metal: '#b8c0cc' } } },
     { name: 'TESK', role: 'ROGUE', hp: 34, speed: 135, hit: [5, 10], rig: { hood: true, colors: { cloth: '#3a5a3e', pants: '#2e2a26', hair: '#2a3a2c', skin: '#c89070' } } },
     { name: 'MAREN', role: 'CLERIC', hp: 30, mp: 16, speed: 90, heal: [12, 19], rig: { hair: 'long', hat: 'band', colors: { cloth: '#d8d0b8', pants: '#8a7a5a', hair: '#c8a050', skin: '#e8c0a0', hat: '#c8a040' } } },
-    { name: 'QUILL', role: 'MAGE', hp: 22, mp: 18, speed: 85, bolt: [11, 18], rig: { hat: 'pointed', weapon: null, colors: { cloth: '#3a3a7a', pants: '#2a2a4a', hair: '#e0e0e8', skin: '#e0b090', hat: '#3a3a7a' } } }];
+    { name: 'QUILL', role: 'MAGE', hp: 22, mp: 18, speed: 85, bolt: [11, 18], rig: { hat: 'pointed', weapon: null, colors: { cloth: '#3a3a7a', pants: '#2a2a4a', hair: '#e0e0e8', skin: '#e0b090', hat: '#3a3a7a' } } }]
+    .map(o => Object.assign(o, { name: E.t('crawler3d.name.' + o.name.toLowerCase()) }));
   const BOLT_MP = 4, HEAL_MP = 3;
   /* ---- THE MONSTERS: hp, a blow's damage, speed (100: a turn as the party's), how far they see (cells) ---- */
   const BONE = { bone: '#d8cfb4', cloth: '#2c2434', belt: '#5a4a38', metal: '#b3b8c0', metalDk: '#636872', hilt: '#6a5038' };
@@ -112,7 +114,7 @@ const CRAWLER = (() => {
   let world = null, hero = null, lamp = null, grid = null, fog = null, turns = null, rnd = Math.random, mode = 'real', scripted = false;
   let party = null, S = null, foes = [], gates = {}, levers = [], plates = {}, items = [], stair = null, bolts = [], keys = null;
   let total = 0, msg = null, showMap = false, song = null, ended = 0, slashT = 0, phase = 'party', took = 0, rounds = 0;
-  BOOT.push(['The vaults', () => {
+  BOOT.push([E.t('crawler3d.boot'), () => {
     for (const [k, v] of Object.entries(SOUNDS)) A.define(k, v);
     world = new W3(game, { level: LEVEL, torchLights: 4, torchShadows: 0, torchPower: 16, torchReach: 160, torchColor: '#ffb070', lights: 2,
       ambient: ['#5a5478', '#221e2a', 3.4], fog: { color: '#050407', near: 40, far: 250 }, sky: '#050407', camera: { mode: 'fixed' },
@@ -178,7 +180,7 @@ const CRAWLER = (() => {
     fog.update([{ cx: S.cx, cy: S.cy, r: 5 }]);
     for (const e of foes) if (e.hp > 0 && !e.awake && fog.visible([e.cx, e.cy]) && Math.abs(e.cx - S.cx) + Math.abs(e.cy - S.cy) <= e.k.sight) wake(e);
   }
-  function wake(e) { e.awake = true; A.sfx(e.type === 'slime' ? 'squelch' : e.type === 'wisp' ? 'zap' : e.type === 'warden' ? 'roar' : 'rattle'); if (e.type === 'warden') say('THE WARDEN WAKES', 3); }
+  function wake(e) { e.awake = true; A.sfx(e.type === 'slime' ? 'squelch' : e.type === 'wisp' ? 'zap' : e.type === 'warden' ? 'roar' : 'rattle'); if (e.type === 'warden') say(E.t('crawler3d.say.warden_wakes'), 3); }
 
   /* ---- MOVING: a step or a turn, tweened; bumping a wall ---- */
   function place(u) {   // where the eyes are this step (u: the tween's 0..1)
@@ -194,7 +196,7 @@ const CRAWLER = (() => {
   /** try to step one cell along way d (relative to nothing: 0..3 on the map); true when the party moves */
   function stepTo(d) {
     const x = S.cx + DX[d], y = S.cy + DY[d];
-    if (!open(x, y) || foeAt(x, y)) { S.bump = .001; A.sfx('thud'); const g = gateAt(x, y); if (g && !g.up && !scripted) say(g.t.locked ? 'A GATE WITH AN IRON LOCK' : 'THE GATE WILL NOT BUDGE'); return false; }
+    if (!open(x, y) || foeAt(x, y)) { S.bump = .001; A.sfx('thud'); const g = gateAt(x, y); if (g && !g.up && !scripted) say(E.t(g.t.locked ? 'crawler3d.say.gate_locked' : 'crawler3d.say.gate_stuck')); return false; }
     S.from = [S.x, S.y, S.yaw, 1]; S.cx = x; S.cy = y; S.t = 0; S.dur = STEP_T; A.sfx('step'); return true;
   }
   function turnBy(s) { S.from = [S.x, S.y, S.yaw, 0]; S.dir = (S.dir + s + 4) % 4; S.t = 0; S.dur = TURN_T; A.sfx('turn'); return true; }
@@ -203,25 +205,25 @@ const CRAWLER = (() => {
     look(); const k = S.cx + ',' + S.cy, pl = plates[k];
     if (pl && !pl.t.on) {
       pl.t.on = true; A.sfx('plate');
-      if (pl.trap) { A.sfx('dart'); say('DARTS FROM THE WALLS!'); for (const m of alive().filter(m => m.front)) hurtMember(m, 4 + ((rnd() * 4) | 0)); }
-      else { raise(gates[pl.gate]); say('A GRINDING, FAR OFF', 2.6); }
+      if (pl.trap) { A.sfx('dart'); say(E.t('crawler3d.say.darts')); for (const m of alive().filter(m => m.front)) hurtMember(m, 4 + ((rnd() * 4) | 0)); }
+      else { raise(gates[pl.gate]); say(E.t('crawler3d.say.grinding'), 2.6); }
     }
     for (const it of items.slice()) if (it.cx === S.cx && it.cy === S.cy) {
       world.remove(it.t); items.splice(items.indexOf(it), 1); took++; A.sfx('pickup');
-      if (it.kind === 'key') { keys.add('iron'); say('THE IRON KEY'); } else { for (const m of alive()) heal(m, 15); say('A FLASK: EVERYONE FEELS BETTER'); }
+      if (it.kind === 'key') { keys.add('iron'); say(E.t('crawler3d.say.key')); } else { for (const m of alive()) heal(m, 15); say(E.t('crawler3d.say.flask')); }
     }
-    if (stair && S.cx === stair.cx && S.cy === stair.cy) { if (stair.t.on) win(); else if (!scripted) say('THE STAIR IS SEALED: SOMETHING HOLDS IT'); }
+    if (stair && S.cx === stair.cx && S.cy === stair.cy) { if (stair.t.on) win(); else if (!scripted) say(E.t('crawler3d.say.stair_sealed')); }
   }
   function raise(g) { if (!g || g.up) return; g.up = true; g.t.locked = null; A.sfx('gate'); }
   /** J at what is in front: a lever on this wall, a locked gate; true when it used something */
   function use() {
     const fx = S.cx + DX[S.dir], fy = S.cy + DY[S.dir];
     const lv = levers.find(l => l.cx === S.cx && l.cy === S.cy && l.dir === S.dir);
-    if (lv) { lv.t.on = !lv.t.on; A.sfx('lever'); if (lv.t.on) { raise(gates[lv.gate]); say('A LEVER: SOMEWHERE A GATE RISES'); } return true; }
+    if (lv) { lv.t.on = !lv.t.on; A.sfx('lever'); if (lv.t.on) { raise(gates[lv.gate]); say(E.t('crawler3d.say.lever')); } return true; }
     const g = gateAt(fx, fy);
     if (g && !g.up && g.t.locked) {
       const r = world.unlock(g.t, { has: k => keys.has(k), remove: k => keys.delete(k) });
-      if (r === 'unlocked') { A.sfx('unlock'); raise(g); say('THE IRON KEY TURNS'); } else { A.sfx('locked'); say('LOCKED: IT WANTS AN IRON KEY'); }
+      if (r === 'unlocked') { A.sfx('unlock'); raise(g); say(E.t('crawler3d.say.key_turns')); } else { A.sfx('locked'); say(E.t('crawler3d.say.locked')); }
       return true;
     }
     return false;
@@ -236,7 +238,7 @@ const CRAWLER = (() => {
     if (m.o.heal) {
       const w = alive().filter(o => o.hp < o.max).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
       if (!w || m.mp < HEAL_MP) return false;
-      m.mp -= HEAL_MP; heal(w, roll(m.o.heal)); A.sfx('heal'); m.flash = .3; say(m.name + ' HEALS ' + w.name, 1.6);
+      m.mp -= HEAL_MP; heal(w, roll(m.o.heal)); A.sfx('heal'); m.flash = .3; say(E.t('crawler3d.say.heals', { healer: m.name, name: w.name }), 1.6);
     } else if (m.o.bolt) {
       if (m.mp < BOLT_MP) return false;
       m.mp -= BOLT_MP; bolts.push({ cx: S.cx, cy: S.cy, d: S.dir, x: S.x, y: S.y, z: EYE - 5, t: 0, dmg: roll(m.o.bolt), by: m }); A.sfx('bolt');
@@ -272,13 +274,13 @@ const CRAWLER = (() => {
     P.sparks(e.x, e.y, (e.z || 0) + 14, 6, Math.atan2(S.y - e.y, S.x - e.x)); P.text(e.x, e.y, (e.z || 0) + 30, dmg, '#fff2c4'); A.sfx('hit');
     if (e.hp <= 0) {
       e.alive = false; e.setSolid(false); turns.remove(e); A.sfx(e.type === 'warden' ? 'roar' : 'die');
-      if (e.type === 'warden') { stair.t.on = true; say('THE WARDEN FALLS: THE STAIR IS OPEN', 3.2); song = null; }
+      if (e.type === 'warden') { stair.t.on = true; say(E.t('crawler3d.say.warden_falls'), 3.2); song = null; }
     }
   }
   function hurtMember(m, dmg) {
     if (m.hp <= 0) return;
     m.hp = Math.max(0, m.hp - dmg); m.hurtT = .5; game.shake(2); A.sfx('hurt');
-    if (m.hp <= 0) { say(m.name + ' FALLS', 2); turns.remove(m); }
+    if (m.hp <= 0) { say(E.t('crawler3d.say.falls', { name: m.name }), 2); turns.remove(m); }
   }
   /** a monster's blow lands: the front rank takes what comes from ahead or the sides, the back rank what comes from behind */
   function blow(e) {
@@ -286,7 +288,7 @@ const CRAWLER = (() => {
     let pool = alive().filter(m => m.front === (rel !== 2)); if (!pool.length) pool = alive(); if (!pool.length) return;
     const hits = e.type === 'warden' && e.blows % 3 === 2 ? pool : [pool[(rnd() * pool.length) | 0]];   // the Warden's sweep, every third blow
     for (const m of hits) hurtMember(m, roll(e.k.dmg));
-    if (hits.length > 1) { game.shake(5); say('THE WARDEN SWEEPS THE FRONT', 1.6); }
+    if (hits.length > 1) { game.shake(5); say(E.t('crawler3d.say.sweep'), 1.6); }
     e.blows++;
   }
   /** a monster's turn: strike when beside the party, else close in by the grid's path (awake ones only) */
@@ -362,7 +364,7 @@ const CRAWLER = (() => {
     for (const e of foes) foeStep(e, dt);
     for (let i = foes.length - 1; i >= 0; i--) if (foes[i].gone) foes.splice(i, 1);
     lamp.x = S.x; lamp.y = S.y; lamp.z = EYE + 4; lamp.on = true;
-    if (dead && !ended) { ended = 2; if (!scripted) game.after(1.5, () => game.go('over', { from: 'crawler', world, lines: ['THE PARTY IS LOST', 'IN THE LANTERN VAULTS'] })); }
+    if (dead && !ended) { ended = 2; if (!scripted) game.after(1.5, () => game.go('over', { from: 'crawler', world, lines: E.t('crawler3d.over.lost').split('\n') })); }   // (one sentence, a row a line)
     world.step(dt);
   }
   /** the controls when the party may act: the stick or keys to step and turn, Q and E aside, J, K, H, 1 to 4 */
@@ -383,7 +385,7 @@ const CRAWLER = (() => {
   }
   function win() {
     if (ended) return; ended = 1; if (scripted) return; A.music('victory');
-    game.after(1.4, () => game.go('over', { from: 'crawler', world, won: true, title: 'OUT OF THE VAULTS', lines: ['THE WARDEN IS DOWN', alive().length + ' OF 4 CLIMB THE STAIR   ' + foes.filter(e => e.hp <= 0).length + ' FOES'] }));
+    game.after(1.4, () => game.go('over', { from: 'crawler', world, won: true, title: E.t('crawler3d.over.won'), lines: [E.t('crawler3d.over.warden'), E.t('crawler3d.over.climb', { count: alive().length, party: PARTY.length }) + '   ' + E.t('crawler3d.over.foes', { count: foes.filter(e => e.hp <= 0).length })] }));
   }
 
   /* ---- THE HUD: the party's cards (portrait, life, magic, gauge), the compass, the map ---- */
@@ -401,17 +403,17 @@ const CRAWLER = (() => {
       const m = party[i], [x, y, w, h] = card(r, i), ko = m.hp <= 0, ready = mode === 'real' ? m._turn >= 100 : phase === 'party';
       E.ui.box(g, x, y, w, h, { bg: m.hurtT > 0 ? '#5a1a1e' : m.flash > 0 ? '#1e4a2e' : '#1a1626', border: ready && !ko ? '#d8c890' : '#6a6080', alpha: .9 });
       m.rig.drawPortrait(g, x + 3, y + 3, 26, { zoom: 2.4, turn: .4, bg: '#2a2438', tint: ko ? '#707070' : undefined });
-      E.font.text(g, (i + 1) + ' ' + m.name, x + 32, y + 3, ko ? '#8a8090' : '#f0e8d8', { font: 'tiny', outline: false });
+      E.font.text(g, E.t('crawler3d.card', { n: String(i + 1), name: m.name }), x + 32, y + 3, ko ? '#8a8090' : '#f0e8d8', { font: 'tiny', outline: false });
       E.ui.bar(g, x + 32, y + 12, w - 36, 5, m.hp / m.max, '#e0463c');
       if (m.mpMax) E.ui.bar(g, x + 32, y + 19, w - 36, 4, m.mp / m.mpMax, '#4a8aff');
       if (mode === 'real' && !ko) E.ui.bar(g, x + 32, y + h - 9, w - 36, 3, Math.min(1, m._turn / 100), ready ? '#ffd36a' : '#8a7a4a');
-      E.font.text(g, ko ? 'DOWN' : m.hp + '/' + m.max, x + 32, y + 26, ko ? '#c84a4a' : '#c8c0b0', { font: 'tiny', outline: false });
+      E.font.text(g, ko ? E.t('crawler3d.down') : m.hp + '/' + m.max, x + 32, y + 26, ko ? '#c84a4a' : '#c8c0b0', { font: 'tiny', outline: false });
     }
     // the compass, the mode, the message
     const cx = Math.round(r.W / 2), ty = below(r);
     E.ui.box(g, cx - 26, ty, 52, 14, { bg: '#1a1626', border: '#6a6080', alpha: .85 });
     E.font.text(g, WAYS[(S.dir + 3) % 4] + '   ' + WAYS[S.dir] + '   ' + WAYS[(S.dir + 1) % 4], cx, ty + 4, '#d8c890', { align: 'center', font: 'tiny', outline: false });
-    E.font.text(g, mode === 'turns' ? (phase === 'party' ? 'YOUR TURN' : 'THEIR TURN') : 'REAL TIME', 4, ty + 4, mode === 'turns' && phase !== 'party' ? '#e8a060' : '#9a90b0', { font: 'tiny', outline: '#000' });
+    E.font.text(g, E.t(mode === 'turns' ? (phase === 'party' ? 'crawler3d.turn.yours' : 'crawler3d.turn.theirs') : 'crawler3d.turn.real'), 4, ty + 4, mode === 'turns' && phase !== 'party' ? '#e8a060' : '#9a90b0', { font: 'tiny', outline: '#000' });
     if (msg) E.font.text(g, msg.text, cx, touch() ? r.H * .62 : card(r, 0)[1] - 12, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     automap(g, r, showMap);
   }
@@ -431,7 +433,7 @@ const CRAWLER = (() => {
     // the party: a dot and the way it faces
     const px = x0 + S.cx * s + s / 2, py = y0 + S.cy * s + s / 2;
     g.fillStyle = '#ffe08a'; g.fillRect(Math.round(px - 1), Math.round(py - 1), 2, 2); g.fillRect(Math.round(px + DX[S.dir] * s * .45 - .5), Math.round(py + DY[S.dir] * s * .45 - .5), 1, 1);
-    if (big) E.font.text(g, 'THE LANTERN VAULTS   ' + (keys.has('iron') ? 'IRON KEY' : ''), r.W / 2, y0 - 12, '#d8c890', { align: 'center', font: 'tiny', outline: '#000' });
+    if (big) E.font.text(g, E.t('crawler3d.map.title', { key: keys.has('iron') ? E.t('crawler3d.map.key') : '' }), r.W / 2, y0 - 12, '#d8c890', { align: 'center', font: 'tiny', outline: '#000' });
   }
 
   /* ---- THE CONTROLS: keys, touch, and clicks on the cards and the map ---- */
@@ -439,9 +441,9 @@ const CRAWLER = (() => {
     strafeL: ['KeyQ', 'Pad4'], strafeR: ['KeyE', 'Pad5'], act: ['KeyJ', 'Space', 'Pad0'], spell: ['KeyK', 'Pad2'], heal: ['KeyH', 'Pad3'], map: ['Tab', 'Pad8'],
     m1: ['Digit1'], m2: ['Digit2'], m3: ['Digit3'], m4: ['Digit4'],
     start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
-  const TOUCH = ['map', 'heal', 'spell', 'act'], TOUCH_LABELS = { map: 'MAP', heal: 'HEAL', spell: 'BOLT', act: 'ACT' };
-  const SETTING = { key: 'crawlTurns', label: 'Turns', group: 'Game', type: 'select', value: 'real', options: [['real', 'Real time'], ['turns', 'Turns']],
-    help: 'Real time: each one acts when its gauge fills, and the monsters do not wait. Turns: the vaults wait for you; each step, turn or blow is a turn' };
+  const TOUCH = ['map', 'heal', 'spell', 'act'], TOUCH_LABELS = { map: E.lang.upper(E.t('engine.action.map')), heal: E.lang.upper(E.t('action.heal')), spell: E.t('crawler3d.touch.spell'), act: E.lang.upper(E.t('action.act')) };
+  const SETTING = { key: 'crawlTurns', label: E.t('crawler3d.setting.turns'), group: 'Game', type: 'select', value: 'real', options: [['real', E.t('crawler3d.setting.turns.real')], ['turns', E.t('crawler3d.setting.turns.turns')]],
+    help: E.t('crawler3d.setting.turns.help') };
   const ctl = { move: [0, 0], down: a => game.input.down(a), pressed: a => game.input.pressed(a), use: a => game.input.consume(a) };
   function controls() {
     const m = game.input.move(); ctl.move[0] = m[0]; ctl.move[1] = m[1];
@@ -542,7 +544,7 @@ const CRAWLER = (() => {
     enter(d) {
       game.settings.define(SETTING); reset(1); active = world; game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
       if (d && d.part === 'warden') { for (const k of ['10,9', '17,7', '17,4']) { raise(gates[k]); gates[k].t.open = 1; world.setSolid(gates[k].t, false); } S.cx = 17; S.cy = 5; S.dir = 0; plates['17,5'].t.on = true; place(1); look(); }
-      say(d && d.part === 'warden' ? 'THE WARDEN\'S HALL' : 'THE LANTERN VAULTS. FIND THE WAY DOWN', 3.5);
+      say(E.t(d && d.part === 'warden' ? 'crawler3d.say.warden_hall' : 'crawler3d.say.intro'), 3.5);
     },
     update(dt) {
       if (game.input.pressed('map')) { game.input.consume('map'); showMap = !showMap; }

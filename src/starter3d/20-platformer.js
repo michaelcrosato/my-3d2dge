@@ -81,8 +81,9 @@ const PLAT = (() => {
   const SPEED = 110, JUMP = 190, JUMP2 = 170, SPRING = 320, DASH = 230, HEARTS = 3;
   const SKY = ['#3a78d0', '#bfe6ff'];
   let world = null, hero = null, S = null, rnd = Math.random;
+  const secs = v => E.lang.num(+v.toFixed(1), { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });   // (the time in the player's language, rounded as toFixed rounds)
   const slimes = [];
-  BOOT.push(['The course', () => {
+  BOOT.push([E.t('platformer3d.boot'), () => {
     world = new W3(game, { level: LEVEL, sky: SKY, fog: { color: SKY[1], near: 260, far: 1300 }, ambient: ['#d6ecff', '#5a7a3a', 1.7],
       sun: { color: '#fff1d6', intensity: 2.6, dir: [-.45, .55, -.75], area: 260 }, camera: { mode: 'chase', chase: { pitch: -.32, dist: 96, fov: 60, height: 20 } } });
   }]);
@@ -141,7 +142,7 @@ const PLAT = (() => {
     P.sparks(hero.x, hero.y, hero.z + 14, 6, a);
     if (S.hearts <= 0) lose();
   }
-  function lose() { S.lost = true; game.after(1.4, () => game.go('over', { from: 'platformer', world, lines: ['COINS ' + S.coins + '   STARS ' + S.stars + ' OF 3'] })); }
+  function lose() { S.lost = true; game.after(1.4, () => game.go('over', { from: 'platformer', world, lines: [E.t('platformer3d.over.lost', { coins: S.coins, stars: S.stars, of: 3 })] })); }
   /** back at the last flag, a heart down (a fall) */
   function respawn() {
     S.hearts--; A.sfx('die'); game.flash('#000000', .3);
@@ -181,10 +182,10 @@ const PLAT = (() => {
     for (const e of slimes.slice()) slimeStep(e, dt);
     for (const t of world.touching(hero)) {
       if (t.kind === 'coin') { world.remove(t); S.coins++; P.glints(t.x, t.y, t.z + 6, 5, '#ffe98a'); A.sfx('coin'); }
-      else if (t.kind === 'star') { world.remove(t); S.stars++; P.glints(t.x, t.y, t.z + 8, 16, '#fff6a0', 20); game.note('STAR ' + S.stars + ' OF 3', 1.8); A.sfx('powerup'); game.flash('#fff8d0', .12, .4); }
+      else if (t.kind === 'star') { world.remove(t); S.stars++; P.glints(t.x, t.y, t.z + 8, 16, '#fff6a0', 20); game.note(E.t('platformer3d.note.star', { star: S.stars, of: 3 }), 1.8); A.sfx('powerup'); game.flash('#fff8d0', .12, .4); }
       else if (t.kind === 'spring' && hero.vz <= 0 && hero.z < t.z + 8) { hero.jump(SPRING); S.sprung = true; S.jumps = 1; S.dashed = false; t.squash = .7; A.sfx('powerup'); P.ring(t.x, t.y, 4, 16, '#ff9a8a', .3, t.z + 4); }
-      else if (t.kind === 'flag' && t.goal && !S.won) { S.won = true; A.music('victory'); P.glints(t.x, t.y, t.z + 30, 24, '#ffe98a', 30); game.flash('#fff4d0', .4, .6); game.after(3, () => game.go('over', { from: 'platformer', world, won: true, title: 'COURSE CLEAR', lines: ['STARS ' + S.stars + ' OF 3   COINS ' + S.coins, 'TIME ' + S.time.toFixed(1) + ' S'] })); }
-      else if (t.kind === 'flag' && !t.goal && t.color !== '#4ae070') { t.color = '#4ae070'; S.check = [t.x + 10, t.y]; A.sfx('secret'); game.note('CHECKPOINT', 1.2); P.glints(t.x, t.y, t.z + 40, 8, '#bff6b0'); }
+      else if (t.kind === 'flag' && t.goal && !S.won) { S.won = true; A.music('victory'); P.glints(t.x, t.y, t.z + 30, 24, '#ffe98a', 30); game.flash('#fff4d0', .4, .6); game.after(3, () => game.go('over', { from: 'platformer', world, won: true, title: E.t('platformer3d.over.won'), lines: [E.t('platformer3d.over.stars', { stars: S.stars, of: 3, coins: S.coins }), E.t('platformer3d.over.time', { time: secs(S.time) })] })); }
+      else if (t.kind === 'flag' && !t.goal && t.color !== '#4ae070') { t.color = '#4ae070'; S.check = [t.x + 10, t.y]; A.sfx('secret'); game.note(E.t('platformer3d.note.checkpoint'), 1.2); P.glints(t.x, t.y, t.z + 40, 8, '#bff6b0'); }
       else if (t.kind === 'sign') S.sign = 2;
     }
     for (const t of world.things) if (t.squash) t.squash = Math.max(0, t.squash - dt * 3);
@@ -195,11 +196,11 @@ const PLAT = (() => {
   /* ---- THE HUD: hearts, coins, stars, the time; the sign's words; the controls for a few seconds ---- */
   function hud(g, r) {
     E.ui.hearts(g, 6, 6, S.hearts, HEARTS);
-    E.font.text(g, 'COINS ' + S.coins, 6, 18, '#ffe98a', { outline: '#0b0814' });
-    E.font.text(g, 'STARS ' + S.stars + '/3', 6, 28, '#fff6a0', { outline: '#0b0814' });
-    E.font.text(g, S.time.toFixed(1), r.W - 6, r.H - 12, '#e8f4ff', { align: 'right', outline: '#0b0814' });
-    if (S.sign > 0) { const w = Math.min(r.W - 20, 250), x = Math.round(r.W / 2 - w / 2); E.ui.box(g, x, r.H - 46, w, 30, { bg: '#3a2614', border: '#e8c890' }); E.font.text(g, 'THREE STARS ARE HIDDEN ON THE COURSE.', r.W / 2, r.H - 40, '#fff2d6', { align: 'center', outline: false }); E.font.text(g, 'THE FLAG IS FAR TO THE NORTH. GOOD LUCK!', r.W / 2, r.H - 29, '#fff2d6', { align: 'center', outline: false }); }
-    else if (S.time < 6 && !touch()) E.font.text(g, prompt('jump', 'jump (twice: double)') + '   ' + prompt('dash', 'dash') + '   C camera', r.W / 2, r.H - 26, '#ffffff', { align: 'center', outline: '#0b0814', font: 'tiny' });
+    E.font.text(g, E.t('platformer3d.hud.coins', { coins: S.coins }), 6, 18, '#ffe98a', { outline: '#0b0814' });
+    E.font.text(g, E.t('platformer3d.hud.stars', { stars: S.stars, of: 3 }), 6, 28, '#fff6a0', { outline: '#0b0814' });
+    E.font.text(g, secs(S.time), r.W - 6, r.H - 12, '#e8f4ff', { align: 'right', outline: '#0b0814' });
+    if (S.sign > 0) { const w = Math.min(r.W - 20, 250), x = Math.round(r.W / 2 - w / 2); E.ui.box(g, x, r.H - 46, w, 30, { bg: '#3a2614', border: '#e8c890' }); E.font.text(g, E.t('platformer3d.sign.1'), r.W / 2, r.H - 40, '#fff2d6', { align: 'center', outline: false }); E.font.text(g, E.t('platformer3d.sign.2'), r.W / 2, r.H - 29, '#fff2d6', { align: 'center', outline: false }); }
+    else if (S.time < 6 && !touch()) E.font.text(g, prompt('jump', E.t('platformer3d.hint.jump')) + '   ' + prompt('dash', E.t('platformer3d.hint.dash')) + '   ' + prompt('camera', E.t('platformer3d.hint.camera')), r.W / 2, r.H - 26, '#ffffff', { align: 'center', outline: '#0b0814', font: 'tiny' });
   }
   const I = { move: [0, 0], pressed: (a, w) => game.input.buffered(a, w), use: a => game.input.consume(a), down: a => game.input.down(a) };
   /** the proof: a scripted run north from the start (steering, jumping, dashing on a timetable): n steps of 1/120 s.

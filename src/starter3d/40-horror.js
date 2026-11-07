@@ -83,15 +83,11 @@ const HORROR = (() => {
     { id: 'gallery', x: 336, y: 216, locked: 'brasskey' }, { id: 'exit', x: 336, y: 8, locked: 'sealed' }];
 
   /* ---- ITEMS: the rpg module's items and a Resident Evil inventory of six slots; the item box holds the rest ---- */
+  // (each item's name and description are lines: horror3d.item.<id> and horror3d.item.<id>.info, herbG as herb_g)
+  const ITEM = (id, o) => Object.assign({ name: E.t('horror3d.item.' + id), info: E.t('horror3d.item.' + id + '.info') }, o);
   const rpg = new E.RPG({ items: {
-    herbG: { name: 'Green herb', kind: 'use', heal: 30, info: 'A medicinal plant. Mix it to make it stronger.' },
-    herbR: { name: 'Red herb', kind: 'use', info: 'Useless alone. Mixed with a green herb, it heals completely.' },
-    herbGG: { name: 'Mixed herbs (G+G)', kind: 'use', heal: 60, info: 'Two green herbs, ground together.' },
-    herbGR: { name: 'Mixed herbs (G+R)', kind: 'use', heal: 100, info: 'Green and red: it heals every wound.' },
-    ammo: { name: 'Handgun bullets', kind: 'use', stack: 60, info: 'Bullets for the handgun.' },
-    ironkey: { name: 'Iron key', kind: 'key', info: 'A heavy key. An iron lock is cast on its bow.' },
-    brasskey: { name: 'Brass key', kind: 'key', info: 'A polished key with a brass lock engraved on it.' },
-    crank: { name: 'Crank', kind: 'key', info: 'A square-ended crank handle. It fits some mechanism.' } } });
+    herbG: ITEM('herb_g', { kind: 'use', heal: 30 }), herbR: ITEM('herb_r', { kind: 'use' }), herbGG: ITEM('herb_gg', { kind: 'use', heal: 60 }), herbGR: ITEM('herb_gr', { kind: 'use', heal: 100 }),
+    ammo: ITEM('ammo', { kind: 'use', stack: 60 }), ironkey: ITEM('ironkey', { kind: 'key' }), brasskey: ITEM('brasskey', { kind: 'key' }), crank: ITEM('crank', { kind: 'key' }) } });
   const MIX = { 'herbG+herbG': 'herbGG', 'herbG+herbR': 'herbGR', 'herbR+herbG': 'herbGR' };
   const KEY_LOOK = { ironkey: '#8a8c98', brasskey: '#e0b048' };
   // the items' icons on the items screen (pixel sprites, drawn at twice their size)
@@ -150,7 +146,7 @@ const HORROR = (() => {
   let world = null, flow = null, hero = null, H = null, lamp = null, muzzle = null, rnd = Math.random;
   let enemies = [], items = [], doors = {}, gate = null, socket = null, inv = null, box = null, flags = null, mode = 'play', menu = null, msg = null, song = null, ended = 0, scripted = false;
   const shots = [];
-  BOOT.push(['The mansion', () => {
+  BOOT.push([E.t('horror3d.boot'), () => {
     for (const [k, v] of Object.entries(SOUNDS)) A.define(k, v);
     world = new W3(game, { level: LEVEL, torchLights: 4, torchShadows: 0, torchPower: 22, torchReach: 140, torchColor: '#ffb070', lights: 1, spots: 1,
       ambient: ['#3a3e56', '#141018', 1.6], fog: { color: '#040406', near: 40, far: 250 }, sky: '#020203', camera: { mode: 'zones', zones: ZONES, reticle: '#ff5a3a', lockRange: 170 },
@@ -216,7 +212,7 @@ const HORROR = (() => {
     }
     if (S.crankT > 0) {   // turning the crank: the grille rises
       S.crankT -= dt; socket.turn = (socket.turn || 0) + dt * 6; gate.open = clamp(1 - S.crankT / 2.2, 0, 1); h.vx = h.vy = 0; h.anim = { pose: 'cast' };
-      if (S.crankT <= 0) { world.setSolid(gate, false); flags.crank = true; say('The grille rose. Something gleams behind it.'); A.sfx('secret'); }
+      if (S.crankT <= 0) { world.setSolid(gate, false); flags.crank = true; say(E.t('horror3d.say.grille_rose')); A.sfx('secret'); }
       return;
     }
     if (S.hurtT > 0) { h.vx = approach(h.vx, 0, 400 * dt); h.vy = approach(h.vy, 0, 400 * dt); h.anim = { hurt: true, expr: 'wince' }; return; }
@@ -238,7 +234,7 @@ const HORROR = (() => {
       const mv = ctl.move, ml = Math.hypot(mv[0], mv[1]), sp = (ctl.down('run') ? RUN : WALK) * (S.hp <= 33 ? .7 : 1), acc = 500 * dt;
       h.vx = approach(h.vx, mv[0] * sp, acc); h.vy = approach(h.vy, mv[1] * sp, acc);
       if (ml > .1 && !ctl.tank) h.facing = E.approachAng(h.facing, Math.atan2(mv[1], mv[0]), dt * 9);
-      if (ctl.pressed('swap')) { ctl.use('swap'); S.gun = !S.gun; h.rig.o.weapon = S.gun ? 'gun' : 'sword'; h.rig.o.bladeLen = 5; A.sfx('select'); say(S.gun ? 'Handgun.' : 'Knife.', 1); }
+      if (ctl.pressed('swap')) { ctl.use('swap'); S.gun = !S.gun; h.rig.o.weapon = S.gun ? 'gun' : 'sword'; h.rig.o.bladeLen = 5; A.sfx('select'); say(E.t(S.gun ? 'horror3d.say.handgun' : 'horror3d.say.knife'), 1); }
       if (ctl.pressed('act')) { ctl.use('act'); check(); }
     }
     if (S.knife) { S.knife.update(dt); if (S.knife.state && S.knife.phase === 'active') S.knife.hits(targets, e => Math.abs(e.z - h.z) < 24 && E.inArc(h, h.facing, e, 22 + e.k.r, .9), e => hurt(e, KNIFE_DMG, h.facing, 50)); if (!S.knife.busy) S.knife = null; }
@@ -247,7 +243,7 @@ const HORROR = (() => {
   /** the handgun: a shot along the aim (world.ray), the first body it meets hurt; a high shot at a head hurts more */
   function fire() {
     const h = hero, S = H;
-    if (S.clip <= 0) { if (inv.count('ammo') > 0) { S.reloadT = 1.1; S.aim = false; world.camera.unlock(); A.sfx('reload'); } else { A.sfx('dry'); say('Out of bullets.', 1.2); } S.fireT = .4; return; }
+    if (S.clip <= 0) { if (inv.count('ammo') > 0) { S.reloadT = 1.1; S.aim = false; world.camera.unlock(); A.sfx('reload'); } else { A.sfx('dry'); say(E.t('horror3d.say.no_bullets'), 1.2); } S.fireT = .4; return; }
     S.clip--; S.fireT = .42; S.shots++; A.sfx('gun'); game.shake(1.5);
     const a = h.facing, va = AIM_A[S.aimLv + 1], ca = Math.cos(va), x = h.x + Math.cos(a) * 7, y = h.y + Math.sin(a) * 7, z = h.z + 19;
     const hit = world.ray(x, y, z, Math.cos(a) * ca, Math.sin(a) * ca, Math.sin(va), 300, { skip: h });
@@ -274,33 +270,33 @@ const HORROR = (() => {
     if (e.hp > 0) return;
     e.alive = false; flags.dead.push(e.id); e.setSolid(false); e.deadT = 0; A.sfx(e.type === 'dog' ? 'bark' : 'moan');
     if (world.camera.lockOn === e) world.camera.unlock();
-    if (e.type === 'boss') { flags.boss = true; doors.exit.locked = null; game.flash('#ffffff', .3, .5); A.sfx('roar'); say('It is over. The way out is open.', 4); }
+    if (e.type === 'boss') { flags.boss = true; doors.exit.locked = null; game.flash('#ffffff', .3, .5); A.sfx('roar'); say(E.t('horror3d.say.over'), 4); }
   }
   /** J in front of something: a door, a thing to take, the item box, the typewriter, the socket */
   function check() {
     const t = world.reach(hero, 16); if (!t) return;
     const d = t.data || {};
-    if (t.kind === 'door' && d.id === 'gate') { say(flags.crank ? 'The grille is up.' : 'An iron grille. A key gleams behind it, out of reach.'); return; }
+    if (t.kind === 'door' && d.id === 'gate') { say(E.t(flags.crank ? 'horror3d.say.grille_up' : 'horror3d.say.grille')); return; }
     if (t.kind === 'door') {
-      if (d.id === 'exit') { if (t.locked) { say('Sealed with heavy chains. Something holds them from the far side.'); return; } win(); return; }
+      if (d.id === 'exit') { if (t.locked) { say(E.t('horror3d.say.sealed')); return; } win(); return; }
       if (t.locked) {
         const was = t.locked, r = world.unlock(t, inv);
-        if (r === 'locked') { say('It is locked. ' + (was === 'ironkey' ? 'An iron lock.' : 'A brass lock.')); A.sfx('bump'); return; }
-        flags.open.push(d.id); say('You used the ' + rpg.items[was].name.toUpperCase() + '.'); A.sfx('key'); return;
+        if (r === 'locked') { say(E.t(was === 'ironkey' ? 'horror3d.say.locked_iron' : 'horror3d.say.locked_brass')); A.sfx('bump'); return; }
+        flags.open.push(d.id); say(E.t('horror3d.say.used', { item: E.lang.upper(rpg.items[was].name) })); A.sfx('key'); return;
       }
       if (world.through(t, hero, { then: () => { autosave(); } })) A.sfx('door');
       return;
     }
     if (d.item) {
-      if (!inv.add(d.item, d.n)) { say('No room. Leave something in the item box.'); A.sfx('bump'); return; }
+      if (!inv.add(d.item, d.n)) { say(E.t('horror3d.say.no_room_box')); A.sfx('bump'); return; }
       flags.taken.push(d.key); world.remove(t); items.splice(items.indexOf(t), 1); A.sfx(d.item.endsWith('key') ? 'key' : 'pickup');
-      say('Took the ' + rpg.items[d.item].name.toUpperCase() + (d.n > 1 ? ' x' + d.n : '') + '.'); return;
+      say(E.t('horror3d.say.took', { item: E.lang.upper(rpg.items[d.item].name), count: d.n })); return;
     }
     if (t.kind === 'trunk') { openBox(); return; }
     if (t.kind === 'typewriter') { saveGame(); return; }
     if (t === socket) {
-      if (flags.crank) { say('The crank is fixed in place.'); return; }
-      if (!inv.has('crank')) { say('A mechanism with a square socket. A crank would fit it.'); return; }
+      if (flags.crank) { say(E.t('horror3d.say.crank_fixed')); return; }
+      if (!inv.has('crank')) { say(E.t('horror3d.say.socket')); return; }
       inv.remove('crank'); socket.on = true; H.crankT = 2.2; A.sfx('crank'); return;
     }
   }
@@ -379,25 +375,25 @@ const HORROR = (() => {
     }
     for (let i = shots.length - 1; i >= 0; i--) if ((shots[i].t -= dt) <= 0) shots.splice(i, 1);
     if (muzzle.on && (muzzle.power -= 400 * dt) <= 0) muzzle.on = false;
-    if (H.dead && H.deadT > 2.4 && !ended) { ended = 1; game.go('over', { from: 'horror', world, lines: ['YOU DIED', flags.taken.length + ' THINGS FOUND   ' + flags.dead.length + ' OF ' + enemies.length + ' PUT DOWN'] }); }
+    if (H.dead && H.deadT > 2.4 && !ended) { ended = 1; game.go('over', { from: 'horror', world, lines: [E.t('horror3d.over.died'), E.t('horror3d.over.found', { count: flags.taken.length }) + '   ' + E.t('horror3d.over.put_down_of', { count: flags.dead.length, total: enemies.length })] }); }
     world.step(dt);
   }
   function win() {
     if (ended) return; ended = 1; if (scripted) return; A.music('victory');
-    game.after(1.2, () => game.go('over', { from: 'horror', world, won: true, title: 'ESCAPED', lines: ['THE WING IS QUIET', flags.dead.length + ' PUT DOWN   ' + H.shots + ' SHOTS FIRED'] }));
+    game.after(1.2, () => game.go('over', { from: 'horror', world, won: true, title: E.t('horror3d.over.won'), lines: [E.t('horror3d.over.quiet'), E.t('horror3d.over.put_down', { count: flags.dead.length }) + '   ' + E.t('horror3d.over.shots', { count: H.shots })] }));
   }
   /* ---- SAVES: the typewriter writes to the 2D engine's slots (game.saves); a door passed writes the autosave ---- */
-  const state = () => ({ data: { at: [hero.x, hero.y, hero.facing], hp: H.hp, clip: H.clip, gun: H.gun, inv: inv.list().map(s => [s.id, s.n]), box: box.list().map(s => [s.id, s.n]), flags }, place: (H.room || 'foyer').toUpperCase(), level: null });
+  const state = () => ({ data: { at: [hero.x, hero.y, hero.facing], hp: H.hp, clip: H.clip, gun: H.gun, inv: inv.list().map(s => [s.id, s.n]), box: box.list().map(s => [s.id, s.n]), flags }, place: E.lang.upper(E.t('horror3d.room.' + (H.room || 'foyer'))), level: null });   // (the room's name: the save slot shows it)
   function saveGame() { game.saves.write = state; game.saves.read = s => reset(1, s.data); if (!game.saves.show('save')) game.saves.save(0); }
   function autosave() { if (!H.dead && !scripted) { game.saves.write = state; game.saves.autosave(); } }   // (not in the proof or the bot)
 
   /* ---- THE ITEMS SCREEN (I) and THE ITEM BOX: the world stands still while they are open ---- */
-  const status = () => H.hp > 66 ? ['FINE', '#5ad070'] : H.hp > 33 ? ['CAUTION', '#e8c040'] : ['DANGER', '#e8483a'];
+  const status = () => H.hp > 66 ? [E.t('horror3d.status.fine'), '#5ad070'] : H.hp > 33 ? [E.t('horror3d.status.caution'), '#e8c040'] : [E.t('horror3d.status.danger'), '#e8483a'];
   function openItems() { mode = 'items'; menu = { i: 0, pick: null, sub: null }; A.sfx('select'); world.camera.unlock(); H.aim = false; }
   function openBox() { mode = 'box'; menu = { side: 0, i: 0 }; A.sfx('door'); }
   function useItem(id) {
     const it = rpg.items[id];
-    if (it.heal) { if (H.hp >= HP) { say('You are fine.'); return; } inv.remove(id); H.hp = Math.min(HP, H.hp + it.heal); A.sfx('heal'); say('You feel better.'); return; }
+    if (it.heal) { if (H.hp >= HP) { say(E.t('horror3d.say.fine')); return; } inv.remove(id); H.hp = Math.min(HP, H.hp + it.heal); A.sfx('heal'); say(E.t('horror3d.say.better')); return; }
     say(it.info);
   }
   function itemsStep() {
@@ -405,14 +401,14 @@ const HORROR = (() => {
     if (I.pressed('items') || I.pressed('cancel')) { I.consumeAll(); if (M.sub) M.sub = null; else { mode = 'play'; menu = null; } return; }
     if (M.sub) {   // USE, MIX, INFO
       if (I.pressed('up')) M.sub.i = (M.sub.i + 2) % 3; if (I.pressed('down')) M.sub.i = (M.sub.i + 1) % 3;
-      if (I.pressed('act') || I.pressed('confirm')) { I.consumeAll(); const s = list[M.i], c = M.sub.i; M.sub = null; if (!s) return; if (c === 0) useItem(s.id); else if (c === 1) { M.pick = M.i; say('Mix it with what?', 2); } else say(s.item.info); A.sfx('confirm'); }
+      if (I.pressed('act') || I.pressed('confirm')) { I.consumeAll(); const s = list[M.i], c = M.sub.i; M.sub = null; if (!s) return; if (c === 0) useItem(s.id); else if (c === 1) { M.pick = M.i; say(E.t('horror3d.say.mix_with'), 2); } else say(s.item.info); A.sfx('confirm'); }
       return;
     }
     if (I.pressed('left')) M.i = (M.i + n - 1) % n; if (I.pressed('right')) M.i = (M.i + 1) % n;
     if (I.pressed('up') || I.pressed('down')) M.i = (M.i + 3) % n;
     if (I.pressed('act') || I.pressed('confirm')) {
       I.consumeAll(); const s = list[M.i]; if (!s) return;
-      if (M.pick !== null) { const a = list[M.pick], r = a && M.pick !== M.i && MIX[a.id + '+' + s.id]; M.pick = null; if (!r) { say('They do not mix.'); A.sfx('bump'); return; } inv.remove(a.id); inv.remove(s.id); inv.add(r); A.sfx('heal'); say('Mixed: ' + rpg.items[r].name + '.'); return; }
+      if (M.pick !== null) { const a = list[M.pick], r = a && M.pick !== M.i && MIX[a.id + '+' + s.id]; M.pick = null; if (!r) { say(E.t('horror3d.say.no_mix')); A.sfx('bump'); return; } inv.remove(a.id); inv.remove(s.id); inv.add(r); A.sfx('heal'); say(E.t('horror3d.say.mixed', { item: rpg.items[r].name })); return; }
       M.sub = { i: 0 }; A.sfx('select');
     }
   }
@@ -425,7 +421,7 @@ const HORROR = (() => {
     if (I.pressed('act') || I.pressed('confirm')) {
       I.consumeAll(); const s = L[M.i]; if (!s) return;
       const from = M.side ? box : inv, to = M.side ? inv : box;
-      if (!to.add(s.id, s.n)) { say('No room.'); A.sfx('bump'); return; }
+      if (!to.add(s.id, s.n)) { say(E.t('horror3d.say.no_room')); A.sfx('bump'); return; }
       from.remove(s.id, s.n); A.sfx('pickup'); M.i = Math.max(0, Math.min(M.i, lists[M.side].length - 2));
     }
   }
@@ -458,34 +454,34 @@ const HORROR = (() => {
     const [word, col] = status();
     if (mode === 'play') {
       E.font.text(g, word, 6, 6, col, { outline: '#000', font: 'tiny' }); ecg(g, 6, 18, 40, col, game.real);
-      if (H.aim) E.font.text(g, (H.gun ? 'HANDGUN ' + H.clip + ' / ' + inv.count('ammo') : 'KNIFE') + (H.aimLv ? H.aimLv > 0 ? '  HIGH' : '  LOW' : ''), r.W - 6, 6, '#e8e0d0', { align: 'right', outline: '#000', font: 'tiny' });
-      if (H.reloadT > 0) E.font.text(g, 'RELOADING', r.W - 6, 6, '#e8c040', { align: 'right', outline: '#000', font: 'tiny' });
-      if (H.grabbed) E.font.text(g, (touch() ? 'TAP ACT' : 'TAP ' + game.input.label('act')) + ' TO SHAKE FREE', r.W / 2, r.H / 2 + 30, '#ff8a7a', { align: 'center', outline: '#000' });
+      if (H.aim) { const weapon = H.gun ? E.t('horror3d.hud.handgun', { clip: H.clip, ammo: inv.count('ammo') }) : E.t('horror3d.hud.knife'); E.font.text(g, H.aimLv ? E.t(H.aimLv > 0 ? 'horror3d.hud.high' : 'horror3d.hud.low', { weapon }) : weapon, r.W - 6, 6, '#e8e0d0', { align: 'right', outline: '#000', font: 'tiny' }); }
+      if (H.reloadT > 0) E.font.text(g, E.t('horror3d.hud.reloading'), r.W - 6, 6, '#e8c040', { align: 'right', outline: '#000', font: 'tiny' });
+      if (H.grabbed) E.font.text(g, E.t('horror3d.hud.shake_free', { key: touch() ? TOUCH_LABELS.act : game.input.label('act') }), r.W / 2, r.H / 2 + 30, '#ff8a7a', { align: 'center', outline: '#000' });
     }
     // (the message: above the touch buttons on a phone)
-    if (msg) { const w = Math.min(r.W - 20, 300), ta = game.input.touchArea(), y = ta && ta.y0 < r.H - 24 ? Math.min(r.H - 46, ta.y0 - 28) : r.H - 46; E.ui.box(g, (r.W - w) / 2, y, w, 22, { bg: '#08060a', border: '#5a5060' }); E.font.text(g, msg.text, r.W / 2, y + 7, '#e8e0d0', { align: 'center', outline: false, font: msg.text.length * 6 > w - 12 ? 'tiny' : undefined }); }
+    if (msg) { const w = Math.min(r.W - 20, 300), ta = game.input.touchArea(), y = ta && ta.y0 < r.H - 24 ? Math.min(r.H - 46, ta.y0 - 28) : r.H - 46; E.ui.box(g, (r.W - w) / 2, y, w, 22, { bg: '#08060a', border: '#5a5060' }); E.font.text(g, msg.text, r.W / 2, y + 7, '#e8e0d0', { align: 'center', outline: false, font: Math.max(msg.text.length * 6, E.font.width(msg.text)) > w - 12 ? 'tiny' : undefined }); }   // (counted at 6 a letter, as the widest; wider where the device's font draws it)
     if (mode === 'items') {
       const M = menu, list = inv.list(), w = Math.min(r.W - 16, 330), x0 = (r.W - w) / 2, y0 = Math.max(8, r.H / 2 - 90);
       g.save(); g.fillStyle = '#000'; g.globalAlpha = .7; g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
       E.ui.box(g, x0, y0, w, 160, { bg: '#0c0a10', border: '#6a6070' });
-      E.font.text(g, 'CONDITION', x0 + 10, y0 + 8, '#a8a0b0', { font: 'tiny', outline: false }); E.font.text(g, word, x0 + 10, y0 + 20, col, { outline: false }); ecg(g, x0 + 10, y0 + 40, 90, col, game.real);
-      E.font.text(g, H.gun ? 'HANDGUN  ' + H.clip + ' / ' + inv.count('ammo') : 'KNIFE', x0 + 10, y0 + 54, '#e8e0d0', { font: 'tiny', outline: false });
+      E.font.text(g, E.t('horror3d.items.condition'), x0 + 10, y0 + 8, '#a8a0b0', { font: 'tiny', outline: false }); E.font.text(g, word, x0 + 10, y0 + 20, col, { outline: false }); ecg(g, x0 + 10, y0 + 40, 90, col, game.real);
+      E.font.text(g, H.gun ? E.t('horror3d.items.handgun', { clip: H.clip, ammo: inv.count('ammo') }) : E.t('horror3d.hud.knife'), x0 + 10, y0 + 54, '#e8e0d0', { font: 'tiny', outline: false });
       for (let i = 0; i < 6; i++) {
         const s = list[i], cx = x0 + w - 186 + (i % 3) * 60, cy = y0 + 10 + Math.floor(i / 3) * 52, sel = i === M.i, pk = M.pick === i;
         E.ui.box(g, cx, cy, 54, 46, { bg: sel ? '#2a2234' : '#16121c', border: pk ? '#e8c040' : sel ? '#e8e0d0' : '#4a4250' });
         if (s) { E.px.sprite(g, ICONS[s.id], cx + 17, cy + 7, { scale: 2 }); if (s.n > 1) E.font.text(g, String(s.n), cx + 50, cy + 34, '#e8e0d0', { align: 'right', font: 'tiny', outline: '#000' }); }
       }
       const s = list[M.i]; E.font.text(g, s ? s.item.name : '', x0 + 10, y0 + 120, '#ffe0a0', { outline: false }); E.font.text(g, s ? s.item.info : '', x0 + 10, y0 + 134, '#c8c0d0', { font: 'tiny', outline: false });
-      if (M.sub) { const sx = x0 + w - 186 + (M.i % 3) * 60 + 30, sy = y0 + 10 + Math.floor(M.i / 3) * 52 + 26; E.ui.box(g, sx, sy, 50, 40, { bg: '#08060a', border: '#e8e0d0' }); ['USE', 'MIX', 'INFO'].forEach((t, k) => E.font.text(g, (k === M.sub.i ? '▸' : ' ') + t, sx + 5, sy + 5 + k * 11, k === M.sub.i ? '#ffd36a' : '#e8e0d0', { font: 'tiny', outline: false })); }
+      if (M.sub) { const sx = x0 + w - 186 + (M.i % 3) * 60 + 30, sy = y0 + 10 + Math.floor(M.i / 3) * 52 + 26; E.ui.box(g, sx, sy, 50, 40, { bg: '#08060a', border: '#e8e0d0' }); [E.t('horror3d.items.use'), E.t('horror3d.items.mix'), E.t('horror3d.items.info')].forEach((t, k) => E.font.text(g, (k === M.sub.i ? '▸' : ' ') + t, sx + 5, sy + 5 + k * 11, k === M.sub.i ? '#ffd36a' : '#e8e0d0', { font: 'tiny', outline: false })); }
     }
     if (mode === 'box') {
       const M = menu, w = Math.min(r.W - 16, 330), x0 = (r.W - w) / 2, y0 = Math.max(8, r.H / 2 - 90), L = [inv.list(), box.list()];
       g.save(); g.fillStyle = '#000'; g.globalAlpha = .7; g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
-      ['YOURS', 'THE ITEM BOX'].forEach((t, side) => {
+      [E.t('horror3d.box.yours'), E.t('horror3d.box.box')].forEach((t, side) => {
         const x = x0 + side * (w / 2 + 2), ww = w / 2 - 2; E.ui.box(g, x, y0, ww, 170, { bg: '#0c0a10', border: M.side === side ? '#e8e0d0' : '#4a4250' });
         E.font.text(g, t, x + 8, y0 + 7, '#a8a0b0', { font: 'tiny', outline: false });
         const rows = side ? Math.max(1, L[1].length) : 6;
-        for (let i = 0; i < Math.min(rows, 12); i++) { const s = L[side][i], sel = M.side === side && M.i === i; E.font.text(g, (sel ? '▸ ' : '  ') + (s ? s.item.name + (s.n > 1 ? ' x' + s.n : '') : '-'), x + 6, y0 + 20 + i * 12, sel ? '#ffd36a' : '#e8e0d0', { font: 'tiny', outline: false }); }
+        for (let i = 0; i < Math.min(rows, 12); i++) { const s = L[side][i], sel = M.side === side && M.i === i; E.font.text(g, (sel ? '▸ ' : '  ') + (s ? E.t('horror3d.box.item', { item: s.item.name, count: s.n }) : '-'), x + 6, y0 + 20 + i * 12, sel ? '#ffd36a' : '#e8e0d0', { font: 'tiny', outline: false }); }
       });
     }
   }
@@ -494,7 +490,7 @@ const HORROR = (() => {
   const KEYS = { up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
     act: ['KeyJ', 'Space', 'Mouse0', 'Pad0'], aim: ['KeyK', 'Mouse2', 'Pad6', 'Pad4'], run: ['ShiftLeft', 'ShiftRight', 'Pad1'], swap: ['KeyQ', 'Pad3'], items: ['KeyI', 'Tab', 'Pad2'],
     start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
-  const TOUCH = ['items', 'run', 'aim', 'act'], TOUCH_LABELS = { items: 'ITEMS', run: 'RUN', aim: 'AIM', act: 'ACT' };
+  const TOUCH = ['items', 'run', 'aim', 'act'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t('action.' + a))]));   // (the actions' names: ITEMS, RUN, AIM, ACT)
   const ctl = { move: [0, 0], tank: false, down: a => game.input.down(a), pressed: a => game.input.pressed(a), use: a => game.input.consume(a) };
   function controls(dt) { ctl.tank = world.camera.tank; world.camera.steer(hero, game.input.move(), H.aim || H.grabbed || H.dead ? 0 : dt, ctl.move); if (H.aim) ctl.move[0] = game.input.move()[0]; return ctl; }
 
@@ -577,8 +573,8 @@ const HORROR = (() => {
     enter() {
       game.settings.define(W3.CONTROLS); reset(1); active = world; A.music(null); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
       game.saves.write = state; game.saves.read = s => reset(1, s.data);
-      if (game.saves.any) { mode = 'intro'; menu = new E.Menu(game, ['CONTINUE', 'NEW GAME'], { y: 'center', onPick: i => { mode = 'play'; menu = null; if (i === 0) game.saves.load(game.saves.latest().slot); } }); }
-      say('The east and west wings. Find a way out.', 3.5);
+      if (game.saves.any) { mode = 'intro'; menu = new E.Menu(game, [E.t('horror3d.intro.continue'), E.t('horror3d.intro.new')], { y: 'center', onPick: i => { mode = 'play'; menu = null; if (i === 0) game.saves.load(game.saves.latest().slot); } }); }
+      say(E.t('horror3d.say.intro'), 3.5);
     },
     update(dt) {
       if (mode === 'intro') { menu.update(dt); world.step(0); return; }
@@ -588,7 +584,7 @@ const HORROR = (() => {
       step(dt, controls(dt));
       const want = H.room === 'gallery' && enemies.some(e => e.type === 'boss' && e.alive) ? DREAD : H.room === 'foyer' ? SAFE : HALL;
       if (want !== song && !ended && !H.dead) { song = want; A.music(want); }
-      const inp = game.input; inp.touchSet('act', H.aim ? 'FIRE' : null, true);
+      const inp = game.input; inp.touchSet('act', H.aim ? E.t('horror3d.touch.fire') : null, true);
     },
     draw(r) {
       world.draw(r);
