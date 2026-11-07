@@ -1288,7 +1288,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `arcade.continuing`: is the continue counting down?
 - `arcade.die()`: a life lost: 'again' (lives left), 'next' (the other player's turn) or 'over' (none left for anyone)
 - `arcade.draw(r, box)`: the frame over the game, after its drawing: the HUD (o.hud: 1UP, HI, 2UP in a row) along the top of box [x, y, w, h] (the playfield; the screen when none), the lives along its foot, the cards, DEMO, the continue and the entry
-- `arcade.drawTable(r, mode = '', y = 40, title = 'HIGH SCORES')`: a table as a screen (the attract mode's, or after a game), its title at y: rank, name, score
+- `arcade.drawTable(r, mode = '', y = 40, title = E.t('engine.arcade.high_scores'))`: a table as a screen (the attract mode's, or after a game), its title at y (HIGH SCORES: the line engine.arcade.high_scores): rank, name, score
 - `arcade.endDemo()`: the demo is over (a demo in a scene of its own: call it on the way back): the attract mode shows the scores
 - `arcade.enter(score, mode = '', done)`: open the initials entry for score; done(name) once it is taken and saved
 - `arcade.qualifies(score, mode = '')`: would score make the top ten (never in a demo)?
@@ -1734,7 +1734,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `new E.Clock(o = {}) → clock` †: new E.Clock({ day: 240 (real seconds of game time a day), hour: 8 (to start at) })
 - `clock.hour` †: the hour (0..23)
-- `clock.label()` †: 'DAY 2 14:30'
+- `clock.label()` †: 'DAY 2 14:30' (the line engine.strategy.clock)
 - `clock.light()` †: the light by the hour: { ambient (.12 at night .. 1 at noon), color (the sky's tint: blue night, warm dawn and dusk) }
 - `clock.minute` †: the minute (0..59)
 - `clock.night` †: true from 20:00 to 6:00

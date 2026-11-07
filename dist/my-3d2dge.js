@@ -947,7 +947,7 @@ class Input {
    *  'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕' */
   label(a, device = this.lastDevice) {
     const m = this.map[a]; if (!m) { this._check(a); return ''; }
-    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || (E.lang.has('action.' + idPart(a)) ? E.lang.upper(E.t('action.' + idPart(a))) : a.toUpperCase());   // (the game's line action.<name> names it)
+    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || this._actionCaps(a);
     const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
     const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
     return c ? this.codeLabel(c) : '';
@@ -982,8 +982,11 @@ class Input {
     const t = this._touchSet || (this._touchSet = {}); t[a] = { label, show: !!show };
     const b = this._touchBtns && this._touchBtns[a]; if (b && b.isConnected) this._touchLook(b, a);
   }
+  // an action's name in capitals for its touch button: the game's line action.<name>, else the engine's (engine.action.<name>),
+  // else the action's own name
+  _actionCaps(a) { const id = idPart(a); return E.lang.has('action.' + id) ? E.lang.upper(E.t('action.' + id)) : E.lang.has('engine.action.' + id) ? E.lang.upper(E.t('engine.action.' + id)) : a.toUpperCase(); }
   _touchLook(b, a) {
-    const t = this._touchSet && this._touchSet[a], o = this._touchArgs ? this._touchArgs.o : {}, text = (t && t.label) || (o.labels && o.labels[a]) || a.toUpperCase(), d = t && !t.show ? 'none' : '';
+    const t = this._touchSet && this._touchSet[a], o = this._touchArgs ? this._touchArgs.o : {}, text = (t && t.label) || (o.labels && o.labels[a]) || this._actionCaps(a), d = t && !t.show ? 'none' : '';
     if (b.textContent !== text) b.textContent = text;
     if (b.style.display !== d) { b.style.display = d; if (d) { b._inputPointers && b._inputPointers.clear(); b.classList.remove('on'); this.release('Act:' + a); } }   // (hidden under a finger: let go)
   }
@@ -1453,9 +1456,10 @@ E.font = {
         cx += (f.mono || gl.w) + 1;
       }
     };
+    const RS = lines.map(line => LANG_DEV.runs(has, line, f.key)), LW = lines.map((line, li) => RS[li] ? this._lw(f, line, sc, g) : this._lineW(f, line) * sc);   // (each line measured once, not once a pass)
     const draw = (ox, oy, c, useGrad) => {
       lines.forEach((line, li) => {
-        const R = LANG_DEV.runs(has, line, f.key), lw = R ? this._lw(f, line, sc, g) : this._lineW(f, line) * sc, ly = y + li * lh;
+        const R = RS[li], lw = LW[li], ly = y + li * lh;
         const rtl = !!R && R.length === 1 && LANG_DEV.RTL.test(line), box = rtl && o.wrap && (!o.align || o.align === 'left');   // (right to left in a box: from its right edge)
         const al = box ? 'right' : o.align, lx = (box ? x + Math.round(o.wrap) : x) + (al === 'center' ? -Math.round(lw / 2) : al === 'right' ? -lw : 0);
         w = Math.max(w, lw);
@@ -1709,13 +1713,11 @@ const LANG_DEV = {
   },
   /** null when the pixel font draws the whole line (has(ch): it has that glyph), else [[device, text], ...] */
   runs(has, line, key) {
-    let any = false;
+    const k = key + '\u0000' + line, hit = this._runs.get(k); if (hit !== undefined) return hit;   // (a line drawn again: one lookup)
+    let any = false, out = null;
     for (const ch of line) if (ch !== ' ' && ch !== '\n' && !has(ch) && !this.ZW.test(ch)) { any = true; break; }
-    if (!any) return null;
-    const k = key + '\u0000' + line, hit = this._runs.get(k); if (hit) return hit;
-    let out;
-    if (this.RTL.test(line)) out = [[true, line]];
-    else {
+    if (any && this.RTL.test(line)) out = [[true, line]];
+    else if (any) {
       out = []; let pend = '';
       for (const ch of line) {
         if (ch === ' ' || this.ZW.test(ch) || /[!-/:-@[-`{-~]/.test(ch)) { pend += ch; continue; }
@@ -1783,6 +1785,7 @@ Object.assign(ENGINE_LINES, {
   'engine.shell.fullscreen_iphone': 'On an iPhone: Share, then Add to Home Screen, plays without the browser\'s bars.', 'engine.shell.fullscreen_blocked': 'This browser or page doesn\'t allow it.',
   'engine.shell.calibrate': 'Calibrate', 'engine.shell.keep_it': 'Keep it', 'engine.shell.cancel': 'Cancel', 'engine.shell.dismiss': 'Dismiss', 'engine.shell.tutorial': 'Tutorial',
   'engine.shell.interact': 'Interact', 'engine.shell.hold_to_interact': 'Hold to interact', 'engine.shell.language': 'Language',
+  'engine.shell.distance': '{m} m', 'engine.shell.distance_above': '{m} m  ·  ABOVE YOU', 'engine.shell.distance_below': '{m} m  ·  BELOW YOU',
   'engine.controls.how': 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.',
   'engine.controls.keyboard': 'Keyboard', 'engine.controls.controller': 'Controller', 'engine.controls.press': 'Press…', 'engine.controls.player': 'Player {player}',
   'engine.controls.player_pad': 'Player {player} (controller)', 'engine.controls.player_left': 'Player {player} (left keys)', 'engine.controls.player_right': 'Player {player} (right keys)',
@@ -1794,7 +1797,7 @@ Object.assign(ENGINE_LINES, {
   'engine.calibrate.how': 'Tap on each click you hear, in time with it, not before ({taps} of 8). The higher click starts each bar.',
   'engine.calibrate.done': 'Your sound comes {ms} ms after the beat. Keep it, or tap on to measure again.', 'engine.calibrate.tap': 'Tap',
   'engine.note.fullscreen_blocked': 'Full screen not allowed here', 'engine.note.pad_lost': 'Controller disconnected', 'engine.note.pad_lost_text': 'Press a button on a controller to use it, or play on.',
-  'engine.note.back_again': 'Back again to leave', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
+  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
   // save slots (game.saves)
   'engine.saves.auto': 'Autosave', 'engine.saves.slot': 'Slot {n}', 'engine.saves.empty': 'Empty', 'engine.saves.damaged': 'Damaged: it cannot be read',
   'engine.saves.newer': 'From a newer version of the game', 'engine.saves.level': 'Level {level}', 'engine.saves.save': 'Save', 'engine.saves.load': 'Load',
@@ -4137,7 +4140,7 @@ Game.prototype.addPlayer = function (o = {}) {
   q._onBindings = b => this.settings.set('playerBindings', Object.assign({}, this.settings.playerBindings, { [n]: b }));
   P.push(q); _pClaim(this);
   if (this._join && this._join.onJoin) try { this._join.onJoin(q, n); } catch (e) { this.fail('allowJoin onJoin', e); }
-  this.note(q.name + ' JOINED', 1.5); this.audio.sfx('confirm');
+  this.note(E.lang.upper(ENG('note.joined', { player: q.name })), 1.5); this.audio.sfx('confirm');
   return q;
 };
 /** a player leaves (its input, or its number, 2 to 4); player 1 has the whole keyboard back when no one shares it */
@@ -9933,7 +9936,7 @@ class Shell {
     this._piece('obj', play && s.objective, o => {
       const d = o.at && o.from ? Math.round(Math.hypot(o.at.x - o.from.x, o.at.y - o.from.y) * (this._o.meters || .125)) : null, dz = o.at && o.from ? (o.at.z || 0) - (o.from.z || 0) : 0;
       return [o.step && this._el('div', 'esh-k', o.step), this._el('b', '', o.title), o.text && this._el('p', 'esh-m', o.text),
-        d !== null && this._el('div', 'esh-dist', d + ' m' + (dz > 12 ? '  ·  ABOVE YOU' : dz < -12 ? '  ·  BELOW YOU' : ''))];
+        d !== null && this._el('div', 'esh-dist', ENG(dz > 12 ? 'shell.distance_above' : dz < -12 ? 'shell.distance_below' : 'shell.distance', { m: d }))];
     });
     this._piece('vit', play && (s.status || s.bars || s.counts) && [s.status, s.bars, s.counts], ([sta, bars, cnt]) => {
       const out = [];
@@ -11025,7 +11028,8 @@ if (cab.die() !== 'again' || cab.die() !== 'again' || cab.die() !== 'over') thro
 cab.start(2); if (cab.die() !== 'next' || cab.p.n !== 2) throw new Error('turns');
 ```
 Rules: tables live in E.store ('arcade:' + id + ':' + mode; kept for the visit where storage is blocked); a demo is the game's own bot (or a recorded input log)
-playing the real rules; the entry and the continue read the game's keys, so hold play while either is open.
+playing the real rules; the entry and the continue read the game's keys, so hold play while either is open. Its words
+are lines: engine.arcade.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -11037,6 +11041,13 @@ if (!E) throw new Error('my-3D2dge module ARCADE: load engine/my-3d2dge.js (or t
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-! ', COLS = ['#ff4a4a', '#ffffff', '#ffe070'];
 const clicked = I => I.clicked ? I.clicked() : null;   // (a tap: the full engine's; the agent edition has none)
 const KEPT = {};   // the tables this visit, beside E.store (they still show where storage is blocked)
+// its words are lines (docs/LANGUAGES.md), English here: the cards and words it shows itself, the HUD, the continue, the
+// entry and the table (a game's own cards and words are its lines)
+E.lang.engine({
+  'engine.arcade.player': 'PLAYER {player}', 'engine.arcade.ready': 'PLAYER {player}, READY!', 'engine.arcade.extra_life': 'EXTRA LIFE!', 'engine.arcade.up': '{player}UP',
+  'engine.arcade.hi': 'HI', 'engine.arcade.demo': 'DEMO', 'engine.arcade.continue': 'CONTINUE?', 'engine.arcade.new_high': 'NEW HIGH SCORE!', 'engine.arcade.ok': 'OK',
+  'engine.arcade.initials': 'ENTER YOUR INITIALS', 'engine.arcade.high_scores': 'HIGH SCORES', 'engine.arcade.rank': '{rank}.'
+});
 class Arcade {
   /** new E.Arcade(game, { id, lives: 3, extra: [] (the scores that give a life) or every (a life each that many points),
    *  credits: null (free play) or the coins a game takes, idle: 20, demo: 30, scores: 6 (the attract mode's seconds),
@@ -11062,7 +11073,7 @@ class Arcade {
     this.players = Array.from({ length: Math.max(1, Math.min(2, players)) }, (_, i) => ({ n: i + 1, score: 0, lives: this.o.lives, save: null, next: this.o.every || (this.o.extra[0] === undefined ? Infinity : this.o.extra[0]) }));
     this.p = this.players[0]; this.mode = 'play'; this.demo = !!o.demo; this.entry = null; this._cont = null; this._cards.length = 0;
     this.hi = Math.max(this.hi, (this.table()[0] || { score: 0 }).score);
-    if (this.players.length > 1) this.card('PLAYER 1', 1.6);
+    if (this.players.length > 1) this.card(E.t('engine.arcade.player', { player: 1 }), 1.6);
     return true;
   }
   /** add points to the player up (at: a world point { x, y, z } where they float up); an extra life at each threshold */
@@ -11071,7 +11082,7 @@ class Arcade {
     p.score += points; this.hi = Math.max(this.hi, p.score);
     while (p.score >= p.next) {
       p.lives++; const every = this.o.every, more = this.o.extra.find(s => s > p.next); p.next = every ? p.next + every : more === undefined ? Infinity : more;
-      this.say('EXTRA LIFE!', 1.2); this.game.audio.sfx('oneup');
+      this.say(E.t('engine.arcade.extra_life'), 1.2); this.game.audio.sfx('oneup');
     }
     if (at) this.game.particles.text(at.x || 0, at.y || 0, (at.z || 0) + 6, points, this.o.colors[2]);
   }
@@ -11083,7 +11094,7 @@ class Arcade {
     for (let k = 1; k <= n; k++) {
       const q = this.players[(i + k) % n]; if (q.lives <= 0) continue;
       if (q === p) return 'again';
-      this.p = q; this.card('PLAYER ' + q.n + ', READY!', 2); return 'next';
+      this.p = q; this.card(E.t('engine.arcade.ready', { player: q.n }), 2); return 'next';
     }
     this.mode = 'over'; return 'over';
   }
@@ -11169,15 +11180,15 @@ class Arcade {
       const [X, Y, W, H] = box || [0, 0, r.W, r.H], cx = X + W / 2, F = E.font, col = this.o.colors, tx = (s, x, y, c, o) => F.text(g, s, x, y, c, Object.assign({ outline: false, shadow: '#000' }, o));
       if (this.o.hud && this.p) {
         const up = n => this.p.n === n && this.mode === 'play' && this.players.length > 1 && Math.floor(this._t * 3) % 2;   // the player up's label blinks
-        tx(up(1) ? '' : '1UP', X + 4, Y + 3, col[0], { font: 'tiny' }); tx(String(this.players[0].score), X + 20, Y + 2, col[1]);
-        tx('HI', cx - 2, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.hi), cx + 2, Y + 2, col[1]);
-        if (this.players[1]) { tx(up(2) ? '' : '2UP', X + W - 4, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.players[1].score), X + W - 20, Y + 2, col[1], { align: 'right' }); }
+        tx(up(1) ? '' : E.t('engine.arcade.up', { player: 1 }), X + 4, Y + 3, col[0], { font: 'tiny' }); tx(String(this.players[0].score), X + 20, Y + 2, col[1]);
+        tx(E.t('engine.arcade.hi'), cx - 2, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.hi), cx + 2, Y + 2, col[1]);
+        if (this.players[1]) { tx(up(2) ? '' : E.t('engine.arcade.up', { player: 2 }), X + W - 4, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.players[1].score), X + W - 20, Y + 2, col[1], { align: 'right' }); }
         for (let i = 0; i < Math.min(6, this.p.lives - 1); i++) { E.px.disc(g, X + 9 + i * 9, Y + H - 7, 3, col[2]); E.px.dot(g, X + 8 + i * 9, Y + H - 8, '#ffffff'); }
       }
       let y = Math.round(Y + H / 2) - 14;
       for (const c of this._cards) { if (c.big) { tx(c.text, cx, y, col[2], { align: 'center', scale: 2 }); y += 20; } else { tx(c.text, cx, y, col[1], { align: 'center' }); y += 11; } }
-      if (this.demo && Math.floor(this._t * 2) % 2 === 0) tx('DEMO', cx, Y + H - 30, col[2], { align: 'center', scale: 2 });
-      if (this._cont && !this.entry) { tx('CONTINUE?', cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 }); }
+      if (this.demo && Math.floor(this._t * 2) % 2 === 0) tx(E.t('engine.arcade.demo'), cx, Y + H - 30, col[2], { align: 'center', scale: 2 });
+      if (this._cont && !this.entry) { tx(E.t('engine.arcade.continue'), cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 }); }
       const e = this.entry;
       if (e) {
         g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
@@ -11186,24 +11197,25 @@ class Arcade {
         const S = this.game.screen, u = Math.max(34, Math.ceil(46 * (S && S.S ? S.dpr / S.S : 0))), cw = u, x0 = Math.round(cx - cw * 1.5), y0 = Math.round(Y + H / 2 - u / 2 - 4);
         const ok = [Math.round(cx - u), y0 + 26 + u + 4, u * 2, u];
         this.wheel = { x: x0, y: y0, cw, up: [y0 - u, y0], down: [y0 + 26, y0 + 26 + u], ok };
-        tx('NEW HIGH SCORE!', cx, y0 - u - 30, col[2], { align: 'center', scale: 2 }); tx(String(e.score), cx, y0 - u - 12, col[1], { align: 'center' });
+        tx(E.t('engine.arcade.new_high'), cx, y0 - u - 30, col[2], { align: 'center', scale: 2 }); tx(String(e.score), cx, y0 - u - 12, col[1], { align: 'center' });
         for (let i = 0; i < 3; i++) {
           const x = x0 + i * cw + cw / 2, on = i === e.i;
           tx(LETTERS[e.name[i]], x, y0 + 4, on && Math.floor(e.t * 4) % 2 ? col[1] : on ? col[2] : col[1], { align: 'center', scale: 3 });
           E.px.poly(g, [[x - 5, y0 - 8], [x + 5, y0 - 8], [x, y0 - 14]], on ? col[0] : '#5a4a6a'); E.px.poly(g, [[x - 5, y0 + 32], [x + 5, y0 + 32], [x, y0 + 38]], on ? col[0] : '#5a4a6a');
         }
-        E.px.rect(g, ok[0], ok[1], ok[2], ok[3], '#2a1a3e'); E.px.rect(g, ok[0], ok[1], ok[2], 1, col[2]); tx('OK', cx, ok[1] + ok[3] / 2 - 3, col[2], { align: 'center' });
-        tx('ENTER YOUR INITIALS', cx, ok[1] + ok[3] + 4, '#c8c0e0', { align: 'center', font: 'tiny' });
+        E.px.rect(g, ok[0], ok[1], ok[2], ok[3], '#2a1a3e'); E.px.rect(g, ok[0], ok[1], ok[2], 1, col[2]); tx(E.t('engine.arcade.ok'), cx, ok[1] + ok[3] / 2 - 3, col[2], { align: 'center' });
+        tx(E.t('engine.arcade.initials'), cx, ok[1] + ok[3] + 4, '#c8c0e0', { align: 'center', font: 'tiny' });
       }
     });
   }
-  /** a table as a screen (the attract mode's, or after a game), its title at y: rank, name, score */
-  drawTable(r, mode = '', y = 40, title = 'HIGH SCORES') {
+  /** a table as a screen (the attract mode's, or after a game), its title at y (HIGH SCORES: the line
+   *  engine.arcade.high_scores): rank, name, score */
+  drawTable(r, mode = '', y = 40, title = E.t('engine.arcade.high_scores')) {
     const t = this.table(mode);
     r.overlay(g => {
       const cx = r.W / 2, col = this.o.colors, tx = (s, x, yy, c, o) => E.font.text(g, s, x, yy, c, Object.assign({ outline: false, shadow: '#000' }, o));
       tx(title, cx, y, col[2], { align: 'center', scale: 2 });
-      for (let i = 0; i < 10; i++) { const e = t[i], yy = y + 26 + i * 11, c = i ? col[1] : col[2]; tx((i + 1) + '.', cx - 52, yy, c, { align: 'right' }); tx(e ? e.name : '---', cx - 42, yy, c); tx(String(e ? e.score : 0), cx + 60, yy, c, { align: 'right' }); }
+      for (let i = 0; i < 10; i++) { const e = t[i], yy = y + 26 + i * 11, c = i ? col[1] : col[2]; tx(E.t('engine.arcade.rank', { rank: i + 1 }), cx - 52, yy, c, { align: 'right' }); tx(e ? e.name : '---', cx - 42, yy, c); tx(String(e ? e.score : 0), cx + 60, yy, c, { align: 'right' }); }
     });
   }
 }
@@ -11261,7 +11273,7 @@ pc.act('pickup', 'key'); game.advance(8);
 if (!pc.has('key')) throw new Error('picked up');
 ```
 Rules: a room's picture is the game's (paint it in room pixels); keep puzzles as rules (data); talk goes through story
-(its nodes, choices and flags: rules test them with if).
+(its nodes, choices and flags: rules test them with if). Its words are lines: engine.click.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -11331,13 +11343,29 @@ E.Walkbox = Walkbox;
  * ========================================================================== */
 const VERBS = [['give', 'GIVE'], ['pickup', 'PICK UP'], ['use', 'USE'], ['open', 'OPEN'], ['look', 'LOOK AT'], ['push', 'PUSH'], ['close', 'CLOSE'], ['talk', 'TALK TO'], ['pull', 'PULL']];
 const ICONS = [['walk', 'WALK'], ['look', 'LOOK'], ['hand', 'HAND'], ['talk', 'TALK']], ICON = Object.fromEntries(ICONS);   // (Sierra's cursor: a right click turns it)
-const VERB = Object.fromEntries(VERBS), COIN = [['look', 'LOOK'], ['talk', 'TALK'], ['use', 'USE']];
+const VERB = Object.fromEntries(VERBS), COIN = [['look', 'LOOK'], ['talk', 'TALK'], ['use', 'USE'], ['pickup', 'TAKE'], ['walk', 'GO']];
+// its words are lines (docs/LANGUAGES.md), English here: the buttons (engine.click.verb.*, .icon.*, .coin.*), the
+// sentence line (engine.click.do.<verb>: 'Pick up {what}'), the icon's word by the pointer, what the hero says when
+// nothing answers (engine.click.no.<verb>)
+const LINES = {
+  'engine.click.do.walk': 'Walk to {what}', 'engine.click.give_to': 'Give {item} to {what}', 'engine.click.use_with': 'Use {item} with {what}',
+  'engine.click.no.look': 'It\'s {name}.', 'engine.click.no.look_item': 'It\'s a {name}.', 'engine.click.no.pickup': 'I can\'t pick that up.', 'engine.click.no.use': 'I can\'t use that.',
+  'engine.click.no.talk': 'It doesn\'t say much.', 'engine.click.no.give': 'I\'d rather keep it.', 'engine.click.no.open': 'It doesn\'t open.', 'engine.click.no.close': 'It doesn\'t close.',
+  'engine.click.no.push': 'It won\'t budge.', 'engine.click.no.pull': 'It won\'t budge.', 'engine.click.no.with': 'That doesn\'t work.'
+};
+const sentence = s => s[0] + s.slice(1).toLowerCase() + ' {what}';   // ('PICK UP' -> 'Pick up {what}')
+for (const [v, s] of VERBS) { LINES['engine.click.verb.' + v] = s; LINES['engine.click.do.' + v] = sentence(s); }
+for (const [v, s] of ICONS) { LINES['engine.click.icon.' + v] = s; if (v !== 'walk') { LINES['engine.click.do_icon.' + v] = sentence(s); LINES['engine.click.hover.' + v] = s + ' {name}'; } }
+for (const [v, s] of COIN) LINES['engine.click.coin.' + v] = s;
+E.lang.engine(LINES);
+// a game's word in small letters, in the player's language (Turkish I is ı)
+const low = s => { try { return String(s).toLocaleLowerCase(E.lang.test ? 'en' : E.lang.code); } catch (e) { return String(s).toLowerCase(); } };
 // Sierra's icons, drawn: feet, an eye, a hand, a mouth
 const PICS = { walk: ['..KK...', '.KSSK..', '.KSSK..', '..KK.KK', '....KSSK', '....KSSK', '.....KK'], look: ['..KKKKK..', '.KWWWWWK.', 'KWWBBBWWK', 'KWWBKBWWK', '.KWWWWWK.', '..KKKKK..'],
   hand: ['..K.K.K..', '.KSKSKSK.', '.KSKSKSKK', '.KSSSSSKS', 'KKSSSSSSK', 'KSSSSSSK.', '.KSSSSK..', '..KKKK...'], talk: ['.KKKKKK.', 'KRRRRRRK', 'KRWWWWRK', 'KRKKKKRK', 'KRRRRRRK', '.KKKKKK.'] };
 const PAINTED = new WeakMap();   // each room's picture, painted once (a room kept between games keeps it)
 const PAL = { K: '#1a1420', S: '#f0c8a0', W: '#ffffff', B: '#3a6ad8', R: '#c83a4a' };
-const NO = { look: n => 'It\'s ' + n.toLowerCase() + '.', pickup: () => 'I can\'t pick that up.', use: () => 'I can\'t use that.', talk: () => 'It doesn\'t say much.', give: () => 'I\'d rather keep it.', open: () => 'It doesn\'t open.', close: () => 'It doesn\'t close.', push: () => 'It won\'t budge.', pull: () => 'It won\'t budge.', with: () => 'That doesn\'t work.' };
+const NO = ['look', 'pickup', 'use', 'talk', 'give', 'open', 'close', 'push', 'pull'];   // (the verbs with a line of their own when nothing answers; others: use's)
 class Click {
   /** new E.Click(game, { rooms, items, rules, hero, ui, story, room, at, on }): see the manual */
   constructor(game, o = {}) {
@@ -11393,8 +11421,8 @@ class Click {
       const own = !item && spot && spot[verb];
       if (rule) this._do(rule); else if (typeof own === 'function') own(this, item); else if (typeof own === 'string' || Array.isArray(own)) this.say(own);
       else if (own) this._do(own);
-      else if (verb === 'look' && inInv) this.say(this.items[target].look || NO.look('a ' + this.items[target].name));
-      else this.say(item ? NO.with() : (NO[verb] || NO.use)(spot ? spot.name : ''));
+      else if (verb === 'look' && inInv) this.say(this.items[target].look || E.t('engine.click.no.look_item', { name: low(this.items[target].name) }));
+      else this.say(E.t('engine.click.no.' + (item ? 'with' : NO.includes(verb) ? verb : 'use'), { name: low(spot ? spot.name : '') }));
       if (this.on.done) this.on.done(this, verb, item, target);
     };
     this.item = null; this.verb = 'walk';
@@ -11522,7 +11550,7 @@ class Click {
       if (this.line) { const w = this.line.who, s = this.line.lines[this.line.i], k = w.k || this.scaleAt(w.y), lines = E.font.wrap(s, Math.min(200, L.W - 16)), x = clamp(w.x * z + L.ox, 70, L.W - 70); lines.forEach((t, i) => E.font.text(g, t, x, Math.max(2, (w.y - 46 * k) * z + L.oy - (lines.length - i) * 9), w.color || '#fff4b0', { align: 'center', shadow: '#000', outline: true })); }
       // the pointer's label: the name of what is under it, beside it
       const p = G.input.pointer(), h = this._hover;
-      if (h && p && !touch && !this._coin && !this.line && this.panel) E.font.text(g, (this.ui === 'icons' && this.verb !== 'walk' ? ICON[this.verb] + ' ' : '') + h.name, clamp(p[0], 30, L.W - 30), Math.max(2, p[1] - 14), '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
+      if (h && p && !touch && !this._coin && !this.line && this.panel) E.font.text(g, this.ui === 'icons' && this.verb !== 'walk' ? E.t('engine.click.hover.' + this.verb, { name: h.name }) : h.name, clamp(p[0], 30, L.W - 30), Math.max(2, p[1] - 14), '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
       if (this._fade) { g.fillStyle = 'rgba(5,4,10,' + Math.min(1, this._fade < 1 ? this._fade : 2 - this._fade).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); }
       if (this.panel) this._panel(g, L, touch);
     });
@@ -11533,13 +11561,13 @@ class Click {
   // the sentence line; the verbs (SCUMM's nine) or the icons (Sierra's), not on a touch screen; the inventory; the coin
   _panel(g, L, touch) {
     const y0 = L.py + 1, h = this._hover, it = this.item && this.items[this.item], verbs = this.ui === 'verbs' && !touch, icons = this.ui === 'icons' && !touch, th = this._thumb();
-    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? h.name.toLowerCase() : '';
-    const words = it ? (this.verb === 'give' ? 'Give ' : 'Use ') + it.name.toLowerCase() + (this.verb === 'give' ? ' to ' : ' with ') + name : touch ? '' : (vb ? vb[0] + vb.slice(1).toLowerCase() + ' ' : h ? '' : 'Walk to ') + name;
+    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? low(h.name) : '';
+    const words = it ? E.t(this.verb === 'give' ? 'engine.click.give_to' : 'engine.click.use_with', { item: low(it.name), what: name }) : touch ? '' : vb ? E.t('engine.click.' + (verbs ? 'do.' : 'do_icon.') + this.verb, { what: name }) : h ? name : E.t('engine.click.do.walk', { what: '' });
     E.font.text(g, words, L.W / 2, y0 + 1, '#c8e8ff', { align: 'center', outline: false });
     const box = (id, x, y, w, hh, label, on, fn, small) => { this.boxes.push({ id, x, y, w, h: hh, fn }); E.ui.box(g, x, y, w, hh, { alpha: .9, bg: on ? '#3a4a9a' : '#141428' }); if (label) E.font.text(g, label, x + w / 2, y + hh / 2 - 3, on ? '#ffffff' : '#9ab0ff', { align: 'center', outline: false, font: small ? 'tiny' : undefined }); };
     let ix = 4;
-    if (verbs) { const bw = 52, bh = 14; VERBS.forEach(([v, s], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, s, this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
-    if (icons) { ICONS.forEach(([v, s], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, s, x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
+    if (verbs) { const bw = Math.max(52, ...VERBS.map(([v]) => E.font.width(E.t('engine.click.verb.' + v), { font: 'tiny' }) + 6)), bh = 14; VERBS.forEach(([v], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, E.t('engine.click.verb.' + v), this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
+    if (icons) { ICONS.forEach(([v], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, E.t('engine.click.icon.' + v), x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
     // the inventory: icons in a row (two in the verbs' panel; a thumb's size on a touch screen), arrows when it is longer
     const S = touch ? th : verbs ? 20 : 24, rows = verbs ? 2 : 1, aw = touch ? th : 14, cols = Math.max(1, Math.floor((L.W - ix - aw - 8) / (S + 2))), per = cols * rows, iy = verbs ? y0 + 11 : touch ? y0 + 10 : y0 + 4;
     this._invAt = clamp(this._invAt, 0, Math.max(0, Math.ceil(this.inv.length / cols) - rows) * cols);
@@ -11552,9 +11580,9 @@ class Click {
     if (this.inv.length > per) { const hh = rows > 1 ? S : S / 2 - 1; box('inv:<', L.W - aw - 4, iy, aw, hh, '<', false, () => { this._invAt -= cols; }); box('inv:>', L.W - aw - 4, iy + hh + 2, aw, hh, '>', false, () => { this._invAt += cols; }); }
     // the coin: the hotspot's verbs round where it was clicked (a thumb's size on a touch screen)
     if (this._coin) {
-      const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v !== 'talk' || C.h.actor || C.h.talk).concat(C.h.pickup ? [['pickup', 'TAKE']] : [], C.h.exit ? [['walk', 'GO']] : []);
+      const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v === 'talk' ? C.h.actor || C.h.talk : v === 'pickup' ? C.h.pickup : v === 'walk' ? C.h.exit : true);
       const bw = sz + 14, all = vs.length * (bw + 3) - 3, x0 = clamp(C.x - all / 2, 2, L.W - all - 2), up = C.y - sz - 12 >= 2, y = up ? C.y - sz - 12 : Math.min(C.y + 12, L.py - sz - 2);   // (a row over the point, or under it near the top)
-      vs.forEach(([v, s], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, s, false, () => this.act(v, C.h.id), true));
+      vs.forEach(([v], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, E.t('engine.click.coin.' + v), false, () => this.act(v, C.h.id), true));
       E.font.text(g, C.h.name, clamp(C.x, 40, L.W - 40), up ? Math.max(2, y - 10) : y + sz + 3, '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
     }
   }
@@ -11603,7 +11631,8 @@ for (let i = 0; i < 240; i++) car.update(1 / 120, map, { gas: 1 });
 if (!(car.speed > 150 && car.x > 150 && Math.abs(car.y - 40) < .01)) throw new Error('a car accelerates along its heading');
 ```
 Rules: the angle is a heading (0 east, PI / 2 south) and a mode7 camera's; update cars at the fixed step; a player's
-car takes game.input or its player's input; race.update moves every racer's car, so don't update them yourself.
+car takes game.input or its player's input; race.update moves every racer's car, so don't update them yourself. Its
+words are lines: engine.drive.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -11614,6 +11643,12 @@ if (!E) throw new Error('my-3D2dge module DRIVE: load engine/my-3d2dge.js (or th
  * ========================================================================== */
 const { clamp, angDiff } = E, TAU = Math.PI * 2;
 const SURFACES = { grass: { top: .5, grip: .9 }, sand: { top: .4, grip: .6 }, dirt: { top: .7, grip: .8 }, ice: { grip: .15 }, boost: { boost: .8 } };
+// its words are lines (docs/LANGUAGES.md), English here: a racer's name when none is given, and the HUD's (a place is a
+// line of its own up to the fourth, then the number's: places differ in every language)
+E.lang.engine({
+  'engine.drive.car': 'CAR {number}', 'engine.drive.place.1': '1ST', 'engine.drive.place.2': '2ND', 'engine.drive.place.3': '3RD', 'engine.drive.place.4': '4TH',
+  'engine.drive.place.n': '{place}TH', 'engine.drive.lap': 'LAP {lap}/{laps}', 'engine.drive.go': 'GO!', 'engine.drive.wrong_way': 'WRONG WAY', 'engine.drive.finish': 'FINISH'
+});
 class Car extends E.Body {
   /** new E.Car({ x, y, angle, top, accel, brake, turn, grip, drift, kart, auto, surfaces, ground }): a car (the manual) */
   constructor(o = {}) {
@@ -11706,7 +11741,7 @@ class Race {
   /** a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it */
   add(car, o = {}) {
     const d = this.path.nearest(car.x, car.y), L = this.path.length;
-    const R = { car, name: o.name || 'CAR ' + (this.racers.length + 1), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
+    const R = { car, name: o.name || E.t('engine.drive.car', { number: this.racers.length + 1 }), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
     this.racers.push(R); return R;
   }
   /** an item box at (x, y): a racer that drives through it gets an item (when it holds none) */
@@ -11779,17 +11814,17 @@ class Race {
   hud(r, R, o = {}) {
     const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }, F = E.font, fmt = t => Math.floor(t / 60) + "'" + String(Math.floor(t % 60)).padStart(2, '0') + '"' + String(Math.floor(t * 100 % 100)).padStart(2, '0');
     r.overlay(g => {
-      const x = vp.x + 6, y = vp.y + 6, sfx = ['ST', 'ND', 'RD'][R.place - 1] || 'TH', col = o.color || '#ffffff';
-      F.text(g, R.place + sfx, x, y, R.place === 1 ? '#ffe04a' : col, { scale: 2, shadow: '#000', outline: false });
+      const x = vp.x + 6, y = vp.y + 6, place = R.place <= 4 ? E.t('engine.drive.place.' + R.place) : E.t('engine.drive.place.n', { place: R.place }), col = o.color || '#ffffff';
+      F.text(g, place, x, y, R.place === 1 ? '#ffe04a' : col, { scale: 2, shadow: '#000', outline: false });
       const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
-      F.text(g, 'LAP ' + Math.min(this.o.laps, R.lap + 1) + '/' + this.o.laps, rx, y, col, { align: 'right', shadow: '#000', outline: false });
+      F.text(g, E.t('engine.drive.lap', { lap: Math.min(this.o.laps, R.lap + 1), laps: this.o.laps }), rx, y, col, { align: 'right', shadow: '#000', outline: false });
       F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
       E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;
-      if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : 'GO!', cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
-      if (R.wrong && !R.finished) F.text(g, 'WRONG WAY', cx, cy, '#ff4a3a', { align: 'center', scale: 2, shadow: '#000', outline: false });
-      if (R.finished) F.text(g, 'FINISH', cx, cy, '#ffe04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
+      if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : E.t('engine.drive.go'), cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
+      if (R.wrong && !R.finished) F.text(g, E.t('engine.drive.wrong_way'), cx, cy, '#ff4a3a', { align: 'center', scale: 2, shadow: '#000', outline: false });
+      if (R.finished) F.text(g, E.t('engine.drive.finish'), cx, cy, '#ffe04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
     });
   }
 }
@@ -11843,6 +11878,7 @@ if (m.phase !== 'over' || m.wins[m.winner] < 2) throw new Error('a match ends wi
 ```
 Rules: a fighter reads its input at the engine's 120 Hz step (motions too), so update it once a step; f.update(dt, ctl) takes an
 E.Input or a CPU's intent ({ x, y: -1..1 on screen, press: a button, do: a move id }); frame data is in frames at 60.
+Its words are lines: engine.fight.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -11861,6 +11897,16 @@ const BTN = ['lp', 'hp', 'lk', 'hk'];
 // what a move does by its button when the spec doesn't say: [dmg, stun, block, push]
 const BASE = { lp: [30, 13, 9, 70], hp: [80, 20, 15, 120], lk: [35, 14, 10, 80], hk: [90, 21, 16, 130] };
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.h && b.z < a.z + a.h;
+// its words are lines (docs/LANGUAGES.md), English here: a fighter's name when none is given, the calls, the combo, the
+// training's frame data and buttons, the character select
+const FRAMES = '{move}  STARTUP {startup}  ACTIVE {active}  RECOVERY {recovery}';
+E.lang.engine({
+  'engine.fight.fighter': 'FIGHTER', 'engine.fight.round': 'ROUND {round}', 'engine.fight.fight': 'FIGHT!', 'engine.fight.ko': 'K.O.', 'engine.fight.time': 'TIME',
+  'engine.fight.draw': 'DRAW', 'engine.fight.perfect': 'PERFECT', 'engine.fight.wins': '{name} WINS', 'engine.fight.hits': { one: '{count} HIT', other: '{count} HITS' },
+  'engine.fight.frames.down': FRAMES + '  KNOCKDOWN', 'engine.fight.frames.hit': FRAMES + '  ON HIT {adv}', 'engine.fight.frames.block': FRAMES + '  ON BLOCK {adv}',
+  'engine.fight.button.lp': 'LP', 'engine.fight.button.hp': 'HP', 'engine.fight.button.lk': 'LK', 'engine.fight.button.hk': 'HK',
+  'engine.fight.select': 'SELECT YOUR FIGHTER', 'engine.fight.ready': 'READY', 'engine.fight.vs': 'VS', 'engine.fight.cpu': 'CPU', 'engine.fight.player': 'P{player}'
+});
 
 /** the floor the fighters stand on when no level is given: z 0 between walls at x0 and x1 (a Platformer's level) */
 class FightStage {
@@ -11885,7 +11931,7 @@ class Fighter {
    *  back: 60, jump: 390, jumpX: 90, moves, throwBtn: 'hp', throwRange, throwDmg: 120, input }) */
   constructor(game, o = {}) {
     /** game: the game it fights in; name: its name on the HUD */
-    this.game = game; this.name = o.name || 'FIGHTER';
+    this.game = game; this.name = o.name || E.t('engine.fight.fighter');
     /** rig: its E.Humanoid (drawn and posed from its state every step) */
     this.rig = o.rig instanceof E.Humanoid ? o.rig : new E.Humanoid(Object.assign({ size: 2.6, build: 'heroic', weapon: null }, o.rig));
     const sz = this.rig.o.size;
@@ -12217,7 +12263,7 @@ class Match {
     this.f[0].reset(mid - 60, 1); this.f[1].reset(mid + 60, -1);
     /** phase: 'intro' | 'fight' | 'ko' | 'win' | 'over'; clock: the round's seconds left; call: the words on the screen
      *  (ROUND 1, FIGHT!, K.O., TIME, PERFECT), or null */
-    this.phase = this.o.training ? 'fight' : 'intro'; this._t = 0; this.clock = this.o.time; this.winner = null; this.call = this.o.training ? null : 'ROUND ' + this.round; this._slow = 0;
+    this.phase = this.o.training ? 'fight' : 'intro'; this._t = 0; this.clock = this.o.time; this.winner = null; this.call = this.o.training ? null : E.t('engine.fight.round', { round: this.round }); this._slow = 0;
   }
   _control(i) {
     if (this.phase !== 'fight') return null;
@@ -12243,11 +12289,11 @@ class Match {
       for (const f of this.f) f.meter = 100 * (f.o.bars || 1);
       return;
     }
-    if (this.phase === 'intro') { if (this._t > 1.1) this.call = 'FIGHT!'; if (this._t > 1.8) { this.phase = 'fight'; this.call = null; this._t = 0; } }
+    if (this.phase === 'intro') { if (this._t > 1.1) this.call = E.t('engine.fight.fight'); if (this._t > 1.8) { this.phase = 'fight'; this.call = null; this._t = 0; } }
     else if (this.phase === 'fight') {
       this.clock = Math.max(0, this.clock - dt);
       if (a.ko || b.ko || this.clock <= 0) {
-        this.phase = 'ko'; this._t = 0; this.call = a.ko || b.ko ? 'K.O.' : 'TIME';
+        this.phase = 'ko'; this._t = 0; this.call = E.t(a.ko || b.ko ? 'engine.fight.ko' : 'engine.fight.time');
         this.winner = a.ko && b.ko ? null : a.ko ? 1 : b.ko ? 0 : a.life === b.life ? null : a.life > b.life ? 0 : 1;
         if (a.ko || b.ko) { this.game.timeScale = .35; this._slow = .9; this.game.flash('#ffffff', .2); this.game.audio.sfx('boom'); }
       }
@@ -12255,12 +12301,12 @@ class Match {
       if (this._slow > 0 && (this._slow -= dt / Math.max(.01, this.game.timeScale)) <= 0) this.game.timeScale = 1;
       if (this._t > 2.2 && [a, b].every(f => f.body.onGround && !f.thrown)) {
         this.phase = 'win'; this._t = 0;
-        if (this.winner === null) { this.wins[0]++; this.wins[1]++; this.call = 'DRAW'; }
-        else { const w = this.f[this.winner]; this.wins[this.winner]++; w.win = true; this.call = w.life >= w.o.life ? 'PERFECT' : w.name + ' WINS'; this.game.audio.sfx('powerup'); }
+        if (this.winner === null) { this.wins[0]++; this.wins[1]++; this.call = E.t('engine.fight.draw'); }
+        else { const w = this.f[this.winner]; this.wins[this.winner]++; w.win = true; this.call = w.life >= w.o.life ? E.t('engine.fight.perfect') : E.t('engine.fight.wins', { name: w.name }); this.game.audio.sfx('powerup'); }
       }
     } else if (this.phase === 'win' && this._t > 2.6) {
       const done = this.wins.map(n => n >= this.o.rounds);
-      if (done[0] !== done[1]) { this.phase = 'over'; this.winner = done[0] ? 0 : 1; this.call = this.f[this.winner].name + ' WINS'; if (this.o.onEnd) this.o.onEnd(this.winner); }
+      if (done[0] !== done[1]) { this.phase = 'over'; this.winner = done[0] ? 0 : 1; this.call = E.t('engine.fight.wins', { name: this.f[this.winner].name }); if (this.o.onEnd) this.o.onEnd(this.winner); }
       else this.startRound();
     }
   }
@@ -12281,14 +12327,14 @@ class Match {
       for (let w = 0; w < this.o.rounds; w++) { const sx = flip ? x + w * 9 : x + bw - 7 - w * 9; px.disc(g, sx + 3, y + 16, 3, w < this.wins[i] ? '#ffd23a' : '#3a2a4a'); }
       const mb = Math.round(bw * .6), mx = flip ? W - 12 - mb : 12, my = H - 12, mk = f.meter / 100, full = mk >= 1;
       E.ui.bar(g, mx, my, mb, 6, mk % 1 || (full ? 1 : 0), full && Math.floor(this.game.real * 6) % 2 ? '#a0f0ff' : '#3a8aff');
-      if (f.combo > 1 && f.stun > 0) font.title(g, f.combo + ' HITS', flip ? 14 : W - 14, y + 44, { scale: 2, align: flip ? 'left' : 'right', colors: CALL });
+      if (f.combo > 1 && f.stun > 0) font.title(g, E.t('engine.fight.hits', { count: f.combo }), flip ? 14 : W - 14, y + 44, { scale: 2, align: flip ? 'left' : 'right', colors: CALL });
     });
     if (!this.o.training) { const box = Math.round(W / 2); E.ui.box(g, box - 15, y - 6, 30, 22, { bg: ['#2a1a4a', '#120a28'] }); font.title(g, String(Math.ceil(this.clock)).padStart(2, '0'), box, y - 3, { scale: 2, align: 'center', colors: ['#ffffff', '#c8d8ff'] }); }
     if (this.call) font.title(g, this.call, W / 2, H / 2 - 30, { scale: 4, align: 'center', colors: CALL, depth: 3 });
     if (this.o.training) {   // frame data and player 1's last second of inputs
-      const L = this.f[0].last; if (L) font.text(g, L.id.toUpperCase() + '  STARTUP ' + L.startup + '  ACTIVE ' + L.active + '  RECOVERY ' + L.recovery + (L.adv === null ? '  KNOCKDOWN' : '  ON ' + L.on.toUpperCase() + ' ' + (L.adv > 0 ? '+' : '') + L.adv), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false, font: 'tiny' });
+      const L = this.f[0].last; if (L) font.text(g, E.t('engine.fight.frames.' + (L.adv === null ? 'down' : L.on), { move: E.lang.upper(L.id), startup: L.startup, active: L.active, recovery: L.recovery, adv: L.adv === null ? '' : E.lang.num(L.adv, { signDisplay: 'exceptZero' }) }), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false, font: 'tiny' });
       const I = this.inputs[0], hist = I && I.history ? I.history.slice(-12) : [], mir = { 1: 3, 3: 1, 4: 6, 6: 4, 7: 9, 9: 7 };   // (numpad digits, as the fighter faces)
-      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).join('+').toUpperCase(), 12, y + 36 + k * 8, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' }));
+      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).map(p => E.t('engine.fight.button.' + p)).join('+'), 12, y + 36 + k * 8, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' }));
     }
   }
 }
@@ -12327,19 +12373,19 @@ class FightSelect {
   draw(r) {
     r.overlay(g => {
       const W = r.W, H = r.H, n = this.roster.length, s = Math.min(46, Math.floor((W - 40) / n) - 6), x0 = Math.round(W / 2 - (n * (s + 6) - 6) / 2), y = H - s - 34;
-      E.font.title(g, 'SELECT YOUR FIGHTER', W / 2, 10, { scale: 2, align: 'center', colors: CALL });
+      E.font.title(g, E.t('engine.fight.select'), W / 2, 10, { scale: 2, align: 'center', colors: CALL });
       for (let i = 0; i < 2; i++) {
         const e = this.roster[this.at[i]], big = Math.min(96, Math.round(H * .42)), bx = i ? W - 16 - big : 16;
         this.rigs[this.at[i]].drawPortrait(g, bx, 36, big, { zoom: 2.4, turn: i ? -.6 : .6, bg: i ? ['#ff8a6a', '#5a1a2a'] : ['#6ab0ff', '#1a2a5a'], border: E.PLAYER_COLORS[i] });
         E.font.text(g, e.name, bx + big / 2, 40 + big, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         if (e.about) E.font.text(g, e.about, bx + big / 2, 50 + big, '#c8b8e8', { align: 'center', outline: false, font: 'tiny' });
-        if (this.picks[i]) E.font.text(g, 'READY', bx + big / 2, 30, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
+        if (this.picks[i]) E.font.text(g, E.t('engine.fight.ready'), bx + big / 2, 30, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
       }
-      E.font.title(g, 'VS', W / 2, 70, { scale: 3, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] });
+      E.font.title(g, E.t('engine.fight.vs'), W / 2, 70, { scale: 3, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] });
       this.rects = this.roster.map((e, k) => [x0 + k * (s + 6), y, s, s]);   // (where a tap picks)
       this.roster.forEach((e, k) => {
         const x = x0 + k * (s + 6); this.rigs[k].drawPortrait(g, x, y, s, { zoom: 2, turn: .5 });
-        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? 'CPU' : 'P' + (i + 1), x + s / 2, y + s + 6, c, { align: 'center', outline: false, font: 'tiny' }); }
+        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? E.t('engine.fight.cpu') : E.t('engine.fight.player', { player: i + 1 }), x + s / 2, y + s + 6, c, { align: 'center', outline: false, font: 'tiny' }); }
       });
     });
   }
@@ -13923,7 +13969,8 @@ let entered = 0; for (let i = 0; i < 480; i++) { hero.update(1 / 120, world.map,
 if (entered !== 1 || world.room.id !== 'b' || !world.seen.has('2,0') || hero.x > 16 * 16 - 4) throw new Error('a to b, then its far wall');
 ```
 Rules: the hero's own update moves it (world.update only changes rooms); keep enemies and pickups per room (by
-world.room.id); a room's walls are its rows: leave an edge open only where a room continues.
+world.room.id); a room's walls are its rows: leave an edge open only where a room continues. Its words are lines:
+engine.rooms.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -13933,6 +13980,7 @@ if (!E) throw new Error('my-3D2dge module ROOMS: load engine/my-3d2dge.js (or th
  * ROOMS  a world of rooms on a grid of screens: walking between them, the explored map, gates, saves
  * ========================================================================== */
 const { clamp, px } = E;
+E.lang.engine({ 'engine.rooms.map.save': 'S', 'engine.rooms.map.boss': 'B' });   // its words are lines (docs/LANGUAGES.md): the map's save and boss rooms
 class World {
   /** new E.World(game, { id, screen: [20, 12], view: 'side' | 'top', legend, types, rooms, start, transition: 'slide',
    *  make }): a world of rooms (the manual above) */
@@ -14040,7 +14088,7 @@ class World {
         if (dx) { const X2 = dx > 0 ? X + cell - 1 : X; px.rect(g, X2, Y, 1, cell, wall); if (door) px.rect(g, X2, Y + ((cell - h) >> 1), 1, h, col); }
         else { const Y2 = dy > 0 ? Y + cell - 1 : Y; px.rect(g, X, Y2, cell, 1, wall); if (door) px.rect(g, X + ((cell - h) >> 1), Y2, h, 1, col); }
       }
-      if (k && cell >= 8) E.font.text(g, k === 'save' ? 'S' : 'B', X + cell / 2, Y + (cell >> 1) - 2, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+      if (k && cell >= 8) E.font.text(g, E.t(k === 'save' ? 'engine.rooms.map.save' : 'engine.rooms.map.boss'), X + cell / 2, Y + (cell >> 1) - 2, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
     }
     if (this.here && Math.floor(this.game.real * 3) % 2 === 0) { const [X, Y] = at(this.here[0], this.here[1]), d = Math.max(2, cell >> 2); px.rect(g, X + ((cell - d) >> 1), Y + ((cell - d) >> 1), d, d, '#ffffff'); }
   }
@@ -14071,7 +14119,7 @@ my-3D2dge module RPG v0.89.3: items, inventories, equipment, shops, a party's st
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
-The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the inventory grid of a Resident Evil.
+The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger) and a Resident Evil's inventory grid.
 - const rpg = new E.RPG({ items, monsters, status, curve }). items: { id: { name, kind: 'use' | 'weapon' | 'armor' |
   'helm' | 'accessory' | 'key', price, stack (99), heal, mp, cure: ['poison'], revive (a share of HP), stats: { atk: 4 }
   (worn: slot = its kind), size: [w, h] (grid cells), icon (a sprite; else one for its kind), info } }. monsters: { id:
@@ -14111,8 +14159,8 @@ if (won.exp !== 36 || party.gold !== 64 || hero.level < 2 || hero.max('hp') !== 
 hero.hp = 5; shop.buy(party, 'potion'); if (!party.use('potion', hero) || hero.hp !== 35 || party.inv.has('potion')) throw new Error('a potion drunk');
 if (rpg.restore(JSON.parse(JSON.stringify(party.state()))).members[0].stat('atk') !== hero.stat('atk')) throw new Error('saved and back');
 ```
-Rules: ids in the save, never objects; a battle reads members' stat() and writes their hp and mp back; draw windows
-in r.overlay; randomness is Math.random's (a proof seeds it).
+Rules: ids in the save, never objects; a battle reads members' stat() and writes their hp and mp back; randomness is
+Math.random's (a proof seeds it). Its words are lines: engine.rpg.*.
 */
 (function (E) {
 'use strict';
@@ -14127,12 +14175,18 @@ const STATUS = {   // the default effects: hurt and heal (a share of max HP a ti
   stop: { skip: true, turns: 2, color: '#c0c0c0' }, silence: { mute: true, turns: 4, color: '#e0e0a0' }, haste: { spd: 1.5, turns: 5, color: '#ffd060' }, slow: { spd: .5, turns: 5, color: '#6a8ac0' }
 };
 const copy = v => JSON.parse(JSON.stringify(v));
+// its words are lines (docs/LANGUAGES.md), English here: a member's name when none is given, a card's labels and stats,
+// the default effects' names (a game's own effect shows its name in capitals)
+const LINES = { 'engine.rpg.hero': 'Hero', 'engine.rpg.level': 'Lv {level}', 'engine.rpg.hp': 'HP', 'engine.rpg.mp': 'MP' };
+for (const k of ['atk', 'def', 'mag', 'spd']) LINES['engine.rpg.stat.' + k] = k.toUpperCase() + ' {value}';   // ('ATK {value}')
+for (const k in STATUS) LINES['engine.rpg.status.' + k] = k.toUpperCase();   // ('POISON')
+E.lang.engine(LINES);
 class Member {
   /** a party member (rpg.member(o): the manual above) */
   constructor(rpg, o = {}) {
     /** rpg: its rules; name; level; base: its stats at level 1; growth: what each level adds; equipped: its gear by
      *  slot; effects: its status effects (turns left, 0 till cured); data: the game's own (a rig's look, skills) */
-    this.rpg = rpg; this.name = o.name || 'Hero'; this.level = o.level || 1; this.base = Object.assign({ hp: 30, mp: 0, atk: 5, def: 5, mag: 5, spd: 5 }, o.stats);
+    this.rpg = rpg; this.name = o.name || E.t('engine.rpg.hero'); this.level = o.level || 1; this.base = Object.assign({ hp: 30, mp: 0, atk: 5, def: 5, mag: 5, spd: 5 }, o.stats);
     this.growth = Object.assign({}, o.growth); this.equipped = Object.assign({}, o.equip); this.effects = Object.assign({}, o.effects); this.data = o.data || {};
     /** exp: experience gained in all; hp, mp: what it has now */
     this.exp = o.exp !== undefined ? o.exp : rpg.curve(this.level); this.hp = o.hp !== undefined ? o.hp : this.max('hp'); this.mp = o.mp !== undefined ? o.mp : this.max('mp');
@@ -14382,11 +14436,11 @@ class RPG {
     const w = o.w || 150, h = 62, P = o.portrait, tx = x + (P ? 34 : 7), t = (s, a, b, c, al) => E.font.text(g, String(s), a, b, c, { outline: false, shadow: '#0a0820', align: al });
     E.ui.box(g, x, y, w, h, { bg: o.bg || ['#6c8cff', '#0a0a48'] });
     if (P) P.drawPortrait(g, x + 4, y + 4, 26, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: m.dead ? '#808080' : undefined });
-    t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t('Lv ' + m.level, x + w - 7, y + 5, '#ffe08a', 'right');
+    t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t(E.t('engine.rpg.level', { level: m.level }), x + w - 7, y + 5, '#ffe08a', 'right');
     const bar = (lab, v, mx, by, c) => { E.font.text(g, lab, tx, by, '#9ad0ff', { font: 'tiny', outline: false }); t(v + '/' + mx, x + w - 7, by - 2, '#ffffff', 'right'); E.ui.bar(g, tx + 12, by + 7, x + w - tx - 19, 3, mx ? v / mx : 0, c, { bg: '#2a2650' }); };
-    bar('HP', m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar('MP', m.mp, m.max('mp'), y + 30, '#5aa0ff');
-    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, k.toUpperCase() + ' ' + Math.round(m.stat(k)), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
-    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.join(' ').toUpperCase(), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
+    bar(E.t('engine.rpg.hp'), m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar(E.t('engine.rpg.mp'), m.mp, m.max('mp'), y + 30, '#5aa0ff');
+    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, E.t('engine.rpg.stat.' + k, { value: Math.round(m.stat(k)) }), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
+    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.map(k => E.lang.has('engine.rpg.status.' + k) ? E.t('engine.rpg.status.' + k) : E.lang.upper(k)).join(' '), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
     return { w, h };
   }
 }
@@ -14808,13 +14862,14 @@ rts.order([w], 'gather', mine); rts.train(hall, 'worker'); game.advance(20);
 if (rts.side('blue').res.gold <= 50 || rts.of('blue', 'worker').length !== 2) throw new Error('gather, train');
 ```
 Rules: units are the module's; read them, draw them, give them orders; a building blocks its cells (map.block), so
-flow fields go round it. The same orders give the same game.
+flow fields go round it. The same orders give the same game. Its words are lines: engine.strategy.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
 if (!E) throw new Error('my-3D2dge module STRATEGY: load engine/my-3d2dge.js (the full engine) first');
 if (!E.Grid) throw new Error('my-3D2dge module STRATEGY: load engine/modules/grid.js first');
 const { clamp, px } = E, hyp = Math.hypot;
+E.lang.engine({ 'engine.strategy.clock': 'DAY {day}  {time}' });   // its words are lines (docs/LANGUAGES.md): the clock's label
 
 /* =============================================================================
  * STRATEGY  units, buildings and resources on a TileMap; their orders, production, fog, selection and an AI
@@ -15156,8 +15211,8 @@ class Clock {
   get minute() { return Math.floor(this.t % 1 * 60); }
   /** true from 20:00 to 6:00 */
   get night() { const h = this.t % 24; return h >= 20 || h < 6; }
-  /** 'DAY 2  14:30' */
-  label() { return 'DAY ' + this.day + '  ' + String(this.hour).padStart(2, '0') + ':' + String(Math.floor(this.minute / 10) * 10).padStart(2, '0'); }
+  /** 'DAY 2  14:30' (the line engine.strategy.clock) */
+  label() { return E.t('engine.strategy.clock', { day: this.day, time: String(this.hour).padStart(2, '0') + ':' + String(Math.floor(this.minute / 10) * 10).padStart(2, '0') }); }
   /** the light by the hour: { ambient (.12 at night .. 1 at noon), color (the sky's tint: blue night, warm dawn and dusk) } */
   light() {
     const h = this.t % 24, sun = clamp(Math.sin((h - 6) / 12 * Math.PI), 0, 1), dusk = clamp(1 - Math.abs(h - 6.5) / 1.5, 0, 1) + clamp(1 - Math.abs(h - 19) / 1.5, 0, 1);

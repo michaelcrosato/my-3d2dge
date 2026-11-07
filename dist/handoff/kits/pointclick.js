@@ -55,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id), about: E.t('starter.slice.' + s.id + '.about'), family: E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_')) }));
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -274,7 +274,7 @@ const POINTCLICK = (() => {
     px.rect(g, 93, 44, 1, 8, '#2a1a12'); px.rect(g, 90, 52, 7, 9, '#2a2a30'); px.rect(g, 91, 53, 5, 7, '#ffd070'); glow(g, 93, 56, 18, '#ffc060', .5);
     px.rect(g, 104, 34, 46, 2, '#2a1a12'); px.rect(g, 108, 36, 1, 4, '#2a1a12'); px.rect(g, 144, 36, 1, 4, '#2a1a12');
     E.ui.box(g, 104, 40, 46, 16, { bg: '#3a2418', border: '#c8a060', gradient: false });
-    E.font.text(g, 'SALTY', 127, 42, '#ffd880', { align: 'center', outline: false, font: 'tiny' }); E.font.text(g, 'GULL', 127, 49, '#ffd880', { align: 'center', outline: false, font: 'tiny' });
+    E.font.text(g, E.t('pointclick.sign.salty'), 127, 42, '#ffd880', { align: 'center', outline: false, font: 'tiny' }); E.font.text(g, E.t('pointclick.sign.gull'), 127, 49, '#ffd880', { align: 'center', outline: false, font: 'tiny' });
     // a bollard on the quay, crates by the wall
     px.rect(g, 150, 128, 8, 12, '#2a2a34'); px.rect(g, 149, 127, 10, 3, '#3e3e4a'); px.rect(g, 151, 129, 2, 10, '#4a4a58');
     for (const [x, y] of [[-40, 98], [-28, 92]]) { px.rect(g, x, y, 14, 12, '#7a5a3a'); px.rect(g, x, y, 14, 1, '#a07a50'); px.line(g, x, y, x + 13, y + 11, '#5a4028'); }
@@ -304,7 +304,7 @@ const POINTCLICK = (() => {
     px.rect(g, 262, 92, 4, 8, '#2a1a10'); px.rect(g, 292, 92, 4, 8, '#2a1a10');
     px.rect(g, 264, 70, 30, 24, '#7a4a2a'); for (const x of [268, 276, 284]) px.rect(g, x, 70, 1, 24, '#5a3418'); px.rect(g, 264, 74, 30, 2, '#4a4a54'); px.rect(g, 264, 88, 30, 2, '#4a4a54');
     px.ell(g, 264, 82, 4, 12, '#8a5a32'); px.ell(g, 264, 82, 2, 9, '#6a4024'); px.rect(g, 258, 80, 5, 3, '#c8a040'); px.rect(g, 258, 83, 2, 3, '#c8a040');
-    E.font.text(g, 'OIL', 280, 78, '#e8d8a0', { align: 'center', outline: false, font: 'tiny' });
+    E.font.text(g, E.t('pointclick.sign.oil'), 280, 78, '#e8d8a0', { align: 'center', outline: false, font: 'tiny' });
     // the fireplace: its stones, its black mouth (the fire burns in it, drawn each frame), the mantel, the hearth
     for (let y = 26; y < 100; y += 6) for (let x = 316 + ((y / 6) % 2) * 5; x < 388; x += 10) { const u = hash(x, y); px.rect(g, x, y, 9, 5, u < .4 ? '#6a6470' : u < .8 ? '#7a7482' : '#5a5462'); px.rect(g, x, y, 9, 1, '#8a8494'); }
     px.rect(g, 330, 58, 44, 42, '#120a08'); px.rect(g, 334, 62, 36, 38, '#1e100a');
@@ -344,14 +344,14 @@ const POINTCLICK = (() => {
   /* ---- 2. ITEMS, the people, the rooms' hotspots, the rules: data for E.Click; the talk: nodes for E.Story ---- */
   const S = (rows, pal) => E.sprite(rows, pal);
   const ITEMS = {
-    rope: { name: 'ROPE', look: 'A good length of rope. Salt-stiff, but strong.', icon: S(['...bbbbbb...', '.bBBbbbbBBb.', 'bBb......bBb', 'bB..bbbb..Bb', 'bB.bBBBBb.Bb', 'bB.bB..Bb.Bb', 'bB.bBBBBb.Bb', 'bB..bbbb..Bb', 'bBb......bBb', '.bBBbbbbBBb.', '...bbbbbbBB.', '.........BB.'], { b: '#8a6a3a', B: '#e0b878' }) },
-    hook: { name: 'HOOK', look: 'An iron hook, rusty and sharp.', icon: S(['.....KK..', '....KhhK.', '....KhK..', '....KhK..', '....KhK..', '.K..KhK..', 'KhK.KhK..', 'KhK.KhK..', 'KhhKhhK..', '.KhhhK...', '..KKK....'], { K: '#2a2a34', h: '#a8b0c0' }) },
-    grapple: { name: 'GRAPPLE', look: 'A hook on a rope. I could go fishing with this.', icon: S(['bBb.......KK', 'B.Bb.....KhK', 'bB.Bb....KhK', '.bB.Bbb..KhK', '..bBb.BBbKhK', '....bbb.KhK.', '...K..K.KhK.', '..KhK.KhhK..', '..KhhKhhK...', '...KhhhK....', '....KKK.....'], { b: '#8a6a3a', B: '#e0b878', K: '#2a2a34', h: '#a8b0c0' }) },
-    oar: { name: 'OAR', look: 'Finn\'s oar. Still dripping.', icon: S(['..........ww', '.........wWw', '........wWw.', '.......wWw..', '......wWw...', '.....wWw....', '..bbwWw.....', '.bBBBw......', 'bBBBb.......', 'bBBb........', '.bb.........'], { w: '#6a4a2a', W: '#c8965a', b: '#6a4a2a', B: '#d8a868' }) },
-    key: { name: 'KEY', look: 'Morwen\'s brass key. It opens Finn\'s chain.', icon: S(['.yyy........', 'yY.Yy.......', 'y...yyyyyyyy', 'yY.YyYYYYYYy', '.yyy....y.y.', '........y.y.'], { y: '#8a6a20', Y: '#f0d060' }) },
-    bottle: { name: 'BOTTLE', look: 'An empty bottle. It smells of rum.', icon: S(['..kk..', '..gg..', '..gg..', '.gGgg.', 'gGgggg', 'gGgggg', 'gGgggg', 'gGgggg', 'gGgggg', '.gggg.'], { k: '#7a5a3a', g: '#2a6a4a', G: '#8ad0a0' }) },
-    oil: { name: 'OIL', look: 'A bottle of whale oil. It smells awful.', icon: S(['..kk..', '..gg..', '..gg..', '.gGgg.', 'gGgggg', 'gGoooo', 'gGoOoo', 'gGoooo', 'gGoooo', '.gggg.'], { k: '#7a5a3a', g: '#2a6a4a', G: '#8ad0a0', o: '#c8902a', O: '#ffd070' }) },
-    matches: { name: 'MATCHES', look: 'A box of matches. Five left.', icon: S(['......rr....', '......rw....', '......w.....', '.....w......', 'bbbbbbbbbb..', 'bBBBBBBBBb..', 'bByyyyyyBb..', 'bBBBBBBBBb..', 'bbbbbbbbbb..'], { r: '#d83a2a', w: '#e8d8b0', b: '#3a2a6a', B: '#6a5ab0', y: '#f0d060' }) }
+    rope: { name: E.t('pointclick.item.rope'), look: E.t('pointclick.item.rope.look'), icon: S(['...bbbbbb...', '.bBBbbbbBBb.', 'bBb......bBb', 'bB..bbbb..Bb', 'bB.bBBBBb.Bb', 'bB.bB..Bb.Bb', 'bB.bBBBBb.Bb', 'bB..bbbb..Bb', 'bBb......bBb', '.bBBbbbbBBb.', '...bbbbbbBB.', '.........BB.'], { b: '#8a6a3a', B: '#e0b878' }) },
+    hook: { name: E.t('pointclick.item.hook'), look: E.t('pointclick.item.hook.look'), icon: S(['.....KK..', '....KhhK.', '....KhK..', '....KhK..', '....KhK..', '.K..KhK..', 'KhK.KhK..', 'KhK.KhK..', 'KhhKhhK..', '.KhhhK...', '..KKK....'], { K: '#2a2a34', h: '#a8b0c0' }) },
+    grapple: { name: E.t('pointclick.item.grapple'), look: E.t('pointclick.item.grapple.look'), icon: S(['bBb.......KK', 'B.Bb.....KhK', 'bB.Bb....KhK', '.bB.Bbb..KhK', '..bBb.BBbKhK', '....bbb.KhK.', '...K..K.KhK.', '..KhK.KhhK..', '..KhhKhhK...', '...KhhhK....', '....KKK.....'], { b: '#8a6a3a', B: '#e0b878', K: '#2a2a34', h: '#a8b0c0' }) },
+    oar: { name: E.t('pointclick.item.oar'), look: E.t('pointclick.item.oar.look'), icon: S(['..........ww', '.........wWw', '........wWw.', '.......wWw..', '......wWw...', '.....wWw....', '..bbwWw.....', '.bBBBw......', 'bBBBb.......', 'bBBb........', '.bb.........'], { w: '#6a4a2a', W: '#c8965a', b: '#6a4a2a', B: '#d8a868' }) },
+    key: { name: E.t('pointclick.item.key'), look: E.t('pointclick.item.key.look'), icon: S(['.yyy........', 'yY.Yy.......', 'y...yyyyyyyy', 'yY.YyYYYYYYy', '.yyy....y.y.', '........y.y.'], { y: '#8a6a20', Y: '#f0d060' }) },
+    bottle: { name: E.t('pointclick.item.bottle'), look: E.t('pointclick.item.bottle.look'), icon: S(['..kk..', '..gg..', '..gg..', '.gGgg.', 'gGgggg', 'gGgggg', 'gGgggg', 'gGgggg', 'gGgggg', '.gggg.'], { k: '#7a5a3a', g: '#2a6a4a', G: '#8ad0a0' }) },
+    oil: { name: E.t('pointclick.item.oil'), look: E.t('pointclick.item.oil.look'), icon: S(['..kk..', '..gg..', '..gg..', '.gGgg.', 'gGgggg', 'gGoooo', 'gGoOoo', 'gGoooo', 'gGoooo', '.gggg.'], { k: '#7a5a3a', g: '#2a6a4a', G: '#8ad0a0', o: '#c8902a', O: '#ffd070' }) },
+    matches: { name: E.t('pointclick.item.matches'), look: E.t('pointclick.item.matches.look'), icon: S(['......rr....', '......rw....', '......w.....', '.....w......', 'bbbbbbbbbb..', 'bBBBBBBBBb..', 'bByyyyyyBb..', 'bBBBBBBBBb..', 'bbbbbbbbbb..'], { r: '#d83a2a', w: '#e8d8b0', b: '#3a2a6a', B: '#6a5ab0', y: '#f0d060' }) }
   };
   // where the people stand (room pixels), their rigs made at each start
   const PEOPLE = { finn: { x: 244, y: 128, face: Math.PI, h: 50, color: '#ffe080' }, morwen: { x: 96, y: 118, face: Math.PI / 2, h: 52, color: '#b0d8ff' }, bruno: { x: 188, y: 94, face: Math.PI / 2, h: 54, color: '#ffc0a0' } };
@@ -363,22 +363,22 @@ const POINTCLICK = (() => {
       walk: [[[8, 112], [168, 112], [174, 118], [418, 118], [418, 148], [174, 148], [168, 165], [8, 165]], [[234, 124], [254, 124], [254, 132], [234, 132]]],
       things: [{ y: 1, draw(g, ox, oy) { g.save(); g.beginPath(); g.rect(ox + 174, oy, 800, 110); g.clip(); for (let i = 0; i < 3; i++) { const x = ((game.time * (3 + i * 2) + i * 230) % 760) - 140; px.polyDither(g, ell(ox + x, oy + 76 + i * 5, 70 + i * 20, 3), '#d8b8d8', .16); } g.restore(); px.reset(g); } }],   // (fog drifting over the sea)
       hotspots: [
-        { id: 'door', name: 'TAVERN DOOR', rect: [56, 60, 32, 48], at: [72, 116], face: 'up', exit: 'tavern', enter: [40, 128], look: 'The Salty Gull. Warm in there, and loud.', open: pc => pc.act('walk', 'door') },
-        { id: 'rope', name: 'ROPE', rect: [116, 132, 26, 14], at: [108, 144], face: 'right', if: '!rope', y: 146,
+        { id: 'door', name: E.t('pointclick.dock.door'), rect: [56, 60, 32, 48], at: [72, 116], face: 'up', exit: 'tavern', enter: [40, 128], look: E.t('pointclick.dock.door.look'), open: pc => pc.act('walk', 'door') },
+        { id: 'rope', name: E.t('pointclick.item.rope'), rect: [116, 132, 26, 14], at: [108, 144], face: 'right', if: '!rope', y: 146,
           draw(g, ox, oy) { for (let r = 0; r < 3; r++) px.poly(g, ell(ox + 129, oy + 141 - r * 2, 11 - r, 4 - r * .6, 14), r % 2 ? '#8a6a3a' : '#d8b070'); px.poly(g, ell(ox + 129, oy + 137, 5, 1.5, 10), '#5a4428'); },
-          look: 'A coil of rope. Nobody seems to be using it.', pickup: { give: 'rope', set: 'rope', say: 'A good length of rope. Mine now.' } },
-        { id: 'finn', name: 'FINN', actor: PEOPLE.finn, at: [222, 132], face: 'right', look: 'Finn. He\'s fished these waters for fifty years.', talk: { talk: 'finn' }, pickup: 'He\'s a bit big to carry.' },
-        { id: 'oar', name: 'OAR', rect: [280, 152, 44, 12], at: [300, 146], face: 'down', if: '!oar', y: 160,
+          look: E.t('pointclick.dock.rope.look'), pickup: { give: 'rope', set: 'rope', say: E.t('pointclick.dock.rope.pickup') } },
+        { id: 'finn', name: E.t('pointclick.name.finn'), actor: PEOPLE.finn, at: [222, 132], face: 'right', look: E.t('pointclick.dock.finn.look'), talk: { talk: 'finn' }, pickup: E.t('pointclick.dock.finn.pickup') },
+        { id: 'oar', name: E.t('pointclick.item.oar'), rect: [280, 152, 44, 12], at: [300, 146], face: 'down', if: '!oar', y: 160,
           draw(g, ox, oy) { const b = bob(300, 0), x = ox + 282, y = oy + 157 + b; px.rect(g, x, y, 30, 2, '#c8965a'); px.rect(g, x, y + 2, 30, 1, '#6a4a2a'); px.poly(g, [[x + 30, y - 2], [x + 42, y - 1], [x + 42, y + 4], [x + 30, y + 4]], '#d8a868'); px.rect(g, x - 3, y + 4, 50, 1, '#8a7ab8'); },
-          look: 'Finn\'s oar, bobbing just out of reach.', pickup: 'I can\'t reach it from up here.', use: 'Too far down to reach.' },
-        { id: 'boat', name: 'ROWBOAT', rect: [424, 128, 56, 24], at: [410, 136], face: 'right', look: pc => pc.say(story.get('unchained') ? 'Finn\'s rowboat, free of its chain.' : 'Finn\'s rowboat. Chained to the post.'), use: () => row(), open: () => row(), push: () => row() },
-        { id: 'chain', name: 'CHAIN', rect: [410, 112, 16, 30], at: [404, 134], face: 'right', if: '!unchained', y: 146,
+          look: E.t('pointclick.dock.oar.look'), pickup: E.t('pointclick.dock.oar.pickup'), use: E.t('pointclick.dock.oar.use') },
+        { id: 'boat', name: E.t('pointclick.dock.boat'), rect: [424, 128, 56, 24], at: [410, 136], face: 'right', look: pc => pc.say(story.get('unchained') ? E.t('pointclick.dock.boat.look.free') : E.t('pointclick.dock.boat.look')), use: () => row(), open: () => row(), push: () => row() },
+        { id: 'chain', name: E.t('pointclick.dock.chain'), rect: [410, 112, 16, 30], at: [404, 134], face: 'right', if: '!unchained', y: 146,
           draw(g, ox, oy) { for (let i = 0; i <= 8; i++) { const u = i / 8, x = ox + 418 + u * 18, y = oy + 124 + u * 14 + Math.sin(u * Math.PI) * 3; px.rect(g, x, y, 2, 2, i % 2 ? '#8a8a9a' : '#c8c8d8'); } px.rect(g, ox + 414, oy + 120, 8, 7, '#c8a040'); px.rect(g, ox + 415, oy + 117, 6, 3, '#8a8a9a'); px.dot(g, ox + 418, oy + 123, '#3a2a10'); },
-          look: 'A chain and a brass padlock. Morwen\'s, by the look of it.', pull: 'It\'s locked tight.', open: 'It needs a key.', use: 'It needs a key.', pickup: 'It\'s fixed to the post.' },
-        { id: 'gull', name: 'GULL', rect: [338, 80, 16, 14], at: [344, 122], face: 'up', y: 95,
+          look: E.t('pointclick.dock.chain.look'), pull: E.t('pointclick.dock.chain.pull'), open: E.t('pointclick.dock.chain.key'), use: E.t('pointclick.dock.chain.key'), pickup: E.t('pointclick.dock.chain.pickup') },
+        { id: 'gull', name: E.t('pointclick.dock.gull'), rect: [338, 80, 16, 14], at: [344, 122], face: 'up', y: 95,
           draw(g, ox, oy) { const x = ox + 345, y = oy + 88 + (Math.floor(game.time * 1.5) % 3 === 0 ? -1 : 0); px.ell(g, x, y, 5, 3, '#e8e8f0'); px.rect(g, x - 5, y - 1, 6, 2, '#9aa0b0'); px.disc(g, x + 4, y - 3, 2, '#f0f0f8'); px.dot(g, x + 5, y - 4, '#1a1a20'); px.rect(g, x + 6, y - 3, 2, 1, '#f0b030'); px.rect(g, x - 1, y + 3, 1, 2, '#f0b030'); px.rect(g, x + 1, y + 3, 1, 2, '#f0b030'); },
-          look: 'A gull. It\'s eyeing my sandwich. I haven\'t got a sandwich.', talk: 'Squawk? ...I don\'t speak gull.', pickup: 'It would peck my eyes out.' },
-        { id: 'light', name: 'GULL ROCK', rect: [384, 24, 26, 46], look: 'Gull Rock. Its light should be lit by now, and the fleet\'s out in this fog.', use: 'It\'s miles out. I\'ll need a boat.' }
+          look: E.t('pointclick.dock.gull.look'), talk: E.t('pointclick.dock.gull.talk'), pickup: E.t('pointclick.dock.gull.pickup') },
+        { id: 'light', name: E.t('pointclick.dock.light'), rect: [384, 24, 26, 46], look: E.t('pointclick.dock.light.look'), use: E.t('pointclick.dock.light.use') }
       ] },
     tavern: { w: 400, h: 168, pad: [120, 160], paint: paintTavern, depth: [104, .84, 165, 1.08],
       walk: [[[8, 104], [310, 104], [314, 114], [392, 114], [392, 165], [8, 165]], [[66, 116], [126, 116], [126, 138], [66, 138]]],
@@ -388,20 +388,20 @@ const POINTCLICK = (() => {
         { y: 138, draw(g, ox, oy) { const x = ox + 96, y = oy + 124; px.rect(g, x - 24, y + 4, 3, 12, '#3a2214'); px.rect(g, x + 21, y + 4, 3, 12, '#3a2214'); px.poly(g, ell(x, y, 28, 7), '#6a4228'); px.poly(g, ell(x, y - 1, 26, 5.5), '#8a5a34'); px.rect(g, x - 16, y - 7, 3, 6, '#e8e0c8'); px.dot(g, x - 15, y - 8, '#ffd060'); glow(g, x - 15, y - 9, 10, '#ffc060', .4); } }
       ],
       hotspots: [
-        { id: 'out', name: 'DOOR', rect: [12, 36, 34, 64], at: [32, 110], face: 'up', exit: 'dock', enter: [74, 120], look: 'Back out to the dock.' },
-        { id: 'bruno', name: 'BRUNO', actor: PEOPLE.bruno, at: [186, 112], face: 'up', look: 'Bruno keeps the Salty Gull. He has arms like hams.', talk: { talk: 'bruno' }, pickup: 'Not without a crane.' },
-        { id: 'barrel', name: 'OIL BARREL', rect: [258, 68, 38, 32], at: [278, 110], face: 'up', look: 'A barrel of whale oil, for the town\'s lamps.', use: 'I need something to carry it in.', open: 'It has a tap. I need something to carry the oil in.', pickup: 'It weighs more than I do.' },
-        { id: 'matches', name: 'MATCHES', rect: [340, 40, 16, 9], at: [350, 120], face: 'up', if: '!matches', y: 54,
+        { id: 'out', name: E.t('pointclick.tavern.out'), rect: [12, 36, 34, 64], at: [32, 110], face: 'up', exit: 'dock', enter: [74, 120], look: E.t('pointclick.tavern.out.look') },
+        { id: 'bruno', name: E.t('pointclick.name.bruno'), actor: PEOPLE.bruno, at: [186, 112], face: 'up', look: E.t('pointclick.tavern.bruno.look'), talk: { talk: 'bruno' }, pickup: E.t('pointclick.tavern.bruno.pickup') },
+        { id: 'barrel', name: E.t('pointclick.tavern.barrel'), rect: [258, 68, 38, 32], at: [278, 110], face: 'up', look: E.t('pointclick.tavern.barrel.look'), use: E.t('pointclick.tavern.barrel.use'), open: E.t('pointclick.tavern.barrel.open'), pickup: E.t('pointclick.tavern.barrel.pickup') },
+        { id: 'matches', name: E.t('pointclick.item.matches'), rect: [340, 40, 16, 9], at: [350, 120], face: 'up', if: '!matches', y: 54,
           draw(g, ox, oy) { const x = ox + 342, y = oy + 43; px.rect(g, x, y, 12, 5, '#3a2a6a'); px.rect(g, x + 1, y + 1, 10, 3, '#6a5ab0'); px.rect(g, x + 2, y + 2, 8, 1, '#f0d060'); },
-          look: 'A box of matches on the mantel.', pickup: { give: 'matches', set: 'matches', say: 'Matches. Bruno won\'t mind.' } },
-        { id: 'hook', name: 'HOOK', rect: [92, 46, 14, 16], at: [100, 108], face: 'up', if: '!hook', y: 64,
+          look: E.t('pointclick.tavern.matches.look'), pickup: { give: 'matches', set: 'matches', say: E.t('pointclick.tavern.matches.pickup') } },
+        { id: 'hook', name: E.t('pointclick.item.hook'), rect: [92, 46, 14, 16], at: [100, 108], face: 'up', if: '!hook', y: 64,
           draw(g, ox, oy) { const x = ox + 98, y = oy + 48; px.rect(g, x, y, 3, 3, '#3a3a44'); px.rect(g, x + 1, y + 3, 2, 7, '#a8b0c0'); px.rect(g, x - 2, y + 10, 5, 2, '#a8b0c0'); px.rect(g, x - 3, y + 7, 2, 4, '#a8b0c0'); px.rect(g, x + 3, y + 3, 1, 7, '#5a6070'); },
-          look: 'An iron hook, screwed into rotten wood.', pickup: { give: 'hook', set: 'hook', say: 'It comes away from the rotten wood. Got it.' }, pull: { give: 'hook', set: 'hook', say: 'One good pull, and it comes away. Got it.' } },
-        { id: 'notice', name: 'NOTICES', rect: [52, 26, 34, 26], at: [70, 108], face: 'up', look: ['"WANTED: A KEEPER\'S HAND FOR GULL ROCK."', '"FOUND: ONE LEFT BOOT. ASK BRUNO."', 'And a riddle, pinned up by Morwen: "UNBEATEN SINCE THE FLOOD."'], pickup: 'I\'d better leave them.' },
-        { id: 'morwen', name: 'MORWEN', actor: PEOPLE.morwen, at: [138, 130], face: 'left', look: 'Morwen, the harbour master. Every key on the dock hangs from her belt.', talk: { talk: 'morwen' }, pickup: 'I value my life.' },
-        { id: 'bottle', name: 'BOTTLE', rect: [104, 106, 10, 16], at: [134, 142], face: 'left', if: '!bottle', y: 139,
+          look: E.t('pointclick.tavern.hook.look'), pickup: { give: 'hook', set: 'hook', say: E.t('pointclick.tavern.hook.pickup') }, pull: { give: 'hook', set: 'hook', say: E.t('pointclick.tavern.hook.pull') } },
+        { id: 'notice', name: E.t('pointclick.tavern.notice'), rect: [52, 26, 34, 26], at: [70, 108], face: 'up', look: [E.t('pointclick.tavern.notice.look.1'), E.t('pointclick.tavern.notice.look.2'), E.t('pointclick.tavern.notice.look.3')], pickup: E.t('pointclick.tavern.notice.pickup') },
+        { id: 'morwen', name: E.t('pointclick.name.morwen'), actor: PEOPLE.morwen, at: [138, 130], face: 'left', look: E.t('pointclick.tavern.morwen.look'), talk: { talk: 'morwen' }, pickup: E.t('pointclick.tavern.morwen.pickup') },
+        { id: 'bottle', name: E.t('pointclick.item.bottle'), rect: [104, 106, 10, 16], at: [134, 142], face: 'left', if: '!bottle', y: 139,
           draw(g, ox, oy) { const x = ox + 106, y = oy + 108; px.rect(g, x + 2, y, 2, 3, '#7a5a3a'); px.rect(g, x + 1, y + 3, 4, 3, '#2a6a4a'); px.rect(g, x, y + 6, 6, 9, '#2a6a4a'); px.rect(g, x + 1, y + 6, 1, 8, '#8ad0a0'); },
-          look: 'An empty bottle. Morwen\'s, I think.', pickup: { give: 'bottle', set: 'bottle', say: 'An empty bottle. She won\'t miss it.' } }
+          look: E.t('pointclick.tavern.bottle.look'), pickup: { give: 'bottle', set: 'bottle', say: E.t('pointclick.tavern.bottle.pickup') } }
       ] },
     lamp: { w: 400, h: 168, pad: [120, 160], paint: paintLamp, depth: [114, .88, 165, 1.08],
       walk: [[[8, 116], [392, 116], [392, 165], [8, 165]], [[174, 126], [226, 126], [232, 132], [226, 140], [174, 140], [168, 132]], [[310, 120], [334, 120], [334, 130], [310, 130]], [[26, 138], [80, 138], [80, 164], [26, 164]]],
@@ -412,13 +412,13 @@ const POINTCLICK = (() => {
       ],
       front(g, ox, oy) { if (!story.get('lit')) return; const cx = ox + 200, cy = oy + 52, a = game.time * 1.3; for (const s of [0, Math.PI]) { const b = a + s; px.polyDither(g, [[cx, cy], [cx + Math.cos(b - .14) * 460, cy + Math.sin(b - .14) * 160], [cx + Math.cos(b + .14) * 460, cy + Math.sin(b + .14) * 160]], '#fff2b0', .22); } glow(g, cx, cy, 70, '#fff0a0', .6); },
       hotspots: [
-        { id: 'hatch', name: 'STAIRS', rect: [28, 138, 52, 24], at: [54, 134], face: 'down', exit: 'dock', enter: [404, 136], look: 'A hundred and twelve steps back down to the boat.' },
-        { id: 'lens', name: 'LENS', rect: [170, 22, 60, 40], look: 'A great glass lens, rings inside rings. It throws the light twenty miles.', use: 'It\'s the lamp inside that needs lighting.', pickup: 'It weighs as much as a cow.' },
-        { id: 'lamp', name: 'LAMP', rect: [178, 62, 44, 72], at: [200, 146], face: 'up', look: pc => pc.say(story.get('lit') ? 'Burning bright!' : story.get('oiled') ? 'Its well is full of oil. It just needs a flame.' : 'The great lamp. Its oil well is bone dry.'), use: 'It needs oil, and then a flame.', open: 'The oil well is open. And empty.' },
-        { id: 'log', name: 'LOGBOOK', rect: [310, 98, 26, 14], at: [322, 138], face: 'up', look: ['The keeper\'s log. The last entry:', '"Oil run dry. Gone ashore for more. Back by dusk. BRAM."'], open: ['"Oil run dry. Gone ashore for more. Back by dusk. BRAM."', 'It\'s well past dusk.'], pickup: 'It belongs here.' },
-        { id: 'bell', name: 'FOG BELL', rect: [354, 40, 32, 30], at: [370, 122], face: 'up', look: 'The fog bell. For when the light isn\'t enough.', use: () => bell(), pull: () => bell(), push: () => bell() },
-        { id: 'can', name: 'OIL CAN', rect: [236, 118, 14, 18], at: [254, 144], face: 'left', look: 'The keeper\'s oil can. Empty, of course.', pickup: 'It\'s empty. No use to me.', use: 'Empty.' },
-        { id: 'window', name: 'WINDOW', rect: [60, 6, 100, 60], look: pc => pc.say(story.get('lit') ? 'The fleet\'s lanterns are turning for home!' : 'Fog to the horizon. I can see the fleet\'s lanterns bobbing out there.'), open: 'The wind would blow the flame out.' }
+        { id: 'hatch', name: E.t('pointclick.lamp.hatch'), rect: [28, 138, 52, 24], at: [54, 134], face: 'down', exit: 'dock', enter: [404, 136], look: E.t('pointclick.lamp.hatch.look') },
+        { id: 'lens', name: E.t('pointclick.lamp.lens'), rect: [170, 22, 60, 40], look: E.t('pointclick.lamp.lens.look'), use: E.t('pointclick.lamp.lens.use'), pickup: E.t('pointclick.lamp.lens.pickup') },
+        { id: 'lamp', name: E.t('pointclick.lamp.lamp'), rect: [178, 62, 44, 72], at: [200, 146], face: 'up', look: pc => pc.say(story.get('lit') ? E.t('pointclick.lamp.lamp.look.lit') : story.get('oiled') ? E.t('pointclick.lamp.lamp.look.oiled') : E.t('pointclick.lamp.lamp.look')), use: E.t('pointclick.lamp.lamp.use'), open: E.t('pointclick.lamp.lamp.open') },
+        { id: 'log', name: E.t('pointclick.lamp.log'), rect: [310, 98, 26, 14], at: [322, 138], face: 'up', look: [E.t('pointclick.lamp.log.look'), E.t('pointclick.lamp.log.entry')], open: [E.t('pointclick.lamp.log.entry'), E.t('pointclick.lamp.log.open')], pickup: E.t('pointclick.lamp.log.pickup') },
+        { id: 'bell', name: E.t('pointclick.lamp.bell'), rect: [354, 40, 32, 30], at: [370, 122], face: 'up', look: E.t('pointclick.lamp.bell.look'), use: () => bell(), pull: () => bell(), push: () => bell() },
+        { id: 'can', name: E.t('pointclick.lamp.can'), rect: [236, 118, 14, 18], at: [254, 144], face: 'left', look: E.t('pointclick.lamp.can.look'), pickup: E.t('pointclick.lamp.can.pickup'), use: E.t('pointclick.lamp.can.use') },
+        { id: 'window', name: E.t('pointclick.lamp.window'), rect: [60, 6, 100, 60], look: pc => pc.say(story.get('lit') ? E.t('pointclick.lamp.window.look.lit') : E.t('pointclick.lamp.window.look')), open: E.t('pointclick.lamp.window.open') }
       ] }
   });
   // the great lamp: its brass pedestal, the burner, the beehive lens of glass rings (ablaze once lit)
@@ -441,54 +441,54 @@ const POINTCLICK = (() => {
   }
   // the rules (data): an item on a hotspot or an item, the first that matches runs
   const RULES = [
-    { item: 'rope', on: 'hook', take: ['rope', 'hook'], give: 'grapple', say: 'I knot the rope to the hook. A grapple!' },
-    { item: 'grapple', on: 'oar', take: 'grapple', give: 'oar', set: 'oar', say: 'Got it! I haul Finn\'s oar up onto the pier.' },
-    { item: 'rope', on: 'oar', say: 'The rope just floats beside it. It needs something on the end to catch it.' },
-    { item: 'hook', on: 'oar', say: 'My arm isn\'t that long. If the hook were on a line...' },
-    { item: 'key', on: 'chain', take: 'key', set: 'unchained', say: 'Click! The padlock springs open, and the chain drops.' },
-    { item: 'bottle', on: 'barrel', take: 'bottle', give: 'oil', say: 'I fill the bottle from the tap. Whale oil. Phew.' },
-    { item: 'oil', on: 'lamp', take: 'oil', set: 'oiled', say: 'I pour the oil into the lamp\'s well. Every drop.' },
+    { item: 'rope', on: 'hook', take: ['rope', 'hook'], give: 'grapple', say: E.t('pointclick.use.rope_hook') },
+    { item: 'grapple', on: 'oar', take: 'grapple', give: 'oar', set: 'oar', say: E.t('pointclick.use.grapple_oar') },
+    { item: 'rope', on: 'oar', say: E.t('pointclick.use.rope_oar') },
+    { item: 'hook', on: 'oar', say: E.t('pointclick.use.hook_oar') },
+    { item: 'key', on: 'chain', take: 'key', set: 'unchained', say: E.t('pointclick.use.key_chain') },
+    { item: 'bottle', on: 'barrel', take: 'bottle', give: 'oil', say: E.t('pointclick.use.bottle_barrel') },
+    { item: 'oil', on: 'lamp', take: 'oil', set: 'oiled', say: E.t('pointclick.use.oil_lamp') },
     { item: 'matches', on: 'lamp', if: 'oiled', take: 'matches', do: () => light() },
-    { item: 'matches', on: 'lamp', say: 'There\'s no oil in it to burn.' },
-    { item: 'oil', on: 'can', say: 'The lamp needs it more than the can does.' },
-    { verb: 'give', item: 'oar', on: 'finn', do: pc => pc.say('Hang on to it, Pip. You\'re the one rowing.', PEOPLE.finn) },
-    { verb: 'give', item: 'bottle', on: 'bruno', do: pc => pc.say('Fill it yourself, lad. The barrel\'s right there.', PEOPLE.bruno) },
-    { verb: 'give', item: 'key', on: 'morwen', do: pc => pc.say('Keep it till the boat\'s back. Then I want it.', PEOPLE.morwen) }
+    { item: 'matches', on: 'lamp', say: E.t('pointclick.use.matches_lamp') },
+    { item: 'oil', on: 'can', say: E.t('pointclick.use.oil_can') },
+    { verb: 'give', item: 'oar', on: 'finn', do: pc => pc.say(E.t('pointclick.give.oar_finn'), PEOPLE.finn) },
+    { verb: 'give', item: 'bottle', on: 'bruno', do: pc => pc.say(E.t('pointclick.give.bottle_bruno'), PEOPLE.bruno) },
+    { verb: 'give', item: 'key', on: 'morwen', do: pc => pc.say(E.t('pointclick.give.key_morwen'), PEOPLE.morwen) }
   ];
   // the talk: Finn's opening and his questions, Bruno's, Morwen's riddle contest (three right answers win the key)
   const NODES = {
     intro: [
-      { who: 'finn', say: ['Pip! Gull Rock\'s gone dark. Old Bram rowed ashore for oil this morning, and he\'s not back.', 'And the whole fleet\'s out in this fog. Without the light they\'ll be on the rocks by midnight.'] },
-      { who: 'pip', say: 'Then I\'ll light it myself! How do I get out there?' },
-      { who: 'finn', say: ['Take my rowboat, at the end of the pier. Only I dropped my oar in the drink...', 'And Morwen chains every boat on this dock at dusk. She\'s in the Salty Gull.'] }],
-    finn: [{ who: 'finn', say: 'Any luck, Pip?', choices: [{ text: 'WHERE\'S YOUR OAR?', goto: 'finnOar' }, { text: 'HOW DO I GET THE KEY?', goto: 'finnKey' }, { text: 'WHAT DOES THE LAMP NEED?', goto: 'finnLamp' }, { text: 'I\'D BETTER GO', goto: 'finnBye' }] }],
-    finnOar: [{ if: 'oar', who: 'finn', say: 'You fished it out! Good lad.' }, { if: '!oar', who: 'finn', say: 'Floating by the pier, just out of reach. A hook on a line would fetch it.' }, { goto: 'finn' }],
-    finnKey: [{ if: 'unchained', who: 'finn', say: 'You got her to part with it? Then go!' }, { if: '!unchained', who: 'finn', say: 'Morwen won\'t sell it. But she can\'t resist a riddle contest. Never lost one, mind.' }, { goto: 'finn' }],
-    finnLamp: [{ who: 'finn', say: 'Oil, and a flame. Bram went ashore because the oil ran out.' }, { goto: 'finn' }],
-    finnBye: [{ who: 'finn', say: 'Mind the fog, Pip.' }],
-    bruno: [{ who: 'bruno', say: 'What\'ll it be, Pip?', choices: [{ text: 'THE LIGHTHOUSE IS DARK', goto: 'brunoLight' }, { text: 'IS THAT WHALE OIL?', goto: 'brunoOil' }, { text: 'TELL ME ABOUT MORWEN', goto: 'brunoMorwen' }, { text: 'NOTHING, THANKS', goto: 'brunoBye' }] }],
-    brunoLight: [{ who: 'bruno', say: 'Bram\'s gone ashore, so the lamp\'s dry. You\'ll want oil, and a flame to put to it. There\'s matches on the mantel.' }, { goto: 'bruno' }],
-    brunoOil: [{ who: 'bruno', say: 'For the town\'s lamps, aye. Take what you need, if you\'ve something to carry it in.' }, { goto: 'bruno' }],
-    brunoMorwen: [{ who: 'bruno', say: 'Harbour master. Loves a riddle more than her own mother. Never lost a contest, she says.' }, { goto: 'bruno' }],
-    brunoBye: [{ who: 'bruno', say: 'Mind the fog.' }],
-    morwen: [{ if: 'wonKey', goto: 'morwenWon' }, { who: 'morwen', say: 'Finn\'s chain? Every chain on this dock is mine, Pip, and so is every key.' },
-      { who: 'morwen', say: 'But I\'ll give that key to anyone who beats me at riddles. Three riddles. No mistakes.', choices: [{ text: 'ASK AWAY', goto: 'riddle1' }, { text: 'NOT NOW', goto: 'morwenBye' }] }],
-    riddle1: [{ who: 'morwen', say: 'First. What has a mouth but never eats, and a bed but never sleeps?', choices: [{ text: 'A WHALE', goto: 'wrong' }, { text: 'A RIVER', goto: 'riddle2' }, { text: 'A HARBOUR', goto: 'wrong' }] }],
-    riddle2: [{ who: 'morwen', say: 'Lucky. Second. The more of them you take, the more you leave behind.', choices: [{ text: 'COINS', goto: 'wrong' }, { text: 'FISH', goto: 'wrong' }, { text: 'FOOTSTEPS', goto: 'riddle3' }] }],
-    riddle3: [{ who: 'morwen', say: 'Hmph. Last. I\'m light as a feather, yet the strongest sailor can\'t hold me for long.', choices: [{ text: 'HIS BREATH', goto: 'won' }, { text: 'A GULL', goto: 'wrong' }, { text: 'A SAIL', goto: 'wrong' }] }],
-    won: [{ who: 'morwen', say: ['Three for three! Nobody\'s done that since the flood.', 'Here. Finn\'s padlock, and mind you bring it back.'], set: 'wonKey', event: 'key' }],
-    wrong: [{ who: 'morwen', say: 'Wrong! Come back when you\'re sharper, Pip.', add: { tries: 1 } }],
-    morwenWon: [{ who: 'morwen', say: 'The key\'s yours, Pip. Off you go.' }],
-    morwenBye: [{ who: 'morwen', say: 'I\'ll be here. I always am.' }],
-    ending: [{ who: 'pip', say: 'It\'s lit! Gull Rock is shining again!' }, { who: 'pip', say: 'Steer for the light, all of you. Come home.' }]
+      { who: 'finn', say: [E.t('pointclick.talk.intro.1'), E.t('pointclick.talk.intro.2')] },
+      { who: 'pip', say: E.t('pointclick.talk.intro.3') },
+      { who: 'finn', say: [E.t('pointclick.talk.intro.4'), E.t('pointclick.talk.intro.5')] }],
+    finn: [{ who: 'finn', say: E.t('pointclick.talk.finn'), choices: [{ text: E.t('pointclick.choice.finn.oar'), goto: 'finnOar' }, { text: E.t('pointclick.choice.finn.key'), goto: 'finnKey' }, { text: E.t('pointclick.choice.finn.lamp'), goto: 'finnLamp' }, { text: E.t('pointclick.choice.finn.bye'), goto: 'finnBye' }] }],
+    finnOar: [{ if: 'oar', who: 'finn', say: E.t('pointclick.talk.finn_oar.1') }, { if: '!oar', who: 'finn', say: E.t('pointclick.talk.finn_oar.2') }, { goto: 'finn' }],
+    finnKey: [{ if: 'unchained', who: 'finn', say: E.t('pointclick.talk.finn_key.1') }, { if: '!unchained', who: 'finn', say: E.t('pointclick.talk.finn_key.2') }, { goto: 'finn' }],
+    finnLamp: [{ who: 'finn', say: E.t('pointclick.talk.finn_lamp') }, { goto: 'finn' }],
+    finnBye: [{ who: 'finn', say: E.t('pointclick.talk.finn_bye') }],
+    bruno: [{ who: 'bruno', say: E.t('pointclick.talk.bruno'), choices: [{ text: E.t('pointclick.choice.bruno.light'), goto: 'brunoLight' }, { text: E.t('pointclick.choice.bruno.oil'), goto: 'brunoOil' }, { text: E.t('pointclick.choice.bruno.morwen'), goto: 'brunoMorwen' }, { text: E.t('pointclick.choice.bruno.bye'), goto: 'brunoBye' }] }],
+    brunoLight: [{ who: 'bruno', say: E.t('pointclick.talk.bruno_light') }, { goto: 'bruno' }],
+    brunoOil: [{ who: 'bruno', say: E.t('pointclick.talk.bruno_oil') }, { goto: 'bruno' }],
+    brunoMorwen: [{ who: 'bruno', say: E.t('pointclick.talk.bruno_morwen') }, { goto: 'bruno' }],
+    brunoBye: [{ who: 'bruno', say: E.t('pointclick.talk.bruno_bye') }],
+    morwen: [{ if: 'wonKey', goto: 'morwenWon' }, { who: 'morwen', say: E.t('pointclick.talk.morwen.1') },
+      { who: 'morwen', say: E.t('pointclick.talk.morwen.2'), choices: [{ text: E.t('pointclick.choice.morwen.ask'), goto: 'riddle1' }, { text: E.t('pointclick.choice.morwen.later'), goto: 'morwenBye' }] }],
+    riddle1: [{ who: 'morwen', say: E.t('pointclick.talk.riddle1'), choices: [{ text: E.t('pointclick.choice.riddle1.whale'), goto: 'wrong' }, { text: E.t('pointclick.choice.riddle1.river'), goto: 'riddle2' }, { text: E.t('pointclick.choice.riddle1.harbour'), goto: 'wrong' }] }],
+    riddle2: [{ who: 'morwen', say: E.t('pointclick.talk.riddle2'), choices: [{ text: E.t('pointclick.choice.riddle2.coins'), goto: 'wrong' }, { text: E.t('pointclick.choice.riddle2.fish'), goto: 'wrong' }, { text: E.t('pointclick.choice.riddle2.footsteps'), goto: 'riddle3' }] }],
+    riddle3: [{ who: 'morwen', say: E.t('pointclick.talk.riddle3'), choices: [{ text: E.t('pointclick.choice.riddle3.breath'), goto: 'won' }, { text: E.t('pointclick.choice.riddle3.gull'), goto: 'wrong' }, { text: E.t('pointclick.choice.riddle3.sail'), goto: 'wrong' }] }],
+    won: [{ who: 'morwen', say: [E.t('pointclick.talk.won.1'), E.t('pointclick.talk.won.2')], set: 'wonKey', event: 'key' }],
+    wrong: [{ who: 'morwen', say: E.t('pointclick.talk.wrong'), add: { tries: 1 } }],
+    morwenWon: [{ who: 'morwen', say: E.t('pointclick.talk.morwen_won') }],
+    morwenBye: [{ who: 'morwen', say: E.t('pointclick.talk.morwen_bye') }],
+    ending: [{ who: 'pip', say: E.t('pointclick.talk.ending.1') }, { who: 'pip', say: E.t('pointclick.talk.ending.2') }]
   };
 
   /* ---- 3. THE GAME: the opening card and talk, play, the ending, THE END ---- */
   let pc = null, story = null, rigs = null, mode = 'open', modeT = 0, acts = 0, played = 0, caption = null;
   // the interface (Settings, Point and click): the nine verbs, the icons, the coin or two buttons
-  game.settings.define({ key: 'pcInterface', group: 'Point and click', label: 'Interface', options: [['verbs', 'Nine verbs'], ['icons', 'Icons'], ['coin', 'Verb coin'], ['two', 'Two buttons']], value: 'verbs',
-    help: 'Nine verbs: SCUMM\'s (Monkey Island), a verb then a thing. Icons: Sierra\'s, a right click turns the cursor. Verb coin: a click on a thing shows its verbs. Two buttons: a click uses, a right click looks. A phone taps: the coin', apply: (g, v) => { if (pc) pc.ui = v; } });
-  const endMenu = new E.Menu(game, ['PLAY AGAIN', 'TITLE'], { y: 0, onPick: i => i === 0 ? game.go('pointclick', null, { fade: 'iris' }) : game.go('title') });
+  game.settings.define({ key: 'pcInterface', group: E.t('pointclick.setting.group'), label: E.t('pointclick.setting.ui'), options: ['verbs', 'icons', 'coin', 'two'].map(v => [v, E.t('pointclick.setting.ui.' + v)]), value: 'verbs',
+    help: E.t('pointclick.setting.ui.help'), apply: (g, v) => { if (pc) pc.ui = v; } });
+  const endMenu = new E.Menu(game, [E.t('pointclick.end.again'), E.t('pointclick.end.title')], { y: 0, onPick: i => i === 0 ? game.go('pointclick', null, { fade: 'iris' }) : game.go('title') });
   function start() {
     rigs = {
       pip: new E.Humanoid({ size: 1.15, weapon: null, hair: 'short', hat: { style: 'cap', color: '#2a4a8a' }, colors: { cloth: '#e8e4dc', trim: '#2a4a8a', pants: '#3a4a6a', hair: '#c8642a', boot: '#4a3020', belt: '#6a4a2a' } }),
@@ -498,20 +498,20 @@ const POINTCLICK = (() => {
     };
     for (const k in PEOPLE) PEOPLE[k].rig = rigs[k];
     ROOMS = ROOMS || rooms();
-    story = new E.Story(game, { people: { pip: { name: 'PIP', portrait: rigs.pip }, finn: { name: 'FINN', portrait: rigs.finn }, morwen: { name: 'MORWEN', portrait: rigs.morwen }, bruno: { name: 'BRUNO', portrait: rigs.bruno } },
+    story = new E.Story(game, { people: { pip: { name: E.t('pointclick.name.pip'), portrait: rigs.pip }, finn: { name: E.t('pointclick.name.finn'), portrait: rigs.finn }, morwen: { name: E.t('pointclick.name.morwen'), portrait: rigs.morwen }, bruno: { name: E.t('pointclick.name.bruno'), portrait: rigs.bruno } },
       nodes: NODES, vars: { tries: 0 }, on: { key: () => { pc.give('key'); A.sfx('key'); } } });
     pc = new E.Click(game, { rooms: ROOMS, items: ITEMS, rules: RULES, story, hero: { rig: rigs.pip, speed: 52 }, ui: game.settings.pcInterface || 'verbs', room: 'dock', at: [40, 140],
-      on: { done: (pc, verb) => { acts++; if (verb === 'pickup' && !pc.line) A.sfx('pickup'); }, enter: (pc, id) => { A.sfx('door'); if (id === 'lamp' && !story.get('climbed')) { story.set('climbed'); pc.say('Phew. A hundred and twelve steps.'); } } } });
+      on: { done: (pc, verb) => { acts++; if (verb === 'pickup' && !pc.line) A.sfx('pickup'); }, enter: (pc, id) => { A.sfx('door'); if (id === 'lamp' && !story.get('climbed')) { story.set('climbed'); pc.say(E.t('pointclick.lamp.climbed')); } } } });
     mode = 'open'; modeT = 0; acts = 0; played = 0; caption = null; pc.panel = false;
     game.input.touchEnabled = false; L.enabled = false; game.follow(null); A.music(SONG);
   }
   // the rowboat: chained, then oarless, then off to Gull Rock
   function row() {
-    if (!story.get('unchained')) { pc.say('It\'s chained to the post. Padlocked, too.'); return; }
-    if (!pc.has('oar')) { pc.say('Rowing with my hands would take all night. I need an oar.'); return; }
-    A.sfx('whoosh'); caption = { s: 'PIP ROWS OUT TO GULL ROCK...', t: 0 }; pc.go('lamp', [96, 136]);
+    if (!story.get('unchained')) { pc.say(E.t('pointclick.dock.boat.chained')); return; }
+    if (!pc.has('oar')) { pc.say(E.t('pointclick.dock.boat.oarless')); return; }
+    A.sfx('whoosh'); caption = { s: E.t('pointclick.caption.row'), t: 0 }; pc.go('lamp', [96, 136]);
   }
-  function bell() { A.sfx({ wave: 'triangle', freq: 392, to: 388, dur: 1.4, vol: .35 }); pc.say('BONG! ...That woke the gulls.'); }
+  function bell() { A.sfx({ wave: 'triangle', freq: 392, to: 388, dur: 1.4, vol: .35 }); pc.say(E.t('pointclick.lamp.bell.ring')); }
   // the matches on the oiled lamp: it blazes, the beams sweep, Pip's last words, THE END
   function light() {
     story.set('lit'); mode = 'lit'; modeT = 0; pc.panel = false; A.sfx('powerup'); A.music(HYMN); game.flash('#fff6d0', .5);
@@ -533,15 +533,15 @@ const POINTCLICK = (() => {
       if (mode === 'open') {
         const a = Math.min(1, modeT * 2) * (modeT > 3 ? Math.max(0, 1 - (modeT - 3) * 2) : 1);
         g.fillStyle = 'rgba(5,4,10,' + (.55 * a).toFixed(2) + ')'; g.fillRect(0, H / 2 - 40, W, 70);
-        if (a > .2) { E.font.title(g, 'THE LIGHT ON', W / 2, H / 2 - 34, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'], depth: 2 }); E.font.title(g, 'GULL ROCK', W / 2, H / 2 - 12, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 }); }
+        if (a > .2) { E.font.title(g, E.t('pointclick.title.1'), W / 2, H / 2 - 34, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'], depth: 2 }); E.font.title(g, E.t('pointclick.title.2'), W / 2, H / 2 - 12, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 }); }
       }
       if (mode === 'end') {
         const a = Math.min(1, modeT); g.fillStyle = 'rgba(5,4,10,' + (.6 * a).toFixed(2) + ')'; g.fillRect(0, 0, W, H);
         const y = Math.round(H / 2) - 70;
-        E.font.title(g, 'THE END', W / 2, y, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-        E.font.text(g, 'THE LIGHT ON GULL ROCK', W / 2, y + 40, '#e8e0ff', { align: 'center', shadow: '#000', outline: false });
+        E.font.title(g, E.t('pointclick.end'), W / 2, y, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+        E.font.text(g, E.t('pointclick.title'), W / 2, y + 40, '#e8e0ff', { align: 'center', shadow: '#000', outline: false });
         const m = Math.floor(played / 60), s = Math.floor(played % 60);
-        E.font.text(g, 'TIME ' + m + ':' + String(s).padStart(2, '0') + '    ACTIONS ' + acts + '    RIDDLES MISSED ' + (story.get('tries') || 0), W / 2, y + 54, '#b8b0d8', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+        E.font.text(g, E.t('pointclick.end.stats', { time: m + ':' + String(s).padStart(2, '0'), actions: acts, missed: story.get('tries') || 0 }), W / 2, y + 54, '#b8b0d8', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
         endMenu.y = y + 72;
       }
     });
@@ -579,9 +579,9 @@ const POINTCLICK = (() => {
       wait();
       verb('pickup', 'rope'); go('door');
       verb('pull', 'hook'); use('rope', 'hook'); verb('pickup', 'bottle'); verb('pickup', 'matches'); use('bottle', 'barrel');
-      answers = ['ASK AWAY', 'A WHALE']; verb('talk', 'morwen');
+      answers = ['morwen.ask', 'riddle1.whale'].map(c => E.t('pointclick.choice.' + c)); verb('talk', 'morwen');
       const lost = !pc.has('key') && story.get('tries') === 1;
-      answers = ['ASK AWAY', 'A RIVER', 'FOOTSTEPS', 'HIS BREATH']; verb('talk', 'morwen');
+      answers = ['morwen.ask', 'riddle1.river', 'riddle2.footsteps', 'riddle3.breath'].map(c => E.t('pointclick.choice.' + c)); verb('talk', 'morwen');
       go('out'); use('grapple', 'oar'); use('key', 'chain'); verb('use', 'boat');
       use('matches', 'lamp'); const dry = !story.get('lit');
       use('oil', 'lamp'); use('matches', 'lamp');

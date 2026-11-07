@@ -936,8 +936,9 @@ E.font = {
         cx += gl.w + 1;
       }
     };
+    const RS = lines.map(line => LANG_DEV.runs(has, line, 'a')), LW = lines.map((line, li) => RS[li] ? lineWs(line, sc, g) : lineW(line) * sc);   // (each line measured once, not once a pass)
     const draw = (ox, oy, c, useGrad) => lines.forEach((line, li) => {
-      const R = LANG_DEV.runs(has, line, 'a'), lw = R ? lineWs(line, sc, g) : lineW(line) * sc, ly = y + li * lh;
+      const R = RS[li], lw = LW[li], ly = y + li * lh;
       const rtl = !!R && R.length === 1 && LANG_DEV.RTL.test(line), box = rtl && o.wrap && (!o.align || o.align === 'left');   // (right to left in a box: from its right edge)
       const al = box ? 'right' : o.align, lx = (box ? x + Math.round(o.wrap) : x) + (al === 'center' ? -Math.round(lw / 2) : al === 'right' ? -lw : 0);
       w = Math.max(w, lw);
@@ -1162,13 +1163,11 @@ const LANG_DEV = {
   },
   /** null when the pixel font draws the whole line (has(ch): it has that glyph), else [[device, text], ...] */
   runs(has, line, key) {
-    let any = false;
+    const k = key + '\u0000' + line, hit = this._runs.get(k); if (hit !== undefined) return hit;   // (a line drawn again: one lookup)
+    let any = false, out = null;
     for (const ch of line) if (ch !== ' ' && ch !== '\n' && !has(ch) && !this.ZW.test(ch)) { any = true; break; }
-    if (!any) return null;
-    const k = key + '\u0000' + line, hit = this._runs.get(k); if (hit) return hit;
-    let out;
-    if (this.RTL.test(line)) out = [[true, line]];
-    else {
+    if (any && this.RTL.test(line)) out = [[true, line]];
+    else if (any) {
       out = []; let pend = '';
       for (const ch of line) {
         if (ch === ' ' || this.ZW.test(ch) || /[!-/:-@[-`{-~]/.test(ch)) { pend += ch; continue; }

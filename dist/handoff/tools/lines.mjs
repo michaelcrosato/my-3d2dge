@@ -68,13 +68,24 @@ export function blockHTML(obj, id = 'game-lines') {
   }
   return `<script type="application/json" id="${id}">\n{\n${rows.join(',\n')}\n}\n</script>`;
 }
-const BLOCK = id => new RegExp(`<script type="application/json" id="${id}">[\\s\\S]*?</script>`);
+const OPEN = id => `<script type="application/json" id="${id}">`;
+/** the block in a page: where it starts and ends and its JSON text. An example of one in other text (the API card, inlined
+ *  in a kit's head, shows one) is passed over: the block is the first whose text is JSON; failing that, the first */
+function findBlock(html, id) {
+  const o = OPEN(id); let i = -1, first = null;
+  while ((i = html.indexOf(o, i + 1)) >= 0) {
+    const j = html.indexOf('</script>', i); if (j < 0) break;
+    const hit = { start: i, end: j + 9, text: html.slice(i + o.length, j) };
+    try { JSON.parse(hit.text); return hit; } catch (e) { first = first || hit; }
+  }
+  return first;
+}
 /** a page's block read (null when it has none; throws on broken JSON) */
-export function readBlock(html, id = 'game-lines') { const m = BLOCK(id).exec(html); if (!m) return null; return JSON.parse(m[0].replace(/^<script[^>]*>/, '').replace(/<\/script>$/, '')); }
-/** a page with its game-lines block put in (in place of the old one, else at the end of its <head>) */
+export function readBlock(html, id = 'game-lines') { const b = findBlock(html, id); return b ? JSON.parse(b.text) : null; }
+/** a page with its block put in (in place of the old one, else at the end of its <head>) */
 export function putBlock(html, obj, id = 'game-lines') {
-  const b = blockHTML(obj, id);
-  if (BLOCK(id).test(html)) return html.replace(BLOCK(id), () => b);
+  const b = blockHTML(obj, id), at = findBlock(html, id);
+  if (at) return html.slice(0, at.start) + b + html.slice(at.end);
   if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, () => b + '\n</head>');
   throw new Error('the page has no <head> to put the ' + id + ' block in');
 }

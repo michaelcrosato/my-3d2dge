@@ -55,7 +55,7 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
-].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id), about: E.t('starter.slice.' + s.id + '.about'), family: E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_')) }));
+].map(s => Object.assign(s, { label: E.t('starter.slice.' + s.id, null, s.label), about: E.t('starter.slice.' + s.id + '.about', null, s.about), family: s.family && E.t('starter.family.' + s.family.toLowerCase().replace(/ /g, '_'), null, s.family) }));   // (a slice of your own without lines yet shows its own words)
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
@@ -186,9 +186,10 @@ const FIGHT = (() => {
   const A = game.audio, X0 = 0, X1 = 560, KEYS = Object.assign({}, E.FIGHT_KEYS, { dummy: ['Tab', 'Pad8'] });
   const M = E.MOVES, spin = (name, o) => Object.assign({}, M[name], { spin: true }, o);   // (a move turned into a spin)
 
-  /* ---- THE ROSTER: each a rig and a move list (frame data in frames at 60: [startup, active, recovery]) ---- */
+  /* ---- THE ROSTER: each a rig and a move list (frame data in frames at 60: [startup, active, recovery]); its name and
+   * the line about it on the select screen are lines (fighting.name.<id>, fighting.about.<id>) ---- */
   const ROSTER = [
-    { id: 'ryo', name: 'RYO', about: 'ALL-ROUNDER', o: { walk: 78, back: 62 }, alt: { cloth: '#2a2a34', pants: '#2a2a34', glove: '#3a6ac8' },
+    { id: 'ryo', name: E.t('fighting.name.ryo'), about: E.t('fighting.about.ryo'), o: { walk: 78, back: 62 }, alt: { cloth: '#2a2a34', pants: '#2a2a34', glove: '#3a6ac8' },
       rig: { size: 2.35, build: 'heroic', hair: 'short', sleeves: 'short', hat: { style: 'band', color: '#e0302a' }, colors: { skin: '#e8b088', hair: '#2a1a18', cloth: '#f2eee4', pants: '#f2eee4', boot: '#e8b088', belt: '#1a1a22', glove: '#c83a2a' } },
       moves: {
         jab: { move: 'jab', btn: 'lp', f: [3, 3, 7], dmg: 30, cancel: true }, cjab: { move: 'jab', btn: 'lp', when: 'crouch', f: [3, 3, 7], dmg: 25, cancel: true }, ajab: { move: 'jab', btn: 'lp', when: 'air', guard: 'overhead', dmg: 35 },
@@ -200,7 +201,7 @@ const FIGHT = (() => {
         rise: { move: 'uppercut', btn: 'hp', motion: '623', f: [3, 12, 26], inv: 8, vz: 360, vx: 40, launch: 340, dmg: 120, aa: true },
         whirl: { move: spin('roundhouse', { active: .4 }), btn: 'hk', motion: '214', f: [8, 24, 14], vx: 130, vz: 170, dmg: 90, down: true },
         super: { move: 'cast', btn: 'hp', motion: '236236', meter: 100, f: [8, 3, 30], inv: 10, shot: { speed: 200, r: 13, dmg: 260, color: '#ff7a3a', core: '#fff0c0' } } } },
-    { id: 'gorm', name: 'GORM', about: 'GRAPPLER', alt: { pants: '#2a5ac8', belt: '#e0e0e8', glove: '#e0e0e8' }, o: { walk: 56, back: 46, life: 1150, throwDmg: 150, jump: 360, jumpX: 70 },
+    { id: 'gorm', name: E.t('fighting.name.gorm'), about: E.t('fighting.about.gorm'), alt: { pants: '#2a5ac8', belt: '#e0e0e8', glove: '#e0e0e8' }, o: { walk: 56, back: 46, life: 1150, throwDmg: 150, jump: 360, jumpX: 70 },
       rig: { size: 2.65, build: 'bulky', hair: 'bald', sleeves: 'none', stubble: '#4a2a1a', hunch: .2, colors: { skin: '#c88a5a', hair: '#2a1a10', cloth: '#c88a5a', pants: '#b82a2a', boot: '#3a2a20', belt: '#ffd040', glove: '#3a2a20' } },
       moves: {
         jab: { move: 'jab', btn: 'lp', f: [4, 3, 9], dmg: 40, cancel: true }, cjab: { move: 'elbow', btn: 'lp', when: 'crouch', f: [4, 3, 10], dmg: 40, cancel: true }, abash: { move: 'bash', btn: 'lp', when: 'air', guard: 'overhead', dmg: 50 },
@@ -212,7 +213,7 @@ const FIGHT = (() => {
         rush: { move: 'bash', btn: 'hp', charge: '46', f: [8, 14, 20], vx: 220, dmg: 110, down: true },
         lariat: { move: spin('hook', { active: .4 }), btn: 'lp', motion: '623', f: [5, 22, 18], inv: 5, vx: 60, r: 7, dmg: 100, down: true, aa: true },
         super: { move: 'throw', btn: 'hk', motion: '41236', meter: 100, throw: true, range: 48, f: [2, 4, 34], dmg: 400 } } },
-    { id: 'vex', name: 'VEX', about: 'FAST, TELEPORTS', alt: { cloth: '#8a2a3a', hair: '#e0c060', trim: '#e8e8f0' }, o: { walk: 96, back: 80, life: 900, jump: 410, jumpX: 105 },
+    { id: 'vex', name: E.t('fighting.name.vex'), about: E.t('fighting.about.vex'), alt: { cloth: '#8a2a3a', hair: '#e0c060', trim: '#e8e8f0' }, o: { walk: 96, back: 80, life: 900, jump: 410, jumpX: 105 },
       rig: { size: 2.2, build: 'heroic', hair: 'ponytail', sleeves: 'long', outfit: 'tunic', hood: true, colors: { skin: '#f0c8a0', hair: '#4a2a7a', cloth: '#2a6a6a', pants: '#1a2a3a', boot: '#1a1a2a', belt: '#e0b040', glove: '#1a2a3a', trim: '#e0b040' } },
       moves: {
         jab: { move: 'jab', btn: 'lp', f: [2, 2, 6], dmg: 25, cancel: true }, cjab: { move: 'jab', btn: 'lp', when: 'crouch', f: [2, 2, 6], dmg: 22, cancel: true }, ajab: { move: 'elbow', btn: 'lp', when: 'air', guard: 'overhead', dmg: 35 },
@@ -229,7 +230,7 @@ const FIGHT = (() => {
   // fighter's own moves in a dark palette
   const make = (id, x, side, shadow, alt) => {
     const e = byId(id), rig = Object.assign({}, e.rig, { weapon: null, speedRef: 40, colors: Object.assign({}, e.rig.colors, alt ? e.alt : {}, shadow ? { cloth: '#2a2a3a', pants: '#1a1a24', hair: '#0a0a12', glove: '#6a2a8a', skin: '#8a7a9a', eye: '#ff4a4a' } : {}) });
-    return new E.Fighter(game, Object.assign({ name: shadow ? 'SHADOW ' + e.name : e.name, x, side, rig, moves: e.moves }, e.o));
+    return new E.Fighter(game, Object.assign({ name: shadow ? E.t('fighting.shadow', { name: e.name }) : e.name, x, side, rig, moves: e.moves }, e.o));
   };
 
   /* ---- THE STAGE: a temple courtyard at dusk; a crowd behind the rope that cheers the blows ---- */
@@ -257,10 +258,10 @@ const FIGHT = (() => {
 
   /* ---- MODES: the menu, the select, the match, the results ---- */
   let mode = 'menu', match = null, select = null, kind = 'versus', picks = null, ladder = [], step = 0, dummy = 0, result = null, t = 0;
-  const DUMMY = ['stand', 'crouch', 'jump', 'guard'];
-  const menu = new E.Menu(game, ['VERSUS', 'ARCADE', 'TRAINING'], { y: 0, onPick: i => choose(['versus', 'arcade', 'training'][i]) });
-  const after = new E.Menu(game, ['REMATCH', 'CHARACTER SELECT', 'TITLE'], { y: 0, onPick: i => i === 0 ? fight(picks) : i === 1 ? choose(kind) : game.go('title') });
-  const cont = new E.Menu(game, ['CONTINUE', 'TITLE'], { y: 0, onPick: i => i ? game.go('title') : fight(picks) });
+  const DUMMY = ['stand', 'crouch', 'jump', 'guard'];   // (each shown as its line, fighting.dummy.<what>)
+  const menu = new E.Menu(game, [E.t('fighting.menu.versus'), E.t('fighting.menu.arcade'), E.t('fighting.menu.training')], { y: 0, onPick: i => choose(['versus', 'arcade', 'training'][i]) });
+  const after = new E.Menu(game, [E.t('fighting.menu.rematch'), E.t('fighting.menu.select'), E.t('fighting.menu.title')], { y: 0, onPick: i => i === 0 ? fight(picks) : i === 1 ? choose(kind) : game.go('title') });
+  const cont = new E.Menu(game, [E.t('fighting.menu.continue'), E.t('fighting.menu.title')], { y: 0, onPick: i => i ? game.go('title') : fight(picks) });
   const p2 = () => game.players[1] || null;
   function choose(k) {
     kind = k; mode = 'select'; t = 0;
@@ -311,21 +312,22 @@ const FIGHT = (() => {
       const W = r.W, H = r.H;
       if (mode === 'menu') {
         px.blend(g, .55, 'normal', () => px.rect(g, 0, 0, W, H, '#0a0614'));
-        E.font.title(g, 'FIGHTING', W / 2, 30, { scale: 4, align: 'center', colors: ['#fff6d0', '#ff9a4a', '#c0302a'], depth: 3 });
-        const two = game.players.length > 1, line = menu.i === 0 ? (two ? 'TWO PLAYERS: PICK YOUR FIGHTERS' : 'PLAYER 2: PRESS 2 OR START ON A PAD') : menu.i === 1 ? 'BEAT THE OTHER TWO, THEN YOUR SHADOW' : 'THE BOXES, FRAME DATA AND YOUR INPUTS';
+        E.font.title(g, E.t('fighting.title'), W / 2, 30, { scale: 4, align: 'center', colors: ['#fff6d0', '#ff9a4a', '#c0302a'], depth: 3 });
+        const two = game.players.length > 1, line = E.t(menu.i === 0 ? (two ? 'fighting.mode.versus_two' : 'fighting.join') : menu.i === 1 ? 'fighting.mode.arcade' : 'fighting.mode.training');
         E.font.text(g, line, W / 2, H - 34, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
-        const keys = I => (two ? I.name + ' ' : '') + ['lp', 'hp', 'lk', 'hk'].map(k => I.label(k)).join(' ') + ' PUNCH, KICK';
-        E.font.text(g, two ? game.players.map(keys).join('     ') : 'ARROWS MOVE   ' + keys(game.input) + '   HOLD BACK TO BLOCK', W / 2, H - 22, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
-        E.font.text(g, '236 + PUNCH: A FIREBALL (NUMPAD NOTATION, FACING RIGHT)', W / 2, H - 12, '#7a6aa8', { align: 'center', outline: false, font: 'tiny' });
+        // each player's four buttons (two players: P1's, P2's, side by side)
+        const keys = I => E.t(two ? 'fighting.keys.player' : 'fighting.keys', { player: I.player, lp: I.label('lp'), hp: I.label('hp'), lk: I.label('lk'), hk: I.label('hk') });
+        E.font.text(g, two ? game.players.map(keys).join('     ') : E.t('fighting.keys.help', { keys: keys(game.input) }), W / 2, H - 22, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+        E.font.text(g, E.t('fighting.notation'), W / 2, H - 12, '#7a6aa8', { align: 'center', outline: false, font: 'tiny' });
       }
-      if (mode === 'select' && kind === 'versus' && !select.inputs[1]) E.font.text(g, 'PLAYER 2: PRESS 2 OR START ON A PAD', W / 2, 26, '#ff8a6a', { align: 'center', shadow: '#000', outline: false });
-      if (mode === 'fight' && kind === 'arcade' && match.phase === 'intro') E.font.text(g, 'STAGE ' + (step + 1) + ' OF ' + ladder.length, W / 2, H / 2 + 6, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+      if (mode === 'select' && kind === 'versus' && !select.inputs[1]) E.font.text(g, E.t('fighting.join'), W / 2, 26, '#ff8a6a', { align: 'center', shadow: '#000', outline: false });
+      if (mode === 'fight' && kind === 'arcade' && match.phase === 'intro') E.font.text(g, E.t('fighting.stage', { stage: step + 1, stages: ladder.length }), W / 2, H / 2 + 6, '#ffffff', { align: 'center', shadow: '#000', outline: false });
       const ta = game.input.touchArea && game.input.touchArea();   // (clear of the touch buttons)
-      if (mode === 'fight' && kind === 'training') E.font.text(g, 'DUMMY: ' + DUMMY[dummy].toUpperCase() + '  (TAB OR BACK CHANGES IT)', W / 2, ta ? Math.round(ta.y0) - 10 : H - 24, '#ffd060', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+      if (mode === 'fight' && kind === 'training') E.font.text(g, E.t('fighting.dummy', { dummy: E.t('fighting.dummy.' + DUMMY[dummy]) }), W / 2, ta ? Math.round(ta.y0) - 10 : H - 24, '#ffd060', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
       if (result && result.t > 1.2) {
-        if (kind === 'arcade' && result.w === 0 && !result.next) { E.font.title(g, 'CHAMPION!', W / 2, H / 2 - 34, { scale: 3, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] }); }
-        else if (kind === 'arcade' && result.w === 1) { E.font.title(g, 'CONTINUE?', W / 2, H / 2 - 40, { scale: 2, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] }); }
-        else if (kind !== 'arcade') E.font.title(g, match.f[result.w].name + ' WINS', W / 2, H / 2 - 44, { scale: 3, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
+        if (kind === 'arcade' && result.w === 0 && !result.next) { E.font.title(g, E.t('fighting.champion'), W / 2, H / 2 - 34, { scale: 3, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] }); }
+        else if (kind === 'arcade' && result.w === 1) { E.font.title(g, E.t('fighting.continue'), W / 2, H / 2 - 40, { scale: 2, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] }); }
+        else if (kind !== 'arcade') E.font.title(g, E.t('fighting.wins', { name: match.f[result.w].name }), W / 2, H / 2 - 44, { scale: 3, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
       }
     });
     if (mode === 'menu') { menu.y = Math.round(r.H / 2) - 10; menu.draw(r); }
