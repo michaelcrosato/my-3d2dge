@@ -1,0 +1,18 @@
+{
+ "lines": {
+  "starter3d.boot.title": "my-3D2dge 3D",
+  "starter3d.boot.engine": "The 3D engine: three.js r182, Rapier 0.19.3",
+  "starter3d.boot.shaders": "Building the shaders"
+ },
+ "notes": {
+  "starter3d.boot.title": "The loading screen's title: the engine's name and its 3D edition. Keep it as written.",
+  "starter3d.boot.engine": "A step on the loading screen: starting the 3D engine. three.js and Rapier are the libraries it runs on (r182 and 0.19.3 their versions): keep them as written.",
+  "starter3d.boot.shaders": "A step on the loading screen: preparing the graphics card's programs, so play starts without a stutter."
+ },
+ "max": {},
+ "names": [
+  "my-3D2dge",
+  "three.js",
+  "Rapier"
+ ]
+}
