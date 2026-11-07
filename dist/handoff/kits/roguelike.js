@@ -176,6 +176,7 @@ scenes.over = {
  * orders the turns; each step between cells is a tween (game.tween) the rigs walk through, so the game is turn-based
  * and the animation is not. A floor's stairs lead on through an iris (game.go's fade). Canvas lighting: the hero's
  * torch and the braziers. bot(10) plays ten floors by itself (tools/kits-test.mjs).
+ * WORDS: every message and name is a line (src/starter/45-roguelike.lines.json, roguelike.* ids, shown with E.t).
  * ===================================================================================== */
 const ROGUE = (() => {
   const T = 16, FW = 46, FH = 30, LAST = 10, SIGHT = 7, STEP = .13;   // a cell; a floor's size; the Amulet's floor; how far the torch shows; a step's seconds
@@ -184,15 +185,17 @@ const ROGUE = (() => {
     { wave: 'pulse12', vol: .12, notes: 'D5 - - - F5 - E5 - D5 - C5 - A4 - - - | Bb4 - - - A4 - G4 - A4 - - - - - . . | D5 - - - F5 - G5 - A5 - G5 - F5 - E5 - | F5 - E5 - D5 - C#5 - D5 - - - - - . .' },
     { wave: 'triangle', vol: .3, notes: 'D2 - . . D2 . . . A2 - . . D2 . . . | G2 - . . G2 . . . D2 - . . D2 . . . | Bb1 - . . Bb1 . . . F2 - . . F2 . . . | A1 - . . A1 . . . D2 - . . D2 . . .' },
     { wave: 'drums', vol: .08, notes: 'k . . . h . . . k . . . h . h .' }] };
-  const KINDS = {   // monsters: hit points, attack, defence, speed (100: yours), experience, first floor, and their rigs
-    rat: { name: 'RAT', hp: 4, atk: 2, def: 0, speed: 100, xp: 2, from: 1, blob: { R: 4, ears: 'cat', tail: true, feet: true, colors: { dk: '#3a2e2a', base: '#7a6658', lt: '#a8927e' } } },
-    bat: { name: 'BAT', hp: 3, atk: 2, def: 0, speed: 200, xp: 3, from: 1, fly: 14, blob: { R: 3.5, wings: true, ears: 'cat', colors: { dk: '#2a1e34', base: '#5a4270', lt: '#8a70a8' } } },
-    slime: { name: 'SLIME', hp: 9, atk: 3, def: 2, speed: 50, xp: 4, from: 2, blob: { R: 6, mouth: true, colors: { dk: '#1e5a32', base: '#3aa05a', lt: '#8ae09a' } } },
-    goblin: { name: 'GOBLIN', hp: 9, atk: 4, def: 1, speed: 100, xp: 6, from: 3, rig: { size: .9, build: 'bulky', hair: 'spiky', weapon: 'sword', colors: { skin: '#7aa04a', cloth: '#6a4a2a', pants: '#4a3a2a', hair: '#2a2a1a' } } },
-    skeleton: { name: 'SKELETON', hp: 14, atk: 5, def: 2, speed: 100, xp: 10, from: 5, rig: { size: 1, outfit: 'tunic', weapon: 'sword', colors: { skin: '#e8e2d0', cloth: '#3a3440', pants: '#2a2630', hair: '#e8e2d0' } } },
-    wraith: { name: 'WRAITH', hp: 16, atk: 7, def: 3, speed: 150, xp: 16, from: 7, rig: { size: 1.1, outfit: 'robe', hood: true, weapon: 'staff', colors: { skin: '#a8b0d0', cloth: '#3a3a6a', hair: '#1a1a2a' } } }
+  // monsters: hit points, attack, defence, speed (100: yours), experience, first floor, and their rigs; the name shown is a
+  // line, and a monster's mark in E.gen's rows is its id's first letter (a slime's s is a skeleton's too: the later wins)
+  const KINDS = {
+    rat: { name: E.t('roguelike.monster.rat'), hp: 4, atk: 2, def: 0, speed: 100, xp: 2, from: 1, blob: { R: 4, ears: 'cat', tail: true, feet: true, colors: { dk: '#3a2e2a', base: '#7a6658', lt: '#a8927e' } } },
+    bat: { name: E.t('roguelike.monster.bat'), hp: 3, atk: 2, def: 0, speed: 200, xp: 3, from: 1, fly: 14, blob: { R: 3.5, wings: true, ears: 'cat', colors: { dk: '#2a1e34', base: '#5a4270', lt: '#8a70a8' } } },
+    slime: { name: E.t('roguelike.monster.slime'), hp: 9, atk: 3, def: 2, speed: 50, xp: 4, from: 2, blob: { R: 6, mouth: true, colors: { dk: '#1e5a32', base: '#3aa05a', lt: '#8ae09a' } } },
+    goblin: { name: E.t('roguelike.monster.goblin'), hp: 9, atk: 4, def: 1, speed: 100, xp: 6, from: 3, rig: { size: .9, build: 'bulky', hair: 'spiky', weapon: 'sword', colors: { skin: '#7aa04a', cloth: '#6a4a2a', pants: '#4a3a2a', hair: '#2a2a1a' } } },
+    skeleton: { name: E.t('roguelike.monster.skeleton'), hp: 14, atk: 5, def: 2, speed: 100, xp: 10, from: 5, rig: { size: 1, outfit: 'tunic', weapon: 'sword', colors: { skin: '#e8e2d0', cloth: '#3a3440', pants: '#2a2630', hair: '#e8e2d0' } } },
+    wraith: { name: E.t('roguelike.monster.wraith'), hp: 16, atk: 7, def: 3, speed: 150, xp: 16, from: 7, rig: { size: 1.1, outfit: 'robe', hood: true, weapon: 'staff', colors: { skin: '#a8b0d0', cloth: '#3a3a6a', hair: '#1a1a2a' } } }
   };
-  const BLADES = [['DAGGER', 1], ['SWORD', 3], ['BROADSWORD', 5], ['RUNEBLADE', 8]];   // a better blade on most floors
+  const BLADES = [[E.t('roguelike.blade.dagger'), 1], [E.t('roguelike.blade.sword'), 3], [E.t('roguelike.blade.broadsword'), 5], [E.t('roguelike.blade.runeblade'), 8]];   // a better blade on most floors: [name, power]
   const SPR = {   // the floor's things, in pixels
     potion: E.sprite(['.cc.', '.ww.', 'wrrw', 'rRrr', 'rrrr', '.rr.'], { c: '#c8a070', w: '#e8e8f0', r: '#d02a3a', R: '#ff8a8a' }),
     scroll: E.sprite(['bbbbbb', 'pwwwwp', 'pwkwkp', 'pwwwwp', 'bbbbbb'], { b: '#8a5a2a', p: '#c8b088', w: '#f0e4c0', k: '#5a4a3a' }),
@@ -204,7 +207,7 @@ const ROGUE = (() => {
   let R = Math.random, seed = 1, depth = 1, level = null, map = null, grid = null, fog = null, turns = null;
   let hero = null, foes = [], items = [], braziers = [], log = [], travel = null, busy = 0, mode = 'play', over = null, dirWait = 0, lastDir = null, repeatT = 0, held = 0, going = false;
   let stats = { kills: 0, gold: 0, turns: 0, killer: null };
-  const menu = new E.Menu(game, ['RETRY', 'TITLE'], { y: 0, onPick: i => i === 0 ? game.go('roguelike', null, { fade: 'iris' }) : game.go('title') });
+  const menu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('roguelike', null, { fade: 'iris' }) : game.go('title') });
   const say = (s, c = '#e8e0d0') => { log.push({ s, c, t: game.real }); if (log.length > 4) log.shift(); };
   const at = (x, y) => [x, y].join();
   const occupied = (cx, cy) => (hero && hero.cx === cx && hero.cy === cy) || foes.some(f => !f.dead && f.cx === cx && f.cy === cy);
@@ -217,11 +220,11 @@ const ROGUE = (() => {
     const sub = (ch, n, far) => E.gen.mark(g, ch, n, { seed: seed * 97 + depth * 13 + ch.charCodeAt(0), far, near: 2 });
     const rows = g.rows.map(r => r.split('')); rows[g.end[1]][g.end[0]] = depth === LAST ? 'A' : '>'; g.rows = rows.map(r => r.join(''));
     const pool = Object.keys(KINDS).filter(k => KINDS[k].from <= depth);
-    for (let i = 0; i < 5 + depth; i++) sub(KINDS[pool[Math.floor(R() * pool.length)]].name[0].toLowerCase(), 1, 6);
+    for (let i = 0; i < 5 + depth; i++) sub(pool[Math.floor(R() * pool.length)][0], 1, 6);
     sub('!', 2 + (depth % 2), 3); sub('?', depth % 3 === 1 ? 1 : 0, 3); sub('$', 3, 2);
     if (depth % 3 !== 0 && depth < LAST) sub(')', 1, 4);
     const legend = { '#': 1, '>': 'stairs', A: 'amulet', '!': 'potion', '?': 'scroll', '$': 'gold', ')': 'blade' };
-    for (const k in KINDS) legend[KINDS[k].name[0].toLowerCase()] = k;
+    for (const k in KINDS) legend[k[0]] = k;
     map = new E.TileMap({ rows: g.rows, legend, types: { 1: { h: 20, top: '#2e2a38', side: '#58506a', face: 'stone', roof: 'plain', cut: true, cutH: 4 } },
       floorTex: (x, y) => E.tex.flagstone(x, y, PAVE, 16) });
     map.outside = '#05040a';
@@ -234,7 +237,7 @@ const ROGUE = (() => {
     const [sx, sy] = g.start; hero.cx = sx; hero.cy = sy; [hero.x, hero.y] = center(sx, sy); travel = null;
     turns = new E.Turns([hero, ...foes], { mode: 'speed' });
     game.follow(hero, { z: 12 }); game.cam.bounds = v => map.bounds(v); game.cam.snap = true;
-    say(depth === LAST ? 'THE AMULET IS NEAR' : 'FLOOR ' + depth, '#ffd890');
+    say(depth === LAST ? E.t('roguelike.say.near') : E.t('roguelike.say.floor', { floor: depth }), '#ffd890');
     nextTurn();
   }
   function makeFoe(kind, cx, cy) {
@@ -252,7 +255,7 @@ const ROGUE = (() => {
       if (hero.hp <= 0) return;
     }
     fog.update([{ cx: hero.cx, cy: hero.cy, r: SIGHT }]);
-    for (const f of foes) if (!f.dead && !f.awake && fog.visible([f.cx, f.cy])) { f.awake = true; travel = null; say('A ' + f.K.name + ' SEES YOU', '#ffb070'); }
+    for (const f of foes) if (!f.dead && !f.awake && fog.visible([f.cx, f.cy])) { f.awake = true; travel = null; say(E.t('roguelike.say.sees', { monster: f.K.name }), '#ffb070'); }
   }
   // a step: the cell changes now, the rig walks there in a tween
   function stepTo(a, cx, cy) {
@@ -269,8 +272,8 @@ const ROGUE = (() => {
     if (d === hero) { if (hero.hp <= 0) { stats.killer = a.K.name; die(); } return; }
     if (d.hp <= 0) {
       d.dead = true; turns.remove(d); stats.kills++; P.dust(d.x, d.y, 4, 10); P.bits(d.x, d.y, 6, 6, d.K.blob ? [d.K.blob.colors.base, d.K.blob.colors.dk] : ['#6a6070', '#a8a0b0']);
-      hero.xp += d.K.xp; say('THE ' + d.K.name + ' DIES', '#a8e0a0');
-      if (hero.xp >= hero.next) { hero.lv++; hero.next = Math.round(hero.next * 1.7); hero.max += 5; hero.hp = hero.max; hero.atk += 1; say('LEVEL ' + hero.lv + '!', '#ffe070'); A.sfx('powerup'); }
+      hero.xp += d.K.xp; say(E.t('roguelike.say.dies', { monster: d.K.name }), '#a8e0a0');
+      if (hero.xp >= hero.next) { hero.lv++; hero.next = Math.round(hero.next * 1.7); hero.max += 5; hero.hp = hero.max; hero.atk += 1; say(E.t('roguelike.say.level', { level: hero.lv }), '#ffe070'); A.sfx('powerup'); }
     }
   }
   function foeTurn(f) {
@@ -290,13 +293,13 @@ const ROGUE = (() => {
       else if (grid.walk([cx, cy]) && !f && (dx === 0 || dy === 0 || corner(hero, { cx, cy }))) { stepTo(hero, cx, cy); pickUp(); if (mode !== 'play') return true; }
       else return false;
     } else if (act.potion) {
-      if (!hero.potions) { say('NO POTIONS'); return false; }
-      hero.potions--; const h = Math.min(hero.max - hero.hp, Math.ceil(hero.max * .6)); hero.hp += h; say('YOU FEEL BETTER (+' + h + ')', '#ff9aa0'); A.sfx('heal'); P.glints(hero.x, hero.y, 16, 8, '#ff9ab0');
+      if (!hero.potions) { say(E.t('roguelike.say.no_potions')); return false; }
+      hero.potions--; const h = Math.min(hero.max - hero.hp, Math.ceil(hero.max * .6)); hero.hp += h; say(E.t('roguelike.say.better', { hp: h }), '#ff9aa0'); A.sfx('heal'); P.glints(hero.x, hero.y, 16, 8, '#ff9ab0');
     } else if (act.scroll) {
-      if (!hero.scrolls) { say('NO SCROLLS'); return false; }
+      if (!hero.scrolls) { say(E.t('roguelike.say.no_scrolls')); return false; }
       hero.scrolls--; for (let i = 0; i < fog.state.length; i++) if (!fog.state[i] && map.walkable(i % map.w, Math.floor(i / map.w))) fog.state[i] = 1;
       for (let i = 0; i < fog.state.length; i++) { const x = i % map.w, y = Math.floor(i / map.w); if (!fog.state[i] && grid.neighbours([x, y]).some(c => map.walkable(...c))) fog.state[i] = 1; }
-      say('THE FLOOR IS REVEALED', '#a8c8ff'); A.sfx('powerup');
+      say(E.t('roguelike.say.revealed'), '#a8c8ff'); A.sfx('powerup');
     } else if (!act.wait) return false;
     stats.turns++; if (stats.turns % 9 === 0 && hero.hp < hero.max) hero.hp++;   // you heal slowly as you go
     busy = STEP; nextTurn(); return true;
@@ -304,16 +307,16 @@ const ROGUE = (() => {
   function pickUp() {
     const i = items.findIndex(t => t.cx === hero.cx && t.cy === hero.cy); if (i < 0) return;
     const t = items[i];
-    if (t.kind === 'stairs') { say('DOWN THE STAIRS', '#ffd890'); A.sfx('door'); descend(); return; }
+    if (t.kind === 'stairs') { say(E.t('roguelike.say.stairs'), '#ffd890'); A.sfx('door'); descend(); return; }
     items.splice(i, 1);
-    if (t.kind === 'potion') { hero.potions++; say('A POTION', '#ff9aa0'); }
-    else if (t.kind === 'scroll') { hero.scrolls++; say('A SCROLL OF MAPPING', '#a8c8ff'); }
-    else if (t.kind === 'gold') { const g = 5 + Math.floor(R() * 10 * depth); stats.gold += g; say(g + ' GOLD', '#ffe070'); A.sfx('coin'); }
-    else if (t.kind === 'blade') { const b = BLADES[Math.min(BLADES.length - 1, Math.floor(depth / 3) + 1)]; if (b[1] > hero.blade[1]) { hero.atk += b[1] - hero.blade[1]; hero.blade = b; say('A ' + b[0] + '!', '#c8e0ff'); } else say('A RUSTY BLADE (YOURS IS BETTER)'); A.sfx('powerup'); }
+    if (t.kind === 'potion') { hero.potions++; say(E.t('roguelike.say.potion'), '#ff9aa0'); }
+    else if (t.kind === 'scroll') { hero.scrolls++; say(E.t('roguelike.say.scroll'), '#a8c8ff'); }
+    else if (t.kind === 'gold') { const g = 5 + Math.floor(R() * 10 * depth); stats.gold += g; say(E.t('roguelike.say.gold', { gold: g }), '#ffe070'); A.sfx('coin'); }
+    else if (t.kind === 'blade') { const b = BLADES[Math.min(BLADES.length - 1, Math.floor(depth / 3) + 1)]; if (b[1] > hero.blade[1]) { hero.atk += b[1] - hero.blade[1]; hero.blade = b; say(E.t('roguelike.say.blade', { blade: b[0] }), '#c8e0ff'); } else say(E.t('roguelike.say.rusty')); A.sfx('powerup'); }
     else if (t.kind === 'amulet') { stats.gold += 500; finish('won'); }
   }
   function descend() { depth++; going = true; game.go('roguelike', { depth, keep: true }, { fade: 'iris', seconds: .35, at: hero }); }
-  function die() { say('YOU DIE...', '#ff6a6a'); A.sfx('die'); finish('dead'); }
+  function die() { say(E.t('roguelike.say.die'), '#ff6a6a'); A.sfx('die'); finish('dead'); }
   function finish(how) {
     mode = how; travel = null; menu.i = 0;
     const score = stats.gold + stats.kills * 10 + depth * 100 + (how === 'won' ? 1000 : 0);
@@ -329,7 +332,7 @@ const ROGUE = (() => {
     stats = { kills: 0, gold: 0, turns: 0, killer: null };
     hero = { cx: 0, cy: 0, x: 0, y: 0, hp: 20, max: 20, atk: 3, def: 1, speed: 100, lv: 1, xp: 0, next: 10, potions: 1, scrolls: 0, blade: BLADES[0], face: Math.PI / 2, hit: 0,
       rig: new E.Humanoid({ size: 1, outfit: 'tunic', hair: 'short', weapon: 'sword', cape: { len: 5, width: 5, seg: 2.4 }, colors: { cloth: '#2a5ab0', cape: '#8a2a2a', hair: '#c8a050', trim: '#e0c060' } }), swing: new E.Attack('slash') };
-    A.music(CRYPT); game.input.touchSet('attack', 'WAIT'); game.input.touchSet('skill', 'POTION'); game.input.touchSet('dash', 'SCROLL');
+    A.music(CRYPT); game.input.touchSet('attack', E.t('roguelike.touch.wait')); game.input.touchSet('skill', E.t('roguelike.touch.potion')); game.input.touchSet('dash', E.t('roguelike.touch.scroll'));
     build();
   }
   // the step the keys or the stick ask for: [dx, dy] on the grid (in iso, turned from the screen), or null
@@ -368,6 +371,9 @@ const ROGUE = (() => {
   }
 
   /* ---- 4. DRAWING: floor, stairs, things seen, actors in sight, the fog over it all, torchlight, the HUD ---- */
+  // a key the help names (J, L, K: the keyboard's, whatever the device), or the action's own once the player rebinds it
+  const keyOf = (a, code) => (game.input.map[a] || []).includes(code) ? game.input.codeLabel(code) : game.input.label(a);
+  const NUM = n => E.lang.num(n, { useGrouping: false });   // (a score or a count of turns past 999, without a thousands mark, as always)
   function draw(r) {
     map.drawFloor(r); map.queueWalls(r);
     const fl = (Math.sin(game.time * 13) + Math.sin(game.time * 7.3)) * .05;
@@ -396,23 +402,23 @@ const ROGUE = (() => {
     r.overlay(g => {
       const W = r.W, H = r.H, x0 = 4, w = 108;
       E.ui.box(g, x0, 4, w, 34, { alpha: .75 });
-      E.font.text(g, (depth === LAST ? 'DEEPEST FLOOR' : 'FLOOR ' + depth) + '   LV ' + hero.lv, x0 + 5, 8, '#ffe8b0', { outline: false });
+      E.font.text(g, depth === LAST ? E.t('roguelike.hud.deepest', { level: hero.lv }) : E.t('roguelike.hud.floor', { floor: depth, level: hero.lv }), x0 + 5, 8, '#ffe8b0', { outline: false });
       E.ui.bar(g, x0 + 5, 19, w - 10, 5, hero.hp / hero.max, hero.hp > hero.max * .3 ? '#e04a4a' : '#ff2a6a');
-      E.font.text(g, hero.hp + '/' + hero.max + '  ' + hero.blade[0], x0 + 5, 27, '#d8d0e8', { outline: false, font: 'tiny' });
+      E.font.text(g, E.t('roguelike.hud.hp', { hp: hero.hp, max: hero.max, blade: hero.blade[0] }), x0 + 5, 27, '#d8d0e8', { outline: false, font: 'tiny' });
       const cx = (touch() ? cornerX() : W) - 74;
       E.ui.box(g, cx, 4, 70, 22, { alpha: .75 });
-      px.sprite(g, SPR.potion, cx + 5, 9); E.font.text(g, 'x' + hero.potions, cx + 12, 10, '#ffb0b0', { outline: false });
-      px.sprite(g, SPR.scroll, cx + 34, 10); E.font.text(g, 'x' + hero.scrolls, cx + 42, 10, '#c8d8ff', { outline: false });
+      px.sprite(g, SPR.potion, cx + 5, 9); E.font.text(g, E.t('roguelike.hud.count', { count: hero.potions }), cx + 12, 10, '#ffb0b0', { outline: false });
+      px.sprite(g, SPR.scroll, cx + 34, 10); E.font.text(g, E.t('roguelike.hud.count', { count: hero.scrolls }), cx + 42, 10, '#c8d8ff', { outline: false });
       const ly = H - (touch() ? 96 : 12) - log.length * 9;
       log.forEach((m, i) => { const a = Math.min(1, 6 - (game.real - m.t)); if (a > 0) E.font.text(g, m.s, 6, ly + i * 9, m.c, { shadow: '#000', outline: false }); });
-      if (!touch() && mode === 'play') E.font.text(g, 'J WAIT  L POTION  K SCROLL', W - 4, H - 10, '#8a82a8', { align: 'right', outline: false, font: 'tiny' });
+      if (!touch() && mode === 'play') E.font.text(g, E.t('roguelike.hud.keys', { wait: keyOf('attack', 'KeyJ'), potion: keyOf('skill', 'KeyL'), scroll: keyOf('dash', 'KeyK') }), W - 4, H - 10, '#8a82a8', { align: 'right', outline: false, font: 'tiny' });
       if (over) {
         const k = Math.min(1, over.t / .8), cy = Math.round(H / 2);
         g.fillStyle = 'rgba(4,2,10,' + (.75 * k).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
         if (over.how === 'dead') tombstone(g, W / 2, cy - 30);
-        else E.font.title(g, 'YOU ESCAPED!', W / 2, cy - 76, { align: 'center', scale: 3, colors: ['#fff8d0', '#ffd060', '#e07a2a'] });
-        const lines = over.how === 'dead' ? ['KILLED BY A ' + (stats.killer || 'TRAP'), 'ON FLOOR ' + depth] : ['WITH THE AMULET OF EMBERS', 'FROM FLOOR ' + LAST];
-        lines.push('KILLS ' + stats.kills + '   GOLD ' + stats.gold + '   TURNS ' + stats.turns, 'SCORE ' + over.score + (over.score >= over.best ? '  BEST!' : '   BEST ' + over.best));
+        else E.font.title(g, E.t('roguelike.over.won'), W / 2, cy - 76, { align: 'center', scale: 3, colors: ['#fff8d0', '#ffd060', '#e07a2a'] });
+        const lines = over.how === 'dead' ? [E.t('roguelike.over.killed', { monster: stats.killer || E.t('roguelike.monster.trap') }), E.t('roguelike.over.on_floor', { floor: depth })] : [E.t('roguelike.over.amulet'), E.t('roguelike.over.from_floor', { floor: LAST })];
+        lines.push(E.t('roguelike.over.stats', { kills: NUM(stats.kills), gold: NUM(stats.gold), turns: NUM(stats.turns) }), over.score >= over.best ? E.t('roguelike.over.score_best', { score: NUM(over.score) }) : E.t('roguelike.over.score', { score: NUM(over.score), best: NUM(over.best) }));
         lines.forEach((s, i) => E.font.text(g, s, W / 2, cy + 16 + i * 10, i === lines.length - 1 ? '#ffe070' : '#e8e0f0', { align: 'center', shadow: '#000', outline: false }));
         if (over.t > 1.2) { menu.y = cy + 62; }
       }
@@ -423,10 +429,10 @@ const ROGUE = (() => {
     x = Math.round(x); px.ell(g, x, y + 30, 40, 7, '#2a2a1e'); px.ell(g, x, y + 29, 34, 5, '#3e4a2a');
     px.rect(g, x - 26, y - 18, 52, 46, '#5a5a66'); px.disc(g, x, y - 18, 26, '#5a5a66'); px.rect(g, x - 22, y - 16, 44, 42, '#6e6e7a'); px.disc(g, x, y - 18, 22, '#6e6e7a');
     px.rect(g, x - 26, y + 24, 52, 4, '#46464e');
-    E.font.text(g, 'R.I.P.', x, y - 26, '#2a2a34', { align: 'center', outline: false, scale: 1 });
-    E.font.text(g, 'HERE LIES', x, y - 10, '#34343e', { align: 'center', outline: false, font: 'tiny' });
-    E.font.text(g, 'A WANDERER', x, y - 2, '#34343e', { align: 'center', outline: false, font: 'tiny' });
-    E.font.text(g, 'LV ' + hero.lv, x, y + 8, '#34343e', { align: 'center', outline: false, font: 'tiny' });
+    E.font.text(g, E.t('roguelike.rip'), x, y - 26, '#2a2a34', { align: 'center', outline: false, scale: 1 });
+    E.font.text(g, E.t('roguelike.rip.lies'), x, y - 10, '#34343e', { align: 'center', outline: false, font: 'tiny' });
+    E.font.text(g, E.t('roguelike.rip.who'), x, y - 2, '#34343e', { align: 'center', outline: false, font: 'tiny' });
+    E.font.text(g, E.t('roguelike.rip.lv', { level: hero.lv }), x, y + 8, '#34343e', { align: 'center', outline: false, font: 'tiny' });
   }
 
   /* ---- 5. THE BOT: plays the run by itself (tools/kits-test.mjs): potions when hurt, fights what is next to it, walks

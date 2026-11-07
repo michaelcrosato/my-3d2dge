@@ -1495,8 +1495,10 @@ An entry:
   language section (6b: `E.lang`, `E.t`, the device's font for what the pixel fonts lack), the engine's own words as
   lines, and each kit's `game-lines` block (the engine's 209 lines and the kit's own, in its `<head>`, where a
   translation step reads them). The budgets go up: the agent edition's header 10,600 tokens (from 10,000), the API card
-  22,000 (from 21,300), and the kits as listed in `tools/doctrine-check.mjs` (KIT, KIT2D, KIT3D: the cap for a 2D kit and
-  each kit's own, raised by what the language section and the kit's lines measured, with room).
+  22,000 (from 21,300), and the kits (`tools/doctrine-check.mjs`): a 2D kit at most 216,000 (from 200,000); the six 2D
+  kits' own: rpg 264,000, shooter 242,000, adventure 228,000, sim 229,000, rts 227,000, brawler 225,000; the 3D kits':
+  action 250,000, platformer 244,500, shooter 322,000, horror 268,000, racing 257,000, flight 258,000, crawler 262,000.
+  Each is what the kit measured with the language section and its lines (v0.90.0), with 2,500 to 3,500 of room.
 - **Why:** the owner set the goal "increase the budgets, go ahead and implement this support". The words a player reads
   have to be in the page for the hub's translation step to find them, so a kit's lines can't move to the index; the
   language code serves every game on the hub. A kit that later sheds its lines' tokens (a shorter brief, the engine's

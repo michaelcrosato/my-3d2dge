@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.89.3: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.90.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -385,7 +385,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.89.3', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.90.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1150,7 +1150,7 @@ const LANG_DEV = {
   family: 'sans-serif',
   ZW: /[​-‏‪-‮⁦-⁩؜﻿]/, RTL: /[֐-ࣿיִ-﷿ﹰ-ﻼ]/,
   NOSPACE: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u,
-  _runs: new Map(), _w: new Map(), _cx: null,
+  _runs: new Map(), _w: new Map(), _mctx: null,
   /** the device font's size for a pixel font of rows (its height and descent) at scale sc: never under 12 px, the least a
    *  Chinese, Japanese or Korean character reads at */
   size(rows, sc) { return Math.max(12, Math.round(rows * sc * 1.2)); },
@@ -1183,8 +1183,8 @@ const LANG_DEV = {
   /** a run's width in pixels at size: measured where a canvas can (g, or one of its own), else reckoned (Node) */
   measure(g, s, size) {
     const k = size + '|' + this.family + '|' + s; let w = this._w.get(k); if (w !== undefined) return w;
-    let c = g && g.measureText ? g : this._cx;
-    if (!c && typeof document !== 'undefined' && document.createElement) try { c = this._cx = document.createElement('canvas').getContext('2d'); } catch (e) { c = null; }
+    let c = g && g.measureText ? g : this._mctx;
+    if (!c && typeof document !== 'undefined' && document.createElement) try { c = this._mctx = document.createElement('canvas').getContext('2d'); } catch (e) { c = null; }
     if (c && c.measureText) { c.font = size + 'px ' + this.family; w = Math.ceil(c.measureText(s).width); }
     else w = Math.ceil(E.lang.pieces(s.replace(this.ZW, ''), 'grapheme').reduce((n, ch) => n + (ch === ' ' ? .3 : LANG_CJK.test(ch) ? 1 : .6), 0) * size);
     if (this._w.size > 4000) this._w.clear();
