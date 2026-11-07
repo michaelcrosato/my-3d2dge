@@ -1437,7 +1437,7 @@ function shellHeadless(E, ed) {
     const [en, es] = [typed(), typed('es-419')];
     check(`${ed}: E.Dialog types a translated line over the original's time (22 letters at 20 a second: 1.1 s for its 38)`, en[0] === 1.1 && es[0] === 1.1 && es[1] === 38, JSON.stringify([en, es]));
     const eng = L.engineLines(), ids = Object.keys(eng);
-    check(`${ed}: the engine's own lines: ids of the spec's form, English text`, ids.every(k => /^engine\.[a-z0-9_]+(\.[a-z0-9_]+)*$/.test(k)) && Object.values(eng).every(v => typeof v === 'string' && v) && (ed === 'agent' || (ids.length > 150 && eng['engine.shell.resume'] === 'Resume' && eng['engine.setting.volume'] === 'Volume')), ids.length + ' lines');
+    check(`${ed}: the engine's own lines: ids of the spec's form, English text (a count's line its plural forms)`, ids.every(k => /^engine\.[a-z0-9_]+(\.[a-z0-9_]+)*$/.test(k)) && Object.values(eng).every(v => typeof v === 'string' ? !!v : !!v && typeof v.other === 'string' && Object.entries(v).every(([f, x]) => /^(zero|one|two|few|many|other)$/.test(f) && typeof x === 'string' && x)) && (ed === 'agent' || (ids.length > 150 && eng['engine.shell.resume'] === 'Resume' && eng['engine.setting.volume'] === 'Volume')), ids.length + ' lines');
   }
   const shared = f => { const s = readFileSync(join(root, f), 'utf8'), a = s.indexOf('// @lang-shared-start'), b = s.indexOf('// @lang-shared-end'); return a < 0 || b < 0 ? null : s.slice(a, b); };
   check('both editions: section 6b\'s shared text is the same to the letter (between @lang-shared-start and @lang-shared-end)', shared(EDITIONS[0][1]) !== null && shared(EDITIONS[0][1]) === shared(EDITIONS[1][1]));
