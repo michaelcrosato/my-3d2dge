@@ -936,8 +936,9 @@ E.font = {
         cx += gl.w + 1;
       }
     };
+    const RS = lines.map(line => LANG_DEV.runs(has, line, 'a')), LW = lines.map((line, li) => RS[li] ? lineWs(line, sc, g) : lineW(line) * sc);   // (each line measured once, not once a pass)
     const draw = (ox, oy, c, useGrad) => lines.forEach((line, li) => {
-      const R = LANG_DEV.runs(has, line, 'a'), lw = R ? lineWs(line, sc, g) : lineW(line) * sc, ly = y + li * lh;
+      const R = RS[li], lw = LW[li], ly = y + li * lh;
       const rtl = !!R && R.length === 1 && LANG_DEV.RTL.test(line), box = rtl && o.wrap && (!o.align || o.align === 'left');   // (right to left in a box: from its right edge)
       const al = box ? 'right' : o.align, lx = (box ? x + Math.round(o.wrap) : x) + (al === 'center' ? -Math.round(lw / 2) : al === 'right' ? -lw : 0);
       w = Math.max(w, lw);
