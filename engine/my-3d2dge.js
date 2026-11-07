@@ -947,7 +947,7 @@ class Input {
    *  'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕' */
   label(a, device = this.lastDevice) {
     const m = this.map[a]; if (!m) { this._check(a); return ''; }
-    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || (E.lang.has('action.' + idPart(a)) ? E.lang.upper(E.t('action.' + idPart(a))) : E.lang.has('engine.action.' + idPart(a)) ? E.lang.upper(E.t('engine.action.' + idPart(a))) : a.toUpperCase());   // (the game's line action.<name> names it, else the engine's)
+    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || this._actionCaps(a);
     const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
     const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
     return c ? this.codeLabel(c) : '';
@@ -982,8 +982,11 @@ class Input {
     const t = this._touchSet || (this._touchSet = {}); t[a] = { label, show: !!show };
     const b = this._touchBtns && this._touchBtns[a]; if (b && b.isConnected) this._touchLook(b, a);
   }
+  // an action's name in capitals for its touch button: the game's line action.<name>, else the engine's (engine.action.<name>),
+  // else the action's own name
+  _actionCaps(a) { const id = idPart(a); return E.lang.has('action.' + id) ? E.lang.upper(E.t('action.' + id)) : E.lang.has('engine.action.' + id) ? E.lang.upper(E.t('engine.action.' + id)) : a.toUpperCase(); }
   _touchLook(b, a) {
-    const t = this._touchSet && this._touchSet[a], o = this._touchArgs ? this._touchArgs.o : {}, text = (t && t.label) || (o.labels && o.labels[a]) || a.toUpperCase(), d = t && !t.show ? 'none' : '';
+    const t = this._touchSet && this._touchSet[a], o = this._touchArgs ? this._touchArgs.o : {}, text = (t && t.label) || (o.labels && o.labels[a]) || this._actionCaps(a), d = t && !t.show ? 'none' : '';
     if (b.textContent !== text) b.textContent = text;
     if (b.style.display !== d) { b.style.display = d; if (d) { b._inputPointers && b._inputPointers.clear(); b.classList.remove('on'); this.release('Act:' + a); } }   // (hidden under a finger: let go)
   }
@@ -1794,7 +1797,7 @@ Object.assign(ENGINE_LINES, {
   'engine.calibrate.how': 'Tap on each click you hear, in time with it, not before ({taps} of 8). The higher click starts each bar.',
   'engine.calibrate.done': 'Your sound comes {ms} ms after the beat. Keep it, or tap on to measure again.', 'engine.calibrate.tap': 'Tap',
   'engine.note.fullscreen_blocked': 'Full screen not allowed here', 'engine.note.pad_lost': 'Controller disconnected', 'engine.note.pad_lost_text': 'Press a button on a controller to use it, or play on.',
-  'engine.note.back_again': 'Back again to leave', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
+  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
   // save slots (game.saves)
   'engine.saves.auto': 'Autosave', 'engine.saves.slot': 'Slot {n}', 'engine.saves.empty': 'Empty', 'engine.saves.damaged': 'Damaged: it cannot be read',
   'engine.saves.newer': 'From a newer version of the game', 'engine.saves.level': 'Level {level}', 'engine.saves.save': 'Save', 'engine.saves.load': 'Load',
@@ -4137,7 +4140,7 @@ Game.prototype.addPlayer = function (o = {}) {
   q._onBindings = b => this.settings.set('playerBindings', Object.assign({}, this.settings.playerBindings, { [n]: b }));
   P.push(q); _pClaim(this);
   if (this._join && this._join.onJoin) try { this._join.onJoin(q, n); } catch (e) { this.fail('allowJoin onJoin', e); }
-  this.note(q.name + ' JOINED', 1.5); this.audio.sfx('confirm');
+  this.note(E.lang.upper(ENG('note.joined', { player: q.name })), 1.5); this.audio.sfx('confirm');
   return q;
 };
 /** a player leaves (its input, or its number, 2 to 4); player 1 has the whole keyboard back when no one shares it */
