@@ -45,6 +45,7 @@ if (m.phase !== 'over' || m.wins[m.winner] < 2) throw new Error('a match ends wi
 ```
 Rules: a fighter reads its input at the engine's 120 Hz step (motions too), so update it once a step; f.update(dt, ctl) takes an
 E.Input or a CPU's intent ({ x, y: -1..1 on screen, press: a button, do: a move id }); frame data is in frames at 60.
+Its words are lines: engine.fight.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -63,6 +64,16 @@ const BTN = ['lp', 'hp', 'lk', 'hk'];
 // what a move does by its button when the spec doesn't say: [dmg, stun, block, push]
 const BASE = { lp: [30, 13, 9, 70], hp: [80, 20, 15, 120], lk: [35, 14, 10, 80], hk: [90, 21, 16, 130] };
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.h && b.z < a.z + a.h;
+// its words are lines (docs/LANGUAGES.md), English here: a fighter's name when none is given, the calls, the combo, the
+// training's frame data and buttons, the character select
+const FRAMES = '{move}  STARTUP {startup}  ACTIVE {active}  RECOVERY {recovery}';
+E.lang.engine({
+  'engine.fight.fighter': 'FIGHTER', 'engine.fight.round': 'ROUND {round}', 'engine.fight.fight': 'FIGHT!', 'engine.fight.ko': 'K.O.', 'engine.fight.time': 'TIME',
+  'engine.fight.draw': 'DRAW', 'engine.fight.perfect': 'PERFECT', 'engine.fight.wins': '{name} WINS', 'engine.fight.hits': { one: '{count} HIT', other: '{count} HITS' },
+  'engine.fight.frames.down': FRAMES + '  KNOCKDOWN', 'engine.fight.frames.hit': FRAMES + '  ON HIT {adv}', 'engine.fight.frames.block': FRAMES + '  ON BLOCK {adv}',
+  'engine.fight.button.lp': 'LP', 'engine.fight.button.hp': 'HP', 'engine.fight.button.lk': 'LK', 'engine.fight.button.hk': 'HK',
+  'engine.fight.select': 'SELECT YOUR FIGHTER', 'engine.fight.ready': 'READY', 'engine.fight.vs': 'VS', 'engine.fight.cpu': 'CPU', 'engine.fight.player': 'P{player}'
+});
 
 /** the floor the fighters stand on when no level is given: z 0 between walls at x0 and x1 (a Platformer's level) */
 class FightStage {
@@ -87,7 +98,7 @@ class Fighter {
    *  back: 60, jump: 390, jumpX: 90, moves, throwBtn: 'hp', throwRange, throwDmg: 120, input }) */
   constructor(game, o = {}) {
     /** game: the game it fights in; name: its name on the HUD */
-    this.game = game; this.name = o.name || 'FIGHTER';
+    this.game = game; this.name = o.name || E.t('engine.fight.fighter');
     /** rig: its E.Humanoid (drawn and posed from its state every step) */
     this.rig = o.rig instanceof E.Humanoid ? o.rig : new E.Humanoid(Object.assign({ size: 2.6, build: 'heroic', weapon: null }, o.rig));
     const sz = this.rig.o.size;
@@ -419,7 +430,7 @@ class Match {
     this.f[0].reset(mid - 60, 1); this.f[1].reset(mid + 60, -1);
     /** phase: 'intro' | 'fight' | 'ko' | 'win' | 'over'; clock: the round's seconds left; call: the words on the screen
      *  (ROUND 1, FIGHT!, K.O., TIME, PERFECT), or null */
-    this.phase = this.o.training ? 'fight' : 'intro'; this._t = 0; this.clock = this.o.time; this.winner = null; this.call = this.o.training ? null : 'ROUND ' + this.round; this._slow = 0;
+    this.phase = this.o.training ? 'fight' : 'intro'; this._t = 0; this.clock = this.o.time; this.winner = null; this.call = this.o.training ? null : E.t('engine.fight.round', { round: this.round }); this._slow = 0;
   }
   _control(i) {
     if (this.phase !== 'fight') return null;
@@ -445,11 +456,11 @@ class Match {
       for (const f of this.f) f.meter = 100 * (f.o.bars || 1);
       return;
     }
-    if (this.phase === 'intro') { if (this._t > 1.1) this.call = 'FIGHT!'; if (this._t > 1.8) { this.phase = 'fight'; this.call = null; this._t = 0; } }
+    if (this.phase === 'intro') { if (this._t > 1.1) this.call = E.t('engine.fight.fight'); if (this._t > 1.8) { this.phase = 'fight'; this.call = null; this._t = 0; } }
     else if (this.phase === 'fight') {
       this.clock = Math.max(0, this.clock - dt);
       if (a.ko || b.ko || this.clock <= 0) {
-        this.phase = 'ko'; this._t = 0; this.call = a.ko || b.ko ? 'K.O.' : 'TIME';
+        this.phase = 'ko'; this._t = 0; this.call = E.t(a.ko || b.ko ? 'engine.fight.ko' : 'engine.fight.time');
         this.winner = a.ko && b.ko ? null : a.ko ? 1 : b.ko ? 0 : a.life === b.life ? null : a.life > b.life ? 0 : 1;
         if (a.ko || b.ko) { this.game.timeScale = .35; this._slow = .9; this.game.flash('#ffffff', .2); this.game.audio.sfx('boom'); }
       }
@@ -457,12 +468,12 @@ class Match {
       if (this._slow > 0 && (this._slow -= dt / Math.max(.01, this.game.timeScale)) <= 0) this.game.timeScale = 1;
       if (this._t > 2.2 && [a, b].every(f => f.body.onGround && !f.thrown)) {
         this.phase = 'win'; this._t = 0;
-        if (this.winner === null) { this.wins[0]++; this.wins[1]++; this.call = 'DRAW'; }
-        else { const w = this.f[this.winner]; this.wins[this.winner]++; w.win = true; this.call = w.life >= w.o.life ? 'PERFECT' : w.name + ' WINS'; this.game.audio.sfx('powerup'); }
+        if (this.winner === null) { this.wins[0]++; this.wins[1]++; this.call = E.t('engine.fight.draw'); }
+        else { const w = this.f[this.winner]; this.wins[this.winner]++; w.win = true; this.call = w.life >= w.o.life ? E.t('engine.fight.perfect') : E.t('engine.fight.wins', { name: w.name }); this.game.audio.sfx('powerup'); }
       }
     } else if (this.phase === 'win' && this._t > 2.6) {
       const done = this.wins.map(n => n >= this.o.rounds);
-      if (done[0] !== done[1]) { this.phase = 'over'; this.winner = done[0] ? 0 : 1; this.call = this.f[this.winner].name + ' WINS'; if (this.o.onEnd) this.o.onEnd(this.winner); }
+      if (done[0] !== done[1]) { this.phase = 'over'; this.winner = done[0] ? 0 : 1; this.call = E.t('engine.fight.wins', { name: this.f[this.winner].name }); if (this.o.onEnd) this.o.onEnd(this.winner); }
       else this.startRound();
     }
   }
@@ -483,14 +494,14 @@ class Match {
       for (let w = 0; w < this.o.rounds; w++) { const sx = flip ? x + w * 9 : x + bw - 7 - w * 9; px.disc(g, sx + 3, y + 16, 3, w < this.wins[i] ? '#ffd23a' : '#3a2a4a'); }
       const mb = Math.round(bw * .6), mx = flip ? W - 12 - mb : 12, my = H - 12, mk = f.meter / 100, full = mk >= 1;
       E.ui.bar(g, mx, my, mb, 6, mk % 1 || (full ? 1 : 0), full && Math.floor(this.game.real * 6) % 2 ? '#a0f0ff' : '#3a8aff');
-      if (f.combo > 1 && f.stun > 0) font.title(g, f.combo + ' HITS', flip ? 14 : W - 14, y + 44, { scale: 2, align: flip ? 'left' : 'right', colors: CALL });
+      if (f.combo > 1 && f.stun > 0) font.title(g, E.t('engine.fight.hits', { count: f.combo }), flip ? 14 : W - 14, y + 44, { scale: 2, align: flip ? 'left' : 'right', colors: CALL });
     });
     if (!this.o.training) { const box = Math.round(W / 2); E.ui.box(g, box - 15, y - 6, 30, 22, { bg: ['#2a1a4a', '#120a28'] }); font.title(g, String(Math.ceil(this.clock)).padStart(2, '0'), box, y - 3, { scale: 2, align: 'center', colors: ['#ffffff', '#c8d8ff'] }); }
     if (this.call) font.title(g, this.call, W / 2, H / 2 - 30, { scale: 4, align: 'center', colors: CALL, depth: 3 });
     if (this.o.training) {   // frame data and player 1's last second of inputs
-      const L = this.f[0].last; if (L) font.text(g, L.id.toUpperCase() + '  STARTUP ' + L.startup + '  ACTIVE ' + L.active + '  RECOVERY ' + L.recovery + (L.adv === null ? '  KNOCKDOWN' : '  ON ' + L.on.toUpperCase() + ' ' + (L.adv > 0 ? '+' : '') + L.adv), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false, font: 'tiny' });
+      const L = this.f[0].last; if (L) font.text(g, E.t('engine.fight.frames.' + (L.adv === null ? 'down' : L.on), { move: E.lang.upper(L.id), startup: L.startup, active: L.active, recovery: L.recovery, adv: L.adv === null ? '' : E.lang.num(L.adv, { signDisplay: 'exceptZero' }) }), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false, font: 'tiny' });
       const I = this.inputs[0], hist = I && I.history ? I.history.slice(-12) : [], mir = { 1: 3, 3: 1, 4: 6, 6: 4, 7: 9, 9: 7 };   // (numpad digits, as the fighter faces)
-      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).join('+').toUpperCase(), 12, y + 36 + k * 8, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' }));
+      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).map(p => E.t('engine.fight.button.' + p)).join('+'), 12, y + 36 + k * 8, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' }));
     }
   }
 }
@@ -529,19 +540,19 @@ class FightSelect {
   draw(r) {
     r.overlay(g => {
       const W = r.W, H = r.H, n = this.roster.length, s = Math.min(46, Math.floor((W - 40) / n) - 6), x0 = Math.round(W / 2 - (n * (s + 6) - 6) / 2), y = H - s - 34;
-      E.font.title(g, 'SELECT YOUR FIGHTER', W / 2, 10, { scale: 2, align: 'center', colors: CALL });
+      E.font.title(g, E.t('engine.fight.select'), W / 2, 10, { scale: 2, align: 'center', colors: CALL });
       for (let i = 0; i < 2; i++) {
         const e = this.roster[this.at[i]], big = Math.min(96, Math.round(H * .42)), bx = i ? W - 16 - big : 16;
         this.rigs[this.at[i]].drawPortrait(g, bx, 36, big, { zoom: 2.4, turn: i ? -.6 : .6, bg: i ? ['#ff8a6a', '#5a1a2a'] : ['#6ab0ff', '#1a2a5a'], border: E.PLAYER_COLORS[i] });
         E.font.text(g, e.name, bx + big / 2, 40 + big, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         if (e.about) E.font.text(g, e.about, bx + big / 2, 50 + big, '#c8b8e8', { align: 'center', outline: false, font: 'tiny' });
-        if (this.picks[i]) E.font.text(g, 'READY', bx + big / 2, 30, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
+        if (this.picks[i]) E.font.text(g, E.t('engine.fight.ready'), bx + big / 2, 30, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
       }
-      E.font.title(g, 'VS', W / 2, 70, { scale: 3, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] });
+      E.font.title(g, E.t('engine.fight.vs'), W / 2, 70, { scale: 3, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] });
       this.rects = this.roster.map((e, k) => [x0 + k * (s + 6), y, s, s]);   // (where a tap picks)
       this.roster.forEach((e, k) => {
         const x = x0 + k * (s + 6); this.rigs[k].drawPortrait(g, x, y, s, { zoom: 2, turn: .5 });
-        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? 'CPU' : 'P' + (i + 1), x + s / 2, y + s + 6, c, { align: 'center', outline: false, font: 'tiny' }); }
+        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? E.t('engine.fight.cpu') : E.t('engine.fight.player', { player: i + 1 }), x + s / 2, y + s + 6, c, { align: 'center', outline: false, font: 'tiny' }); }
       });
     });
   }

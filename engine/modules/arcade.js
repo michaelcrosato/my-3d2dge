@@ -28,7 +28,8 @@ if (cab.die() !== 'again' || cab.die() !== 'again' || cab.die() !== 'over') thro
 cab.start(2); if (cab.die() !== 'next' || cab.p.n !== 2) throw new Error('turns');
 ```
 Rules: tables live in E.store ('arcade:' + id + ':' + mode; kept for the visit where storage is blocked); a demo is the game's own bot (or a recorded input log)
-playing the real rules; the entry and the continue read the game's keys, so hold play while either is open.
+playing the real rules; the entry and the continue read the game's keys, so hold play while either is open. Its words
+are lines: engine.arcade.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -40,6 +41,13 @@ if (!E) throw new Error('my-3D2dge module ARCADE: load engine/my-3d2dge.js (or t
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-! ', COLS = ['#ff4a4a', '#ffffff', '#ffe070'];
 const clicked = I => I.clicked ? I.clicked() : null;   // (a tap: the full engine's; the agent edition has none)
 const KEPT = {};   // the tables this visit, beside E.store (they still show where storage is blocked)
+// its words are lines (docs/LANGUAGES.md), English here: the cards and words it shows itself, the HUD, the continue, the
+// entry and the table (a game's own cards and words are its lines)
+E.lang.engine({
+  'engine.arcade.player': 'PLAYER {player}', 'engine.arcade.ready': 'PLAYER {player}, READY!', 'engine.arcade.extra_life': 'EXTRA LIFE!', 'engine.arcade.up': '{player}UP',
+  'engine.arcade.hi': 'HI', 'engine.arcade.demo': 'DEMO', 'engine.arcade.continue': 'CONTINUE?', 'engine.arcade.new_high': 'NEW HIGH SCORE!', 'engine.arcade.ok': 'OK',
+  'engine.arcade.initials': 'ENTER YOUR INITIALS', 'engine.arcade.high_scores': 'HIGH SCORES', 'engine.arcade.rank': '{rank}.'
+});
 class Arcade {
   /** new E.Arcade(game, { id, lives: 3, extra: [] (the scores that give a life) or every (a life each that many points),
    *  credits: null (free play) or the coins a game takes, idle: 20, demo: 30, scores: 6 (the attract mode's seconds),
@@ -65,7 +73,7 @@ class Arcade {
     this.players = Array.from({ length: Math.max(1, Math.min(2, players)) }, (_, i) => ({ n: i + 1, score: 0, lives: this.o.lives, save: null, next: this.o.every || (this.o.extra[0] === undefined ? Infinity : this.o.extra[0]) }));
     this.p = this.players[0]; this.mode = 'play'; this.demo = !!o.demo; this.entry = null; this._cont = null; this._cards.length = 0;
     this.hi = Math.max(this.hi, (this.table()[0] || { score: 0 }).score);
-    if (this.players.length > 1) this.card('PLAYER 1', 1.6);
+    if (this.players.length > 1) this.card(E.t('engine.arcade.player', { player: 1 }), 1.6);
     return true;
   }
   /** add points to the player up (at: a world point { x, y, z } where they float up); an extra life at each threshold */
@@ -74,7 +82,7 @@ class Arcade {
     p.score += points; this.hi = Math.max(this.hi, p.score);
     while (p.score >= p.next) {
       p.lives++; const every = this.o.every, more = this.o.extra.find(s => s > p.next); p.next = every ? p.next + every : more === undefined ? Infinity : more;
-      this.say('EXTRA LIFE!', 1.2); this.game.audio.sfx('oneup');
+      this.say(E.t('engine.arcade.extra_life'), 1.2); this.game.audio.sfx('oneup');
     }
     if (at) this.game.particles.text(at.x || 0, at.y || 0, (at.z || 0) + 6, points, this.o.colors[2]);
   }
@@ -86,7 +94,7 @@ class Arcade {
     for (let k = 1; k <= n; k++) {
       const q = this.players[(i + k) % n]; if (q.lives <= 0) continue;
       if (q === p) return 'again';
-      this.p = q; this.card('PLAYER ' + q.n + ', READY!', 2); return 'next';
+      this.p = q; this.card(E.t('engine.arcade.ready', { player: q.n }), 2); return 'next';
     }
     this.mode = 'over'; return 'over';
   }
@@ -172,15 +180,15 @@ class Arcade {
       const [X, Y, W, H] = box || [0, 0, r.W, r.H], cx = X + W / 2, F = E.font, col = this.o.colors, tx = (s, x, y, c, o) => F.text(g, s, x, y, c, Object.assign({ outline: false, shadow: '#000' }, o));
       if (this.o.hud && this.p) {
         const up = n => this.p.n === n && this.mode === 'play' && this.players.length > 1 && Math.floor(this._t * 3) % 2;   // the player up's label blinks
-        tx(up(1) ? '' : '1UP', X + 4, Y + 3, col[0], { font: 'tiny' }); tx(String(this.players[0].score), X + 20, Y + 2, col[1]);
-        tx('HI', cx - 2, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.hi), cx + 2, Y + 2, col[1]);
-        if (this.players[1]) { tx(up(2) ? '' : '2UP', X + W - 4, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.players[1].score), X + W - 20, Y + 2, col[1], { align: 'right' }); }
+        tx(up(1) ? '' : E.t('engine.arcade.up', { player: 1 }), X + 4, Y + 3, col[0], { font: 'tiny' }); tx(String(this.players[0].score), X + 20, Y + 2, col[1]);
+        tx(E.t('engine.arcade.hi'), cx - 2, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.hi), cx + 2, Y + 2, col[1]);
+        if (this.players[1]) { tx(up(2) ? '' : E.t('engine.arcade.up', { player: 2 }), X + W - 4, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.players[1].score), X + W - 20, Y + 2, col[1], { align: 'right' }); }
         for (let i = 0; i < Math.min(6, this.p.lives - 1); i++) { E.px.disc(g, X + 9 + i * 9, Y + H - 7, 3, col[2]); E.px.dot(g, X + 8 + i * 9, Y + H - 8, '#ffffff'); }
       }
       let y = Math.round(Y + H / 2) - 14;
       for (const c of this._cards) { if (c.big) { tx(c.text, cx, y, col[2], { align: 'center', scale: 2 }); y += 20; } else { tx(c.text, cx, y, col[1], { align: 'center' }); y += 11; } }
-      if (this.demo && Math.floor(this._t * 2) % 2 === 0) tx('DEMO', cx, Y + H - 30, col[2], { align: 'center', scale: 2 });
-      if (this._cont && !this.entry) { tx('CONTINUE?', cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 }); }
+      if (this.demo && Math.floor(this._t * 2) % 2 === 0) tx(E.t('engine.arcade.demo'), cx, Y + H - 30, col[2], { align: 'center', scale: 2 });
+      if (this._cont && !this.entry) { tx(E.t('engine.arcade.continue'), cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 }); }
       const e = this.entry;
       if (e) {
         g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
@@ -189,24 +197,25 @@ class Arcade {
         const S = this.game.screen, u = Math.max(34, Math.ceil(46 * (S && S.S ? S.dpr / S.S : 0))), cw = u, x0 = Math.round(cx - cw * 1.5), y0 = Math.round(Y + H / 2 - u / 2 - 4);
         const ok = [Math.round(cx - u), y0 + 26 + u + 4, u * 2, u];
         this.wheel = { x: x0, y: y0, cw, up: [y0 - u, y0], down: [y0 + 26, y0 + 26 + u], ok };
-        tx('NEW HIGH SCORE!', cx, y0 - u - 30, col[2], { align: 'center', scale: 2 }); tx(String(e.score), cx, y0 - u - 12, col[1], { align: 'center' });
+        tx(E.t('engine.arcade.new_high'), cx, y0 - u - 30, col[2], { align: 'center', scale: 2 }); tx(String(e.score), cx, y0 - u - 12, col[1], { align: 'center' });
         for (let i = 0; i < 3; i++) {
           const x = x0 + i * cw + cw / 2, on = i === e.i;
           tx(LETTERS[e.name[i]], x, y0 + 4, on && Math.floor(e.t * 4) % 2 ? col[1] : on ? col[2] : col[1], { align: 'center', scale: 3 });
           E.px.poly(g, [[x - 5, y0 - 8], [x + 5, y0 - 8], [x, y0 - 14]], on ? col[0] : '#5a4a6a'); E.px.poly(g, [[x - 5, y0 + 32], [x + 5, y0 + 32], [x, y0 + 38]], on ? col[0] : '#5a4a6a');
         }
-        E.px.rect(g, ok[0], ok[1], ok[2], ok[3], '#2a1a3e'); E.px.rect(g, ok[0], ok[1], ok[2], 1, col[2]); tx('OK', cx, ok[1] + ok[3] / 2 - 3, col[2], { align: 'center' });
-        tx('ENTER YOUR INITIALS', cx, ok[1] + ok[3] + 4, '#c8c0e0', { align: 'center', font: 'tiny' });
+        E.px.rect(g, ok[0], ok[1], ok[2], ok[3], '#2a1a3e'); E.px.rect(g, ok[0], ok[1], ok[2], 1, col[2]); tx(E.t('engine.arcade.ok'), cx, ok[1] + ok[3] / 2 - 3, col[2], { align: 'center' });
+        tx(E.t('engine.arcade.initials'), cx, ok[1] + ok[3] + 4, '#c8c0e0', { align: 'center', font: 'tiny' });
       }
     });
   }
-  /** a table as a screen (the attract mode's, or after a game), its title at y: rank, name, score */
-  drawTable(r, mode = '', y = 40, title = 'HIGH SCORES') {
+  /** a table as a screen (the attract mode's, or after a game), its title at y (HIGH SCORES: the line
+   *  engine.arcade.high_scores): rank, name, score */
+  drawTable(r, mode = '', y = 40, title = E.t('engine.arcade.high_scores')) {
     const t = this.table(mode);
     r.overlay(g => {
       const cx = r.W / 2, col = this.o.colors, tx = (s, x, yy, c, o) => E.font.text(g, s, x, yy, c, Object.assign({ outline: false, shadow: '#000' }, o));
       tx(title, cx, y, col[2], { align: 'center', scale: 2 });
-      for (let i = 0; i < 10; i++) { const e = t[i], yy = y + 26 + i * 11, c = i ? col[1] : col[2]; tx((i + 1) + '.', cx - 52, yy, c, { align: 'right' }); tx(e ? e.name : '---', cx - 42, yy, c); tx(String(e ? e.score : 0), cx + 60, yy, c, { align: 'right' }); }
+      for (let i = 0; i < 10; i++) { const e = t[i], yy = y + 26 + i * 11, c = i ? col[1] : col[2]; tx(E.t('engine.arcade.rank', { rank: i + 1 }), cx - 52, yy, c, { align: 'right' }); tx(e ? e.name : '---', cx - 42, yy, c); tx(String(e ? e.score : 0), cx + 60, yy, c, { align: 'right' }); }
     });
   }
 }

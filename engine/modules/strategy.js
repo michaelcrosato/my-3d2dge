@@ -51,13 +51,14 @@ rts.order([w], 'gather', mine); rts.train(hall, 'worker'); game.advance(20);
 if (rts.side('blue').res.gold <= 50 || rts.of('blue', 'worker').length !== 2) throw new Error('gather, train');
 ```
 Rules: units are the module's; read them, draw them, give them orders; a building blocks its cells (map.block), so
-flow fields go round it. The same orders give the same game.
+flow fields go round it. The same orders give the same game. Its words are lines: engine.strategy.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
 if (!E) throw new Error('my-3D2dge module STRATEGY: load engine/my-3d2dge.js (the full engine) first');
 if (!E.Grid) throw new Error('my-3D2dge module STRATEGY: load engine/modules/grid.js first');
 const { clamp, px } = E, hyp = Math.hypot;
+E.lang.engine({ 'engine.strategy.clock': 'DAY {day}  {time}' });   // its words are lines (docs/LANGUAGES.md): the clock's label
 
 /* =============================================================================
  * STRATEGY  units, buildings and resources on a TileMap; their orders, production, fog, selection and an AI
@@ -399,8 +400,8 @@ class Clock {
   get minute() { return Math.floor(this.t % 1 * 60); }
   /** true from 20:00 to 6:00 */
   get night() { const h = this.t % 24; return h >= 20 || h < 6; }
-  /** 'DAY 2  14:30' */
-  label() { return 'DAY ' + this.day + '  ' + String(this.hour).padStart(2, '0') + ':' + String(Math.floor(this.minute / 10) * 10).padStart(2, '0'); }
+  /** 'DAY 2  14:30' (the line engine.strategy.clock) */
+  label() { return E.t('engine.strategy.clock', { day: this.day, time: String(this.hour).padStart(2, '0') + ':' + String(Math.floor(this.minute / 10) * 10).padStart(2, '0') }); }
   /** the light by the hour: { ambient (.12 at night .. 1 at noon), color (the sky's tint: blue night, warm dawn and dusk) } */
   light() {
     const h = this.t % 24, sun = clamp(Math.sin((h - 6) / 12 * Math.PI), 0, 1), dusk = clamp(1 - Math.abs(h - 6.5) / 1.5, 0, 1) + clamp(1 - Math.abs(h - 19) / 1.5, 0, 1);

@@ -3,7 +3,7 @@ my-3D2dge module RPG v0.89.3: items, inventories, equipment, shops, a party's st
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
-The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the inventory grid of a Resident Evil.
+The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger) and a Resident Evil's inventory grid.
 - const rpg = new E.RPG({ items, monsters, status, curve }). items: { id: { name, kind: 'use' | 'weapon' | 'armor' |
   'helm' | 'accessory' | 'key', price, stack (99), heal, mp, cure: ['poison'], revive (a share of HP), stats: { atk: 4 }
   (worn: slot = its kind), size: [w, h] (grid cells), icon (a sprite; else one for its kind), info } }. monsters: { id:
@@ -43,8 +43,8 @@ if (won.exp !== 36 || party.gold !== 64 || hero.level < 2 || hero.max('hp') !== 
 hero.hp = 5; shop.buy(party, 'potion'); if (!party.use('potion', hero) || hero.hp !== 35 || party.inv.has('potion')) throw new Error('a potion drunk');
 if (rpg.restore(JSON.parse(JSON.stringify(party.state()))).members[0].stat('atk') !== hero.stat('atk')) throw new Error('saved and back');
 ```
-Rules: ids in the save, never objects; a battle reads members' stat() and writes their hp and mp back; draw windows
-in r.overlay; randomness is Math.random's (a proof seeds it).
+Rules: ids in the save, never objects; a battle reads members' stat() and writes their hp and mp back; randomness is
+Math.random's (a proof seeds it). Its words are lines: engine.rpg.*.
 */
 (function (E) {
 'use strict';
@@ -59,12 +59,18 @@ const STATUS = {   // the default effects: hurt and heal (a share of max HP a ti
   stop: { skip: true, turns: 2, color: '#c0c0c0' }, silence: { mute: true, turns: 4, color: '#e0e0a0' }, haste: { spd: 1.5, turns: 5, color: '#ffd060' }, slow: { spd: .5, turns: 5, color: '#6a8ac0' }
 };
 const copy = v => JSON.parse(JSON.stringify(v));
+// its words are lines (docs/LANGUAGES.md), English here: a member's name when none is given, a card's labels and stats,
+// the default effects' names (a game's own effect shows its name in capitals)
+const LINES = { 'engine.rpg.hero': 'Hero', 'engine.rpg.level': 'Lv {level}', 'engine.rpg.hp': 'HP', 'engine.rpg.mp': 'MP' };
+for (const k of ['atk', 'def', 'mag', 'spd']) LINES['engine.rpg.stat.' + k] = k.toUpperCase() + ' {value}';   // ('ATK {value}')
+for (const k in STATUS) LINES['engine.rpg.status.' + k] = k.toUpperCase();   // ('POISON')
+E.lang.engine(LINES);
 class Member {
   /** a party member (rpg.member(o): the manual above) */
   constructor(rpg, o = {}) {
     /** rpg: its rules; name; level; base: its stats at level 1; growth: what each level adds; equipped: its gear by
      *  slot; effects: its status effects (turns left, 0 till cured); data: the game's own (a rig's look, skills) */
-    this.rpg = rpg; this.name = o.name || 'Hero'; this.level = o.level || 1; this.base = Object.assign({ hp: 30, mp: 0, atk: 5, def: 5, mag: 5, spd: 5 }, o.stats);
+    this.rpg = rpg; this.name = o.name || E.t('engine.rpg.hero'); this.level = o.level || 1; this.base = Object.assign({ hp: 30, mp: 0, atk: 5, def: 5, mag: 5, spd: 5 }, o.stats);
     this.growth = Object.assign({}, o.growth); this.equipped = Object.assign({}, o.equip); this.effects = Object.assign({}, o.effects); this.data = o.data || {};
     /** exp: experience gained in all; hp, mp: what it has now */
     this.exp = o.exp !== undefined ? o.exp : rpg.curve(this.level); this.hp = o.hp !== undefined ? o.hp : this.max('hp'); this.mp = o.mp !== undefined ? o.mp : this.max('mp');
@@ -314,11 +320,11 @@ class RPG {
     const w = o.w || 150, h = 62, P = o.portrait, tx = x + (P ? 34 : 7), t = (s, a, b, c, al) => E.font.text(g, String(s), a, b, c, { outline: false, shadow: '#0a0820', align: al });
     E.ui.box(g, x, y, w, h, { bg: o.bg || ['#6c8cff', '#0a0a48'] });
     if (P) P.drawPortrait(g, x + 4, y + 4, 26, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: m.dead ? '#808080' : undefined });
-    t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t('Lv ' + m.level, x + w - 7, y + 5, '#ffe08a', 'right');
+    t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t(E.t('engine.rpg.level', { level: m.level }), x + w - 7, y + 5, '#ffe08a', 'right');
     const bar = (lab, v, mx, by, c) => { E.font.text(g, lab, tx, by, '#9ad0ff', { font: 'tiny', outline: false }); t(v + '/' + mx, x + w - 7, by - 2, '#ffffff', 'right'); E.ui.bar(g, tx + 12, by + 7, x + w - tx - 19, 3, mx ? v / mx : 0, c, { bg: '#2a2650' }); };
-    bar('HP', m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar('MP', m.mp, m.max('mp'), y + 30, '#5aa0ff');
-    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, k.toUpperCase() + ' ' + Math.round(m.stat(k)), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
-    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.join(' ').toUpperCase(), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
+    bar(E.t('engine.rpg.hp'), m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar(E.t('engine.rpg.mp'), m.mp, m.max('mp'), y + 30, '#5aa0ff');
+    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, E.t('engine.rpg.stat.' + k, { value: Math.round(m.stat(k)) }), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
+    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.map(k => E.lang.has('engine.rpg.status.' + k) ? E.t('engine.rpg.status.' + k) : E.lang.upper(k)).join(' '), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
     return { w, h };
   }
 }

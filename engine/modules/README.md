@@ -44,6 +44,10 @@ E.Grid = Grid;
   fails on a core-private name (`._x`).
 - **The rules of the engine hold:** time only from `dt` and the game's clocks, randomness only from `E.rng` or
   `Math.random`, no dependencies, no binaries, no network, opt-in behavior, and the names agents already know.
+- **Its words are lines** (`docs/LANGUAGES.md`): what it shows a player is registered at load, in English by id
+  (`E.lang.engine({ 'engine.<name>.<what>': 'Text' })`), and shown with `E.t(id, values)`: whole sentences with
+  `{blanks}`, capitals by `E.lang.upper`, words a game passes in shown as given. A kit's page carries the lines of the
+  modules it carries (`node tools/lines.mjs --engine` lists them all); the manual says so in a sentence.
 - **Where it goes:** `dist/my-3d2dge.js` and the reference editions carry every module; a kit carries the modules its
   slice names in its header (`@modules grid gen`) and those they need; `dist/handoff/modules/` has each on its own.
   `tools/engine-lib.mjs` loads them for every tool.

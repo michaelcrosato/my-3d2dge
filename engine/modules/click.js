@@ -49,7 +49,7 @@ pc.act('pickup', 'key'); game.advance(8);
 if (!pc.has('key')) throw new Error('picked up');
 ```
 Rules: a room's picture is the game's (paint it in room pixels); keep puzzles as rules (data); talk goes through story
-(its nodes, choices and flags: rules test them with if).
+(its nodes, choices and flags: rules test them with if). Its words are lines: engine.click.* (docs/LANGUAGES.md).
 */
 (function (E) {
 'use strict';
@@ -119,13 +119,29 @@ E.Walkbox = Walkbox;
  * ========================================================================== */
 const VERBS = [['give', 'GIVE'], ['pickup', 'PICK UP'], ['use', 'USE'], ['open', 'OPEN'], ['look', 'LOOK AT'], ['push', 'PUSH'], ['close', 'CLOSE'], ['talk', 'TALK TO'], ['pull', 'PULL']];
 const ICONS = [['walk', 'WALK'], ['look', 'LOOK'], ['hand', 'HAND'], ['talk', 'TALK']], ICON = Object.fromEntries(ICONS);   // (Sierra's cursor: a right click turns it)
-const VERB = Object.fromEntries(VERBS), COIN = [['look', 'LOOK'], ['talk', 'TALK'], ['use', 'USE']];
+const VERB = Object.fromEntries(VERBS), COIN = [['look', 'LOOK'], ['talk', 'TALK'], ['use', 'USE'], ['pickup', 'TAKE'], ['walk', 'GO']];
+// its words are lines (docs/LANGUAGES.md), English here: the buttons (engine.click.verb.*, .icon.*, .coin.*), the
+// sentence line (engine.click.do.<verb>: 'Pick up {what}'), the icon's word by the pointer, what the hero says when
+// nothing answers (engine.click.no.<verb>)
+const LINES = {
+  'engine.click.do.walk': 'Walk to {what}', 'engine.click.give_to': 'Give {item} to {what}', 'engine.click.use_with': 'Use {item} with {what}',
+  'engine.click.no.look': 'It\'s {name}.', 'engine.click.no.look_item': 'It\'s a {name}.', 'engine.click.no.pickup': 'I can\'t pick that up.', 'engine.click.no.use': 'I can\'t use that.',
+  'engine.click.no.talk': 'It doesn\'t say much.', 'engine.click.no.give': 'I\'d rather keep it.', 'engine.click.no.open': 'It doesn\'t open.', 'engine.click.no.close': 'It doesn\'t close.',
+  'engine.click.no.push': 'It won\'t budge.', 'engine.click.no.pull': 'It won\'t budge.', 'engine.click.no.with': 'That doesn\'t work.'
+};
+const sentence = s => s[0] + s.slice(1).toLowerCase() + ' {what}';   // ('PICK UP' -> 'Pick up {what}')
+for (const [v, s] of VERBS) { LINES['engine.click.verb.' + v] = s; LINES['engine.click.do.' + v] = sentence(s); }
+for (const [v, s] of ICONS) { LINES['engine.click.icon.' + v] = s; if (v !== 'walk') { LINES['engine.click.do_icon.' + v] = sentence(s); LINES['engine.click.hover.' + v] = s + ' {name}'; } }
+for (const [v, s] of COIN) LINES['engine.click.coin.' + v] = s;
+E.lang.engine(LINES);
+// a game's word in small letters, in the player's language (Turkish I is ı)
+const low = s => { try { return String(s).toLocaleLowerCase(E.lang.test ? 'en' : E.lang.code); } catch (e) { return String(s).toLowerCase(); } };
 // Sierra's icons, drawn: feet, an eye, a hand, a mouth
 const PICS = { walk: ['..KK...', '.KSSK..', '.KSSK..', '..KK.KK', '....KSSK', '....KSSK', '.....KK'], look: ['..KKKKK..', '.KWWWWWK.', 'KWWBBBWWK', 'KWWBKBWWK', '.KWWWWWK.', '..KKKKK..'],
   hand: ['..K.K.K..', '.KSKSKSK.', '.KSKSKSKK', '.KSSSSSKS', 'KKSSSSSSK', 'KSSSSSSK.', '.KSSSSK..', '..KKKK...'], talk: ['.KKKKKK.', 'KRRRRRRK', 'KRWWWWRK', 'KRKKKKRK', 'KRRRRRRK', '.KKKKKK.'] };
 const PAINTED = new WeakMap();   // each room's picture, painted once (a room kept between games keeps it)
 const PAL = { K: '#1a1420', S: '#f0c8a0', W: '#ffffff', B: '#3a6ad8', R: '#c83a4a' };
-const NO = { look: n => 'It\'s ' + n.toLowerCase() + '.', pickup: () => 'I can\'t pick that up.', use: () => 'I can\'t use that.', talk: () => 'It doesn\'t say much.', give: () => 'I\'d rather keep it.', open: () => 'It doesn\'t open.', close: () => 'It doesn\'t close.', push: () => 'It won\'t budge.', pull: () => 'It won\'t budge.', with: () => 'That doesn\'t work.' };
+const NO = ['look', 'pickup', 'use', 'talk', 'give', 'open', 'close', 'push', 'pull'];   // (the verbs with a line of their own when nothing answers; others: use's)
 class Click {
   /** new E.Click(game, { rooms, items, rules, hero, ui, story, room, at, on }): see the manual */
   constructor(game, o = {}) {
@@ -181,8 +197,8 @@ class Click {
       const own = !item && spot && spot[verb];
       if (rule) this._do(rule); else if (typeof own === 'function') own(this, item); else if (typeof own === 'string' || Array.isArray(own)) this.say(own);
       else if (own) this._do(own);
-      else if (verb === 'look' && inInv) this.say(this.items[target].look || NO.look('a ' + this.items[target].name));
-      else this.say(item ? NO.with() : (NO[verb] || NO.use)(spot ? spot.name : ''));
+      else if (verb === 'look' && inInv) this.say(this.items[target].look || E.t('engine.click.no.look_item', { name: low(this.items[target].name) }));
+      else this.say(E.t('engine.click.no.' + (item ? 'with' : NO.includes(verb) ? verb : 'use'), { name: low(spot ? spot.name : '') }));
       if (this.on.done) this.on.done(this, verb, item, target);
     };
     this.item = null; this.verb = 'walk';
@@ -310,7 +326,7 @@ class Click {
       if (this.line) { const w = this.line.who, s = this.line.lines[this.line.i], k = w.k || this.scaleAt(w.y), lines = E.font.wrap(s, Math.min(200, L.W - 16)), x = clamp(w.x * z + L.ox, 70, L.W - 70); lines.forEach((t, i) => E.font.text(g, t, x, Math.max(2, (w.y - 46 * k) * z + L.oy - (lines.length - i) * 9), w.color || '#fff4b0', { align: 'center', shadow: '#000', outline: true })); }
       // the pointer's label: the name of what is under it, beside it
       const p = G.input.pointer(), h = this._hover;
-      if (h && p && !touch && !this._coin && !this.line && this.panel) E.font.text(g, (this.ui === 'icons' && this.verb !== 'walk' ? ICON[this.verb] + ' ' : '') + h.name, clamp(p[0], 30, L.W - 30), Math.max(2, p[1] - 14), '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
+      if (h && p && !touch && !this._coin && !this.line && this.panel) E.font.text(g, this.ui === 'icons' && this.verb !== 'walk' ? E.t('engine.click.hover.' + this.verb, { name: h.name }) : h.name, clamp(p[0], 30, L.W - 30), Math.max(2, p[1] - 14), '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
       if (this._fade) { g.fillStyle = 'rgba(5,4,10,' + Math.min(1, this._fade < 1 ? this._fade : 2 - this._fade).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); }
       if (this.panel) this._panel(g, L, touch);
     });
@@ -321,13 +337,13 @@ class Click {
   // the sentence line; the verbs (SCUMM's nine) or the icons (Sierra's), not on a touch screen; the inventory; the coin
   _panel(g, L, touch) {
     const y0 = L.py + 1, h = this._hover, it = this.item && this.items[this.item], verbs = this.ui === 'verbs' && !touch, icons = this.ui === 'icons' && !touch, th = this._thumb();
-    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? h.name.toLowerCase() : '';
-    const words = it ? (this.verb === 'give' ? 'Give ' : 'Use ') + it.name.toLowerCase() + (this.verb === 'give' ? ' to ' : ' with ') + name : touch ? '' : (vb ? vb[0] + vb.slice(1).toLowerCase() + ' ' : h ? '' : 'Walk to ') + name;
+    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? low(h.name) : '';
+    const words = it ? E.t(this.verb === 'give' ? 'engine.click.give_to' : 'engine.click.use_with', { item: low(it.name), what: name }) : touch ? '' : vb ? E.t('engine.click.' + (verbs ? 'do.' : 'do_icon.') + this.verb, { what: name }) : h ? name : E.t('engine.click.do.walk', { what: '' });
     E.font.text(g, words, L.W / 2, y0 + 1, '#c8e8ff', { align: 'center', outline: false });
     const box = (id, x, y, w, hh, label, on, fn, small) => { this.boxes.push({ id, x, y, w, h: hh, fn }); E.ui.box(g, x, y, w, hh, { alpha: .9, bg: on ? '#3a4a9a' : '#141428' }); if (label) E.font.text(g, label, x + w / 2, y + hh / 2 - 3, on ? '#ffffff' : '#9ab0ff', { align: 'center', outline: false, font: small ? 'tiny' : undefined }); };
     let ix = 4;
-    if (verbs) { const bw = 52, bh = 14; VERBS.forEach(([v, s], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, s, this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
-    if (icons) { ICONS.forEach(([v, s], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, s, x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
+    if (verbs) { const bw = 52, bh = 14; VERBS.forEach(([v], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, E.t('engine.click.verb.' + v), this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
+    if (icons) { ICONS.forEach(([v], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, E.t('engine.click.icon.' + v), x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
     // the inventory: icons in a row (two in the verbs' panel; a thumb's size on a touch screen), arrows when it is longer
     const S = touch ? th : verbs ? 20 : 24, rows = verbs ? 2 : 1, aw = touch ? th : 14, cols = Math.max(1, Math.floor((L.W - ix - aw - 8) / (S + 2))), per = cols * rows, iy = verbs ? y0 + 11 : touch ? y0 + 10 : y0 + 4;
     this._invAt = clamp(this._invAt, 0, Math.max(0, Math.ceil(this.inv.length / cols) - rows) * cols);
@@ -340,9 +356,9 @@ class Click {
     if (this.inv.length > per) { const hh = rows > 1 ? S : S / 2 - 1; box('inv:<', L.W - aw - 4, iy, aw, hh, '<', false, () => { this._invAt -= cols; }); box('inv:>', L.W - aw - 4, iy + hh + 2, aw, hh, '>', false, () => { this._invAt += cols; }); }
     // the coin: the hotspot's verbs round where it was clicked (a thumb's size on a touch screen)
     if (this._coin) {
-      const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v !== 'talk' || C.h.actor || C.h.talk).concat(C.h.pickup ? [['pickup', 'TAKE']] : [], C.h.exit ? [['walk', 'GO']] : []);
+      const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v === 'talk' ? C.h.actor || C.h.talk : v === 'pickup' ? C.h.pickup : v === 'walk' ? C.h.exit : true);
       const bw = sz + 14, all = vs.length * (bw + 3) - 3, x0 = clamp(C.x - all / 2, 2, L.W - all - 2), up = C.y - sz - 12 >= 2, y = up ? C.y - sz - 12 : Math.min(C.y + 12, L.py - sz - 2);   // (a row over the point, or under it near the top)
-      vs.forEach(([v, s], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, s, false, () => this.act(v, C.h.id), true));
+      vs.forEach(([v], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, E.t('engine.click.coin.' + v), false, () => this.act(v, C.h.id), true));
       E.font.text(g, C.h.name, clamp(C.x, 40, L.W - 40), up ? Math.max(2, y - 10) : y + sz + 3, '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
     }
   }
