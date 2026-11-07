@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.91.0 (2026-11-07)
+
+Builders found the newer 3D engine hard to find from the handoff package: it wasn't in it (D73 left it out), and a search of the index the package says to search found no 3D name. The package now carries the 3D engine and every 3D kit, and opens with a map (D85; feedback F9).
+
+- **Tools**: the handoff package carries the 3D engine (`my-3d2dge-3d.js`, beside `my-3d2dge.js`), three.js r182 and Rapier 0.19.3 byte for byte with their licences (`vendor/`), every 3D kit's game readable with the page that plays it on the package's engines (`kits/3d-<id>.js` and `.html`, the site's own names, their import maps relative), and a 3D template game (`game3d/`: the 3D manual's quick start). The build writes the pages' import maps from the 3D starter's and the template from the manual's quick start, so neither can drift.
+- **Tools**: `tools/check.mjs` plays a 3D page: a page that loads ES modules is served (from the repository or the package it sits in, else the folder it is run in), played on WebGL 2 after its boot, and a game whose canvas is clear (a 3D world under it) is measured from its screenshot, with look notes in 3D terms; a file a served page asks for and doesn't find is named. The local server is not counted as the internet.
+- **Tools**: `tools/lines.mjs` finds the package's 3D engine, and a page that loads or inlines it gets the 3D engine's lines without `--3d`; the package's `kits/test.mjs` runs the 2D kits and says how to play a 3D one.
+- **Tools**: kit3d-test checks the package's 3D side (3f): each 3D kit plays from its deep link, loads only the package's files and gives the site kit's proof hash; the 3D template plays; `vendor/` is the repository's; `tools/check.mjs`, run in the package, passes a 3D page. contract-test's 2D runs of the package's kits leave the 3D ones to it.
+- **Docs**: the package's README opens with a map (what to open for what), then 2D or 3D, the steps (the 3D manual the second read for a 3D game) and its files by kind (the engines, the manuals, the games to start from, the tools, the store); `kits/README.md` has a 2D and a 3D table; its index page groups its files; `API-INDEX.md` and the API card say a 3D name is in the 3D manual; the 3D manual says where its page is in the package.
+- **Docs**: `AI_GUIDE.md`, the README, `docs/ENGINE-3D.md` and `docs/KITS.md` say the package carries the 3D side; the README's opening line and `docs/ENGINE-3D.md`'s table name all seven 3D kits (they named four), and the 3D manual's size is about 7,200 tokens. D85 supersedes D73's 3D half; F9 in the feedback log.
+
 ## 0.90.0 (2026-11-07)
 
 Every word a player reads is a line: the engine, the kits and the modules follow **AI Hub Languages v1** (`lib/hub/languages.md` in the AI Hub), so a game made on my-3D2dge can be played in the player's own language once a translation step adds one, without a change to its code. The infrastructure only: no translations ship. `docs/LANGUAGES.md` says how a game uses it.

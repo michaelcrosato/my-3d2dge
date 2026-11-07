@@ -1529,9 +1529,9 @@ const RULES = () => {
 // the paths the cards name are there: each path a card cites (in backticks or a link, under one of the repository's or
 // the handoff package's folders; `<name>` and `*` stand for a file of that folder) is a file or folder of the repository
 // or of the package, so a rename can't leave a card pointing at nothing; and the package's own pages cite only what the
-// package holds, but on a line that says it is the repository's (its 3D engine)
+// package holds, but on a line that says it is the repository's (a source a kit was built from)
 if (existsSync(join(root, 'dist/handoff/kits/README.md'))) {
-  const H = join(root, 'dist/handoff'), ROOTS = /^(engine|src|tools|docs|dist|examples|vendor|game|kits|modules)\//;
+  const H = join(root, 'dist/handoff'), ROOTS = /^(engine|src|tools|docs|dist|examples|vendor|game|game3d|kits|modules)\//;
   // (each path with what it is said in: its paragraph, or its row of a table)
   const cited = text => text.split(/\n\s*\n/).flatMap(para => para.split('\n').flatMap(line => [...line.matchAll(/`([^`]+)`|\]\(([^)\s]+)\)/g)].flatMap(m => (m[1] || m[2]).split(/[\s,;()]+/))
     .map(t => t.replace(/[#?].*$/, '').replace(/[.:]+$/, '')).filter(t => ROOTS.test(t)).map(path => ({ path, line: line.startsWith('|') ? line : para }))));
@@ -1820,8 +1820,9 @@ if (existsSync(join(root, 'dist/handoff/game/test.mjs'))) {
   const k = spawnSync(process.execPath, [join(root, 'dist/handoff/kits/test.mjs')], { encoding: 'utf8' });
   check('handoff: kits/test.mjs passes for every kit', k.status === 0 && /all \d+ kit\(s\) passed/.test(k.stdout), (k.stdout + k.stderr).split('\n').filter(l => /FAIL|Error/.test(l)).join(' | ').slice(0, 600));
   // (and every part its table names: #arcade/maze starts the slice there, or the part's own scene)
-  const table = readFileSync(join(root, 'dist/handoff/kits/README.md'), 'utf8'), links = id => [...new Set([...table.matchAll(new RegExp('#' + id + '(/[a-z0-9]+)?(?=[,| ])', 'g'))].map(m => m[0]))];
-  for (const id of readdirSync(join(root, 'dist/handoff/kits')).filter(f => f.endsWith('.html')).map(f => f.slice(0, -5))) for (const link of links(id).length ? links(id) : ['#' + id]) {
+  // (the 2D kits' table: a 3D kit shares its slice's id, #platformer, and plays served: tools/kit3d-test.mjs, 3f)
+  const table = readFileSync(join(root, 'dist/handoff/kits/README.md'), 'utf8').split(/^## 3D kits/m)[0], links = id => [...new Set([...table.matchAll(new RegExp('#' + id + '(/[a-z0-9]+)?(?=[,| ])', 'g'))].map(m => m[0]))];
+  for (const id of readdirSync(join(root, 'dist/handoff/kits')).filter(f => f.endsWith('.html') && !f.startsWith('3d-')).map(f => f.slice(0, -5))) for (const link of links(id).length ? links(id) : ['#' + id]) {
     const page = await browser.newPage(), errors = [], part = link.split('/')[1];
     page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await page.addInitScript(CLOCK); await page.goto(pathToFileURL(join(root, 'dist/handoff/kits', id + '.html')).href + link);

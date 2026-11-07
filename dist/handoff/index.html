@@ -10,6 +10,7 @@
   body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 system-ui, sans-serif }
   main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px }
   h1 { font-size: 1.5rem; margin: 0 0 .25rem } p { margin: .5rem 0 1rem }
+  h2 { font-size: 1.05rem; margin: 1.6rem 0 .4rem }
   ul { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line) }
   li { padding: .6rem 0; border-bottom: 1px solid var(--line) } a { color: var(--accent); font-family: ui-monospace, Menlo, monospace }
   li span { display: block; font-size: .9rem; opacity: .8 }
@@ -18,48 +19,49 @@
 <body>
 <main>
 <h1>my-3D2dge handoff package</h1>
-<p>v0.90.0 · dev-build. Everything a coding agent needs to build, run, test and check a game on the full engine, as text files. Start with <a href="README.md">README.md</a>, then read <a href="API.md">API.md</a>. Play <a href="kits/README.md">a genre kit</a> or <a href="game/index.html">the template game</a>.</p>
+<p>v0.91.0 · dev-build. Everything a coding agent needs to build, run, test and check a game on my-3D2dge, in 2D or in real 3D, as text files. Start with <a href="README.md">README.md</a>, then read <a href="API.md">API.md</a>; for a game in real 3D, the 3D manual too (the header of <a href="my-3d2dge-3d.js">my-3d2dge-3d.js</a>). Play <a href="kits/README.md">a genre kit</a>, <a href="game/index.html">the 2D template game</a> or <a href="game3d/index.html">the 3D one</a>.</p>
+<h2>Start here</h2>
 <ul>
-<li><a href="README.md">README.md</a><span>start here: what the package holds, which page to read, how to run and test a game</span></li>
-<li><a href="package.json">package.json</a><span>pins Playwright for the tools</span></li>
-<li><a href="my-3d2dge.js">my-3d2dge.js</a><span>the full engine, readable: the core and every module</span></li>
-<li><a href="my-3d2dge-agent.js">my-3d2dge-agent.js</a><span>the agent edition: the essential engine, its header a short manual</span></li>
-<li><a href="modules/arcade.js">modules/arcade.js</a><span>a module, loaded after the engine: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode</span></li>
-<li><a href="modules/click.js">modules/click.js</a><span>a module, loaded after the engine: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory</span></li>
-<li><a href="modules/drive.js">modules/drive.js</a><span>a module, loaded after the engine: cars on the ground plane, a race round a track, the drivers who race it</span></li>
-<li><a href="modules/fight.js">modules/fight.js</a><span>a module, loaded after the engine: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training</span></li>
-<li><a href="modules/gen.js">modules/gen.js</a><span>a module, loaded after the engine: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed</span></li>
-<li><a href="modules/grid.js">modules/grid.js</a><span>a module, loaded after the engine: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns</span></li>
-<li><a href="modules/mode7.js">modules/mode7.js</a><span>a module, loaded after the engine: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance</span></li>
-<li><a href="modules/physics.js">modules/physics.js</a><span>a module, loaded after the engine: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through</span></li>
-<li><a href="modules/rhythm.js">modules/rhythm.js</a><span>a module, loaded after the engine: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway</span></li>
-<li><a href="modules/road.js">modules/road.js</a><span>a module, loaded after the engine: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels</span></li>
-<li><a href="modules/rooms.js">modules/rooms.js</a><span>a module, loaded after the engine: a world of rooms joined at their edges, the map of what was explored, gates and saves</span></li>
-<li><a href="modules/rpg.js">modules/rpg.js</a><span>a module, loaded after the engine: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters</span></li>
-<li><a href="modules/songs.js">modules/songs.js</a><span>a module, loaded after the engine: the songbook: the kits' best songs and more, and jingles, tagged by mood</span></li>
-<li><a href="modules/story.js">modules/story.js</a><span>a module, loaded after the engine: dialogue as data, flags and values, a quest log and emote balloons</span></li>
-<li><a href="modules/strategy.js">modules/strategy.js</a><span>a module, loaded after the engine: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays</span></li>
-<li><a href="modules/terrain.js">modules/terrain.js</a><span>a module, loaded after the engine: destructible ground in the side plane: carved and added, walked on, drawn in chunks</span></li>
+<li><a href="README.md">README.md</a><span>what the package holds, 2D or 3D, which page to read, how to run and test a game</span></li>
 <li><a href="API.md">API.md</a><span>the API card: read it whole</span></li>
-<li><a href="API-INDEX.md">API-INDEX.md</a><span>every public name, one line each: search it</span></li>
-<li><a href="AI_GUIDE.md">AI_GUIDE.md</a><span>the guide: recipes, the look, heights, sessions</span></li>
-<li><a href="tools/check.mjs">tools/check.mjs</a><span>plays a game headless and reports errors, screenshots and its snapshot</span></li>
+</ul>
+<h2>Games to start from</h2>
+<ul>
+<li><a href="kits/README.md">kits/</a><span>the 22 2D genre kits, readable (each kit's game, kits/&lt;id&gt;.js, and the page that plays it; node kits/test.mjs runs them headless): <a href="kits/adventure.html">adventure</a> <a href="kits/pointclick.html">pointclick</a> <a href="kits/platformer.html">platformer</a> <a href="kits/metroidvania.html">metroidvania</a> <a href="kits/shooter.html">shooter</a> <a href="kits/arcade.html">arcade</a> <a href="kits/pinball.html">pinball</a> <a href="kits/artillery.html">artillery</a> <a href="kits/puzzle.html">puzzle</a> <a href="kits/rhythm.html">rhythm</a> <a href="kits/rpg.html">rpg</a> <a href="kits/roguelike.html">roguelike</a> <a href="kits/tactics.html">tactics</a> <a href="kits/rts.html">rts</a> <a href="kits/sim.html">sim</a> <a href="kits/brawler.html">brawler</a> <a href="kits/fighting.html">fighting</a> <a href="kits/animlab.html">animlab</a> <a href="kits/kart.html">kart</a> <a href="kits/road.html">road</a> <a href="kits/sports.html">sports</a> <a href="kits/stealth.html">stealth</a></span></li>
+<li><a href="kits/README.md">kits/3d-*</a><span>the 7 3D genre kits on the 3D engine, readable (kits/3d-&lt;id&gt;.js, and the page that plays it, served): <a href="kits/3d-action.html#action">3d-action</a> <a href="kits/3d-platformer.html#platformer">3d-platformer</a> <a href="kits/3d-shooter.html#shooter">3d-shooter</a> <a href="kits/3d-horror.html#horror">3d-horror</a> <a href="kits/3d-racing.html#racing">3d-racing</a> <a href="kits/3d-flight.html#flight">3d-flight</a> <a href="kits/3d-crawler.html#crawler">3d-crawler</a></span></li>
+<li><a href="game/index.html">game/</a><span>the 2D template game: play it; game/game.js to copy, node game/test.mjs its headless test</span></li>
+<li><a href="game3d/index.html">game3d/</a><span>the 3D template game (the 3D manual's quick start): served, node tools/check.mjs game3d/index.html; game3d/game.js to copy</span></li>
+</ul>
+<h2>The engines</h2>
+<ul>
+<li><a href="my-3d2dge.js">my-3d2dge.js</a><span>the full 2D engine, readable: the core and every module; every 2D page here loads it, and so does every 3D page, first</span></li>
+<li><a href="my-3d2dge-agent.js">my-3d2dge-agent.js</a><span>the agent edition: the essential engine, its header a short manual</span></li>
+<li><a href="my-3d2dge-3d.js">my-3d2dge-3d.js</a><span>the 3D engine (an ES module): a three.js and Rapier world under a game; its header is the 3D manual, with a complete game</span></li>
+<li><a href="modules/arcade.js">modules/</a><span>each module on its own, loaded after the engine (its header its manual; my-3d2dge.js has them all): <a href="modules/arcade.js">arcade</a> <a href="modules/click.js">click</a> <a href="modules/drive.js">drive</a> <a href="modules/fight.js">fight</a> <a href="modules/gen.js">gen</a> <a href="modules/grid.js">grid</a> <a href="modules/mode7.js">mode7</a> <a href="modules/physics.js">physics</a> <a href="modules/rhythm.js">rhythm</a> <a href="modules/road.js">road</a> <a href="modules/rooms.js">rooms</a> <a href="modules/rpg.js">rpg</a> <a href="modules/songs.js">songs</a> <a href="modules/story.js">story</a> <a href="modules/strategy.js">strategy</a> <a href="modules/terrain.js">terrain</a></span></li>
+<li><a href="vendor/three-0.182.0/VERSION.json">vendor/</a><span>three.js r182 and Rapier 0.19.3, the libraries the 3D engine loads (their licences and checksums with them)</span></li>
+</ul>
+<h2>Manuals</h2>
+<ul>
+<li><a href="API-INDEX.md">API-INDEX.md</a><span>every public 2D name, one line each: search it (3D names: the 3D manual)</span></li>
+<li><a href="AI_GUIDE.md">AI_GUIDE.md</a><span>the guide: recipes for every genre, the look, heights, sessions: search it</span></li>
+<li><a href="docs/ASSETS.md">docs/ASSETS.md</a><span>the asset card: objects and materials as data (r.shape), the core library, writing one</span></li>
+<li><a href="docs/LANGUAGES.md">docs/LANGUAGES.md</a><span>every word a line: a game in the player's own language</span></li>
+</ul>
+<h2>Tools</h2>
+<ul>
+<li><a href="tools/check.mjs">tools/check.mjs</a><span>plays a game in a browser (a 3D page served) and reports errors, screenshots and its snapshot</span></li>
 <li><a href="tools/filmstrip.mjs">tools/filmstrip.mjs</a><span>records frames into one picture</span></li>
 <li><a href="tools/replay.mjs">tools/replay.mjs</a><span>replays a recorded play session exactly</span></li>
 <li><a href="tools/lines.mjs">tools/lines.mjs</a><span>a page's words: puts the engine's lines in its game-lines block, --check checks it as the AI Hub will</span></li>
 <li><a href="tools/lines-scan.mjs">tools/lines-scan.mjs</a><span>plays a page in the test language en-XA and lists words not from its lines</span></li>
-<li><a href="docs/LANGUAGES.md">docs/LANGUAGES.md</a><span>every word a line: a game in the player's own language</span></li>
-<li><a href="docs/ASSETS.md">docs/ASSETS.md</a><span>the asset card: objects and materials as data (r.shape), the core library, writing one</span></li>
 <li><a href="tools/asset-find.mjs">tools/asset-find.mjs</a><span>searches the core library and the store: node tools/asset-find.mjs "tavern table"</span></li>
 <li><a href="tools/asset-sheet.mjs">tools/asset-sheet.mjs</a><span>draws an object in every view and says what reads badly</span></li>
-<li><a href="tools/asset-set.mjs">tools/asset-set.mjs</a><span>cuts the few entries a game uses from the store's sets</span></li>
-<li><a href="tools/asset-lib.mjs">tools/asset-lib.mjs</a><span>shared by the asset tools</span></li>
-<li><a href="game/game.js">game/game.js</a><span>the template game: copy it</span></li>
-<li><a href="game/game.lines.json">game/game.lines.json</a><span></span></li>
-<li><a href="game/index.html">game/index.html</a><span>the template game: play it</span></li>
-<li><a href="game/test.mjs">game/test.mjs</a><span>its headless test: node game/test.mjs</span></li>
-<li><a href="kits/README.md">kits/</a><span>the 22 genre kits, readable: each kit's game and the page that plays it (kits/arcade.html), the table of them, and their headless test (node kits/test.mjs)</span></li>
-<li><a href="src/assets/README.md">src/assets/</a><span>the asset store: 29 sets of objects and materials converted from CC0 libraries, and their catalogs (docs/ASSETS.md, "Make one")</span></li>
+<li><a href="tools/asset-set.mjs">tools/asset-set.mjs</a><span>cuts the few entries a game uses from the store's sets (asset-lib.mjs is theirs)</span></li>
+<li><a href="package.json">package.json</a><span>pins Playwright for the tools</span></li>
+</ul>
+<h2>Assets</h2>
+<ul>
+<li><a href="src/assets/README.md">src/assets/</a><span>the asset store: 29 sets of objects and materials converted from CC0 libraries, and their catalogs</span></li>
 </ul>
 </main>
 </body>

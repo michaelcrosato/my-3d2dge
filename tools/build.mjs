@@ -17,10 +17,11 @@
 //   dist/my-3d2dge-agent.js      the agent edition: the essential engine plus its manual in one readable file,
 //                                for AI coding agents (source: engine/my-3d2dge-agent.js; test: node tools/agent-test.mjs)
 //   API-INDEX.md                 every public name in the engine, one line each (tools/api-index.mjs)
-//   dist/handoff/                the package for coding agents that need the full engine: the engines, API.md, the
-//                                index, AI_GUIDE.md, the tools that check, film and replay a game, a template game
-//                                with a headless test, and the 2D genre kits readable (kits/) (sources: src/handoff/).
-//                                The only output of several files; text only
+//   dist/handoff/                the package for coding agents: the 2D engine, the agent edition and the 3D engine with
+//                                the libraries it loads (vendor/), API.md, the index, AI_GUIDE.md, the tools that check,
+//                                film and replay a game, every genre kit readable (kits/: 2D and 3D), and a 2D and a 3D
+//                                template game (game/, game3d/) (sources: src/handoff/). The only output of several files;
+//                                text only
 // LINES (AI Hub Languages v1; tools/lines.mjs): <!-- @lines --> in a template's <head> becomes the page's game-lines block, the
 // words its players read by id: each part's src/<dir>/<part>.lines.json, then the engine's own (and its modules', and the
 // 3D engine's on a 3D page), so a translation step can work on the page as the hub ships it.
@@ -333,13 +334,19 @@ const { build: indexOf, render: renderIndex } = await import('./api-index.mjs');
 writeFileSync(join(root, 'API-INDEX.md'), renderIndex(indexOf()));
 console.log('built API-INDEX.md');
 
-// the handoff package: [its path, the source] (the README, package.json and index page take {{VERSION}} and {{BUILD}})
-const H = 'dist/handoff', HANDOFF = [
+// the handoff package: [its path, the source] (the README, package.json and index page take {{VERSION}} and {{BUILD}}).
+// Its layout, for an agent that lands in it: the three engines at its top (the full 2D engine, the agent edition, the 3D
+// engine) beside the manuals; the games to start from (kits/: every 2D and 3D kit; game/ and game3d/: the templates); the
+// libraries the 3D engine loads (vendor/, as in the repository); the tools; docs/ and src/assets/ at the repository's paths
+const H = 'dist/handoff', VENDOR = readdirSync(join(root, 'vendor')).sort().flatMap(d => readdirSync(join(root, 'vendor', d)).sort().map(f => 'vendor/' + d + '/' + f));
+const HANDOFF = [
   ['README.md', 'src/handoff/README.md'], ['package.json', 'src/handoff/package.json'],
-  ['my-3d2dge.js', 'dist/my-3d2dge.js'], ['my-3d2dge-agent.js', 'engine/my-3d2dge-agent.js'],
+  ['my-3d2dge.js', 'dist/my-3d2dge.js'], ['my-3d2dge-agent.js', 'engine/my-3d2dge-agent.js'], ['my-3d2dge-3d.js', ENGINE3D],
   // each module on its own too, to load after the agent edition (or the full engine) with a <script> of its own
   ...EVERY.map(m => ['modules/' + m.name + '.js', m.file]),
   ['API.md', 'API.md'], ['API-INDEX.md', 'API-INDEX.md'], ['AI_GUIDE.md', 'AI_GUIDE.md'],
+  // three.js r182 and Rapier 0.19.3 (their licences and VERSION.json with them), byte for byte: the 3D pages' import maps name them
+  ...VENDOR.map(f => [f, f]),
   ['tools/check.mjs', 'tools/check.mjs'], ['tools/filmstrip.mjs', 'tools/filmstrip.mjs'], ['tools/replay.mjs', 'tools/replay.mjs'],
   ['tools/lines.mjs', 'tools/lines.mjs'], ['tools/lines-scan.mjs', 'tools/lines-scan.mjs'], ['docs/LANGUAGES.md', 'docs/LANGUAGES.md'],
   // the asset card, its tools and the store, at the repository's own paths so the card's commands work as written
@@ -348,19 +355,11 @@ const H = 'dist/handoff', HANDOFF = [
   ...readdirSync(join(root, 'src/assets/catalogs')).filter(f => f.endsWith('.json')).sort().map(f => ['src/assets/catalogs/' + f, 'src/assets/catalogs/' + f]),
   ...readdirSync(join(root, 'src/handoff/game')).sort().map(f => ['game/' + f, 'src/handoff/game/' + f])
 ];
-const SAY = { 'README.md': 'start here: what the package holds, which page to read, how to run and test a game', 'package.json': 'pins Playwright for the tools',
-  'my-3d2dge.js': 'the full engine, readable: the core and every module', 'my-3d2dge-agent.js': 'the agent edition: the essential engine, its header a short manual',
-  'API.md': 'the API card: read it whole', 'API-INDEX.md': 'every public name, one line each: search it', 'AI_GUIDE.md': 'the guide: recipes, the look, heights, sessions',
-  'tools/check.mjs': 'plays a game headless and reports errors, screenshots and its snapshot', 'tools/filmstrip.mjs': 'records frames into one picture',
-  'tools/replay.mjs': 'replays a recorded play session exactly', 'tools/lines.mjs': 'a page\'s words: puts the engine\'s lines in its game-lines block, --check checks it as the AI Hub will', 'tools/lines-scan.mjs': 'plays a page in the test language en-XA and lists words not from its lines', 'docs/LANGUAGES.md': 'every word a line: a game in the player\'s own language', 'game/index.html': 'the template game: play it', 'game/game.js': 'the template game: copy it',
-  'game/test.mjs': 'its headless test: node game/test.mjs', 'docs/ASSETS.md': 'the asset card: objects and materials as data (r.shape), the core library, writing one',
-  'tools/asset-find.mjs': 'searches the core library and the store: node tools/asset-find.mjs "tavern table"', 'tools/asset-sheet.mjs': 'draws an object in every view and says what reads badly',
-  'tools/asset-set.mjs': 'cuts the few entries a game uses from the store\'s sets', 'tools/asset-lib.mjs': 'shared by the asset tools' };
-for (const m of EVERY) SAY['modules/' + m.name + '.js'] = 'a module, loaded after the engine: ' + m.about;
 if (existsSync(join(root, H))) rmSync(join(root, H), { recursive: true });
 const fill = s => boot(s.replaceAll('{{VERSION}}', GLOBAL.VERSION).replaceAll('{{BUILD}}', GLOBAL.BUILD));
 for (const [to, from] of HANDOFF) {
   mkdirSync(dirname(join(root, H, to)), { recursive: true });
+  if (from.startsWith('vendor/')) { writeFileSync(join(root, H, to), readFileSync(join(root, from))); continue; }   // (as they are: their checksums are in VERSION.json)
   const text = readFileSync(join(root, from), 'utf8');
   const lines = from === 'src/handoff/game/index.html' ? blockHTML(gameLines(['src/handoff/game/game.js'], { modules: [] })) : null;   // (the template game's words, in its page's head)
   writeFileSync(join(root, H, to), (from.startsWith('src/handoff/') && !from.endsWith('.js') && !from.endsWith('.mjs') ? fill(text) : text).replace('<!-- @lines -->', () => lines || ''));
@@ -370,28 +369,69 @@ for (const [to, from] of HANDOFF) {
 const sets = HANDOFF.filter(([to]) => to.startsWith('src/assets/sets/')).map(([to, from]) => { const t = readFileSync(join(root, from), 'utf8'), n = /(\d+) shapes, (\d+) materials, (\d+) sprites/.exec(t);
   return `- [${to.split('/').pop()}](sets/${to.split('/').pop()}): ${n ? n[0] : ''}${existsSync(join(root, 'src/assets/catalogs', to.split('/').pop().replace(/\.js$/, '.json'))) ? ` ([catalog](catalogs/${to.split('/').pop().replace(/\.js$/, '.json')}))` : ' (a game\'s own cut)'}`; });
 writeFileSync(join(root, H, 'src/assets/README.md'), '# The asset store\n\nSets of still objects, materials and sprites converted from CC0 libraries (each entry says where it came from),\nand the hand-written catalogs that describe them. `docs/ASSETS.md` is the card;\n`node tools/asset-find.mjs \"words\"` searches them; a game loads one with its script and\n`E.addAssets(window.ASSETS[\'<set>\'])`, or cuts the few it uses with `node tools/asset-set.mjs`.\n\n' + sets.join('\n') + '\n');
-// the genre kits, readable (kits/; sources src/handoff/kits/): each 2D kit's game, what the single-file kit holds between
-// GAME START and GAME END (the shell, its slice, the start), a page that plays it on the package's engine with the asset
-// set the starter's page gives that slice, a table of them, and their headless test
-const KITSETS = Object.fromEntries([...readFileSync(join(root, 'src/starter.template.html'), 'utf8').matchAll(/<!-- @inline-with (\S+) (\S+) -->/g)].map(m => [m[1], m[2]]));
-const KITS = readdirSync(join(root, STARTER)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).sort().map(f => {
-  const id = f.replace(/^\d+-|\.js$/g, ''), [, label, what] = /^(.+?) \((.*)\)$/.exec(SLICES[id]);
-  return { id, f, label, what, set: KITSETS[f], mods: resolveModules(sliceMods(join(STARTER, f)), MODS).map(m => m.name) };
-});
+// the genre kits, readable (kits/; sources src/handoff/kits/): each kit's game, what the single-file kit holds between
+// GAME START and GAME END (the shell, its slice, the start), a page that plays it on the package's engines with the asset
+// set the starter's page gives that slice, a table of them, and the 2D kits' headless test. A 3D kit is 3d-<id> (as on the
+// site, /kits/3d-<id>): its game a module after both engines, its page served (it loads ES modules and vendor/)
+const kitsOf = (dir, slices, template) => {
+  const SETS = Object.fromEntries([...readFileSync(join(root, template), 'utf8').matchAll(/<!-- @inline-with (\S+) (\S+) -->/g)].map(m => [m[1], m[2]]));
+  return readdirSync(join(root, dir)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).sort().map(f => {
+    const id = f.replace(/^\d+-|\.js$/g, ''), [, label, what] = /^(.+?) \((.*)\)$/.exec(slices[id]);
+    return { id, f, label, what, set: SETS[f], mods: resolveModules(sliceMods(join(dir, f)), MODS).map(m => m.name) };
+  });
+};
+const KITS = kitsOf(STARTER, SLICES, 'src/starter.template.html'), KITS3D = kitsOf(STARTER3D, SLICES3D, 'src/starter3d.template.html');
+// the 3D pages' import map: the 3D starter's (the one vendor-3d.mjs says to update), its /vendor/ paths relative to the page
+const MAP3D = JSON.parse(/<script type="importmap">([\s\S]*?)<\/script>/.exec(readFileSync(join(root, 'src/starter3d.template.html'), 'utf8'))[1]).imports;
+const importMap = up => '<script type="importmap">\n' + JSON.stringify({ imports: Object.fromEntries(Object.entries(MAP3D).map(([k, v]) => [k, v.replace(/^\/vendor\//, up + 'vendor/')])) }, null, 2) + '\n</script>';
 mkdirSync(join(root, H, 'kits'), { recursive: true });
-const kitPage = readFileSync(join(root, 'src/handoff/kits/kit.html'), 'utf8');
-for (const k of KITS) {
-  const [shell, slice, start] = ['00-shell.js', k.f, '90-start.js'].map(p => readFileSync(join(root, STARTER, p), 'utf8')), at = 4 + shell.split('\n').length;
-  writeFileSync(join(root, H, 'kits', k.id + '.js'), `// The ${k.label} kit's game (${k.what}), readable: the starter's shell (${STARTER}/00-shell.js), then\n// the slice from line ${at} (${STARTER}/${k.f}: its header says what it plays and how), then the start (90-start.js), as the\n// single-file kit holds them between GAME START and GAME END. ${k.id}.html plays it; node kits/test.mjs ${k.id} runs it headless.\n` +
-    [shell, slice, start].join('\n'));
-  const lines = blockHTML(gameLines(['00-shell.js', k.f, '90-start.js'].map(p => join(STARTER, p)), { modules: k.mods }));
-  writeFileSync(join(root, H, 'kits', k.id + '.html'), fill(kitPage.replaceAll('{{LABEL}}', k.label).replaceAll('{{ID}}', k.id).replace('{{SETS}}', k.set ? `<script src="../${k.set}"></script>\n` : '')).replace('<!-- @lines -->', () => lines));
+for (const [kits, dir, three] of [[KITS, STARTER, false], [KITS3D, STARTER3D, true]]) {
+  const page = readFileSync(join(root, 'src/handoff/kits/' + (three ? 'kit3d.html' : 'kit.html')), 'utf8');
+  for (const k of kits) {
+    const [shell, slice, start] = ['00-shell.js', k.f, '90-start.js'].map(p => readFileSync(join(root, dir, p), 'utf8')), name = (three ? '3d-' : '') + k.id;
+    const head = three
+      ? `// The 3D ${k.label} kit's game (${k.what}), readable: the 3D starter's shell (${dir}/00-shell.js), then\n// the slice from line {{AT}} (${dir}/${k.f}: its header says what it plays and how), then the start (90-start.js), as the single-file\n// 3D kit holds them between GAME START and GAME END. A module, loaded after both engines (../my-3d2dge.js, then ../my-3d2dge-3d.js,\n// whose header is the 3D manual): ${name}.html plays it, served (node tools/check.mjs kits/${name}.html#${k.id}).\n`
+      : `// The ${k.label} kit's game (${k.what}), readable: the starter's shell (${dir}/00-shell.js), then\n// the slice from line {{AT}} (${dir}/${k.f}: its header says what it plays and how), then the start (90-start.js), as the\n// single-file kit holds them between GAME START and GAME END. ${name}.html plays it; node kits/test.mjs ${k.id} runs it headless.\n`;
+    writeFileSync(join(root, H, 'kits', name + '.js'), head.replace('{{AT}}', head.split('\n').length + shell.split('\n').length) + [shell, slice, start].join('\n'));
+    const lines = blockHTML(gameLines(['00-shell.js', k.f, '90-start.js'].map(p => join(dir, p)), { modules: k.mods, threeD: three }));
+    writeFileSync(join(root, H, 'kits', name + '.html'), fill(page.replaceAll('{{LABEL}}', k.label).replaceAll('{{ID}}', k.id).replace('{{IMPORTMAP}}', () => importMap('../')).replace('{{SETS}}', k.set ? `<script src="../${k.set}"></script>\n` : '')).replace('<!-- @lines -->', () => lines));
+  }
 }
-writeFileSync(join(root, H, 'kits/README.md'), fill(readFileSync(join(root, 'src/handoff/kits/README.md'), 'utf8')).replace('{{KITS}}', KITS.map(k =>
-  `| ${k.label} | [${k.id}.js](${k.id}.js), [${k.id}.html](${k.id}.html) | ${k.what} | ${k.mods.join(', ') || 'none'} | #${k.id}${(PARTS[k.id] || []).map(p => `, #${k.id}/${p}`).join('')} |`).join('\n')));
+const kitRow = (k, parts, name) => `| ${k.label} | [${name}.js](${name}.js), [${name}.html](${name}.html) | ${k.what} | ${k.mods.join(', ') || 'none'} | #${k.id}${(parts[k.id] || []).map(p => `, #${k.id}/${p}`).join('')} |`;
+writeFileSync(join(root, H, 'kits/README.md'), fill(readFileSync(join(root, 'src/handoff/kits/README.md'), 'utf8'))
+  .replace('{{KITS}}', () => KITS.map(k => kitRow(k, PARTS, k.id)).join('\n')).replace('{{KITS3D}}', () => KITS3D.map(k => kitRow({ ...k, label: '3D ' + k.label }, PARTS3D, '3d-' + k.id)).join('\n')));   // (3D ACTION: the playbook's name)
 writeFileSync(join(root, H, 'kits/test.mjs'), readFileSync(join(root, 'src/handoff/kits/test.mjs'), 'utf8'));
-const list = HANDOFF.filter(([to]) => !to.startsWith('src/assets/')).map(([to]) => `<li><a href="${to}">${to}</a><span>${SAY[to] || ''}</span></li>`)
-  .concat(`<li><a href="kits/README.md">kits/</a><span>the ${KITS.length} genre kits, readable: each kit's game and the page that plays it (kits/arcade.html), the table of them, and their headless test (node kits/test.mjs)</span></li>`,
-    `<li><a href="src/assets/README.md">src/assets/</a><span>the asset store: ${sets.length} sets of objects and materials converted from CC0 libraries, and their catalogs (docs/ASSETS.md, "Make one")</span></li>`).join('\n');
-writeFileSync(join(root, H, 'index.html'), fill(readFileSync(join(root, 'src/handoff/index.html'), 'utf8')).replace('{{FILES}}', list));
-console.log('built ' + H + '/ (' + (HANDOFF.length + 2 + KITS.length * 2 + 2) + ' files)');
+// the 3D template game (game3d/): the 3D manual's quick start, a complete game, on the package's engines
+const manual3d = readFileSync(join(root, ENGINE3D), 'utf8').split('*/')[0], quick = (manual3d.split('```js quickstart\n')[1] || '').split('```')[0];
+if (!quick) throw new Error(ENGINE3D + ': its manual has no ```js quickstart block (game3d/ in the handoff package is built from it)');
+mkdirSync(join(root, H, 'game3d'), { recursive: true });
+writeFileSync(join(root, H, 'game3d/game.js'), '// The 3D template game: the 3D engine\'s quick start (the manual, the header of ../my-3d2dge-3d.js), a complete small\n// game (collect the gems, mind the slimes) to change into yours. index.html loads it as a module after both engines;\n// node tools/check.mjs game3d/index.html plays it in a browser. For a genre\'s game, start from its 3D kit instead\n// (kits/3d-<id>.js: kits/README.md). Its words are not lines yet (docs/LANGUAGES.md: E.t and the page\'s game-lines block).\n' + quick);
+writeFileSync(join(root, H, 'game3d/index.html'), fill(readFileSync(join(root, 'src/handoff/game3d/index.html'), 'utf8').replace('{{IMPORTMAP}}', () => importMap('../'))).replace('<!-- @lines -->', () => blockHTML(gameLines([], { modules: [], threeD: true }))));
+// the index page: the package's files by what an agent wants of them
+const SAY = { 'my-3d2dge.js': 'the full 2D engine, readable: the core and every module; every 2D page here loads it, and so does every 3D page, first',
+  'my-3d2dge-agent.js': 'the agent edition: the essential engine, its header a short manual', 'my-3d2dge-3d.js': 'the 3D engine (an ES module): a three.js and Rapier world under a game; its header is the 3D manual, with a complete game',
+  'vendor/': 'three.js r182 and Rapier 0.19.3, the libraries the 3D engine loads (their licences and checksums with them)',
+  'API.md': 'the API card: read it whole', 'API-INDEX.md': 'every public 2D name, one line each: search it (3D names: the 3D manual)', 'AI_GUIDE.md': 'the guide: recipes for every genre, the look, heights, sessions: search it',
+  'docs/ASSETS.md': 'the asset card: objects and materials as data (r.shape), the core library, writing one', 'docs/LANGUAGES.md': 'every word a line: a game in the player\'s own language',
+  'game/index.html': 'the 2D template game: play it; game/game.js to copy, node game/test.mjs its headless test', 'game3d/index.html': 'the 3D template game (the 3D manual\'s quick start): served, node tools/check.mjs game3d/index.html; game3d/game.js to copy',
+  'tools/check.mjs': 'plays a game in a browser (a 3D page served) and reports errors, screenshots and its snapshot', 'tools/filmstrip.mjs': 'records frames into one picture',
+  'tools/replay.mjs': 'replays a recorded play session exactly', 'tools/lines.mjs': 'a page\'s words: puts the engine\'s lines in its game-lines block, --check checks it as the AI Hub will', 'tools/lines-scan.mjs': 'plays a page in the test language en-XA and lists words not from its lines',
+  'tools/asset-find.mjs': 'searches the core library and the store: node tools/asset-find.mjs "tavern table"', 'tools/asset-sheet.mjs': 'draws an object in every view and says what reads badly',
+  'tools/asset-set.mjs': 'cuts the few entries a game uses from the store\'s sets (asset-lib.mjs is theirs)', 'src/assets/README.md': `the asset store: ${sets.length} sets of objects and materials converted from CC0 libraries, and their catalogs` };
+const item = (href, text, say) => `<li><a href="${href}">${text}</a><span>${say}</span></li>`;
+const linkList = (list, f) => list.map(x => `<a href="${f(x)[0]}">${f(x)[1]}</a>`).join(' ');
+const GROUPS = [
+  ['Start here', [item('README.md', 'README.md', 'what the package holds, 2D or 3D, which page to read, how to run and test a game'), item('API.md', 'API.md', SAY['API.md'])]],
+  ['Games to start from', [
+    `<li><a href="kits/README.md">kits/</a><span>the ${KITS.length} 2D genre kits, readable (each kit's game, kits/&lt;id&gt;.js, and the page that plays it; node kits/test.mjs runs them headless): ${linkList(KITS, k => ['kits/' + k.id + '.html', k.id])}</span></li>`,
+    `<li><a href="kits/README.md">kits/3d-*</a><span>the ${KITS3D.length} 3D genre kits on the 3D engine, readable (kits/3d-&lt;id&gt;.js, and the page that plays it, served): ${linkList(KITS3D, k => ['kits/3d-' + k.id + '.html#' + k.id, '3d-' + k.id])}</span></li>`,
+    item('game/index.html', 'game/', SAY['game/index.html']), item('game3d/index.html', 'game3d/', SAY['game3d/index.html'])]],
+  ['The engines', [...['my-3d2dge.js', 'my-3d2dge-agent.js', 'my-3d2dge-3d.js'].map(f => item(f, f, SAY[f])),
+    `<li><a href="modules/${EVERY[0].name}.js">modules/</a><span>each module on its own, loaded after the engine (its header its manual; my-3d2dge.js has them all): ${linkList(EVERY, m => ['modules/' + m.name + '.js', m.name])}</span></li>`,
+    item(VENDOR.find(f => /three.*VERSION\.json$/.test(f)), 'vendor/', SAY['vendor/'])]],
+  ['Manuals', ['API-INDEX.md', 'AI_GUIDE.md', 'docs/ASSETS.md', 'docs/LANGUAGES.md'].map(f => item(f, f, SAY[f]))],
+  ['Tools', ['tools/check.mjs', 'tools/filmstrip.mjs', 'tools/replay.mjs', 'tools/lines.mjs', 'tools/lines-scan.mjs', 'tools/asset-find.mjs', 'tools/asset-sheet.mjs', 'tools/asset-set.mjs'].map(f => item(f, f, SAY[f])).concat(item('package.json', 'package.json', 'pins Playwright for the tools'))],
+  ['Assets', [item('src/assets/README.md', 'src/assets/', SAY['src/assets/README.md'])]]
+];
+writeFileSync(join(root, H, 'index.html'), fill(readFileSync(join(root, 'src/handoff/index.html'), 'utf8')).replace('{{FILES}}', () => GROUPS.map(([h, l]) => `<h2>${h}</h2>\n<ul>\n${l.join('\n')}\n</ul>`).join('\n')));
+console.log('built ' + H + '/ (' + (HANDOFF.length + 6 + (KITS.length + KITS3D.length) * 2) + ' files)');

@@ -112,7 +112,7 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   plays, which the kit's header and the handoff package's table of kits show), `vercel.json`'s kit routes,
   `src/labs.json` (Starter kits, and a To check card), README's tables, the API card's playbook, `doctrine-check`'s
   budget for a 3D kit. Its deep links are named in its slice's header (`#<id>/<part>`: the build reads them there), and
-  the handoff package carries a 2D kit's game by itself (`kits/`, D73). A slice's number keeps families together (`25-metroidvania` beside
+  the handoff package carries each kit's game by itself (`kits/<id>.js`, a 3D kit's `kits/3d-<id>.js`: D73, D85). A slice's number keeps families together (`25-metroidvania` beside
   `20-platformer`).
 
 ## Every change that adds to the engine

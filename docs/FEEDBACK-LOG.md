@@ -39,7 +39,7 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Pitched roofs for `TileMap` types (the stealth starter's belfry draws one with `r.queue`) | deferred | none yet | a source asks for roofs |
 | GPU lighting in headless checks (WebGPU in `tools/check.mjs`'s browser) | deferred | F1 | a game leads with GPU lighting and its checks need to see it; canvas lighting shows in every check (D45) |
 | The look's remainder: small figures that merge when they overlap (F4.2), empty fields (F6.2) | watch | F7 (F7.2: the kart's empty fields, the tactics map's overlapping units; before it, none: the parts of F4.2 and F6.2 the next plan left; they predate it, so they don't count afresh; F2.2's foliage and F3.2's pines and thin shadows predate the asset store's foliage and contact shadows, v0.35.0 to v0.38.0, and F6 didn't repeat them) | reached (F7, after v0.59.0): the next plan takes it up |
-| What the cards point to, not in the handoff package (the genres' slices, the 3D engine) | taken up | F7 | the next change to the handoff package: it carries the slices and the 3D engine, or its cards say where the kits are (F7.3). **Taken up in v0.85.0**: the package carries every 2D kit's game readable (`kits/`: a page that plays each, their table, a headless test), its README starts an agent from its genre's kit, and its pages say the 3D engine and its kits are on the site and in the repository (D73) |
+| What the cards point to, not in the handoff package (the genres' slices, the 3D engine) | taken up | F7 | the next change to the handoff package: it carries the slices and the 3D engine, or its cards say where the kits are (F7.3). **Taken up in v0.85.0**: the package carries every 2D kit's game readable (`kits/`: a page that plays each, their table, a headless test), its README starts an agent from its genre's kit, and its pages say the 3D engine and its kits are on the site and in the repository (D73). **Since v0.85.0:** F9, one source (builders find the 3D engine hard to find from the package). **Taken up in v0.91.0**: the package carries the 3D engine, `vendor/`, every 3D kit's game readable (`kits/3d-<id>.js`) and a 3D template (`game3d/`); `tools/check.mjs` serves a 3D page; its README opens with a map, and the index and the card say where a 3D name is (D85) |
 | A genre module the card names, unused (the game writes its own) | watch | F7 | a second source writes what its genre's module does (F7.4); since v0.85.0 the handoff package carries the kits, each built on its genre's modules (D73) |
 | The benchmark's own measures (what counts as drawn, the views the check shows, one bar for every brief) | deferred | F7 | the next change to the benchmark (F7.5) |
 | A headless game that differs from the page (`game.go` switching at once in tests) | no | F8 | never: the same inputs give the same state with any renderer or none (principle 5); tests advance past the fade or set `game.fadeTime = 0` |
@@ -368,3 +368,18 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     as `(J, w)` functions they would blend differently and change what every game shows. A game's own held pose
     (`E.Humanoid.pose(id, (J, w) => ...)`) lays over the solve, the poses the 37 builds patched in.
 
+### F9 · 2026-11-07 · builders: the newer 3D engine is hard to find from the handoff package
+
+- **Builder:** coding agents that built on the handoff package, relayed by the owner (2026-11-07), with the owner's ask
+  to relook at the package's structure and docs after its recent changes. One source; the agents' runs are not here.
+- **Handed:** the handoff package v0.90.0.
+- **Checked against the code:** the package had no 3D engine (D73 left it out: a step at the end of its README and a
+  sentence under the kits' table pointed to the repository); `API-INDEX.md`, which the README says to search for a name,
+  holds no 3D name (`World3D` found nothing); the package's `tools/check.mjs` opened a page from the disk, where a 3D
+  page's modules don't load, and measured the game's canvas, which a 3D game leaves clear; the repository's README and
+  `docs/ENGINE-3D.md` named four of the seven 3D kits.
+- **Acted on:** v0.91.0 (D85): the package carries the 3D engine, `vendor/`, every 3D kit's game readable and a 3D
+  template; the check serves a 3D page and reads its picture; the README opens with a map and says 2D or 3D first; the
+  index and the card point at the 3D manual; the drift fixed.
+- **Not acted on (yet):** none of the source's points. (A 3D kit still has no headless test in Node, the 3D world baking
+  its textures on a page: F8.4's stand-in, which waits as F8.4 says.)
