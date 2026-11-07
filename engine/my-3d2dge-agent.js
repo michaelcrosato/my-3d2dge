@@ -887,21 +887,27 @@ for (const e of "05ehjlphe 154c4444e 25eh1248v 35u11e11u 4526aiv22 55vgu11he 65e
   for (let y = 0; y < e.length - 2; y++) { const v = parseInt(e[y + 2], 32); for (let x = 0; x < w;) { if (!(v >> (w - 1 - x) & 1)) { x++; continue; } let n = 1; while (x + n < w && v >> (w - 1 - x - n) & 1) n++; runs.push([x, y, n]); x += n; } }
   F.g[e[0]] = { w, runs };
 }
-const glyph = ch => F.g[ch] || F.g[ch.toUpperCase()] || F.g['?'];
-const lineW = line => { let w = 0; for (const ch of line) w += ch === ' ' ? F.space + 1 : glyph(ch).w + 1; return Math.max(0, w - 1); };
+// a letter the font lacks is the device's (section 6b): has(ch) says which; the invisible marks (isolates, joiners) take no room
+const has = ch => !!(F.g[ch] || F.g[ch.toUpperCase()]), glyph = ch => F.g[ch] || F.g[ch.toUpperCase()] || F.g['?'];
+const lineW = line => { let w = 0; for (const ch of line) { if (ch === ' ') { w += F.space + 1; continue; } if (!has(ch) && LANG_DEV.ZW.test(ch)) continue; w += glyph(ch).w + 1; } return Math.max(0, w - 1); };
 const fo = o => typeof o === 'number' ? { scale: o } : (o || {}), fsc = o => Math.max(1, Math.round(o.scale || 1));
+const fm = (o, sc) => LANG_DEV.metrics(F.h, F.desc, o.lineGap === undefined ? F.gap : o.lineGap, sc, E.lang._ensure().big);   // (taller in a language the device's font draws)
+const lineWs = (line, sc, g) => { const R = LANG_DEV.runs(has, line, 'a'); if (!R) return lineW(line) * sc; const ds = LANG_DEV.size(F.h + F.desc, sc); let w = 0; for (const [d, t] of R) w += (d ? LANG_DEV.measure(g, t, ds) : lineW(t) * sc) + sc; return Math.max(0, w - sc); };
 E.font = {
-  width(s, o) { o = fo(o); let m = 0; for (const line of String(s).split('\n')) m = Math.max(m, lineW(line)); return m * fsc(o); },
-  lineHeight(o) { o = fo(o); return (F.h + F.desc + (o.lineGap === undefined ? F.gap : o.lineGap)) * fsc(o); },
-  height(lines = 1, o) { o = fo(o); return this.lineHeight(o) * (lines - 1) + (F.h + F.desc) * fsc(o); },
+  width(s, o) { o = fo(o); let m = 0; for (const line of String(s).split('\n')) m = Math.max(m, lineWs(line, fsc(o))); return m; },
+  lineHeight(o) { o = fo(o); return fm(o, fsc(o)).step; },
+  height(lines = 1, o) { o = fo(o); const m = fm(o, fsc(o)); return m.step * (lines - 1) + m.rows; },
+  // true when the font draws every letter of s itself (none from the device's font)
+  covers(s) { for (const ch of String(s)) if (ch !== ' ' && ch !== '\n' && !has(ch) && !LANG_DEV.ZW.test(ch)) return false; return true; },
   wrap(s, maxW, o) {
-    const lim = maxW / fsc(fo(o)), out = [];
+    const sc = fsc(fo(o)), lim = maxW / sc, out = [], W = t => LANG_DEV.runs(has, t, 'a') ? lineWs(t, sc) / sc : lineW(t);
     for (const para of String(s).split('\n')) {
+      const dw = LANG_DEV.wrap(para, lim, W); if (dw) { out.push(...dw); continue; }   // (Chinese, Japanese, Thai: between words)
       let line = '';
       for (const word of para.split(' ')) {
         const t = line ? line + ' ' + word : word;
-        if (lineW(t) <= lim || !line) line = t; else { out.push(line); line = word; }
-        while (lineW(line) > lim && line.length > 1) { let k = line.length - 1; while (k > 1 && lineW(line.slice(0, k)) > lim) k--; out.push(line.slice(0, k)); line = line.slice(k); }
+        if (W(t) <= lim || !line) line = t; else { out.push(line); line = word; }
+        while (W(line) > lim && line.length > 1) { let k = line.length - 1; while (k > 1 && W(line.slice(0, k)) > lim) k--; out.push(line.slice(0, k)); line = line.slice(k); }
       }
       out.push(line);
     }
@@ -910,25 +916,36 @@ E.font = {
   // opts: an outline color, false, or { outline, shadow, gradient: [top, bottom], scale, align: 'left' | 'center' | 'right', wrap: maxWidthPx, lineGap }
   text(g, s, x, y, color = '#ffffff', o = '#0b0814') {
     if (o === null || o === false || typeof o === 'string') o = { outline: o };
-    const sc = fsc(o), outline = o.outline === undefined ? '#0b0814' : o.outline, lh = this.lineHeight(o), grad = o.gradient && o.gradient.length ? o.gradient : null;
-    const lines = o.wrap ? this.wrap(s, o.wrap, o) : String(s).split('\n');
+    const sc = fsc(o), outline = o.outline === undefined ? '#0b0814' : o.outline, m = fm(o, sc), lh = m.step, grad = o.gradient && o.gradient.length ? o.gradient : null;
+    const lines = o.wrap ? this.wrap(s, o.wrap, o) : String(s).split('\n'), top = m.asc - F.h * sc, ds = LANG_DEV.size(F.h + F.desc, sc);
     x = Math.round(x); y = Math.round(y);
     let w = 0;
-    const draw = (ox, oy, c, useGrad) => lines.forEach((line, li) => {
-      const lw = lineW(line) * sc, lx = x + (o.align === 'center' ? -Math.round(lw / 2) : o.align === 'right' ? -lw : 0), ly = y + li * lh;
-      w = Math.max(w, lw);
+    const glyphs = (line, lx, ly, ox, oy, c, useGrad) => {
       let cx = 0;
       for (const ch of line) {
         if (ch === ' ') { cx += F.space + 1; continue; }
+        if (!has(ch) && LANG_DEV.ZW.test(ch)) continue;
         const gl = glyph(ch);
         for (const [rx, ry, rn] of gl.runs) { px.col(g, useGrad ? grad[Math.min(grad.length - 1, Math.floor(ry / F.h * grad.length))] : c); g.fillRect(lx + (cx + rx) * sc + ox, ly + ry * sc + oy, rn * sc, sc); }
         cx += gl.w + 1;
+      }
+    };
+    const draw = (ox, oy, c, useGrad) => lines.forEach((line, li) => {
+      const R = LANG_DEV.runs(has, line, 'a'), lw = R ? lineWs(line, sc, g) : lineW(line) * sc, ly = y + li * lh;
+      const rtl = !!R && R.length === 1 && LANG_DEV.RTL.test(line), box = rtl && o.wrap && (!o.align || o.align === 'left');   // (right to left in a box: from its right edge)
+      const al = box ? 'right' : o.align, lx = (box ? x + Math.round(o.wrap) : x) + (al === 'center' ? -Math.round(lw / 2) : al === 'right' ? -lw : 0);
+      w = Math.max(w, lw);
+      if (!R) { glyphs(line, lx, ly + top, ox, oy, c, useGrad); return; }
+      let cx = 0;
+      for (const [d, t] of R) {
+        if (!d) { glyphs(t, lx + cx, ly + top, ox, oy, c, useGrad); cx += lineW(t) * sc + sc; continue; }
+        px.col(g, useGrad ? grad[0] : c); LANG_DEV.draw(g, t, lx + cx + ox, ly + m.asc + oy, ds, rtl); cx += LANG_DEV.measure(g, t, ds) + sc;
       }
     });
     if (o.shadow) draw(sc, sc, o.shadow, false);
     if (outline) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) draw(ox, oy, outline, false);
     draw(0, 0, color, !!grad);
-    return { w, h: lh * (lines.length - 1) + (F.h + F.desc) * sc };
+    return { w, h: lh * (lines.length - 1) + m.rows };
   },
   // big logo text: title(g, 'NAME', x, y, { scale: 3, colors: [top .. bottom], outline, depth, depthColor, align, shine })
   title(g, s, x, y, o = {}) {
@@ -937,14 +954,16 @@ E.font = {
     const base = Object.assign({}, o, { scale: sc, outline: false, shadow: false, gradient: null });
     for (let d = depth; d >= 1; d--) this.text(g, s, x + d, y + d, dc, base);
     if (outline) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) this.text(g, s, x + ox, y + oy, outline, base);
-    const rows = F.h * sc, bands = [];
+    const rows = F.h * sc, bands = [], mt = fm(base, sc), top = mt.asc - F.h * sc, ds = LANG_DEV.size(F.h + F.desc, sc);
     for (let k = 0; k < rows; k++) { const t = k / Math.max(1, rows - 1) * (colors.length - 1), i = Math.min(colors.length - 2, Math.floor(t)); bands.push(colors.length < 2 ? colors[0] : mix(colors[i], colors[i + 1], t - i)); }
     const lines = String(s).split('\n'), lh = this.lineHeight(base);
     lines.forEach((line, li) => {
-      const lw = lineW(line) * sc, lx = Math.round(x) + (o.align === 'center' ? -Math.round(lw / 2) : o.align === 'right' ? -lw : 0), ly = Math.round(y) + li * lh;
+      const R = LANG_DEV.runs(has, line, 'a'), lw = R ? lineWs(line, sc, g) : lineW(line) * sc, lx = Math.round(x) + (o.align === 'center' ? -Math.round(lw / 2) : o.align === 'right' ? -lw : 0), ly = Math.round(y) + li * lh + top;
+      if (R) { this.text(g, line, lx, ly - top, colors[1] || colors[0], { scale: sc, outline: false }); return; }   // (the device's letters: one colour, over the outline and depth drawn above)
       let cx = 0;
       for (const ch of line) {
         if (ch === ' ') { cx += F.space + 1; continue; }
+        if (!has(ch) && LANG_DEV.ZW.test(ch)) continue;
         const gl = glyph(ch);
         for (const [rx, ry, rn] of gl.runs) for (let sy = 0; sy < sc; sy++) { px.col(g, bands[Math.min(rows - 1, ry * sc + sy)] || colors[0]); g.fillRect(lx + (cx + rx) * sc, ly + ry * sc + sy, rn * sc, 1); }
         if (o.shine !== false) for (const [rx, ry, rn] of gl.runs) if (ry === 0) { px.col(g, o.shine || '#ffffff'); g.fillRect(lx + (cx + rx) * sc, ly, rn * sc, 1); }
@@ -954,6 +973,228 @@ E.font = {
     return { w: this.width(s, base), h: this.height(lines.length, base) };
   }
 };
+
+// ---- 6b. LANGUAGES: a game in the player's own language (AI Hub Languages v1). E.t(id, values) reads the page's game-lines and
+// game-translations blocks; E.lang chooses the language, makes the three test languages, and lends the fonts the device's font ----
+// @lang-shared-start (the agent edition has this text too, the same to the letter: contract-test holds it)
+const LANG_RTL = /^(ar|fa|ur|he|ps|sd|ug|yi|ckb|dv)\b/i, LANG_JOINED = /^(ar|fa|ur|ps|sd|ug|ckb)\b/i, LANG_FAKE = ['en-XA', 'zh-XC', 'ar-XB'];
+const LANG_OWN = (o, k) => (o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined);
+const LANG_OK = v => (typeof v === 'string' && v !== '') || (!!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0 && Object.values(v).every(s => typeof s === 'string'));
+const LANG_CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}　-〿＀-￯]/u;
+const LANG_INTL = (k, lang, o) => { const c = LANG_INTL.c || (LANG_INTL.c = new Map()), key = k + '|' + lang + '|' + JSON.stringify(o || ''); if (!c.has(key)) { let v = null; try { v = typeof Intl !== 'undefined' && Intl[k] ? new Intl[k](lang, o) : null; } catch (e) { try { v = new Intl[k]('en', o); } catch (e2) { v = null; } } c.set(key, v); } return c.get(key); };
+/** the engine's own words by id, in English: each part that shows words adds its own where it is written (the menus, the
+ *  saves, the notes, the key names); E.lang.engineLines() lists them */
+const ENGINE_LINES = {};
+E.lang = {
+  /** code: the language shown ('en', 'es-419', or a test language); source: the game's own; dir: 'ltr' | 'rtl'; available:
+   *  the languages the page has, its own first; test: true in a test language; asked: the address's ?lang= (or null);
+   *  big: true when the language's text needs the device's font (lines grow to fit it: section 6) */
+  code: 'en', source: 'en', dir: 'ltr', available: ['en'], test: false, asked: null, big: false,
+  _src: { lines: {} }, _tr: {}, _table: {}, _loaded: false, _len: new Map(),
+  /** read the page's two blocks and choose the language (the first E.t does it; call it again after changing them).
+   *  o, in place of the page and the address (Node, tests): { lines: a game-lines object, translations, lang } */
+  load(o) {
+    const dom = typeof document !== 'undefined' && !!document.getElementById, block = id => { try { return JSON.parse(document.getElementById(id).textContent); } catch (e) { return null; } };
+    const src = o && o.lines ? o.lines : dom ? block('game-lines') : null, tr = o && o.translations ? o.translations : o && o.lines ? null : dom ? block('game-translations') : null;
+    this._src = src && typeof src === 'object' && src.lines && typeof src.lines === 'object' ? src : { language: 'en', lines: {} };
+    this._tr = tr && typeof tr === 'object' && !Array.isArray(tr) ? tr : {};
+    this.source = typeof this._src.language === 'string' && this._src.language ? this._src.language : 'en';
+    this.available = [this.source, ...Object.keys(this._tr).filter(k => k !== this.source && LANG_OWN(this._tr[k], 'lines'))];
+    let asked = o && 'lang' in o ? o.lang || null : null;
+    if (!o && typeof location !== 'undefined') try { asked = new URLSearchParams(location.search).get('lang'); } catch (e) { /* no address */ }
+    this.asked = asked;
+    this.code = this.pick(this.available, asked, !!o); this.test = LANG_FAKE.includes(this.code);
+    this.dir = LANG_RTL.test(this.code) ? 'rtl' : 'ltr';
+    const t = LANG_OWN(this._tr[this.code], 'lines'); this._table = t && typeof t === 'object' ? t : {};
+    this.big = this.test ? this.code !== 'en-XA' : Object.values(this._table).some(l => LANG_OK(l) && !E.font.covers(typeof l === 'string' ? l : Object.values(l).join(' ')));
+    this._loaded = true; this._len.clear();
+    if (dom && document.documentElement && !(o && o.page === false)) document.documentElement.lang = this.code;
+    return this;
+  },
+  _ensure() { if (!this._loaded) this.load(); return this; },
+  /** the language to show among available: asked (?lang=), then the player's saved choice, the browser's languages, the
+   *  game's own. A code matches in full, then the same language in the same writing, then the same language (a browser
+   *  set to zh-TW gets zh-Hant before zh-Hans; es-MX gets es-419). quiet: neither storage nor the browser (Node, tests) */
+  pick(available, asked = this.asked, quiet = false) {
+    if (LANG_FAKE.includes(asked)) return asked;
+    let saved = null, nav = [];
+    if (!quiet && typeof document !== 'undefined') {
+      try { saved = localStorage.getItem('lang:' + location.pathname); } catch (e) { /* storage blocked */ }
+      const S = E.session, rec = S && S.replaying && S.data && S.data.env && S.data.env.languages;   // (a replay: the recorded browser's)
+      nav = rec || (typeof navigator !== 'undefined' && navigator.languages) || [];
+    }
+    const parts = c => { try { const l = new Intl.Locale(c).maximize(); return [l.language, l.script]; } catch (e) { return [String(c).toLowerCase().split('-')[0], '']; } };
+    for (const want of [asked, saved, ...nav].filter(Boolean)) {
+      const [lg, sc] = parts(want);
+      const hit = available.find(a => a.toLowerCase() === String(want).toLowerCase()) || available.find(a => { const p = parts(a); return p[0] === lg && p[1] === sc; }) || available.find(a => parts(a)[0] === lg);
+      if (hit) return hit;
+    }
+    return available[0] || 'en';
+  },
+  /** true when the Language menu should offer a choice: the page has two languages or more and the address names none
+   *  (with ?lang= the hub's own menu is in charge) */
+  get offer() { this._ensure(); return this.available.length > 1 && !this.asked; },
+  /** true when the game's lines (or the engine's) have this id */
+  has(id) { this._ensure(); return LANG_OK(LANG_OWN(this._src.lines, id)) || LANG_OK(LANG_OWN(ENGINE_LINES, id)); },
+  /**
+   * a line in the player's language: E.t('hud.lives', { count: 3 }). values fill its {blanks} (a number in the
+   * language's format, wrapped in Unicode isolates in a right-to-left language); {count} picks a plural form ({ zero,
+   * one, two, few, many, other }); {key:jump} is the key or button that does jump on the device in use; other tags
+   * ({c=#hex}, {w=.5}) stay for E.Dialog. A translation missing, empty or broken shows the game's own line (Critical),
+   * an id in neither the game's lines nor the engine's shows fallback, else the id itself
+   */
+  t(id, values, fallback) {
+    this._ensure();
+    const v = values || {}, tr = LANG_OWN(this._table, id), translated = LANG_OK(tr);
+    let src = LANG_OWN(this._src.lines, id), lang = this.source;
+    if (!LANG_OK(src)) { src = LANG_OWN(ENGINE_LINES, id); lang = 'en'; if (!LANG_OK(src)) { src = fallback; if (!LANG_OK(src)) return fallback === undefined ? String(id) : String(fallback); } }
+    if (!translated && !this.test) return this._fill(src, v, lang, false);
+    const out = translated ? this._fill(tr, v, this.code, false) : this._fill(src, v, lang, LANG_OWN(this._src.max, id));
+    if (out !== src) { if (this._len.size > 4000) this._len.clear(); this._len.set(out, this.letters(this._fill(src, v, lang, false))); }   // (the original's length: E.Dialog types it at the original's pace)
+    return out;
+  },
+  // a line (or its plural forms) in lang with its blanks filled; max: a test language's (made before the blanks)
+  _fill(line, v, lang, max) {
+    if (typeof line === 'object') { const n = typeof v.count === 'number' ? v.count : 0, pr = LANG_INTL('PluralRules', lang); line = (n === 0 && line.zero) || (pr && line[pr.select(n)]) || line.other || Object.values(line)[0]; }
+    if (max !== false && this.test) line = this.fake(line, max);
+    const rtl = this.dir === 'rtl', nf = LANG_INTL('NumberFormat', lang);
+    line = String(line).replace(/\{key:(\w+)\}/g, (tag, a) => { const c = this.control(a); return c ? (rtl ? '⁨' + c + '⁩' : c) : tag; }).replace(/\{(\w+)\}/g, (tag, k) => {
+      if (!Object.prototype.hasOwnProperty.call(v, k)) return tag;
+      const x = v[k], s = typeof x === 'number' && nf ? nf.format(x) : String(x);
+      return rtl ? '⁨' + s + '⁩' : s;   // (isolated: a Latin name or a number can't scramble the line round it)
+    });
+    if (!this.test && lang !== this.code && LANG_RTL.test(lang) !== rtl) line = '⁨' + line + '⁩';   // (the game's own line in the other direction)
+    return line;
+  },
+  /** the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a
+   *  function of your own for a game without E.Game's input */
+  control(a) { const g = E.current; return (g && g.input && g.input.map && g.input.map[a] && g.input.label(a)) || a; },
+  /** the original line's letter count for text E.t gave in another language (E.Dialog types it over the original's time), or 0 */
+  sourceLength(text) { return this._len.get(text) || 0; },
+  /** whole letters in s, tags left out (a Chinese, Japanese or Korean character is one) */
+  letters(s) { return this.pieces(String(s).replace(/\{[^{}]*\}/g, ''), 'grapheme').length; },
+  /** what a typewriter reveals one step at a time: whole letters (whole words in Arabic script), a {tag} one step of its
+   *  own. by: 'grapheme' or 'word' to choose */
+  pieces(line, by) {
+    this._ensure();
+    const g = by || (LANG_JOINED.test(this.code) ? 'word' : 'grapheme'), seg = LANG_INTL('Segmenter', this.code, { granularity: g });
+    return String(line).split(/(\{[^{}]*\})/).flatMap((p, i) => (i % 2 ? [p] : seg && seg.segment ? Array.from(seg.segment(p), s => s.segment) : Array.from(p))).filter(p => p !== '');
+  },
+  /** a line's width for max: whole letters, a Chinese, Japanese or Korean character counting two; tags count nothing */
+  width(line) { return this.pieces(String(line).replace(/\{[^{}]*\}/g, ''), 'grapheme').reduce((n, g) => n + (LANG_CJK.test(g) ? 2 : 1), 0); },
+  /** a test language's line, made from the game's own before its blanks are filled: accented and longer in brackets (en-XA,
+   *  exactly max wide when there is one), Chinese characters without spaces (zh-XC), Arabic letters (ar-XB) */
+  fake(line, max, code = this.code) {
+    const HAN = '的一是不了人我在有他这中大来上国个到说们为子和你地出道也时年得就那要下以生会自着去之过家学对', AR = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي';
+    const ACC = { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', n: 'ñ', c: 'ç', A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', N: 'Ñ' };
+    const out = String(line).split(/(\{[^{}]*\})/).map((p, i) => {
+      if (i % 2) return p;
+      if (code === 'zh-XC') return p.replace(/[\p{L}\p{M}]+/gu, w => Array.from({ length: Math.ceil([...w].length / 2) }, (_, k) => HAN[(w.codePointAt(k) * 7 + k) % HAN.length]).join('')).replace(/[,.!?:;]/g, c => '，。！？：；'[',.!?:;'.indexOf(c)]).replace(/[ \t]+/g, '');
+      if (code === 'ar-XB') return p.replace(/\p{L}\p{M}*/gu, c => AR[c.codePointAt(0) % AR.length]);
+      return code === 'en-XA' ? p.replace(/[aeiounc]/gi, c => ACC[c] || c) : p;
+    }).join('');
+    if (code !== 'en-XA') return out;
+    if (max) return '[' + out + '·'.repeat(Math.max(0, max - this.width(out) - 2)) + ']';
+    return out.split('\n').map(p => '[' + p + ' ' + '·'.repeat(Math.ceil(this.width(p) * .4)) + ']').join('\n');
+  },
+  /** a language's name in that language, for the Language menu: Español latinoamericano, 繁體中文 */
+  name(code) { const d = LANG_INTL('DisplayNames', code, { type: 'language' }); let n = code; try { n = (d && d.of(code)) || code; } catch (e) { /* not a code it knows */ } return n.charAt(0).toLocaleUpperCase(code) + n.slice(1); },
+  /** the player picks a language (the Language menu): kept under 'lang:' + the page's path, and the page starts again in
+   *  it. Headless (no page to reload) it changes at once */
+  choose(code) {
+    if (typeof document === 'undefined' || typeof location === 'undefined') { this.load({ lines: this._src, translations: this._tr, lang: code }); return; }
+    try { localStorage.setItem('lang:' + location.pathname, code); } catch (e) { /* storage blocked: this visit only */ }
+    try { location.reload(); } catch (e) { this.load(); }
+  },
+  /** a number, date or list in the player's language: num(12500) is 12,500 in English, 12.500 in German */
+  num(n, o) { this._ensure(); const f = LANG_INTL('NumberFormat', this.code, o); return f ? f.format(n) : String(n); },
+  date(d, o) { this._ensure(); const f = LANG_INTL('DateTimeFormat', this.code, o); return f ? f.format(d) : String(d); },
+  list(a, o) { this._ensure(); const f = LANG_INTL('ListFormat', this.code, o || { type: 'conjunction' }); return f ? f.format(a.map(String)) : a.join(', '); },
+  /** capitals in the player's language (Turkish i is İ); compare(a, b): names sorted in it */
+  upper(s) { this._ensure(); try { return String(s).toLocaleUpperCase(this.test ? 'en' : this.code); } catch (e) { return String(s).toUpperCase(); } },
+  compare(a, b) { this._ensure(); try { return String(a).localeCompare(String(b), this.test ? 'en' : this.code); } catch (e) { return a < b ? -1 : a > b ? 1 : 0; } },
+  /** HTML in the page with data-line="id" gets its line (and the direction); call it once the page has loaded */
+  fillPage(root = typeof document !== 'undefined' ? document : null) { if (!root) return; for (const el of root.querySelectorAll('[data-line]')) { el.textContent = this.t(el.dataset.line); el.dir = this.dir; } },
+  /** the engine's own lines by id, in English: put them in the page's game-lines block (tools/lines.mjs does) for the
+   *  translation step to translate the menus with the game */
+  engineLines() { return Object.assign({}, ENGINE_LINES); },
+  /** an engine part's own lines (the 3D engine's, a module's), English by id: engineLines() lists them with the rest */
+  engine(lines) { for (const k in lines) if (/^engine\.[a-z0-9_]+(\.[a-z0-9_]+)*$/.test(k) && LANG_OK(lines[k])) ENGINE_LINES[k] = lines[k]; return this; }
+};
+/* the device's font, for the letters a pixel font lacks (both editions' E.font): a line is cut into runs, the pixel
+   font's and the device's, each of the device's drawn in one call so its letters join; a line with letters written right
+   to left is the device's whole, so its directions settle as they should. Spaces, ASCII punctuation and the invisible
+   marks (isolates, joiners) go with the run before them */
+const LANG_DEV = {
+  family: 'sans-serif',
+  ZW: /[​-‏‪-‮⁦-⁩؜﻿]/, RTL: /[֐-ࣿיִ-﷿ﹰ-ﻼ]/,
+  NOSPACE: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u,
+  _runs: new Map(), _w: new Map(), _cx: null,
+  /** the device font's size for a pixel font of rows (its height and descent) at scale sc: never under 12 px, the least a
+   *  Chinese, Japanese or Korean character reads at */
+  size(rows, sc) { return Math.max(12, Math.round(rows * sc * 1.2)); },
+  /** a line's ascent, rows and step to the next (pixels at scale sc): the pixel font's, or taller when big (the language's
+   *  text is the device font's: room above and below for its marks) */
+  metrics(h, desc, gap, sc, big) {
+    const rows = (h + desc) * sc; if (!big) return { asc: h * sc, rows, step: rows + gap * sc };
+    const ds = this.size(h + desc, sc), asc = Math.max(h * sc, Math.ceil(ds * .9)), r = asc + Math.max(desc * sc, Math.ceil(ds * .3));
+    return { asc, rows: r, step: r + gap * sc };
+  },
+  /** null when the pixel font draws the whole line (has(ch): it has that glyph), else [[device, text], ...] */
+  runs(has, line, key) {
+    let any = false;
+    for (const ch of line) if (ch !== ' ' && ch !== '\n' && !has(ch) && !this.ZW.test(ch)) { any = true; break; }
+    if (!any) return null;
+    const k = key + '\u0000' + line, hit = this._runs.get(k); if (hit) return hit;
+    let out;
+    if (this.RTL.test(line)) out = [[true, line]];
+    else {
+      out = []; let pend = '';
+      for (const ch of line) {
+        if (ch === ' ' || this.ZW.test(ch) || /[!-/:-@[-`{-~]/.test(ch)) { pend += ch; continue; }
+        const d = !has(ch), cur = out[out.length - 1];
+        if (cur && cur[0] === d) cur[1] += pend + ch; else if (cur) { cur[1] += pend; out.push([d, ch]); } else out.push([d, pend + ch]);
+        pend = '';
+      }
+      if (pend) { if (out.length) out[out.length - 1][1] += pend; else out.push([false, pend]); }
+    }
+    if (this._runs.size > 2000) this._runs.clear();
+    this._runs.set(k, out); return out;
+  },
+  /** a run's width in pixels at size: measured where a canvas can (g, or one of its own), else reckoned (Node) */
+  measure(g, s, size) {
+    const k = size + '|' + this.family + '|' + s; let w = this._w.get(k); if (w !== undefined) return w;
+    let c = g && g.measureText ? g : this._cx;
+    if (!c && typeof document !== 'undefined' && document.createElement) try { c = this._cx = document.createElement('canvas').getContext('2d'); } catch (e) { c = null; }
+    if (c && c.measureText) { c.font = size + 'px ' + this.family; w = Math.ceil(c.measureText(s).width); }
+    else w = Math.ceil(E.lang.pieces(s.replace(this.ZW, ''), 'grapheme').reduce((n, ch) => n + (ch === ' ' ? .3 : LANG_CJK.test(ch) ? 1 : .6), 0) * size);
+    if (this._w.size > 4000) this._w.clear();
+    this._w.set(k, w); return w;
+  },
+  /** draw a run at x with its baseline at base (its colour set already: px.col) */
+  draw(g, s, x, base, size, rtl) { if (!g || !g.fillText) return; g.font = size + 'px ' + this.family; g.textBaseline = 'alphabetic'; g.textAlign = 'left'; g.direction = rtl ? 'rtl' : 'ltr'; g.fillText(s, x, base); },
+  /** a paragraph's lines no wider than lim (width(text)): scripts written without spaces (Chinese, Japanese, Thai) break
+   *  between words (Intl.Segmenter), punctuation kept with the word before it; else null (the font breaks at spaces) */
+  wrap(para, lim, width) {
+    if (!this.NOSPACE.test(para)) return null;
+    const seg = LANG_INTL('Segmenter', E.lang._ensure().code, { granularity: 'word' }), toks = [];
+    for (const s of seg && seg.segment ? Array.from(seg.segment(para)) : Array.from(para, c => ({ segment: c, isWordLike: true }))) {
+      const sp = /^\s+$/.test(s.segment), last = toks[toks.length - 1];
+      if (!sp && !s.isWordLike && last && !last.sp && !/^[(\[{“‘「『（《]/.test(s.segment)) last.t += s.segment; else toks.push({ t: s.segment, sp });
+    }
+    const out = []; let line = '', gap = '';
+    for (const k of toks) {
+      if (k.sp) { if (line) gap = k.t; continue; }
+      const c = line + gap + k.t;
+      if (!line || width(c) <= lim) { line = c; gap = ''; } else { out.push(line); line = k.t; gap = ''; }
+      while (width(line) > lim && line.length > 1) { const g = E.lang.pieces(line, 'grapheme'); let n = g.length - 1; while (n > 1 && width(g.slice(0, n).join('')) > lim) n--; out.push(g.slice(0, n).join('')); line = g.slice(n).join(''); }
+    }
+    out.push(line); return out;
+  }
+};
+/** E.t(id, values): E.lang.t, a line in the player's language */
+E.t = (id, values, fallback) => E.lang.t(id, values, fallback);
+// @lang-shared-end
 
 // ---- 7. PARTICLES: 3D, projected. kinds: dust spark bit ember ring text fire smoke impact glint. g > 0 pulls down, bounce 0..1 ----
 class Particles {
@@ -3538,6 +3779,8 @@ const MARKUP = /\{(\/?)(c|s|w|shake|wave)(?:=([^}]*))?\}/g;
 function markup(s, vars) {
   if (s.indexOf('{') < 0) return null;
   let had = false;
+  if (vars && typeof vars === 'object') s = s.replace(/\{(\w+)\}/g, (m, k) => Object.prototype.hasOwnProperty.call(vars, k) && !/^(c|s|w|shake|wave)$/.test(k) ? (had = true, String(vars[k])) : m);   // (a line's {blanks}, as E.t fills them)
+  s = s.replace(/\{key:(\w+)\}/g, (m, a) => (had = true, E.lang.control(a)));   // (the key or button that does it)
   s = s.replace(/\{\$([\w.]+)\}/g, (m, k) => { had = true; let v = vars; for (const p of k.split('.')) v = v == null ? undefined : v[p]; if (v === undefined) { warn('dialog:' + k, 'Dialog: no value for {$' + k + '}'); return ''; } return String(v); });
   let text = '', st = { c: null, s: 0, shake: 0, wave: 0 }, last = 0, m;
   const fx = [], wait = {}, cs = [], ss = [], lit = t => { for (let i = 0; i < t.length; i++) fx.push(st); text += t; };
@@ -3568,13 +3811,16 @@ class Dialog {
   say(text, o = {}) {
     this.portrait = typeof o.portrait === 'function' ? o.portrait : null; this._pSize = o.portraitSize || 40; this._voice = o.voice;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;
-    const d = this._dims(), pages = [], fxs = [];
+    const d = this._dims(), pages = [], fxs = [], rates = [];
     for (const t of Array.isArray(text) ? text : [text]) {
       const mk = markup(String(t), o.vars ? Object.assign({}, this.vars, o.vars) : this.vars), L = E.font.wrap(mk ? mk.text : String(t), d.w - d.tx - 5);
+      const src = E.lang.sourceLength(String(t)), rate = src ? clamp((mk ? mk.text : String(t)).length / src, .25, 4) : 1;   // (a translated line types over the original's time)
       let at = 0; const pos = mk && L.map(line => Array.from(line, ch => { let w = 0; while (at < mk.text.length && mk.text[at] !== ch) w += mk.wait[at++] || 0; const q = at++; return { f: mk.fx[q], w: w + (mk.wait[q] || 0) }; }));
-      for (let k = 0; k < L.length; k += this.lines) { pages.push(L.slice(k, k + this.lines)); const ps = pos && [].concat(...pos.slice(k, k + this.lines)); fxs.push(ps && { fx: ps.map(e => e.f), wait: ps.map(e => e.w) }); }
+      for (let k = 0; k < L.length; k += this.lines) { pages.push(L.slice(k, k + this.lines)); rates.push(rate); const ps = pos && [].concat(...pos.slice(k, k + this.lines)); fxs.push(ps && { fx: ps.map(e => e.f), wait: ps.map(e => e.w) }); }
     }
     this.pages = pages.length ? pages : [['']]; this.i = 0; this.shown = 0; this.open = true; this.choice = 0;
+    this._rates = rates; this._stops = this.pages.map(pg => { let at = 0; const st = new Set([0]); for (const line of pg) for (const p of E.lang.pieces(line)) st.add(at += p.length); return st; });   // (where whole letters end: typing stops only there)
+    this._plain = this.pages.map(pg => E.font.covers(pg.join(' '))); this._syl = 0; this._rest = 0;   // (the device's letters chirp by syllable)
     this._fx = fxs.some(Boolean) ? fxs : null; this._hold = 0; this._held = -1;
     this.name = o.name || null; this.onDone = o.onDone || null; this.choices = o.choices || null; this.onChoice = o.onChoice || null; this._blip = 0;
     this.auto = o.auto || 0; this.modal = o.modal !== false; this._wait = 0;
@@ -3584,20 +3830,31 @@ class Dialog {
   get _page() { return this.pages[this.i] || []; }
   get pageLen() { return this._page.reduce((a, l) => a + l.length, 0); }
   get typing() { return this.shown < this.pageLen; }
+  // shown cut back to the end of the last whole letter (a whole word in Arabic script): typing reveals no part of one
+  _snap(n) { const st = this._stops && this._stops[this.i]; if (!st) return n; while (n > 0 && !st.has(n)) n--; return n; }
   update(dt) {
     if (!this.open) return false;
     const inp = this.game.input, len = this.pageLen, prev = Math.floor(this.shown), mk = this._fx && this._fx[this.i];
-    if (!mk) this.shown = Math.min(len, this.shown + this.speed * dt);
+    const rate = (this._rates && this._rates[this.i]) || 1;
+    if (!mk) this.shown = Math.min(len, this.shown + this.speed * rate * dt);
     else for (let t = dt; t > 1e-9 && this.shown < len;) {
       const n = Math.floor(this.shown);
       if (this._hold > 0) { const u = Math.min(t, this._hold); this._hold -= u; t -= u; continue; }
       if (mk.wait[n] && this._held < n) { this._held = n; this._hold = mk.wait[n]; continue; }
-      const sp = (mk.fx[n] && mk.fx[n].s) || this.speed, u = Math.min(t, (n + 1 - this.shown) / sp);
+      const sp = ((mk.fx[n] && mk.fx[n].s) || this.speed) * rate, u = Math.min(t, (n + 1 - this.shown) / sp);
       this.shown = Math.min(len, this.shown + u * sp); t -= u; if (n + 1 - this.shown < 1e-6) this.shown = n + 1;
     }
-    const vo = this._voice !== undefined ? this._voice : this.voice, now = Math.floor(this.shown);   // (say's voice, for that call, else the box's)
-    if (typeof vo === 'function') { if (now > prev) { const tx = this._page.join(''); for (let n = prev; n < now; n++) try { vo(tx[n], n, this); } catch (e) { this.game.fail('dialog voice', e); } } }
-    else if (vo && now > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(vo);
+    const vo = this._voice !== undefined ? this._voice : this.voice, now = this._snap(Math.floor(this.shown)), was = this._snap(prev);   // (say's voice, for that call, else the box's; whole letters)
+    if (vo && now > was) {
+      const tx = this._page.join(''), st = this._stops && this._stops[this.i], each = f => { for (let a = was; a < now;) { let b = a + 1; while (b < now && st && !st.has(b)) b++; f(tx.slice(a, b), a); a = b; } };
+      if (typeof vo === 'function') each((p, a) => { try { vo(p, a, this); } catch (e) { this.game.fail('dialog voice', e); } });
+      else if (!this._plain || this._plain[this.i]) { if (this._blip++ % 2 === 0) this.game.audio.sfx(vo); }
+      else {   // the device's letters: a chirp a syllable (a Chinese character, a whole letter of Hindi, an Arabic word, two or three letters of an alphabet), none on spaces or punctuation, a rest after a sentence
+        each(p => { if (/\p{Sentence_Terminal}/u.test(p)) this._rest = .2; else if (!/^[\s\p{P}\p{S}]*$/u.test(p)) this._syl += LANG_CJK.test(p) ? 1 : /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}]/u.test(p) ? .4 : 1; });
+        if (this._rest > 0) this._syl = 0; else if (this._syl >= 1) { this._syl -= 1; this.game.audio.sfx(vo); }
+      }
+    }
+    if (this._rest > 0) this._rest -= dt;
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {
       this._wait = 0;
@@ -3623,13 +3880,15 @@ class Dialog {
       ui.box(g, d.x, d.y, d.w, d.h, { bg: this.bg, border: this.border, alpha: this._alpha });
       if (this.portrait) this.portrait(g, d.x + 5, d.y + Math.round((d.h - d.P) / 2), d.P);
       if (this.name) { const nw = E.font.width(this.name) + 12, nx = d.x + (this.portrait ? d.tx - 6 : 4); ui.box(g, nx, d.y - 12, nw, 14, { bg: this.bg, border: this.border }); E.font.text(g, this.name, nx + 6, d.y - 9, this.nameColor, { outline: false, shadow: '#05040a' }); }
-      let left = Math.floor(this.shown);
+      let left = this._snap(Math.floor(this.shown));
       const mk = this._fx && this._fx[this.i], o = { outline: false, shadow: '#05040a' };
-      if (!mk) this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, o); });
+      const at = (line, s, y, c) => LANG_DEV.RTL.test(line) ? E.font.text(g, s, d.x + d.w - 7, y, c, Object.assign({ align: 'right' }, o)) : E.font.text(g, s, d.x + d.tx, y, c, o);   // (right to left: from the box's right edge)
+      if (!mk) this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) at(line, s, d.y + 5 + k * d.lh, this.color); });
       else {
         let n0 = 0; const t = this.game.real;
         this._page.forEach((line, k) => {
           const shown = Math.min(line.length, Math.max(0, left)), y = d.y + 5 + k * d.lh; left -= line.length;
+          if (LANG_DEV.RTL.test(line)) { if (shown) at(line, line.slice(0, shown), y, this.color); n0 += line.length; return; }   // (right to left: the line whole, so its letters join)
           for (let j = 0; j < shown;) {
             const f = mk.fx[n0 + j] || {}, one = f.shake || f.wave; let e = j + 1;
             if (!one) while (e < shown && mk.fx[n0 + e] === f) e++;

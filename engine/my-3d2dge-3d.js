@@ -3295,6 +3295,8 @@ World3D.SETTINGS = [
 /** the Controls setting of a game that offers tank controls (game.settings.define(E.World3D.CONTROLS), or in menu.settings):
  *  camera.steer reads it */
 World3D.CONTROLS = { key: 'tank3d', label: 'Tank controls', group: 'Game', value: false, help: 'Up walks forward the way your character faces, down backs away, left and right turn it, whatever the camera does. Off: the stick moves it the way the camera looks.' };
+// their words are the engine's lines (engine.setting.<key>, .help, .<option>): the menus show them in the player's language
+if (E.lang && E.lang.engine) { const L = {}; for (const sp of [...World3D.SETTINGS, World3D.CONTROLS]) { const id = 'engine.setting.' + sp.key; L[id] = sp.label; if (sp.help) L[id + '.help'] = sp.help; for (const o of sp.options || []) L[id + '.' + o[0]] = o[1]; } E.lang.engine(L); }
 Object.defineProperties(World3D, {
   /** 'WebGPU' | 'WebGL 2' | 'none': what draws the 3D picture (after init) */
   backend: { get: () => PAGE.backend },

@@ -48,62 +48,63 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 108 The engine object (E = My3D2dge)
-- 119 Math
-- 195 Pixel primitives
-- 214 Sprite frames, turns and swaps
-- 220 Views (projections); E.View: view
-- 247 Screen; game.screen
-- 269 Input; E.Input: input
-- 357 Pixel fonts
-- 368 Lighting; game.lights
-- 387 Particles; E.Particles: game.particles
-- 407 Renderer; r
-- 457 Game; E.Game: game
-- 572 Standard features; settings, fullscreen
-- 589 10c. Boot
-- 594 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 611 10e. Paths; E.Path: path
-- 621 10g. Weather
-- 625 10k. Save slots; E.Saves: saves
-- 648 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 727 Blob rig; E.Blob: blob
-- 747 Tile map; E.TileMap: map
-- 811 Materials
-- 832 Flow field; E.FlowField: flow
-- 850 Texture helpers for floortex functions
-- 861 Platform map; E.PlatformMap: level
-- 895 Platformer; E.Platformer: hero
-- 936 Body; E.Body: body
-- 956 Actions; E.Action: action
-- 978 17c. Mover; E.Mover: mover
-- 1017 17d. Perception; E.Suspicion: suspicion
-- 1034 Bullets; E.Bullets: shots
-- 1054 Spatial hash; E.SpatialHash: grid
-- 1064 Audio; game.audio
-- 1098 Backdrops; E.Backdrop: backdrop
-- 1106 21c. Props
-- 1111 21e. Shapes
-- 1123 Ui; E.Dialog: talk, E.Menu: menu
-- 1184 21d. Shell; E.Shell: shell
-- 1213 Gpu lighting (webgpu); game.gpu
-- 1234 Sessions
-- 1243 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1278 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1323 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1361 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1442 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1453 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1512 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1535 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1564 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1596 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1613 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1642 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1661 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1669 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1698 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1744 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 109 The engine object (E = My3D2dge)
+- 120 Math
+- 196 Pixel primitives
+- 215 Sprite frames, turns and swaps
+- 221 Views (projections); E.View: view
+- 248 Screen; game.screen
+- 270 Input; E.Input: input
+- 358 Pixel fonts
+- 370 Languages
+- 403 Lighting; game.lights
+- 422 Particles; E.Particles: game.particles
+- 442 Renderer; r
+- 492 Game; E.Game: game
+- 607 Standard features; settings, fullscreen
+- 624 10c. Boot
+- 629 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 646 10e. Paths; E.Path: path
+- 656 10g. Weather
+- 660 10k. Save slots; E.Saves: saves
+- 683 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 762 Blob rig; E.Blob: blob
+- 782 Tile map; E.TileMap: map
+- 846 Materials
+- 867 Flow field; E.FlowField: flow
+- 885 Texture helpers for floortex functions
+- 896 Platform map; E.PlatformMap: level
+- 930 Platformer; E.Platformer: hero
+- 971 Body; E.Body: body
+- 991 Actions; E.Action: action
+- 1013 17c. Mover; E.Mover: mover
+- 1052 17d. Perception; E.Suspicion: suspicion
+- 1069 Bullets; E.Bullets: shots
+- 1089 Spatial hash; E.SpatialHash: grid
+- 1099 Audio; game.audio
+- 1133 Backdrops; E.Backdrop: backdrop
+- 1141 21c. Props
+- 1146 21e. Shapes
+- 1158 Ui; E.Dialog: talk, E.Menu: menu
+- 1219 21d. Shell; E.Shell: shell
+- 1248 Gpu lighting (webgpu); game.gpu
+- 1269 Sessions
+- 1278 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1313 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1358 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1396 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1477 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1488 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1547 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1570 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1599 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1631 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1648 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1677 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1696 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1704 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1733 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1779 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -356,7 +357,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 6. Pixel fonts
 
-- `E.font`: Pixel fonts. 'normal' (default) is a 5x7 proportional font with lower case; 'tiny' is the 3x5 upper-case font. text(g, str, x, y, color, opts) where opts is an outline color, false, or { font: 'normal' | 'tiny', outline: '#0b0814' | false, shadow: '#000' (1 px drop shadow), gradient: ['#fff', '#8ad'] (top to bottom), scale: 1, align: 'left' | 'center' | 'right', wrap: maxWidthPx, lineGap } '\n' starts a new line. Returns { w, h } of the drawn block. title(...) draws big logo text.
+- `E.font`: Pixel fonts. 'normal' (default) is a 5x7 proportional font with lower case; 'tiny' is the 3x5 upper-case font. text(g, str, x, y, color, opts) where opts is an outline color, false, or { font: 'normal' | 'tiny', outline: '#0b0814' | false, shadow: '#000' (1 px drop shadow), gradient: ['#fff', '#8ad'] (top to bottom), scale: 1, align: 'left' | 'center' | 'right', wrap: maxWidthPx, lineGap } '\n' starts a new line. Returns { w, h } of the drawn block. title(...) draws big logo text. A letter the font lacks (Chinese, Cyrillic, Arabic, Hindi ...) is drawn with the device's font, a run at a time (section 6b): a line with letters written right to left is drawn whole, and in a box (wrap) starts at its right edge; in a language whose text needs the device's font (E.lang.big) lines are taller, to fit it.
+- `E.font.covers(s, o)`: true when the font draws every letter of s itself (none from the device's font). opts: { font }
 - `E.font.default` †: the font used when none is named: 'normal' (5 x 7) or 'tiny' (3 x 5)
 - `E.font.height(lines = 1, o, lineGap)`: the height in pixels of that many lines (with o's scale and font, and lineGap between them)
 - `E.font.lineHeight(o)`: pixels from one line to the next
@@ -364,6 +366,39 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.font.title(g, s, x, y, o = {})`: Big logo text for title screens: scaled glyphs with a vertical color gradient, an outline and an extruded 3D edge. title(g, 'CASTLE OF NIGHT', x, y, { scale: 3, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], outline: '#1a0c10', depth: 3, depthColor: '#6a2a1a', align: 'center' })
 - `E.font.width(s, o)`: width in pixels of the widest line. opts: a scale number or { font, scale }
 - `E.font.wrap(s, maxW, o)`: split text into lines no wider than maxW pixels
+
+## 6b. Languages
+
+- `E.lang`
+- `E.lang.asked`
+- `E.lang.available`
+- `E.lang.big`
+- `E.lang.choose(code)`: the player picks a language (the Language menu): kept under 'lang:' + the page's path, and the page starts again in it. Headless (no page to reload) it changes at once
+- `E.lang.code`: the language shown ('en', 'es-419', or a test language); source: the game's own; dir: 'ltr' | 'rtl'; available: the languages the page has, its own first; test: true in a test language; asked: the address's ?lang= (or null); big: true when the language's text needs the device's font (lines grow to fit it: section 6)
+- `E.lang.compare(a, b)`
+- `E.lang.control(a)`: the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a function of your own for a game without E.Game's input
+- `E.lang.date(d, o)`
+- `E.lang.dir`
+- `E.lang.engine(lines)`: an engine part's own lines (the 3D engine's, a module's), English by id: engineLines() lists them with the rest
+- `E.lang.engineLines()`: the engine's own lines by id, in English: put them in the page's game-lines block (tools/lines.mjs does) for the translation step to translate the menus with the game
+- `E.lang.fake(line, max, code = this.code)`: a test language's line, made from the game's own before its blanks are filled: accented and longer in brackets (en-XA, exactly max wide when there is one), Chinese characters without spaces (zh-XC), Arabic letters (ar-XB)
+- `E.lang.fillPage(root = typeof document !== 'undefined' ? document : null)`: HTML in the page with data-line="id" gets its line (and the direction); call it once the page has loaded
+- `E.lang.has(id)`: true when the game's lines (or the engine's) have this id
+- `E.lang.letters(s)`: whole letters in s, tags left out (a Chinese, Japanese or Korean character is one)
+- `E.lang.list(a, o)`
+- `E.lang.load(o)`: read the page's two blocks and choose the language (the first E.t does it; call it again after changing them). o, in place of the page and the address (Node, tests): { lines: a game-lines object, translations, lang }
+- `E.lang.name(code)`: a language's name in that language, for the Language menu: Español latinoamericano, 繁體中文
+- `E.lang.num(n, o)`: a number, date or list in the player's language: num(12500) is 12,500 in English, 12.500 in German
+- `E.lang.offer`
+- `E.lang.pick(available, asked = this.asked, quiet = false)`: the language to show among available: asked (?lang=), then the player's saved choice, the browser's languages, the game's own. A code matches in full, then the same language in the same writing, then the same language (a browser set to zh-TW gets zh-Hant before zh-Hans; es-MX gets es-419). quiet: neither storage nor the browser (Node, tests)
+- `E.lang.pieces(line, by)`: what a typewriter reveals one step at a time: whole letters (whole words in Arabic script), a {tag} one step of its own. by: 'grapheme' or 'word' to choose
+- `E.lang.source`
+- `E.lang.sourceLength(text)`: the original line's letter count for text E.t gave in another language (E.Dialog types it over the original's time), or 0
+- `E.lang.t(id, values, fallback)`: a line in the player's language: E.t('hud.lives', { count: 3 }). values fill its {blanks} (a number in the language's format, wrapped in Unicode isolates in a right-to-left language); {count} picks a plural form ({ zero, one, two, few, many, other }); {key:jump} is the key or button that does jump on the device in use; other tags ({c=#hex}, {w=.5}) stay for E.Dialog. A translation missing, empty or broken shows the game's own line (Critical), an id in neither the game's lines nor the engine's shows fallback, else the id itself
+- `E.lang.test`
+- `E.lang.upper(s)`: capitals in the player's language (Turkish i is İ); compare(a, b): names sorted in it
+- `E.lang.width(line)`: a line's width for max: whole letters, a Chinese, Japanese or Korean character counting two; tags count nothing
+- `E.t(id, values, fallback)`: E.t(id, values): E.lang.t, a line in the player's language
 
 ## 7. Lighting
 

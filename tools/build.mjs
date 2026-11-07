@@ -21,6 +21,9 @@
 //                                index, AI_GUIDE.md, the tools that check, film and replay a game, a template game
 //                                with a headless test, and the 2D genre kits readable (kits/) (sources: src/handoff/).
 //                                The only output of several files; text only
+// LINES (AI Hub Languages v1; tools/lines.mjs): <!-- @lines --> in a template's <head> becomes the page's game-lines block, the
+// words its players read by id: each part's src/<dir>/<part>.lines.json, then the engine's own (and its modules', and the
+// 3D engine's on a 3D page), so a translation step can work on the page as the hub ships it.
 // MODULES (engine/modules/<name>.js, engine/modules/README.md): each loads after the core, in a <script> of its own. The
 // reference editions carry every module; a kit carries the ones its slice names in its header (@modules grid gen) and
 // the ones those need; the examples pages carry none.
@@ -29,6 +32,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { modules as allModules, resolve as resolveModules, sliceModules } from './engine-lib.mjs';
+import { gameLines, blockHTML } from './lines.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
@@ -272,6 +276,11 @@ for (const b of builds) {
   const vars = Object.assign({}, GLOBAL, b.vars); if (ke) vars.ENGINE += dietLine(ke.diet, !!ke3 || b.template === 'src/starter3d.template.html'); if (ke3) vars.ENGINE += dietLine3d(ke3.diet);
   for (const [k, v] of Object.entries(vars)) html = html.replaceAll(`{{${k}}}`, v);
   html = boot(html);
+  // the page's game-lines block: the lines of the parts it inlines, then the engine's (its modules', the 3D engine's)
+  html = html.replace('<!-- @lines -->', () => {
+    const dir = /@inline-parts (\S+)/.exec(html) || /@inline-module (src\/starter3d)/.exec(html), parts = dir ? readdirSync(join(root, dir[1])).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort().map(f => join(dir[1], f)) : [];
+    return blockHTML(gameLines(parts, { modules: b.modules === 'all' ? 'all' : resolveModules(b.modules || [], MODS).map(m => m.name), threeD: /@inline-esm engine\/my-3d2dge-3d\.js/.test(html) }));
+  });
   // a file one part needs, only where that part is (a kit of one slice leaves out the others' sets)
   html = html.replace(/<!-- @inline-with (\S+) (\S+) -->/g, (_, part, file) => !b.parts || b.parts(part) ? `<!-- @inline ${file} -->` : '');
   html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => file === 'API.md' && b.kit ? cardFor(b, read(file), ke && ke.diet) : read(file));
@@ -373,7 +382,8 @@ for (const k of KITS) {
   const [shell, slice, start] = ['00-shell.js', k.f, '90-start.js'].map(p => readFileSync(join(root, STARTER, p), 'utf8')), at = 4 + shell.split('\n').length;
   writeFileSync(join(root, H, 'kits', k.id + '.js'), `// The ${k.label} kit's game (${k.what}), readable: the starter's shell (${STARTER}/00-shell.js), then\n// the slice from line ${at} (${STARTER}/${k.f}: its header says what it plays and how), then the start (90-start.js), as the\n// single-file kit holds them between GAME START and GAME END. ${k.id}.html plays it; node kits/test.mjs ${k.id} runs it headless.\n` +
     [shell, slice, start].join('\n'));
-  writeFileSync(join(root, H, 'kits', k.id + '.html'), fill(kitPage.replaceAll('{{LABEL}}', k.label).replaceAll('{{ID}}', k.id).replace('{{SETS}}', k.set ? `<script src="../${k.set}"></script>\n` : '')));
+  const lines = blockHTML(gameLines(['00-shell.js', k.f, '90-start.js'].map(p => join(STARTER, p)), { modules: k.mods }));
+  writeFileSync(join(root, H, 'kits', k.id + '.html'), fill(kitPage.replaceAll('{{LABEL}}', k.label).replaceAll('{{ID}}', k.id).replace('{{SETS}}', k.set ? `<script src="../${k.set}"></script>\n` : '')).replace('<!-- @lines -->', () => lines));
 }
 writeFileSync(join(root, H, 'kits/README.md'), fill(readFileSync(join(root, 'src/handoff/kits/README.md'), 'utf8')).replace('{{KITS}}', KITS.map(k =>
   `| ${k.label} | [${k.id}.js](${k.id}.js), [${k.id}.html](${k.id}.html) | ${k.what} | ${k.mods.join(', ') || 'none'} | #${k.id}${(PARTS[k.id] || []).map(p => `, #${k.id}/${p}`).join('')} |`).join('\n')));
