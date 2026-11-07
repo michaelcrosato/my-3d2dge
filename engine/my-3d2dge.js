@@ -947,7 +947,7 @@ class Input {
    *  'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕' */
   label(a, device = this.lastDevice) {
     const m = this.map[a]; if (!m) { this._check(a); return ''; }
-    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || (E.lang.has('action.' + idPart(a)) ? E.lang.upper(E.t('action.' + idPart(a))) : a.toUpperCase());   // (the game's line action.<name> names it)
+    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || (E.lang.has('action.' + idPart(a)) ? E.lang.upper(E.t('action.' + idPart(a))) : E.lang.has('engine.action.' + idPart(a)) ? E.lang.upper(E.t('engine.action.' + idPart(a))) : a.toUpperCase());   // (the game's line action.<name> names it, else the engine's)
     const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
     const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
     return c ? this.codeLabel(c) : '';
@@ -1782,6 +1782,7 @@ Object.assign(ENGINE_LINES, {
   'engine.shell.fullscreen_iphone': 'On an iPhone: Share, then Add to Home Screen, plays without the browser\'s bars.', 'engine.shell.fullscreen_blocked': 'This browser or page doesn\'t allow it.',
   'engine.shell.calibrate': 'Calibrate', 'engine.shell.keep_it': 'Keep it', 'engine.shell.cancel': 'Cancel', 'engine.shell.dismiss': 'Dismiss', 'engine.shell.tutorial': 'Tutorial',
   'engine.shell.interact': 'Interact', 'engine.shell.hold_to_interact': 'Hold to interact', 'engine.shell.language': 'Language',
+  'engine.shell.distance': '{m} m', 'engine.shell.distance_above': '{m} m  ·  ABOVE YOU', 'engine.shell.distance_below': '{m} m  ·  BELOW YOU',
   'engine.controls.how': 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.',
   'engine.controls.keyboard': 'Keyboard', 'engine.controls.controller': 'Controller', 'engine.controls.press': 'Press…', 'engine.controls.player': 'Player {player}',
   'engine.controls.player_pad': 'Player {player} (controller)', 'engine.controls.player_left': 'Player {player} (left keys)', 'engine.controls.player_right': 'Player {player} (right keys)',
@@ -9932,7 +9933,7 @@ class Shell {
     this._piece('obj', play && s.objective, o => {
       const d = o.at && o.from ? Math.round(Math.hypot(o.at.x - o.from.x, o.at.y - o.from.y) * (this._o.meters || .125)) : null, dz = o.at && o.from ? (o.at.z || 0) - (o.from.z || 0) : 0;
       return [o.step && this._el('div', 'esh-k', o.step), this._el('b', '', o.title), o.text && this._el('p', 'esh-m', o.text),
-        d !== null && this._el('div', 'esh-dist', d + ' m' + (dz > 12 ? '  ·  ABOVE YOU' : dz < -12 ? '  ·  BELOW YOU' : ''))];
+        d !== null && this._el('div', 'esh-dist', ENG(dz > 12 ? 'shell.distance_above' : dz < -12 ? 'shell.distance_below' : 'shell.distance', { m: d }))];
     });
     this._piece('vit', play && (s.status || s.bars || s.counts) && [s.status, s.bars, s.counts], ([sta, bars, cnt]) => {
       const out = [];

@@ -1,7 +1,7 @@
 // Words a page shows that are not lines (AI Hub Languages v1: every word a player reads comes from the page's game-lines
 // block, so a translation reaches it). It plays the page in the test language en-XA, where every line E.t gives is
-// bracketed ([Stárt ··]), and lists the text drawn (E.font.text, E.font.title, r.text) or put in the page (the menus'
-// HTML) with two letters or more and no bracket: a word the code wrote itself.
+// bracketed and accented ([Stárt ··]), and lists the text drawn (E.font.text, E.font.title, r.text) or put in the page (the
+// menus' HTML) with three letters or more, no bracket and no accent: a word the code wrote itself.
 //   node tools/lines-scan.mjs <page.html> [#slice[/part]] [--seconds 6] [--keys confirm,start] [--allow 'regex']
 // The page is served from the repository (a 3D kit loads vendor/), its hash taken as the place to start. It presses the
 // keys given (confirm and start by default: past a title), opens the pause menu and its settings and controls, and
@@ -51,7 +51,8 @@ for (const s of ['settings', 'controls']) { await page.evaluate(s => { const g =
 const drawn = await page.evaluate(() => [...window.__seen.entries()]);
 await browser.close(); server.close();
 const UNITS = /^[-+]?[\d.,\s]*\d[\d.,\s]*(ms|px|%|×)?$/;   // (a number with its unit: units stay as written)
-const bad = ([s]) => /\p{L}{2,}/u.test(s) && !/[[\]]/.test(s) && !UNITS.test(s) && !(allow && allow.test(s));
+const PADS = /^((A|B|X|Y|LB|RB|LT|RT|LS|RS|L1|R1|L2|R2|L3|R3|ZL|ZR|View|Menu|Create|Options|Guide|PS|[✕○□△+−↑↓←→]) ?(\/ ?)?)+$/;   // (a gamepad's own button names, as its makers print them)
+const bad = ([s]) => /\p{L}{3,}/u.test(s) && !/[[\]áéíóúñçÁÉÍÓÚÑÇ]/.test(s) && !UNITS.test(s) && !PADS.test(s) && !(allow && allow.test(s));   // (a line's text carries en-XA's brackets, or its accents where a box breaks a long one into rows; three letters or more: a typewriter's first two are no word)
 const out = [...drawn.filter(bad).map(([s, n]) => [s, n, 'drawn']), ...[...html].filter(s => bad([s])).map(s => [s, 1, 'menu'])];
 for (const [s, n, w] of out.sort((x, y) => y[1] - x[1])) console.log(`  ${w} ×${n}: ${JSON.stringify(s)}`);
 for (const e of errors) console.log('  page error: ' + e);

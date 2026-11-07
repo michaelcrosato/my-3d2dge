@@ -119,7 +119,7 @@ for (const k of kits) {
     const ok = await p2.waitForFunction(() => window.__game && __game.game.sceneName === 'title', null, { timeout: k.is3d ? 120000 : 30000 }).then(() => true, () => false);
     if (ok) { await p2.waitForTimeout(600); await p2.evaluate(id => __game.game.go(id, null, { fade: 0 }), k.id); await p2.waitForTimeout(k.is3d ? 2500 : 1500); }
     const r = await p2.evaluate(() => ({ lang: My3D2dge.lang.code, errors: __game.game.errors.map(e => e.message), drawn: [...window.__drawn] })).catch(e => ({ lang: '?', errors: [e.message], drawn: [] }));
-    const plain = L === 'en-XA' ? r.drawn.filter(s => /\p{L}{2,}/u.test(s) && !/[[\]]/.test(s)) : [];
+    const plain = L === 'en-XA' ? r.drawn.filter(s => /\p{L}{3,}/u.test(s) && !/[[\]áéíóúñçÁÉÍÓÚÑÇ]/.test(s)) : [];   // (a line's text carries en-XA's brackets, or its accents on a row of a long one; a word of three letters or more)
     check(`${k.file}: in ${L} it starts with no error${L === 'en-XA' ? ', and every word it draws is a line' : ''}`, ok && r.lang === L && !r.errors.length && !e2.length && !plain.length,
       (ok ? '' : 'it did not start ') + r.lang + ' ' + [...r.errors, ...e2].slice(0, 2).join(' | ') + (plain.length ? ' words not lines: ' + JSON.stringify(plain.slice(0, 6)) : ''));
     await p2.close();
