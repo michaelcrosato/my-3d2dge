@@ -17,7 +17,8 @@ const BRAWL = (() => {
     ['pawn', 7, 72, '#5a7a66', 'plaster'], ['metal', 9, 88, '#8a6450', 'none'], ['hotel', 9, 132, '#743246', 'brick']];
   let at = 0; const blocks = BLOCKS.map(([kind, n, h, color, face], i) => { const b = { kind, i, h, color, face, x0: at * T, w: n * T, id: 'abcdefg'[i] }; at += n; return b; });
   const LEN = at * T, LAMPS = [30, 200, 352, 505, 660, 822];
-  const SIGNS = [{ b: 1, u: 32, z: 61, text: 'DINER', c: '#ff5aa8' }, { b: 4, u: 98, z: 28, text: 'PAWN', c: '#4ae8ff', v: 1 }, { b: 6, u: 16, z: 50, text: 'HOTEL', c: '#ffd24a', v: 1 }];
+  // the neon signs (v: the letters one under another); their words are lines (brawler.sign.*), as is every word painted on the street
+  const SIGNS = [{ b: 1, u: 32, z: 61, text: E.t('brawler.sign.diner'), c: '#ff5aa8' }, { b: 4, u: 98, z: 28, text: E.t('brawler.sign.pawn'), c: '#4ae8ff', v: 1 }, { b: 6, u: 16, z: 50, text: E.t('brawler.sign.hotel'), c: '#ffd24a', v: 1 }];
   const AWNINGS = [[0, 18, 21, '#3a6ac8'], [1, 24, 27, '#d83a3a'], [1, 60, 27, '#d83a3a']];   // [block, u (centre), z (bottom), stripe color]
   // street furniture [kind, x, y, size | car color]: engine props or FURN; cars are solid
   const STREET = [['trashcan', 46, 25, 1.25], ['firedrum', 84, 27, 1.3], ['hydrant', 196, 146], ['mailbox', 214, 26], ['dumpster', 250, 22], ['bags', 290, 24],
@@ -121,19 +122,19 @@ const BRAWL = (() => {
       R(wx - 10, b.h + 11, 20, 14, wt.base); for (let q = wx - 9; q < wx + 10; q += 3) R(q, b.h + 11, .6, 14, wt.sh); R(wx - 10, b.h + 11, 2, 14, wt.lt); R(wx - 10, b.h + 17, 20, .8, '#3a3040');
       px.poly(g, [[X(wx - 11), Y(b.h + 25)], [X(wx + 11), Y(b.h + 25)], [X(wx), Y(b.h + 31)]], wt.deep);
     } else if (k === 'alley') {                               // alley: posters, a spray-painted tag
-      poster(4, 18, '#3a8ad8', 'FIGHT'); poster(19, 16, '#d8383a', 'LIVE'); pipe(b.w - 5);
+      poster(4, 18, '#3a8ad8', E.t('brawler.poster.fight')); poster(19, 16, '#d8383a', E.t('brawler.poster.live')); pipe(b.w - 5);
       const gx = X(b.w * .66), gy = Y(24);
-      E.font.title(g, 'SKULLZ', gx, gy, { scale: 2, align: 'center', colors: ['#8af4ff', '#2aa0e0'], outline: '#1a0a2a', depth: 2, depthColor: '#ff3a9a', shine: false });
+      E.font.title(g, E.t('brawler.tag'), gx, gy, { scale: 2, align: 'center', colors: ['#8af4ff', '#2aa0e0'], outline: '#1a0a2a', depth: 2, depthColor: '#ff3a9a', shine: false });
     } else if (k === 'office') {                              // offices: window grid, a lit lobby
       for (let z = 34; z < b.h - 8; z += 24) { R(0, z - 4, b.w, 2.4, t.lt); glaze(.375, () => R(0, z - 5, b.w, 1, DARK)); for (let u = 5; u < b.w - 4; u += 24) win(u, z, 14, 15, { frame: '#9aa4c0', lit: .4, curtain: '#8a9ab0' }); }
       R(24, 0, b.w - 48, 25, '#1c2236'); R(26, 0, b.w - 52, 23, '#f2e2b4'); R(26, 17, b.w - 52, 6, '#fff6d8'); for (let u = 26; u < b.w - 26; u += 12) R(u, 0, 1, 23, '#3a4460');
-      R(20, 25, b.w - 40, 7, '#2a3048'); E.font.text(g, 'ACME TOWER', X(b.w / 2), Y(31), '#e8ecf8', { align: 'center', outline: false });
+      R(20, 25, b.w - 40, 7, '#2a3048'); E.font.text(g, E.t('brawler.sign.office'), X(b.w / 2), Y(31), '#e8ecf8', { align: 'center', outline: false });
     } else if (k === 'pawn') {                                // pawn shop: shutter, sign board, barred door
       R(0, 0, b.w, 5, t.sh); R(0, 5, b.w, 1, t.lt);
       shutter(8, 52, 28, 6); door(b.w - 34, 14, 24, '#3a4a44'); for (let u = b.w - 32; u < b.w - 20; u += 2.5) R(u, 12, .6, 8, '#1a1a22');
-      R(8, 32, 52, 10, '#1c3a30'); R(8, 32, 52, 1, t.lt); E.font.title(g, 'LOANS', X(34), Y(40.5), { scale: 1, align: 'center', colors: ['#ffe8a0', '#e0a040'], depth: 1, shine: false });
+      R(8, 32, 52, 10, '#1c3a30'); R(8, 32, 52, 1, t.lt); E.font.title(g, E.t('brawler.sign.loans'), X(34), Y(40.5), { scale: 1, align: 'center', colors: ['#ffe8a0', '#e0a040'], depth: 1, shine: false });
       for (let u = 10; u < b.w - 20; u += 28) win(u, 50, 13, 13, { curtain: '#c89a3a' });
-      cornice(b.h - 5); poster(66, 30, '#ffd040', 'SALE');
+      cornice(b.h - 5); poster(66, 30, '#ffd040', E.t('brawler.poster.sale'));
     } else if (k === 'metal') {                               // warehouse: roller door, high windows
       shutter(12, 64, 42, 0); R(0, b.h - 3, b.w, 3, t.deep); pipe(b.w - 4);
       for (let u = 84; u < b.w - 8; u += 16) win(u, 64, 11, 8, { lit: .3, frame: '#5a5a66' });
@@ -141,7 +142,7 @@ const BRAWL = (() => {
       for (const z of [36, 60, 84, 108]) for (let u = 32; u < b.w - 10; u += 22) win(u, z, 10, 15, { frame: '#e8d8b0', curtain: '#6a2a8a', lit: .65 });
       R(60, 0, 40, 25, '#2a1420'); R(62, 0, 36, 23, '#ffcf8a'); R(79.5, 0, 1, 23, '#8a5a3a'); glaze(.375, () => R(50, 21, 60, 6, DARK)); R(48, 27, 64, 6, '#2a1a2a'); R(48, 33, 64, 1, '#d8b060');
       for (let u = 50; u < 112; u += 3) R(u, 28.5, 1, 1, '#fff0b0');
-      E.font.text(g, 'GRAND HOTEL', X(80), Y(32.6), '#ffe8b0', { align: 'center', outline: false }); cornice(b.h - 7); pipe(b.w - 4);
+      E.font.text(g, E.t('brawler.sign.grand_hotel'), X(80), Y(32.6), '#ffe8b0', { align: 'center', outline: false }); cornice(b.h - 7); pipe(b.w - 4);
     }
     glaze(.125, () => { R(0, 0, b.w, 16, DARK); R(0, 0, b.w, 9, DARK); R(0, 0, b.w, 4, DARK); });   // street grime: stepped translucent bands
     return (fronts[key] = cv);
@@ -197,14 +198,14 @@ const BRAWL = (() => {
   const HERO2 = Object.assign({}, HERO, { hat: { style: 'band', color: '#3a8ae0' }, colors: Object.assign({}, HERO.colors, { hair: '#e0c060', cloth: '#2a2a34', pants: '#c83a3a', glove: '#3a6ac8' }) });
   // each foe type fights its own way: strings of E.MOVES it picks from. The first blow of a string winds up slowly (wind:
   // the telegraph that lets the player read it and step out or strike first); follow-ups come faster
-  const FOES = {   // swap: a second copy's palette and name (a palette-swap enemy)
-    punk: { name: 'RAZOR', hp: 8, r: 6, speed: 50, wind: .24, moves: [['jab', 'cross'], ['jab', 'jab', 'cross']], swap: { hair: '#4ae0ff', cloth: '#6a2a5a' }, swapName: 'SID',
+  const FOES = {   // swap: a second copy's palette and name (a palette-swap enemy); the names are lines (brawler.name.*)
+    punk: { name: E.t('brawler.name.razor'), hp: 8, r: 6, speed: 50, wind: .24, moves: [['jab', 'cross'], ['jab', 'jab', 'cross']], swap: { hair: '#4ae0ff', cloth: '#6a2a5a' }, swapName: E.t('brawler.name.sid'),
       rig: { size: 2.15, build: 'heroic', hair: 'spiky', sleeves: 'none', hunch: .2, colors: { skin: '#d8a078', hair: '#ff4a8a', cloth: '#2c3a6a', pants: '#4a4262', boot: '#241a2e', belt: '#b8b8c8' } } },
-    kicker: { name: 'VINNIE', hp: 12, r: 6, speed: 40, wind: .3, moves: [['roundhouse'], ['sweep'], ['roundhouse', 'sweep']], rig: { size: 2.3, build: 'heroic', outfit: 'coat', sleeves: 'long', stubble: '#9a7058', hat: { style: 'cap', color: '#3a3a4c' },
+    kicker: { name: E.t('brawler.name.vinnie'), hp: 12, r: 6, speed: 40, wind: .3, moves: [['roundhouse'], ['sweep'], ['roundhouse', 'sweep']], rig: { size: 2.3, build: 'heroic', outfit: 'coat', sleeves: 'long', stubble: '#9a7058', hat: { style: 'cap', color: '#3a3a4c' },
       colors: { skin: '#e0ae88', hair: '#2a1a14', cloth: '#c8a060', coat: '#8a6a3e', pants: '#50506a', boot: '#2e2420' } } },
-    brute: { name: 'TANK', hp: 18, r: 8, speed: 30, wind: .36, moves: [['haymaker'], ['bash'], ['bash', 'haymaker']], rig: { size: 2.55, build: 'bulky', hair: 'bald', sleeves: 'none', hunch: .3,
+    brute: { name: E.t('brawler.name.tank'), hp: 18, r: 8, speed: 30, wind: .36, moves: [['haymaker'], ['bash'], ['bash', 'haymaker']], rig: { size: 2.55, build: 'bulky', hair: 'bald', sleeves: 'none', hunch: .3,
       colors: { skin: '#b07850', cloth: '#b83a2a', pants: '#5e7040', boot: '#3a2a1a', belt: '#d8b040' } } },
-    boss: { name: 'BARON', hp: 50, r: 8, speed: 44, wind: .26, moves: [['cross', 'hook', 'haymaker'], ['elbow', 'uppercut'], ['axekick'], ['roundhouse', 'sweep']],
+    boss: { name: E.t('brawler.name.baron'), hp: 50, r: 8, speed: 44, wind: .26, moves: [['cross', 'hook', 'haymaker'], ['elbow', 'uppercut'], ['axekick'], ['roundhouse', 'sweep']],
       rig: { size: 2.6, build: 'bulky', outfit: 'coat', sleeves: 'long', hair: 'short', shades: 1,
       colors: { skin: '#dca880', hair: '#e8e8f0', cloth: '#4a3a6a', coat: '#9a2e62', trim: '#f0c850', pants: '#4a4268', boot: '#2a2234', belt: '#f0c850', glove: '#3a3048' } } }
   };
@@ -232,7 +233,7 @@ const BRAWL = (() => {
     { o: '#5a2810', O: '#c8702a', h: '#f4b868', d: '#8a4418', w: '#f4ecd8', W: '#b8ac98', p: '#e8e8f4' }, 2);   // roast chicken: heals
   const SMEAR = ['#ffffff', '#fff2c8', '#ffd07a', '#e8904a'];   // punch and kick streaks: warm, like the hit sparks
   const TXT = { outline: false, shadow: '#08060e' }, TXC = Object.assign({ align: 'center' }, TXT), TXR = Object.assign({ align: 'right' }, TXT);
-  const INTRO = 1.9, TAUNT = 'Nice moves, kid. Shame this street is MINE.';
+  const INTRO = 1.9, TAUNT = E.t('brawler.taunt');
   const pose = (a, k = .25) => a + (Math.cos(a) > 0 ? k : -k);    // turn a bit toward the camera
   const talk = new E.Dialog(game, { bg: ['#4a1436', '#12040c'], border: '#f0b0c8', nameColor: '#f0c850' });
   const puffs = [], sparks = [];
@@ -546,7 +547,7 @@ const BRAWL = (() => {
   function hud(g, r) {
     const W = r.W, H = r.H;
     if (talk.open) { for (const y of [0, H - 22]) px.rect(g, 0, y, W, 22, '#06040a'); return; }   // letterbox while the boss talks
-    panel(g, 4, hero, 'MAX', hero.hp / hero.max, lag, '#ffd23a'); if (hero2) panel(g, 4, hero2, 'JACK', hero2.hp / hero2.max, hero2.lag, '#4ac0ff', false, 48);
+    panel(g, 4, hero, E.t('brawler.name.max'), hero.hp / hero.max, lag, '#ffd23a'); if (hero2) panel(g, 4, hero2, E.t('brawler.name.jack'), hero2.hp / hero2.max, hero2.lag, '#4ac0ff', false, 48);
     // enemy panel: the last one hit (KO'd: briefly), else the nearest, else the boss
     const foe = tgtT > 0 && target && (!target.dead || tgtT > 2.4) ? target : foes.find(f => !f.dead && Math.abs(f.x - hero.x) < 56 && Math.abs(f.y - hero.y) < 16) || foes.find(f => f.k === FOES.boss && !f.dead);
     const fx = Math.min(W, cornerX()) - 158;   // clear of the corner's menu button: beside it, or under it on a narrow screen
@@ -554,22 +555,23 @@ const BRAWL = (() => {
     if (chain > 1 && chainT > 0) {               // the HITS counter on a gradient plate
       const s = String(chain), w = E.font.width(s, 3);
       const hy = hero2 ? 94 : 50; E.ui.box(g, 6, hy, w + 44, 28, { bg: ['#d8402a', '#4a0a1a'], border: '#ffd070' });
-      E.font.title(g, s, 12, hy + 3, { scale: 3, colors: ['#ffffff', '#ffe070', '#ff9a2a'] }); E.font.title(g, 'HITS', 18 + w, hy + 13, { scale: 1, colors: ['#fff6d0', '#ffc860'] });
+      E.font.title(g, s, 12, hy + 3, { scale: 3, colors: ['#ffffff', '#ffe070', '#ff9a2a'] }); E.font.title(g, E.t('brawler.hits'), 18 + w, hy + 13, { scale: 1, colors: ['#fff6d0', '#ffc860'] });
     }
     if (intro > 0) {                             // round card slides in and out
-      const say = I => [['attack', 'punch'], ['kick', 'kick'], ['sweep', 'sweep'], ['jump', 'jump']].map(([a, w]) => I.label(a) + ' ' + w).join(' ');   // a player's own keys
-      const keys = (hero2 ? 'P1 ' : '') + say(game.input), keys2 = hero2 && hero2.input.half ? 'P2 ' + say(hero2.input) : '', cw = Math.max(180, E.font.width(keys) + 16, E.font.width(keys2) + 16);
+      const say = I => E.t('brawler.card.keys', { attack: I.label('attack'), kick: I.label('kick'), sweep: I.label('sweep'), jump: I.label('jump') });   // a player's own keys
+      const keys = hero2 ? E.t('brawler.card.player', { player: 1, keys: say(game.input) }) : say(game.input), keys2 = hero2 && hero2.input.half ? E.t('brawler.card.player', { player: 2, keys: say(hero2.input) }) : '';
+      const cw = Math.max(180, E.font.width(keys) + 16, E.font.width(keys2) + 16);
       const k = Math.min(1, (INTRO - intro) * 5, intro * 5), x = Math.round(W / 2 - cw / 2 + (1 - k) * (intro < 1 ? W : -W)), m = x + cw / 2, y = hero2 ? 92 : 52;   // (two players: under the second panel)
       E.ui.box(g, x, y, cw, keys2 ? 68 : 56, WIN);
-      E.font.title(g, 'ROUND 1', m, y + 5, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
-      E.font.text(g, 'DOWNTOWN AT DUSK', m, y + 27, '#ffe8c8', TXC); E.font.text(g, keys, m, y + 40, '#b8b0e0', TXC); if (keys2) E.font.text(g, keys2, m, y + 52, '#9ad0ff', TXC);
+      E.font.title(g, E.t('brawler.card.round'), m, y + 5, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
+      E.font.text(g, E.t('brawler.card.stage'), m, y + 27, '#ffe8c8', TXC); E.font.text(g, keys, m, y + 40, '#b8b0e0', TXC); if (keys2) E.font.text(g, keys2, m, y + 52, '#9ad0ff', TXC);
     }
-    if (go > 0 && Math.floor(game.real * 3) % 2 === 0) E.font.title(g, 'GO →', W - 14, 96, { scale: 3, align: 'right', colors: ['#fff6c0', '#ffc040', '#e06a20'] });
+    if (go > 0 && Math.floor(game.real * 3) % 2 === 0) E.font.title(g, E.t('brawler.go'), W - 14, 96, { scale: 3, align: 'right', colors: ['#fff6c0', '#ffc040', '#e06a20'] });
     if (won > 1.5) {                             // results on the left, clear of the cheering hero
       const X = 106;
-      E.font.title(g, 'STREETS CLEARED!', X, 50, { scale: 2, align: 'center' });
+      E.font.title(g, E.t('brawler.clear'), X, 50, { scale: 2, align: 'center' });
       E.ui.box(g, X - 100, 68, 200, 44, WIN); hero.rig.drawPortrait(g, X - 94, 73, 34, { zoom: 2.4, turn: .6, bg: ['#ffc070', '#8a3a4a'], border: '#ffe070' });
-      [['SCORE', score], ['BEST', best('brawler', score)]].forEach(([k, v], i) => { E.font.text(g, k, X - 46, 76 + i * 16, '#b8b0d8', TXT); E.font.text(g, String(v), X + 92, 76 + i * 16, '#ffe070', TXR); });
+      [[E.t('brawler.results.score'), score], [E.t('brawler.results.best'), best('brawler', score)]].forEach(([k, v], i) => { E.font.text(g, k, X - 46, 76 + i * 16, '#b8b0d8', TXT); E.font.text(g, String(v), X + 92, 76 + i * 16, '#ffe070', TXR); });
     }
   }
   /** two heroes clear the first waves (the bot's: tools/kits-test.mjs): player 2 drops in on the keyboard's right half,

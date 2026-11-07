@@ -109,13 +109,19 @@ const ANIMLAB = (() => {
     stance('guard'), stance('ready'),
     gun('POINT', 0), gun('AIM UP', .7), gun('AIM DOWN', -.5)
   ];
-  // the timeline of each animation: [label, seconds, color]. Moves and combos read their phases from the E.MOVES spec
+  // the words shown are lines: a group, an animation, a phase, a move or a skin by its name here (animlab.<kind>.<name>:
+  // 'JUMP / AIR' -> animlab.anim.jump_air); a move added to E.MOVES later shows its own name until it has one
+  const word = (kind, s) => E.t('animlab.' + kind + '.' + s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''), null, s.toUpperCase());
+  const named = a => a.move ? word('move', a.move) : word('anim', a.name);   // an animation's name
+  // the timeline of each animation: [label, seconds, color]. Moves and combos read their phases from the E.MOVES spec (a
+  // combo's say which move: JAB WIND)
   const PH = { WIND: '#f0c040', HIT: '#f05a4a', RECOVER: '#5a9ae8', REST: '#5a5478' }, PAL = ['#7ac8a0', '#d898e0', '#f0b070', '#70b0e8', '#e8e070'];
-  const hitSegs = (m, share = 1, pre = '') => { const s = move(m).spec; return [[pre + 'WIND', s.wind, PH.WIND], [pre + 'HIT', s.active, PH.HIT], [pre + 'RECOVER', s.recover * share, PH.RECOVER]]; };
+  const hitSegs = (m, share = 1, of = null) => { const s = move(m).spec, say = p => of ? E.t('animlab.seg', { move: word('move', of), phase: word('phase', p) }) : word('phase', p);
+    return [[say('WIND'), s.wind, PH.WIND], [say('HIT'), s.active, PH.HIT], [say('RECOVER'), s.recover * share, PH.RECOVER]]; };
   const GROUPS = [...new Set(ANIMS.map(a => a.group))];
   for (const a of ANIMS) {
-    a.segs = a.move ? hitSegs(a.move) : a.combo ? a.combo.flatMap((m, i) => hitSegs(m, i < a.combo.length - 1 ? CHAIN : 1, m.toUpperCase() + ' ')) : a.phases.map((p, i) => [p[0], p[1], PAL[i % 5]]);
-    if (!a.phases) a.segs.push(['REST', REST, PH.REST]);
+    a.segs = a.move ? hitSegs(a.move) : a.combo ? a.combo.flatMap((m, i) => hitSegs(m, i < a.combo.length - 1 ? CHAIN : 1, m)) : a.phases.map((p, i) => [word('phase', p[0]), p[1], PAL[i % 5]]);
+    if (!a.phases) a.segs.push([word('phase', 'REST'), REST, PH.REST]);
     a.len = a.segs.reduce((s, p) => s + p[1], 0);
   }
 
@@ -310,7 +316,7 @@ const ANIMLAB = (() => {
     keysFor = id; keys = [];
     if (!a.rig || !(anim.move || anim.combo)) return keys;
     const view = new E.View('key', 'Key', v.yawDeg, v.pitchDeg, .6, v.zBoost);
-    const list = anim.move ? [['WIND', anim.move, 'wind', 1], ['HIT', anim.move, 'active', 1], ['FOLLOW', anim.move, 'recover', .3]] : anim.combo.map(m => [m.toUpperCase(), m, 'active', 1]);
+    const list = anim.move ? [[word('phase', 'WIND'), anim.move, 'wind', 1], [word('phase', 'HIT'), anim.move, 'active', 1], [word('phase', 'FOLLOW'), anim.move, 'recover', .3]] : anim.combo.map(m => [word('move', m), m, 'active', 1]);
     for (const [label, m, phase, u] of list) {
       const rig = new E.Humanoid(Object.assign({ size: 1.3 }, a.s.rig)), cv = E.mkCanvas(40, 36), g = E.ctx2d(cv), spec = move(m).spec;
       rig.draw(g, 20, 32, view);                 // the first draw tells the rig the view: side views chop in the screen plane
@@ -345,22 +351,26 @@ const ANIMLAB = (() => {
    * The top line stays free for the shell's notes (ZOOM 2x, SIDE VIEW) ---- */
   const WIN = { bg: ['#2c2458', '#0e0a20'], border: '#b0a0e8' }, SEE = Object.assign({ alpha: .75 }, WIN);
   const TXT = { outline: false, shadow: '#07050e' }, TINY = Object.assign({ font: 'tiny' }, TXT), RIGHT = o => Object.assign({ align: 'right' }, o);
-  const LEGEND = ['↑↓ ANIMATION  ←→ SKIN  V VIEW  - = ZOOM  [ ] TURN  0 RESET  F FLIP', 'SPACE PAUSE  . STEP  S SLOW  T TRAIL  B BONES  L LINEUP  J REPLAY  H HUD'];
+  // the keys: two rows of hints, each a line (animlab.legend.<hint>: the lab's own keys as control tags, the shell's camera
+  // keys by name); on a phone, two lines of their own
+  const LEGEND = [['animation', 'skin', 'view', 'zoom', 'turn', 'reset', 'flip'], ['pause', 'step', 'slow', 'trail', 'bones', 'lineup', 'replay', 'hud']];
+  const legend = () => touch() ? [E.t('animlab.legend.touch_pick'), E.t('animlab.legend.touch_buttons')] : LEGEND.map(row => row.map(h => E.t('animlab.legend.' + h)).join('  '));
   function hud(g, r) {
-    const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = anim.group + ' ▸ ', T0 = Math.max(0, Math.round(corner()[1]) - 9);   // T0: under the corner's buttons (they stay up in a lab)
+    const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = word('group', anim.group) + ' ▸ ', T0 = Math.max(0, Math.round(corner()[1]) - 9);   // T0: under the corner's buttons (they stay up in a lab)
     E.ui.box(g, 4, T0 + 11, W - 8, 34, WIN);
-    E.font.title(g, 'ANIMATION LAB', 10, T0 + 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
-    E.font.text(g, lineup ? 'LINEUP: ALL ' + actors.length + ' SKINS' : '← ' + a.s.name + ' →', W - 10, T0 + 15, '#ffffff', RIGHT(TXT));
+    E.font.title(g, E.t('animlab.title'), 10, T0 + 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
+    E.font.text(g, lineup ? E.t('animlab.hud.lineup', { count: actors.length }) : E.t('animlab.hud.skin', { skin: word('skin', a.s.name) }), W - 10, T0 + 15, '#ffffff', RIGHT(TXT));
     E.font.text(g, lead, 10, T0 + 26, '#a8a0d8', TXT);
-    E.font.text(g, anim.name, 10 + E.font.width(lead), T0 + 26, '#ffe070', TXT);
-    const cam = [game.view.label + ' view', 'zoom ' + +game.zoom.toFixed(2) + 'x', game.yaw ? 'turn ' + game.yaw + ' deg' : '', paused ? 'paused' : game.timeScale < 1 ? 'slow .25x' : 'speed 1x'];
+    E.font.text(g, named(anim), 10 + E.font.width(lead), T0 + 26, '#ffe070', TXT);
+    const cam = [E.t('animlab.cam.view', { view: game.view.label }), E.t('animlab.cam.zoom', { zoom: +game.zoom.toFixed(2) }), game.yaw ? E.t('animlab.cam.turn', { angle: game.yaw }) : '',
+      E.t(paused ? 'animlab.cam.paused' : game.timeScale < 1 ? 'animlab.cam.slow' : 'animlab.cam.speed')];
     E.font.text(g, cam.filter(Boolean).join('    '), 10, T0 + 37, paused ? '#ff9a7a' : '#c8c0f0', TINY);
     if (!lineup) {
       // the animation list: the neighbours of the current one, groups in alternating tints
       E.ui.box(g, 4, T0 + 48, 100, 61, SEE);
       for (let k = -3; k <= 3; k++) {
         const n = ANIMS[(ai + k + N) % N], odd = GROUPS.indexOf(n.group) % 2;
-        E.font.text(g, (k ? '  ' : '> ') + n.name, 8, T0 + 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
+        E.font.text(g, (k ? '  ' : '> ') + named(n), 8, T0 + 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
       }
       E.font.text(g, (ai + 1) + '/' + N, 100, T0 + 101, '#8a82b0', RIGHT(TINY));
       // key poses of a move; the one playing now is lit
@@ -385,27 +395,27 @@ const ANIMLAB = (() => {
       t0 += secs;
     }
     px.rect(g, bx + Math.round(Math.min(1, t / anim.len) * bw), by - 2, 1, 11, '#ffffff');
-    E.font.text(g, label + '  ' + t.toFixed(2) + ' / ' + anim.len.toFixed(2) + 's', BW - 2, by + 1, '#ffe8b0', RIGHT(TINY));
-    (touch() ? ['STICK ↑↓ ANIMATION   ←→ SKIN', 'THE BUTTONS: REPLAY, SLOW, HOLD'] : LEGEND).forEach((s, i) => E.font.text(g, s, 10, B - 21 + i * 8, '#b8b0e0', TINY));
+    E.font.text(g, E.t('animlab.hud.time', { phase: label, t: t.toFixed(2), len: anim.len.toFixed(2) }), BW - 2, by + 1, '#ffe8b0', RIGHT(TINY));
+    legend().forEach((s, i) => E.font.text(g, s, 10, B - 21 + i * 8, '#b8b0e0', TINY));
   }
 
   /* ---- UPDATE: keys, then the clock (paused: . steps one 60th of a second) ---- */
   function update(dt) {
     const inp = game.input, vk = game.view.id + game.view.yawDeg;
     if (vk !== viewKey) { viewKey = vk; if (lineup) fit(); play(ai); }   // a new view or turn: moves pick their swing plane again
-    if (inp.pressed('turn')) game.note('TURN ' + game.yaw + ' DEG');     // the pixel font has no degree sign
+    if (inp.pressed('turn')) game.note(E.t('animlab.note.turn', { angle: game.yaw }));     // the pixel font has no degree sign
     if (inp.repeat('up')) play(ai - 1);
     if (inp.repeat('down')) play(ai + 1);
     if (inp.repeat('left')) pick(skin - 1);
     if (inp.repeat('right')) pick(skin + 1);
     if (inp.pressed('replay')) { paused = false; play(ai); }
     if (inp.pressed('hold')) paused = !paused;
-    if (inp.pressed('slow')) { game.timeScale = game.timeScale < 1 ? 1 : .25; game.note(game.timeScale < 1 ? 'SLOW MOTION' : 'FULL SPEED'); }
-    if (inp.pressed('trail')) { trail = !trail; game.note('TRAIL ' + (trail ? 'ON' : 'OFF')); }
-    if (inp.pressed('bones')) { bones = !bones; game.note('SKELETON ' + (bones ? 'ON' : 'OFF')); }
-    if (inp.pressed('flip')) { face = Math.PI - face; play(ai); game.note(Math.cos(face) > 0 ? 'FACING RIGHT' : 'FACING LEFT'); }
+    if (inp.pressed('slow')) { game.timeScale = game.timeScale < 1 ? 1 : .25; game.note(E.t(game.timeScale < 1 ? 'animlab.note.slow' : 'animlab.note.full')); }
+    if (inp.pressed('trail')) { trail = !trail; game.note(E.t(trail ? 'animlab.note.trail_on' : 'animlab.note.trail_off')); }
+    if (inp.pressed('bones')) { bones = !bones; game.note(E.t(bones ? 'animlab.note.bones_on' : 'animlab.note.bones_off')); }
+    if (inp.pressed('flip')) { face = Math.PI - face; play(ai); game.note(E.t(Math.cos(face) > 0 ? 'animlab.note.right' : 'animlab.note.left')); }
     if (inp.pressed('hud')) hidden = !hidden;
-    if (inp.pressed('lineup')) { lineup = !lineup; if (lineup) fit(); else game.setZoom(1.5); play(ai); game.note(lineup ? 'LINEUP: EVERY SKIN' : 'ONE SKIN'); }
+    if (inp.pressed('lineup')) { lineup = !lineup; if (lineup) fit(); else game.setZoom(1.5); play(ai); game.note(E.t(lineup ? 'animlab.note.lineup' : 'animlab.note.one')); }
     if (inp.pressed('back')) game.go('title');
     dum.x = CX + Math.cos(face) * dum.d; dum.y = CY + Math.sin(face) * dum.d;
     if (!paused) tick(dt); else if (inp.pressed('step')) tick(1 / 60);

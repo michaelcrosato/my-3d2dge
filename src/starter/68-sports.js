@@ -62,10 +62,11 @@ const SPORTS = (() => {
     const h = E.hash2(c * 3 + dx, R * 7 + 1), side = h < .5 ? 0 : 1;
     CROWD.push({ x: c * T + dx, y: R * T + 9, z: [54, 44, 34][R], side, shirt: side ? ['#c8502a', '#e07040', '#a83a1a'][(h * 30 | 0) % 3] : ['#eef0f6', '#2a5ab8', '#8ab0f0'][(h * 30 | 0) % 3], skin: ['#e0b090', '#a87050', '#6a4028', '#f0c8a8'][(h * 50 | 0) % 4], ph: h * 9 });
   }
-  /* ---- THE TEAMS: their colors, names and players; the ball ---- */
+  /* ---- THE TEAMS: their colors, names and players; the ball. The names shown are lines (sports.team.*, sports.player.*);
+   * a player's name here is its id (the proof's hash holds it) ---- */
   const TEAMS = [
-    { name: 'GULLS', colors: { cloth: '#eef0f6', pants: '#2a5ab8', boot: '#1e2030', belt: '#2a5ab8', trim: '#2a5ab8' }, chip: '#eef0f6', players: [['NOOR', '#3a2418', '#c89070'], ['BEX', '#e8c070', '#f0c8a8']] },
-    { name: 'RUST', colors: { cloth: '#c8502a', pants: '#2a2a30', boot: '#1a1a1e', belt: '#1a1a1e', trim: '#e8c070' }, chip: '#c8502a', players: [['DRAGO', '#1e1c1a', '#a87050'], ['KIT', '#6a3a22', '#e0b090']] }];
+    { name: E.t('sports.team.gulls'), colors: { cloth: '#eef0f6', pants: '#2a5ab8', boot: '#1e2030', belt: '#2a5ab8', trim: '#2a5ab8' }, chip: '#eef0f6', players: [['NOOR', '#3a2418', '#c89070'], ['BEX', '#e8c070', '#f0c8a8']] },
+    { name: E.t('sports.team.rust'), colors: { cloth: '#c8502a', pants: '#2a2a30', boot: '#1a1a1e', belt: '#1a1a1e', trim: '#e8c070' }, chip: '#c8502a', players: [['DRAGO', '#1e1c1a', '#a87050'], ['KIT', '#6a3a22', '#e0b090']] }];
   const SPEED = 92, AI_SPEED = 86, KICK_CD = .3;
   const BALL = E.sprite(['.www.', 'wwkww', 'wkkkw', 'wwkww', '.www.'], { w: '#f4f4f0', k: '#2a2a30' });
   const BALL2 = E.sprite(['.www.', 'wkwkw', 'wwwww', 'wkwkw', '.www.'], { w: '#f4f4f0', k: '#2a2a30' });
@@ -83,11 +84,11 @@ const SPORTS = (() => {
   /* ---- THE STATE ---- */
   let mode = 'menu', vs = false, team = [], all = [], ball = null, owner = null, last = null, clock = 0, half = 1, score = [0, 0], kickT = 0, t = 0, scripted = false;
   let stats = null, curlT = 0, golden = false, restartBy = 0, over = false, kickHold = 0;   // kickHold: the kickoff's rule (the other side out of the circle) until the ball is played
-  const menu = new E.Menu(game, ['MATCH', 'VERSUS (2-4 PLAYERS)', 'BACK'], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
-  const after = new E.Menu(game, ['REMATCH', 'MENU'], { y: 150, onPick: i => i === 0 ? start(vs) : toMenu() });
+  const menu = new E.Menu(game, [E.t('sports.menu.match'), E.t('sports.menu.versus'), E.t('sports.menu.back')], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
+  const after = new E.Menu(game, [E.t('sports.menu.rematch'), E.t('sports.menu.menu')], { y: 150, onPick: i => i === 0 ? start(vs) : toMenu() });
   const talk = new E.Dialog(game, { lines: 2, place: 'bottom', border: '#e8c070' });   // (at the bottom: clear of the score and of the touch buttons)
   const VOICE = new E.Humanoid({ weapon: null, hat: 'band', colors: { cloth: '#3a3a4a', hair: '#5a3a2a', skin: '#e0b090', hat: '#2a2a30' } });
-  const say = text => { if (!scripted) talk.say(text, { name: 'CAGE RADIO', auto: 2.2, modal: false, alpha: .8, portrait: VOICE, portraitOpts: { zoom: 3, turn: .4 } }); };
+  const say = text => { if (!scripted) talk.say(text, { name: E.t('sports.radio'), auto: 2.2, modal: false, alpha: .8, portrait: VOICE, portraitOpts: { zoom: 3, turn: .4 } }); };
 
   function toMenu() { mode = 'menu'; game.splitScreen(0); game.allowJoin(false); A.music('title'); menu.i = 0; }
   function versus() { vs = true; mode = 'join'; game.allowJoin({ max: 4 }); A.sfx('select'); }
@@ -98,7 +99,7 @@ const SPORTS = (() => {
     all = []; team = [[], []];
     TEAMS.forEach((tm, s) => tm.players.forEach(([name, hair, skin], k) => {
       const b = new E.Body({ x: CX, y: CY, r: 5, friction: 0, gravity: 700 });
-      const p = { side: s, k, name, body: b, rig: new E.Humanoid({ weapon: null, build: 'heroic', size: 1.05, hair: k ? 'spiky' : 'short', colors: Object.assign({ hair, skin }, tm.colors), speedRef: 80 }),
+      const p = { side: s, k, name, shown: E.t('sports.player.' + name.toLowerCase()), body: b, rig: new E.Humanoid({ weapon: null, build: 'heroic', size: 1.05, hair: k ? 'spiky' : 'short', colors: Object.assign({ hair, skin }, tm.colors), speedRef: 80 }),
         input: null, facing: s ? PI : 0, kick: null, slide: 0, stun: 0, cool: 0, meter: 0, charging: false, cheer: 0 };
       team[s].push(p); all.push(p);
     }));
@@ -110,7 +111,7 @@ const SPORTS = (() => {
     ball = new E.Body({ x: CX, y: CY, r: 3, friction: 0, bounce: .55, gravity: 600 }); ball.spin = 0; ball.roll = 0;
     kickoff(0); game.allowJoin(false); A.music(SONG); game.input.consumeAll();
     game.follow(ball, { z: 8, lead: 10 }); game.cam.smooth = .18; game.cam.bounds = v => map.bounds(v);
-    say('THE GULLS AGAINST THE RUST IN THE CAGE. HERE WE GO!');
+    say(E.t('sports.radio.start', { team1: TEAMS[0].name, team2: TEAMS[1].name }));
   }
   /** the formation's spots: kicking off (s kicks), or in play (a team's two by where the ball is and who has it) */
   const goalX = s => s ? X0 : X1;   // where side s shoots (the GULLS attack the right end)
@@ -151,9 +152,9 @@ const SPORTS = (() => {
     for (const s of [0, 1]) {
       const gx = goalX(s), past = s ? ball.x < gx - 2 : ball.x > gx + 2;
       if (past && Math.abs(ball.y - CY) < GH && ball.z < BAR) return goal(s);
-      if (past && (ball.z >= BAR || Math.abs(ball.y - CY) >= GH)) return restart(1 - s, s ? X0 + 24 : X1 - 24, CY, 'OVER THE BAR. A GOAL KICK');
+      if (past && (ball.z >= BAR || Math.abs(ball.y - CY) >= GH)) return restart(1 - s, s ? X0 + 24 : X1 - 24, CY, E.t('sports.radio.over_bar'));
     }
-    if (ball.x < X0 - 40 || ball.x > X1 + 40 || ball.y < Y0 - 4 || ball.y > Y1 + 4) restart(last ? 1 - last.side : 0, clamp(ball.x, X0 + 12, X1 - 12), clamp(ball.y, Y0 + 12, Y1 - 12), 'OUT OF THE CAGE! THROWN BACK IN');
+    if (ball.x < X0 - 40 || ball.x > X1 + 40 || ball.y < Y0 - 4 || ball.y > Y1 + 4) restart(last ? 1 - last.side : 0, clamp(ball.x, X0 + 12, X1 - 12), clamp(ball.y, Y0 + 12, Y1 - 12), E.t('sports.radio.out'));
   }
   /** play goes on from (x, y) with the ball at the feet of side s's nearer player */
   function restart(s, x, y, line) {
@@ -161,10 +162,11 @@ const SPORTS = (() => {
     p.body.x = x - (s ? -8 : 8); p.body.y = y; p.facing = s ? PI : 0; owner = p; ball.spin = 0; A.sfx('whistle'); if (line) say(line);
   }
   function goal(s) {
-    score[s]++; stats.goals.push([s, last ? last.name : '?', Math.round(clock)]); owner = null; mode = 'goal'; kickT = 2.4; restartBy = 1 - s;
+    score[s]++; stats.goals.push([s, last ? last.shown : '?', Math.round(clock)]); owner = null; mode = 'goal'; kickT = 2.4; restartBy = 1 - s;
     for (const p of team[s]) p.cheer = 2.4; game.shake(3); A.sfx('crowd'); A.sfx('whistle');
     P.sparks(ball.x, ball.y, 16, 16, null, { color: '#ffe08a' }); P.ring(ball.x, ball.y, 4, 34, '#fff6c0', .5);
-    say(golden ? 'GOLDEN GOAL! ' + (last ? last.name : '') + ' WINS IT FOR THE ' + TEAMS[s].name + '!' : 'GOAL! ' + (last ? last.name + ' SCORES FOR THE ' : 'THE ') + TEAMS[s].name + '! ' + score[0] + ' - ' + score[1]);
+    const side = TEAMS[s].name, player = last ? last.shown : '';
+    say(golden ? E.t('sports.radio.golden_goal', { player, team: side }) : E.t(last ? 'sports.radio.goal' : 'sports.radio.goal_team', { player, team: side, score1: score[0], score2: score[1] }));
     if (golden) { over = true; }
   }
 
@@ -293,16 +295,16 @@ const SPORTS = (() => {
     clock += dt; kickHold = Math.max(0, kickHold - dt);
     for (const p of all) playerStep(p, dt);
     ballStep(dt); curlT = Math.max(0, curlT - dt); autoSwitch();
-    if (!golden && half === 1 && clock >= HALF) { half = 2; mode = 'half'; kickT = 2.4; restartBy = 1; owner = null; A.sfx('whistle'); say('HALF TIME: GULLS ' + score[0] + ', RUST ' + score[1] + '.'); }
+    if (!golden && half === 1 && clock >= HALF) { half = 2; mode = 'half'; kickT = 2.4; restartBy = 1; owner = null; A.sfx('whistle'); say(E.t('sports.radio.half', { team1: TEAMS[0].name, team2: TEAMS[1].name, score1: score[0], score2: score[1] })); }
     else if (!golden && clock >= HALF * 2) {
-      if (score[0] === score[1]) { golden = true; clock = HALF * 2; A.sfx('whistle'); say('LEVEL AT FULL TIME: GOLDEN GOAL! THE NEXT ONE WINS IT.'); kickoff(0); }
+      if (score[0] === score[1]) { golden = true; clock = HALF * 2; A.sfx('whistle'); say(E.t('sports.radio.level')); kickoff(0); }
       else fullTime();
     } else if (golden && clock >= HALF * 2 + GOLDEN) fullTime();
   }
   function fullTime() {
     mode = 'full'; over = true; owner = null; A.sfx('whistle'); after.i = 0;
     const w = score[0] > score[1] ? 0 : score[1] > score[0] ? 1 : -1; for (const p of all) p.cheer = p.side === w ? 99 : 0;
-    say(w < 0 ? 'FULL TIME: A DRAW IN THE CAGE.' : 'FULL TIME! THE ' + TEAMS[w].name + ' WIN IT, ' + Math.max(...score) + ' - ' + Math.min(...score) + '.');
+    say(w < 0 ? E.t('sports.radio.draw') : E.t('sports.radio.full', { team: TEAMS[w].name, high: Math.max(...score), low: Math.min(...score) }));
     if (!scripted) A.music(w === 0 || vs ? 'victory' : null);
   }
 
@@ -332,38 +334,38 @@ const SPORTS = (() => {
   const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   function hud(g, r) {
     // the score bug: the sides' chips and scores, the clock (counting down each half; golden goal says so)
-    const left = golden ? 'GOLDEN GOAL' : (half === 1 ? '1ST ' : '2ND ') + mmss(Math.max(0, HALF * half - clock));
+    const left = E.t(golden ? 'sports.hud.golden' : half === 1 ? 'sports.hud.half1' : 'sports.hud.half2', { clock: mmss(Math.max(0, HALF * half - clock)) });
     E.ui.box(g, 4, 4, 132, 16, { bg: '#141826', border: '#6a7090', alpha: .85 });
     px.rect(g, 8, 9, 6, 6, TEAMS[0].chip); px.rect(g, 70, 9, 6, 6, TEAMS[1].chip);
-    E.font.text(g, TEAMS[0].name + ' ' + score[0], 17, 8, '#f0ecdc', { font: 'tiny', outline: false });
-    E.font.text(g, score[1] + ' ' + TEAMS[1].name, 79, 8, '#f0ecdc', { font: 'tiny', outline: false });
+    E.font.text(g, E.t('sports.hud.score1', { team: TEAMS[0].name, score: score[0] }), 17, 8, '#f0ecdc', { font: 'tiny', outline: false });
+    E.font.text(g, E.t('sports.hud.score2', { team: TEAMS[1].name, score: score[1] }), 79, 8, '#f0ecdc', { font: 'tiny', outline: false });
     E.font.text(g, left, 4, 24, golden ? '#ffd36a' : '#c8d0e8', { font: 'tiny', outline: '#000' });
     // the radar: the cage small, the players as their colors, the ball white
     const s = 2.4 / T, w = Math.round((X1 - X0) * s), h = Math.round((Y1 - Y0) * s), x0 = r.W - w - 6, ca = game.cornerArea(), y0 = ca && ca.x0 < x0 + w ? Math.ceil(ca.y1) + 4 : 26;   // (top right, under the corner's buttons or a kit's API button: the radio and the touch buttons have the bottom)
     E.ui.box(g, x0 - 2, y0 - 2, w + 4, h + 4, { bg: '#183a1e', border: '#6a9070', alpha: .75 });
     for (const p of all) px.rect(g, Math.round(x0 + (p.body.x - X0) * s) - 1, Math.round(y0 + (p.body.y - Y0) * s) - 1, 2, 2, TEAMS[p.side].chip);
     px.rect(g, Math.round(x0 + (ball.x - X0) * s), Math.round(y0 + (ball.y - Y0) * s), 1, 1, '#ffffff');
-    if (mode === 'kickoff') E.font.text(g, 'KICK OFF', r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
-    if (mode === 'goal') E.font.title(g, 'GOAL!', r.W / 2, r.H * .28, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
-    if (mode === 'half') E.font.text(g, 'HALF TIME', r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
+    if (mode === 'kickoff') E.font.text(g, E.t('sports.kickoff'), r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
+    if (mode === 'goal') E.font.title(g, E.t('sports.goal'), r.W / 2, r.H * .28, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
+    if (mode === 'half') E.font.text(g, E.t('sports.half'), r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
   }
   function results(g, r) {
     const w = score[0] > score[1] ? 0 : score[1] > score[0] ? 1 : -1;
     E.ui.box(g, r.W / 2 - 110, 52, 220, 128, { bg: '#141826', border: '#e8c070', alpha: .92 });
-    E.font.title(g, w < 0 ? 'A DRAW' : TEAMS[w].name + ' WIN', r.W / 2, 60, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
-    E.font.text(g, 'GULLS ' + score[0] + ' - ' + score[1] + ' RUST', r.W / 2, 86, '#f0ecdc', { align: 'center', outline: false });
-    stats.goals.slice(-5).forEach(([s, name, at], i) => E.font.text(g, mmss(at) + '  ' + name + ' (' + TEAMS[s].name + ')', r.W / 2, 100 + i * 9, '#c8d0e8', { align: 'center', font: 'tiny', outline: false }));
+    E.font.title(g, w < 0 ? E.t('sports.results.draw') : E.t('sports.results.win', { team: TEAMS[w].name }), r.W / 2, 60, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
+    E.font.text(g, E.t('sports.results.score', { team1: TEAMS[0].name, team2: TEAMS[1].name, score1: score[0], score2: score[1] }), r.W / 2, 86, '#f0ecdc', { align: 'center', outline: false });
+    stats.goals.slice(-5).forEach(([s, name, at], i) => E.font.text(g, E.t('sports.results.goal', { time: mmss(at), player: name, team: TEAMS[s].name }), r.W / 2, 100 + i * 9, '#c8d0e8', { align: 'center', font: 'tiny', outline: false }));
   }
   function drawMenu(r) {
     r.sky(['#0e1630', '#1e3050', '#2e5a3a']);
     r.overlay(g => {
-      E.font.title(g, 'CAGE CUP', r.W / 2, 34, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
-      E.font.text(g, 'TWO AGAINST TWO, UP TO FOUR PLAYERS', r.W / 2, 70, '#c8d0e8', { align: 'center', outline: false });
+      E.font.title(g, E.t('sports.title'), r.W / 2, 34, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
+      E.font.text(g, E.t('sports.about'), r.W / 2, 70, '#c8d0e8', { align: 'center', outline: false });
       if (mode === 'join') {
         const P = game.players;
-        E.font.text(g, 'VERSUS: PRESS 2 ON THE KEYBOARD, OR START ON A PAD, TO JOIN', r.W / 2, 96, '#ffe7a8', { align: 'center', font: 'tiny', outline: false });
-        ['P1 GULLS', 'P2 RUST', 'P3 GULLS', 'P4 RUST'].forEach((s, i) => E.font.text(g, s + (P[i] ? '  READY' : '  ...'), r.W / 2 - 40, 112 + i * 12, P[i] ? E.PLAYER_COLORS[i] : '#6a7090', { outline: false }));
-        E.font.text(g, prompt('confirm', 'PLAY') + '   ' + prompt('cancel', 'BACK'), r.W / 2, 172, '#c8d0e8', { align: 'center', font: 'tiny', outline: false });
+        E.font.text(g, E.t('sports.join'), r.W / 2, 96, '#ffe7a8', { align: 'center', font: 'tiny', outline: false });
+        [0, 1, 0, 1].forEach((s, i) => E.font.text(g, E.t(P[i] ? 'sports.join.ready' : 'sports.join.waiting', { player: i + 1, team: TEAMS[s].name }), r.W / 2 - 40, 112 + i * 12, P[i] ? E.PLAYER_COLORS[i] : '#6a7090', { outline: false }));
+        E.font.text(g, prompt('confirm', E.t('sports.join.play')) + '   ' + prompt('cancel', E.t('sports.join.back')), r.W / 2, 172, '#c8d0e8', { align: 'center', font: 'tiny', outline: false });
       }
     });
     if (mode === 'menu') menu.draw(r);
