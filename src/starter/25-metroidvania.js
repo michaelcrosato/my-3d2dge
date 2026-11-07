@@ -21,9 +21,9 @@
 const MVANIA = (() => {
   const T = 16, KEYS = Object.assign({}, E.Input.PLATFORMER, { fire: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2', 'Pad7'], melee: ['KeyE', 'KeyF', 'Pad3'], lock: ['KeyQ', 'Pad4', 'Pad6'], map: ['Tab', 'KeyR', 'Pad8'] });
   delete KEYS.attack; delete KEYS.skill;
-  /* ---- THE WORLD: each room's top-left screen on the grid, its name and area (the look), its rows (top first) ---- */
+  /* ---- THE WORLD: each room's top-left screen on the grid, its name (a line) and area (the look), its rows (top first) ---- */
   const ROOMS = {
-    landing: { at: [0, 1], name: 'LANDING SITE', area: 'cave', rows: [
+    landing: { at: [0, 1], name: E.t('metroidvania.room.landing'), area: 'cave', rows: [
       '########################################',
       '#####.......#############.......########',
       '###...............######...........#####',
@@ -39,7 +39,7 @@ const MVANIA = (() => {
       '#...@...n..............#####......c.....',
       '########################################',
       '########################################'] },
-    caverns: { at: [2, 1], name: 'CAVERNS', area: 'cave', rows: [
+    caverns: { at: [2, 1], name: E.t('metroidvania.room.caverns'), area: 'cave', rows: [
       '########################################',
       '################f##########.....########',
       '#####......#########.........f.......###',
@@ -55,7 +55,7 @@ const MVANIA = (() => {
       '..........c.......................c.....',
       '######xxxx##############################',
       '######xxxx##############################'] },
-    grotto: { at: [2, 2], name: 'GROTTO', area: 'cave', rows: [
+    grotto: { at: [2, 2], name: E.t('metroidvania.room.grotto'), area: 'cave', rows: [
       '######....##############################',
       '#.....................#########........#',
       '#..........................o...........#',
@@ -71,7 +71,7 @@ const MVANIA = (() => {
       '#....c....ss..........^^^^^^^#wwwwwwwwww',
       '########################################',
       '########################################'] },
-    shaft: { at: [4, 0], name: 'FLOODED SHAFT', area: 'water', rows: [
+    shaft: { at: [4, 0], name: E.t('metroidvania.room.shaft'), area: 'water', rows: [
       '####################',
       '####################',
       '##...r.......#######',
@@ -117,7 +117,7 @@ const MVANIA = (() => {
       'wwwwwwwwwwwwwwwwwwww',
       '####################',
       '####################'] },
-    save: { at: [5, 0], name: 'SAVE ROOM', area: 'lab', kind: 'save', rows: [
+    save: { at: [5, 0], name: E.t('metroidvania.room.save'), area: 'lab', kind: 'save', rows: [
       '####################',
       '####################',
       '####################',
@@ -133,7 +133,7 @@ const MVANIA = (() => {
       '.........S.........G',
       '####################',
       '####################'] },
-    shrine: { at: [5, 2], name: 'SHRINE', area: 'water', rows: [
+    shrine: { at: [5, 2], name: E.t('metroidvania.room.shrine'), area: 'water', rows: [
       '####################',
       '###.............####',
       '##...............###',
@@ -149,7 +149,7 @@ const MVANIA = (() => {
       'wwwwwwwwwwwwwwwwwww#',
       '####################',
       '####################'] },
-    tower: { at: [6, -2], name: 'TOWER', area: 'tower', rows: [
+    tower: { at: [6, -2], name: E.t('metroidvania.room.tower'), area: 'tower', rows: [
       '####################',
       '####################',
       '#..................#',
@@ -195,7 +195,7 @@ const MVANIA = (() => {
       '...................#',
       '####################',
       '####################'] },
-    arena: { at: [5, -2], name: 'THE NEST', area: 'tower', kind: 'boss', rows: [
+    arena: { at: [5, -2], name: E.t('metroidvania.room.arena'), area: 'tower', kind: 'boss', rows: [
       '####################',
       '####################',
       '#..................#',
@@ -211,7 +211,7 @@ const MVANIA = (() => {
       '#.....M.............',
       '####################',
       '####################'] },
-    lab: { at: [5, 1], name: 'LABORATORY', area: 'lab', rows: [
+    lab: { at: [5, 1], name: E.t('metroidvania.room.lab'), area: 'lab', rows: [
       '########################################',
       '#################t######################',
       '####...............................#####',
@@ -227,7 +227,7 @@ const MVANIA = (() => {
       '................................d.....t.',
       '#########^^^^^^^^^^^^^^^^^##>>>>>>>>>###',
       '########################################'] },
-    cryo: { at: [7, 1], name: 'COLD STORE', area: 'lab', rows: [
+    cryo: { at: [7, 1], name: E.t('metroidvania.room.cryo'), area: 'lab', rows: [
       '####################',
       '####################',
       '###..............###',
@@ -243,7 +243,7 @@ const MVANIA = (() => {
       '....................',
       'iiiiiiii^^^iiiiiiiii',
       '####################'] },
-    lift: { at: [8, 0], name: 'LIFT SHAFT', area: 'lab', rows: [
+    lift: { at: [8, 0], name: E.t('metroidvania.room.lift'), area: 'lab', rows: [
       '####################',
       '####################',
       '#..................#',
@@ -274,7 +274,7 @@ const MVANIA = (() => {
       '...................#',
       '####################',
       '####################'] },
-    reactor: { at: [9, 0], name: 'REACTOR', area: 'lab', kind: 'boss', rows: [
+    reactor: { at: [9, 0], name: E.t('metroidvania.room.reactor'), area: 'lab', kind: 'boss', rows: [
       '########################################',
       '########################################',
       '####................................####',
@@ -329,7 +329,7 @@ const MVANIA = (() => {
 
   /* ---- THE CAST: the hero (an armored suit, an arm cannon), the creatures, the bosses ---- */
   const FOES = { crawler: { hp: 3, w: 18, h: 20, dmg: 12 }, flyer: { hp: 2, w: 14, h: 12, dmg: 12 }, turret: { hp: 4, w: 16, h: 18, dmg: 10 }, drone: { hp: 3, w: 14, h: 12, dmg: 10 },
-    carapace: { hp: 26, w: 42, h: 28, dmg: 20, boss: 'CARAPACE' }, warden: { hp: 24, w: 70, h: 92, dmg: 20, boss: 'WARDEN' } };
+    carapace: { hp: 26, w: 42, h: 28, dmg: 20, boss: E.t('metroidvania.boss.carapace') }, warden: { hp: 24, w: 70, h: 92, dmg: 20, boss: E.t('metroidvania.boss.warden') } };
   const DEBRIS = { crawler: ['#c8783a', '#f0c060', '#5a2a1a'], flyer: ['#8a4ab8', '#e0a0ff', '#2a1a3a'], turret: ['#8a94a8', '#ff6a3a', '#3a4050'], drone: ['#a0a8b8', '#ff3a3a', '#3a4050'],
     carapace: ['#3a8a8a', '#a0e0c0', '#1a3a3a', '#ffb040'], warden: ['#b04a6a', '#ffd0a0', '#3a1a2a', '#ff6a3a'] };
   const shots = new E.Bullets(game, { plane: 'side', max: 160 });
@@ -338,7 +338,6 @@ const MVANIA = (() => {
     colors: { skin: '#f0c8a8', cloth: '#d86a24', pants: '#b85a1c', boot: '#6a3218', metal: '#5ad050', glove: '#e8c040', belt: '#e8c040', trim: '#f0d048' } });
   let seals = [], recharge = null, onRe = false, world, hero, rig, hp, inv, aim, aimA, charge, cool, lash, foes, items, rings, orbs, gates, station, ship, fx, banner, got, mapOpen, dead, won, wonT, visited, song, onPad, mode = null, age, hint, bolt;
   const tanks = () => [...world.got].filter(g => g.startsWith('tank:')).length, MAXHP = () => 99 + tanks() * 100;
-  const label = a => game.input.label(a);
   // a new run in a world: loaded from its save unless fresh; at: a practice's room (got: what it is given)
   function start(o = {}) {
     world = makeWorld(o.id || 'metroidvania'); won = false; wonT = 0; visited = new Set(); song = null; fx = []; banner = got = null; mapOpen = false; dead = 0; age = 0; hint = 7;
@@ -501,9 +500,9 @@ const MVANIA = (() => {
   const say = (title, text) => { got = { title, text, t: 0 }; A.sfx('powerup'); game.flash('#ffffff', .35, .3); };
   function pickUp(it) {
     it.got = true; P.glints(it.x, 0, it.z + 7, 10, '#ffffff', 16);
-    if (it.kind === 'boots') { world.give('boots'); say('SPRING BOOTS', 'PRESS ' + label('jump') + ' AGAIN IN THE AIR: A SECOND JUMP'); }
-    else if (it.kind === 'dash') { world.give('dash'); say('PHASE DASH', label('dash') + ' DASHES. THE BLUE HATCHES OPEN'); }
-    else { world.give(it.id); say('ENERGY TANK', 'YOUR ENERGY HOLDS 100 MORE'); }
+    if (it.kind === 'boots') { world.give('boots'); say(E.t('metroidvania.item.boots'), E.t('metroidvania.item.boots.how')); }   // ({key:jump}: the player's own key)
+    else if (it.kind === 'dash') { world.give('dash'); say(E.t('metroidvania.item.dash'), E.t('metroidvania.item.dash.how')); }
+    else { world.give(it.id); say(E.t('metroidvania.item.tank'), E.t('metroidvania.item.tank.how')); }
     hp = MAXHP(); hatches();
   }
   function update(dt) {
@@ -556,16 +555,16 @@ const MVANIA = (() => {
     if (world.map.touching(hero, 'hazard')) { hurt(15, -hero.facing); if (inv > 1) hero.vz = 230; }
     // the save station: stepping on saves (and refills energy) once a visit
     const on = !!station && hero.onGround && Math.abs(hero.x - station.x) < 12 && Math.abs(hero.z - station.z) < 4;
-    if (on && !onPad && !won) { world.save(hero); hp = MAXHP(); say('GAME SAVED', 'THE NEXT VISIT STARTS HERE'); A.sfx('secret'); }
+    if (on && !onPad && !won) { world.save(hero); hp = MAXHP(); say(E.t('metroidvania.saved'), E.t('metroidvania.saved.how')); A.sfx('secret'); }
     onPad = on;
     // a recharge station: energy only (no save), before the reactor
     const re = !!recharge && hero.onGround && Math.abs(hero.x - recharge.x) < 12 && Math.abs(hero.z - recharge.z) < 4;
-    if (re && !onRe && hp < MAXHP()) { hp = MAXHP(); say('ENERGY RESTORED', 'A RECHARGE STATION: IT DOES NOT SAVE'); A.sfx('heal'); }
+    if (re && !onRe && hp < MAXHP()) { hp = MAXHP(); say(E.t('metroidvania.recharged'), E.t('metroidvania.recharged.how')); A.sfx('heal'); }
     onRe = re;
     // the suit: the cannon held out along the aim, but not on a rope, the bars or a ledge (its hands are full)
     const busy = hero.onRope || hero.onBars || hero.hanging || hero.climbUp || hero.clinging;
     rig.update(dt, hero.rigState(Object.assign({ point: !busy, aim: aimA, hurt: hero.stun > 0, expr: hero.stun > 0 ? 'wince' : null }, won && hero.onGround && { pose: 'cheer' })));
-    for (const k of ['jump', 'fire', 'dash']) game.input.touchSet(k, k === 'fire' && near ? 'LASH' : null, k !== 'dash' || world.has('dash'));
+    for (const k of ['jump', 'fire', 'dash']) game.input.touchSet(k, k === 'fire' && near ? E.t('metroidvania.touch.lash') : null, k !== 'dash' || world.has('dash'));
   }
   /* ---- THE LOOK ---- */
   const cache = new Map(), bake = (key, w, h, fn) => { if (!cache.has(key)) { const c = E.mkCanvas(w, h); fn(E.ctx2d(c), w, h); cache.set(key, c); } return cache.get(key); };
@@ -728,8 +727,8 @@ const MVANIA = (() => {
   function hud(g, r) {
     const full = Math.min(tanks(), Math.floor(hp / 100)), rest = hp - full * 100;
     for (let i = 0; i < tanks(); i++) { px.rect(g, 30 + i * 7, 5, 6, 5, '#000000'); px.rect(g, 31 + i * 7, 6, 4, 3, i < full ? '#ff5aa0' : '#3a2a3a'); }
-    E.font.text(g, 'EN', 6, 12, '#ffd0e8', S); E.font.text(g, String(rest).padStart(2, '0'), 22, 10, rest < 25 && !full ? (Math.floor(game.real * 6) % 2 ? '#ff4a4a' : '#ffffff') : '#ffffff', { scale: 2, shadow: '#000', outline: false });
-    let ix = 6; for (const [k, c, s] of [['boots', '#38c060', 'BOOTS'], ['dash', '#3a8ae8', 'DASH']]) if (world.has(k)) { px.rect(g, ix, 25, 4, 4, c); E.font.text(g, s, ix + 6, 24, '#c8d0e0', Object.assign({ font: 'tiny' }, S)); ix += 32; }   // (the abilities under it)
+    E.font.text(g, E.t('metroidvania.hud.energy'), 6, 12, '#ffd0e8', S); E.font.text(g, String(rest).padStart(2, '0'), 22, 10, rest < 25 && !full ? (Math.floor(game.real * 6) % 2 ? '#ff4a4a' : '#ffffff') : '#ffffff', { scale: 2, shadow: '#000', outline: false });
+    let ix = 6; for (const [k, c, s] of [['boots', '#38c060', E.t('metroidvania.hud.boots')], ['dash', '#3a8ae8', E.t('metroidvania.hud.dash')]]) if (world.has(k)) { px.rect(g, ix, 25, 4, 4, c); E.font.text(g, s, ix + 6, 24, '#c8d0e0', Object.assign({ font: 'tiny' }, S)); ix += 32; }   // (the abilities under it)
     const cell = 7, mx = cornerX() - 5 * cell - 6, my = touch() ? 6 : 14, G = world.grid, h = world.here || [G.x0, G.y0];
     px.rect(g, mx - 2, my - 2, 5 * cell + 4, 3 * cell + 4, '#000000'); px.rect(g, mx - 1, my - 1, 5 * cell + 2, 3 * cell + 2, '#2a3048');
     g.save(); g.beginPath(); g.rect(mx, my, 5 * cell, 3 * cell); g.clip();
@@ -739,28 +738,28 @@ const MVANIA = (() => {
     if (banner && !got && !mapOpen) { const a = clamp(Math.min(banner.t * 3, (2.4 - banner.t) * 2), 0, 1); if (a > .05) px.blend(g, a, 'normal', () => { px.rect(g, 0, 34, r.W, 15, '#000000'); E.font.text(g, banner.text, r.W / 2, 38, '#e8f0ff', SC); }); }
     if (got) { const y = Math.round(r.H * .36); E.ui.box(g, r.W / 2 - 110, y - 6, 220, 40, { bg: ['#1a2a4a', '#0a1020'], border: '#8ab0e8' }); E.font.title(g, got.title, r.W / 2, y, { scale: 2, align: 'center', colors: ['#ffffff', '#c8e0ff', '#6a9ae0'] }); E.font.text(g, got.text, r.W / 2, y + 20, '#e8f0ff', Object.assign({ font: 'tiny' }, SC)); }
     if (hint > 0 && !got && !banner && age > 1) {
-      const s = touch() ? 'STICK MOVES AND AIMS  •  FIRE BESIDE A FOE: THE LASH  •  MAP' : [label('jump') + ' JUMP', label('fire') + ' FIRE (HOLD)', label('melee') + ' LASH', 'HOLD ' + label('lock') + ' AIM', label('map') + ' MAP'].join('  •  ');
+      const s = E.t(touch() ? 'metroidvania.hint.touch' : 'metroidvania.hint.keys');
       const ta = game.input.touchArea && game.input.touchArea(), y = ta ? Math.round(ta.y0) - 16 : r.H - 16;   // (above the touch buttons)
       px.blend(g, .6 * clamp(hint, 0, 1), 'normal', () => px.rect(g, 0, y, r.W, 12, '#000000')); E.font.text(g, s, r.W / 2, y + 3, '#d8e0ff', Object.assign({ font: E.font.width(s) > r.W - 8 ? 'tiny' : undefined }, SC));
     }
     const bf = foes.find(f => f.boss && !f.dead);
     if (bf) { const w = Math.round(120 * bf.hp / bf.max), x = Math.round(r.W / 2 - 60), y = 16; E.font.text(g, bf.boss, r.W / 2, y - 9, '#ffb0c0', Object.assign({ font: 'tiny' }, SC)); px.rect(g, x - 1, y - 1, 122, 6, '#000000'); px.rect(g, x, y, w, 4, '#e04a6a'); px.rect(g, x, y, w, 1, '#ffb0c0'); }   // (top middle: clear of the floor it fights on)
-    if (won && wonT > 1.2) { E.ui.box(g, r.W / 2 - 100, r.H / 2 - 30, 200, 52, { bg: ['#2a1a3a', '#0a0612'], border: '#ffd080' }); E.font.title(g, 'MISSION COMPLETE', r.W / 2, r.H / 2 - 24, { scale: 2, align: 'center', colors: ['#fffbe8', '#ffd36a', '#e0662a'] }); E.font.text(g, 'MAP ' + explored() + '%  •  ITEMS ' + world.got.size + ' OF 3', r.W / 2, r.H / 2 + 2, '#e8e0ff', SC); }
-    if (dead > 0) px.blend(g, clamp(1 - dead / 2, 0, 1), 'normal', () => { px.rect(g, 0, 0, r.W, r.H, '#000000'); E.font.text(g, 'THE SUIT FAILS...', r.W / 2, r.H / 2 - 4, '#ff8a8a', SC); });
+    if (won && wonT > 1.2) { E.ui.box(g, r.W / 2 - 100, r.H / 2 - 30, 200, 52, { bg: ['#2a1a3a', '#0a0612'], border: '#ffd080' }); E.font.title(g, E.t('metroidvania.won'), r.W / 2, r.H / 2 - 24, { scale: 2, align: 'center', colors: ['#fffbe8', '#ffd36a', '#e0662a'] }); E.font.text(g, E.t('metroidvania.won.score', { percent: explored(), count: world.got.size, total: 3 }), r.W / 2, r.H / 2 + 2, '#e8e0ff', SC); }
+    if (dead > 0) px.blend(g, clamp(1 - dead / 2, 0, 1), 'normal', () => { px.rect(g, 0, 0, r.W, r.H, '#000000'); E.font.text(g, E.t('metroidvania.dead'), r.W / 2, r.H / 2 - 4, '#ff8a8a', SC); });
   }
   const explored = () => { const C = world.cells(); return Math.round(100 * C.filter(c => c.seen).length / C.length); };
   // the map screen: the whole grid, what was seen, the doors, S and B, the hero blinking; what was found
   function mapScreen(g, r) {
     px.blend(g, .9, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#04060e'));
     const G = world.grid, cell = Math.max(6, Math.min(18, Math.floor((r.W - 32) / G.w), Math.floor((r.H - 96) / G.h))), w = G.w * cell, h = G.h * cell, x = Math.round((r.W - w) / 2), y = Math.round((r.H - h) / 2) + 6;
-    E.font.title(g, 'MAP', r.W / 2, y - 42, { scale: 2, align: 'center', colors: ['#ffffff', '#a0c0ff', '#4a6ad0'] });
-    E.font.text(g, world.room.def.name + '  •  EXPLORED ' + explored() + '%', r.W / 2, y - 20, '#c8d8ff', SC);
+    E.font.title(g, E.t('metroidvania.map'), r.W / 2, y - 42, { scale: 2, align: 'center', colors: ['#ffffff', '#a0c0ff', '#4a6ad0'] });
+    E.font.text(g, E.t('metroidvania.map.explored', { room: world.room.def.name, percent: explored() }), r.W / 2, y - 20, '#c8d8ff', SC);
     for (let a = 0; a <= G.w; a++) for (let b = 0; b <= G.h; b++) px.dot(g, x + a * cell, y + b * cell, '#1e2a48');
     world.drawMap(g, x, y, cell);
     // what was found: a square for each, lit once it is got
-    const found = [['boots', 'SPRING BOOTS', world.has('boots')], ['dash', 'PHASE DASH', world.has('dash')], ['tank', 'ENERGY TANK', tanks() > 0]], wd = found.reduce((s, f) => s + E.font.width(f[1]) + 18, -8);
+    const found = [['boots', E.t('metroidvania.item.boots'), world.has('boots')], ['dash', E.t('metroidvania.item.dash'), world.has('dash')], ['tank', E.t('metroidvania.item.tank'), tanks() > 0]], wd = found.reduce((s, f) => s + E.font.width(f[1]) + 18, -8);
     let fx0 = Math.round((r.W - wd) / 2); for (const [k, s, on] of found) { px.rect(g, fx0, y + h + 11, 7, 7, '#000000'); px.rect(g, fx0 + 1, y + h + 12, 5, 5, on ? ITEM[k][0] : '#2a3048'); E.font.text(g, s, fx0 + 10, y + h + 10, on ? '#e8f0ff' : '#6a7898', S); fx0 += E.font.width(s) + 18; }
-    E.font.text(g, 'S SAVE ROOM   B A BOSS   ' + label('map') + ' CLOSES', r.W / 2, y + h + 24, '#8a9ac8', Object.assign({ font: 'tiny' }, SC));
+    E.font.text(g, E.t('metroidvania.map.key'), r.W / 2, y + h + 24, '#8a9ac8', Object.assign({ font: 'tiny' }, SC));
   }
 
   /* ---- THE BOT (tools/kits-test.mjs): it plays the route with the keys, from the landing site to the WARDEN ---- */
