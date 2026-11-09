@@ -1571,3 +1571,32 @@ An entry:
   which `tools/routes.json` and `tools/stamp.mjs` are ready for.
 - **Answered:** yes, the ask
 - **Landed in:** v0.92.0
+
+## D87 · 2026-11-09 · `index.html` is the play file: every page inside one file
+
+- **Principle:** 10 (discovery first: the human judges at a link on the device they review on) and 3 (verifiable without a
+  display); D86, which this extends
+- **Call:** `index.html`, at the repository's root, carries every page its list opens (`tools/play.mjs`): each lab the
+  list names, and the two editions every kit's slice is in (2D, `dist/my-3d2dge.html`; 3D, `dist/my-3d2dge-3d.html`,
+  with three.js and Rapier), so the one file plays everything offline, from disk or from any web address. Its home is the
+  Labs list (the template's play mode); a pick opens `?play=<id>` with the page's own `?query` and `#part`, and a
+  bootstrap writes that page over the home: the page's own file, letter for letter, but for its links (routes: All
+  labs is the home), its module scripts (written inert, then put back in order: Chromium's `document.write` never runs a
+  module) and its links to the web (Scarfrunner's web font: its fallback shows). A script body two pages share (the
+  engine, in every lab) is kept once; a 3D page's libraries become modules made on the device (`blob:` addresses) named
+  in its import map. The kits open their editions at `#<genre>` (the kits' own files would add 16 MB for the same
+  slices); the Mocap Lab's CMU library (68 MB, loaded as it is picked) stays out. `examples/labs.html` keeps the list
+  that opens each page's own file. `tools/replay.mjs` replays a session recorded in the play file on the page it played.
+  labs-test holds it: every page letter for letter, every route played from the file without a page error and without
+  loading anything outside it (a 3D page's world started), the way back; replay-test case 7 replays a session recorded in
+  it.
+- **Why:** the owner's ask (2026-11-09): "a single self contained html file that I can download to my computer and play
+  the game and all the pieces ... an easy way to test the game and the latest changes on various devices and share with
+  my friends". D86's home linked to the pages' files, so it played nothing without them. One file is also what a host
+  takes as it is (an itch.io page, any static host) when a phone needs a web address: a browser on a phone opens a file
+  from its storage poorly or not at all. The cost: about 12 MB more in the repository at each build (git keeps the
+  changes between builds), and the page is written over the home rather than loaded (a refresh or Back reloads the
+  file). What would change it: a page a browser can't play from a written document; the kits' own files wanted in it.
+- **Answered:** yes, the ask; the way (the home's own file, not a second file beside it) a reversible call, flagged in
+  its pull request
+- **Landed in:** v0.93.0

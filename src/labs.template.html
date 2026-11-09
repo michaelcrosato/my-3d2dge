@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{TITLE}}</title>
 <meta name="theme-color" content="#06050b">
+<!-- @play-boot -->
 <!--
   The Labs page: one place to open every test page, lab and demo of my-3D2dge. Built by tools/build.mjs from the list in
-  src/labs.json, twice: examples/labs.html, and index.html at the repository's root, the home page (one self-contained
-  file: open it from disk, or serve the repository and open /). Edit the list, not these pages. tools/labs-test.mjs opens
-  every link. The links work from the files on disk (examples/mocap-lab.html) and from the tools' local server, which
-  gives the pages short addresses (/mocap-lab: tools/routes.json).
+  src/labs.json, twice. examples/labs.html links to the pages' own files: from the files on disk (examples/mocap-lab.html)
+  and from the tools' local server, which gives the pages short addresses (/mocap-lab: tools/routes.json). index.html, at
+  the repository's root, is the play file: this list as its home, with every page it links to inside it (tools/play.mjs),
+  so the one file plays everything, from disk or from any server. Edit the list, not these pages. tools/labs-test.mjs
+  opens every link of both.
   Everything is in the list's order. A bar at the top jumps to each section (it marks the one on screen). A card opens its
   page from anywhere on it; its chips are other places to start. A line's cards are numbered, with when each was made; the
   kits are small tiles; the Temporary cards lead with their question and say which page each one led to.
@@ -79,6 +81,9 @@ details p{margin-top:4px!important}
 footer{margin-top:28px;font-size:13px;color:var(--muted)}
 footer a{color:var(--accent)}
 footer .ver{margin-top:6px;font-size:12px;opacity:.8}
+.missing{margin:0;padding:10px 16px;background:var(--accent);color:var(--accent-ink);font-size:14px}
+.intro a.go{display:inline-block;margin:0 8px 4px 0;padding:7px 14px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-weight:600;text-decoration:none}
+.intro a.go:hover{filter:brightness(1.08)}.intro a.go:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -90,15 +95,24 @@ footer .ver{margin-top:6px;font-size:12px;opacity:.8}
   <footer id="foot"></footer>
 </main>
 <script>
+(() => {   // (in a function: the play file writes its pages over this one, and a page's names must find none of these)
 const LABS = <!-- @inline-raw src/labs.json -->;
-// The home page (index.html, the repository's root) links by file, wherever it is opened: the pages are in examples/ and
-// the starters in dist/. The Labs page links by file too when it is a file (on disk, or served at /examples/labs.html):
-// the pages sit next to it and the starters are in ../dist/; at the tools' local server's short addresses (/labs, and
-// /mocap-lab: tools/routes.json) it links by those.
-const HOME = '{{HOME}}' === 'index';
-const LOCAL = HOME || location.protocol === 'file:' || /\/examples\/[^/]*$/.test(location.pathname);
-const url = p => p.startsWith('dist/') ? (LOCAL ? (HOME ? '' : '../') : '/') + p : LOCAL ? (HOME ? 'examples/' : '') + p + '.html' : '/' + p;
-const target = (page, add) => add.startsWith('dist/') ? url(add) : url(page) + add;
+// The play file (index.html) opens each page inside it: ?play=<id>, then the page's own ?query and #part. A kit's tile
+// opens its edition at the kit's slice: 2d (dist/my-3d2dge.html) or 3d (dist/my-3d2dge-3d.html), at #<genre>.
+// The Labs page links by file when it is a file (on disk, or served at /examples/labs.html): the pages sit next to it and
+// the starters are in ../dist/; at the tools' local server's short addresses (/labs, and /mocap-lab: tools/routes.json)
+// it links by those.
+const PLAY = '{{HOME}}' === 'play';
+const LOCAL = location.protocol === 'file:' || /\/examples\/[^/]*$/.test(location.pathname);
+const url = p => p.startsWith('dist/') ? (LOCAL ? '../' : '/') + p : LOCAL ? p + '.html' : '/' + p;
+const play = (page, add) => {   // (a file of dist/ is the entry's page, a kit's tile, or what a link adds, a check's)
+  const k = /^dist\/(?:kits\/my-3d2dge-(3d-)?([\w-]+)|my-3d2dge(-3d|-compact)?)\.html(.*)$/.exec(add.startsWith('dist/') ? add : page + add);
+  if (!k) return '?play=' + page + (add.startsWith('?') ? '&' + add.slice(1) : add);
+  return '?play=' + ((k[2] ? k[1] : k[3] === '-3d') ? '3d' : '2d') + (k[4] || (k[2] ? '#' + k[2] : ''));
+};
+const target = (page, add) => PLAY ? play(page, add) : add.startsWith('dist/') ? url(add) : url(page) + add;
+// the Mocap Lab's CMU library (examples/cmu-lib, 68 MB, loaded as it is picked) isn't in the play file
+const carried = add => !PLAY || !/[?&]set=library\b/.test(add);
 const el = (tag, cls, text, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; if (parent) parent.appendChild(e); return e; };
 // how long a prototype has been up: the doctrine deletes or graduates it once its question is settled
 const age = d => { const n = Math.floor((Date.now() - Date.parse(d + 'T00:00:00')) / 864e5); return n < 1 ? 'today' : n === 1 ? 'yesterday' : n + ' days ago'; };
@@ -124,7 +138,8 @@ for (const S of LABS.sections) {
     else el('p', '', L.what, card);
     if (L.look) { const d = el('p', 'q', '', card); el('b', '', 'Look for: ', d); d.append(L.look); }   // a check's question (the To check section)
     if (L.next) { const d = el('p', 'dev', '', card); el('b', '', 'Led to: ', d); d.append(titleOf(L.next)); }
-    if (L.links.length) { const row = el('div', 'links', '', card); for (const [label, add] of L.links) el('a', '', label, row).href = target(L.page, add); }
+    const links = L.links.filter(([, add]) => carried(add));
+    if (links.length) { const row = el('div', 'links', '', card); for (const [label, add] of links) el('a', '', label, row).href = target(L.page, add); }
   });
 }
 // the jump bar marks the section in the middle of the screen
@@ -135,14 +150,16 @@ if ('IntersectionObserver' in window) {
 }
 // where this copy is: files on this computer, or a server (the host it names)
 const where = document.getElementById('where');
-where.textContent = location.protocol === 'file:' ? 'files on this computer' : location.host ? 'served from ' + location.host : '';
+where.textContent = location.protocol === 'file:' ? (PLAY ? 'one file, on this computer' : 'files on this computer') : location.host ? 'served from ' + location.host : '';
 if (!where.textContent) where.remove();
 const foot = document.getElementById('foot');
 foot.append('The list is src/labs.json; ');
-el('a', '', 'the game', foot).href = url('emberdeep');
+el('a', '', 'the game', foot).href = target('emberdeep', '');
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was built from (dev-build in the repository; tools/stamp.mjs fills in a commit for a copy)
 el('div', 'ver', 'my-3D2dge v{{VERSION}} · {{BUILD}}', foot);
+})();
 </script>
+<!-- @play-data -->
 </body>
 </html>

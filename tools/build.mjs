@@ -34,6 +34,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { modules as allModules, resolve as resolveModules, sliceModules } from './engine-lib.mjs';
 import { gameLines, blockHTML } from './lines.mjs';
+import { pack } from './play.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
@@ -128,10 +129,9 @@ const builds = [
   { template: 'src/track-lab.template.html', out: 'examples/track-lab.html', vars: {} },
   // and a pseudo-3D road that forks (several roads drawn in one pass, back to front)
   { template: 'src/fork-lab.template.html', out: 'examples/fork-lab.html', vars: {} },
-  // one page that links to every lab, test page and demo, from the list in src/labs.json; and the same list as the
-  // repository's home page, index.html at its root: one self-contained file whose links reach every page as files
+  // one page that links to every lab, test page and demo, from the list in src/labs.json (index.html, the play file, is
+  // the same list with every page inside it: built last, below)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: { HOME: 'labs', TITLE: 'Labs · my-3D2dge', H1: 'Labs', INTRO: 'Every page of my-3D2dge to play, test or judge, one tap away. Each opens in this tab; your browser\'s back button returns here.' } },
-  { template: 'src/labs.template.html', out: 'index.html', vars: { HOME: 'index', TITLE: 'my-3D2dge', H1: 'my-3D2dge', INTRO: 'The home page: every game, lab, kit and tool of my-3D2dge, one tap away, from the files of this repository. Emberdeep, the signature game, is the first card of The road to Emberdeep. The 2D pages open from disk; the 3D ones (the 3D starter and its kits, the stress test, the Vehicle and Track Labs) load modules, so serve the repository (npx serve at its root) and open this page there.' } },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
   { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {} },
   // the files to share with AI models: API card + engine + starter slices
@@ -149,7 +149,10 @@ const builds = [
     const id = f.replace(/^\d+-|\.js$/g, '');
     if (!SLICES3D[id]) throw new Error(STARTER3D + '/' + f + ': name the slice in SLICES3D (tools/build.mjs)');
     return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id, sliceMods(join(STARTER3D, f))), label: '3D ' + SLICES3D[id].split(' (')[0], compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER3D, f)) };
-  })
+  }),
+  // the play file, index.html at the repository's root: the list as its home, and every page it opens inside it, so the
+  // one file plays everything, offline (tools/play.mjs, D87). Last: it carries the pages built above
+  { template: 'src/labs.template.html', out: 'index.html', play: true, vars: { HOME: 'play', TITLE: 'my-3D2dge', H1: 'my-3D2dge', INTRO: '<a class="go" href="?play=emberdeep">Play Emberdeep →</a> Everything of my-3D2dge is in this one file: the games, the labs and every kit, 2D and 3D, with nothing to install and nothing downloaded. Keep it, open it in a browser, pick anything below; the back button returns here. Send the same file to a friend. On a phone, open it from a web address: the file works as it is on any static host. (The Mocap Lab\'s CMU library, 68 MB, isn\'t in it.)' } }
 ];
 
 let minified = null, minified3d = null;
@@ -279,6 +282,12 @@ for (const b of builds) {
   const vars = Object.assign({}, GLOBAL, b.vars); if (ke) vars.ENGINE += dietLine(ke.diet, !!ke3 || b.template === 'src/starter3d.template.html'); if (ke3) vars.ENGINE += dietLine3d(ke3.diet);
   for (const [k, v] of Object.entries(vars)) html = html.replaceAll(`{{${k}}}`, v);
   html = boot(html);
+  // the play file's bootstrap and the pages it carries (index.html); the Labs page has none
+  if (/<!-- @play-(boot|data) -->/.test(html)) {
+    const p = b.play ? pack(root) : { boot: '', data: '' };
+    html = html.replace('<!-- @play-boot -->', () => p.boot).replace('<!-- @play-data -->', () => p.data);
+    if (b.play) console.log(`  (the play file: ${p.pages.length} pages, ${p.shared} shared parts, ${p.libs} 3D libraries)`);
+  }
   // the page's game-lines block: the lines of the parts it inlines, then the engine's (its modules', the 3D engine's)
   html = html.replace('<!-- @lines -->', () => {
     const dir = /@inline-parts (\S+)/.exec(html) || /@inline-module (src\/starter3d)/.exec(html), parts = dir ? readdirSync(join(root, dir[1])).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort().map(f => join(dir[1], f)) : [];

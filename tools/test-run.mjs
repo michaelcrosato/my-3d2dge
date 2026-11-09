@@ -40,9 +40,9 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['mocap', 'node tools/mocap-test.mjs', ['src/mocap/', 'src/mocap.template.html', 'src/mocap.game.js', 'tools/mocap-test.mjs', 'tools/mocap-lib.mjs', 'tools/anim-']],
   ['ed-clips', 'node tools/ed-clips-test.mjs', ['src/emberdeep/', 'src/mocap/', 'tools/ed-clips-test.mjs']],
   ['determinism', 'node tools/determinism-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'tools/filmstrip.mjs', 'tools/determinism-test.mjs']],
-  ['replay', 'node tools/replay-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'tools/replay.mjs', 'tools/replay-test.mjs']],
+  ['replay', 'node tools/replay-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'src/labs.template.html', 'tools/play.mjs', 'tools/replay.mjs', 'tools/replay-test.mjs']],
   ['assets', 'node tools/assets-test.mjs', ['docs/ASSETS.md', 'docs/ASSET-IMPORT.md', 'tools/assets-test.mjs', 'tools/asset-', 'src/assets/']],
-  ['labs', 'node tools/labs-test.mjs', ['src/', 'tools/routes.json', 'tools/labs-test.mjs']],
+  ['labs', 'node tools/labs-test.mjs', ['src/', 'tools/routes.json', 'tools/play.mjs', 'tools/labs-test.mjs']],
   ['audio', 'node tools/audio-test.mjs', ['engine/modules/songs.js', 'engine/modules/rhythm.js', 'tools/audio-test.mjs', 'tools/fixtures/audio.html']],
   ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'engine/modules/mode7.js', 'tools/routes.json', 'tools/stress-test.mjs']],
   ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'tools/routes.json', 'API.md', 'tools/kit3d-test.mjs', 'tools/vendor-3d.mjs', 'tools/diet.mjs', 'src/handoff/', 'tools/check.mjs']]

@@ -9,6 +9,7 @@
 //      may: every native sin, cos, pow... is nudged by one unit in the last place before the page loads) replays in
 //      Chromium to the same state: while recording and replaying, the engine's portable math is used, not the browser's
 //   6. two players on one keyboard (the brawler: player 2 drops in on the right half with 2): both heroes, replayed
+//   7. a session recorded in the play file (index.html?play=emberdeep, tools/play.mjs) replays on Emberdeep's own page
 // Usage: node tools/replay-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 // Sessions and pictures in check-output/replay-test/.
 import { chromium } from 'playwright';
@@ -135,6 +136,21 @@ console.log('5. recorded where the browser\'s own math differs, replayed in Chro
     await p.keyboard.press('Space'); await p.waitForTimeout(1500);
   }, ED_PROBE, otherMath);
   check('emberdeep-other-math', other, ED_PROBE);
+}
+
+console.log('7. recorded in the play file, replayed on the page it played');
+{
+  const inPlay = await record('emberdeep-play-file', 'index.html?play=emberdeep&record=1#depth-3', { viewport: { width: 960, height: 540 } }, async p => {
+    await p.waitForFunction(() => window.__ed && __ed.game, null, { timeout: 60000 }); await p.waitForTimeout(2000);
+    await p.mouse.move(600, 300);
+    for (const [k, ms] of [['KeyD', 700], ['KeyS', 500]]) { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); }
+    for (let i = 0; i < 3; i++) { await p.mouse.down(); await p.waitForTimeout(80); await p.mouse.up(); await p.waitForTimeout(250); }
+    await p.keyboard.press('Space'); await p.waitForTimeout(800);
+  }, ED_PROBE);
+  if (!/[?&]play=emberdeep\b/.test(inPlay.S.href)) fail('the play file\'s session does not say which page it played: ' + inPlay.S.href);
+  const r = replay(inPlay.file, ED_PROBE);
+  if (!/on file:.*\/examples\/emberdeep\.html\?record=1#depth-3,/.test(r.text)) fail('the play file\'s session was not replayed on examples/emberdeep.html:\n' + r.text);
+  check('emberdeep-play-file', inPlay, ED_PROBE);
 }
 
 await browser.close();

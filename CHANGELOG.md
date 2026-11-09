@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.93.0 (2026-11-09)
+
+`index.html` is the play file: everything of my-3D2dge in one self-contained file to download, open in a browser and send to a friend. Its home is the Labs list, and every page it opens is inside it, 2D and 3D, offline (D87).
+
+- **Tools**: `tools/play.mjs` packs the play file: each lab the list names and the two editions every kit's slice is in (the complete reference for 2D, the 3D starter with three.js and Rapier), about 12 MB; a script body two pages share (the engine, in every lab) is kept once. A pick opens `?play=<id>` (with the page's own `?query` and `#part`) and a bootstrap writes that page over the home; its module scripts go back in, in order (Chromium's `document.write` runs none), and a 3D page's libraries become modules made on the device, named in its import map. Nothing is loaded from anywhere, from disk or from a web address.
+- **Tools**: each page in it is its own file, letter for letter, but for its links (All labs is the home), its modules (written inert, then put back) and its links to the web (Scarfrunner's web font: its fallback shows). A kit's tile opens its edition at `#<genre>`; the Mocap Lab's CMU library (68 MB) stays out, and the home leaves out its link.
+- **Tools**: the labs template has a play mode: a **Play Emberdeep** button, its links the play file's routes. `examples/labs.html` keeps linking to the pages' own files.
+- **Tools**: labs-test checks the play file: every page letter for letter, every route played from the file (a 3D page's world started) without a page error or a load from outside it, served too, and the way back from a page's All labs link and the game's Settings. `tools/replay.mjs` replays a session recorded in the play file on the page it played; replay-test case 7 records one there and replays it.
+- **Docs**: the README opens with the play file (what it holds, how to share it, a phone and a web address); `CLAUDE.md`, `src/labs.json` and `DOCTRINE.md` say `index.html` carries the pages.
+
 ## 0.92.0 (2026-11-09)
 
 The hosted site is gone: nothing deploys it and nothing will. The repository opens itself instead, from one self-contained page at its root, and the docs point at files, not addresses (D86).
