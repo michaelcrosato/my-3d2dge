@@ -3,7 +3,16 @@
 One version number covers the engine, its agent edition, the docs and the games (semantic versioning while the major number is 0: the minor number for features, the patch for fixes). Every change merged to `main` bumps it and adds its lines here (except a change confined to a prototype, a Temporary lab: `DOCTRINE.md`), sorted under the parts it touched: **Rendering**, **Animation**, **Art**, **Mocap**, **Engine** (the rest of it), **Emberdeep**, **Characters**, **Tools**, **Docs**.
 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
-- Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
+- Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
+
+## 0.92.0 (2026-11-09)
+
+The hosted site is gone: nothing deploys it and nothing will. The repository opens itself instead, from one self-contained page at its root, and the docs point at files, not addresses (D86).
+
+- **Tools**: `index.html` at the repository's root, the home page: one self-contained file (no other file loaded, no network), built from `src/labs.json` like the Labs page, whose links open every game, lab, kit, tool and the handoff package as files (`examples/`, `dist/`), from disk or served. The 3D pages say they must be served (`npx serve` at the root).
+- **Tools**: the hosting config and its ignore file are gone; the short addresses the tests' local servers give the pages (`/labs`, `/kits/<id>`, `/3d`, and `/`, now the home page) are `tools/routes.json`, read by labs-test, stress-test, kit3d-test and `tools/replay.mjs`. labs-test checks the home page: its links, served and as files, reach files that exist, and it loads nothing.
+- **Tools**: `tools/stamp.mjs` stamps a copy made to share (the home page too), reading the commit from `--commit` or git; the preview-only trimming of the CMU library is gone.
+- **Docs**: no doc names the hosted site any more: the README opens with `index.html`, and the card, the guide, the manuals' headers (2D, agent, 3D), the 3D starter's notes, the kits' headers, the handoff package's READMEs, `docs/ENGINE-3D.md`, `docs/KITS.md`, `DOCTRINE.md` and `CLAUDE.md` name the repository's files instead. Past changelog sections and `docs/DECISIONS.md` keep their history, as they always do.
 
 ## 0.91.1 (2026-11-09)
 

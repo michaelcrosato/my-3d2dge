@@ -1,10 +1,10 @@
-# my-3D2dge API card (v0.91.1)
+# my-3D2dge API card (v0.92.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
 **Start from a kit:** each genre has one, a complete small game written to be copied (the Genre playbook below names it). In a single file it sits between `GAME START` and `GAME END`: the starter's shell (the game, its title menu, the proof), the slice and the start; a genre kit holds one slice, `dist/my-3d2dge.html` every one and the ANIMATION LAB (how each animation is driven). In the handoff package each kit's game is `kits/<id>.js` (a 3D kit's `kits/3d-<id>.js`), readable. **To make a game, change the slice into yours, with its own title, play and game-over scenes, and delete the starter's menu and the slices you do not use. The engine is yours to change too:** fix, extend or rewrite any of it as you see fit.
 
-**Looking a name up:** grep `API-INDEX.md` (every public name, one line; members are filed under instance names: `rig.`, `talk.`, `mover.`, `flow.`, `map.`), not the engine's source. It, the guide (`AI_GUIDE.md`) and the tools are in the handoff package (my-3d2dge.vercel.app/handoff/) and the repository. A 3D name (`E.World3D`, `world.camera`) is in the 3D engine's header, its manual (`engine/my-3d2dge-3d.js`; `my-3d2dge-3d.js` in the handoff package).
+**Looking a name up:** grep `API-INDEX.md` (every public name, one line; members are filed under instance names: `rig.`, `talk.`, `mover.`, `flow.`, `map.`), not the engine's source. It, the guide (`AI_GUIDE.md`) and the tools are in the handoff package (`dist/handoff/`) and the repository. A 3D name (`E.World3D`, `world.camera`) is in the 3D engine's header, its manual (`engine/my-3d2dge-3d.js`; `my-3d2dge-3d.js` in the handoff package).
 
 ## Quick start (a complete game)
 ```js
@@ -289,7 +289,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `songs`: the songbook (`E.Songbook`): songs by mood (field, town, battle, race, horror, chase, dance ...) and jingles (stage clear, game over, level up); `get(id)`, `find(mood)`. RHYTHM.
   - `rhythm` (the full engine only): `E.Rhythm`: charts on a song's steps, judgments in ms of the music clock, combo, score, a life gauge, grades, holds, call and response, a note highway in any direction. RHYTHM.
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER, PINBALL.
-- **Everything running**: https://my-3d2dge.vercel.app/labs
+- **Everything running**: `index.html`, the repository's home page
 
 ## Before you hand the game back
 - One IIFE starting with `const E = My3D2dge` (between the markers in a single file; `game/game.js` in the handoff package). Only your game: no leftover starter menu or unused slices. No network, no libraries.

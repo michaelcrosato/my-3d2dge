@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.91.1: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.92.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -363,7 +363,7 @@ game.start({
 
 ## More, outside this file: animation and examples to take from
 In the repo (github.com/michaelcrosato/my-3d2dge; every clip is free to use). Its files are large: search them and take
-only what the game needs; never read one whole. All of it runs at https://my-3d2dge.vercel.app/labs.
+only what the game needs; never read one whole. Its home page, index.html, opens all of it.
 - Motion clips: 325 curated (idles, walks, runs, jumps, fights, hits, deaths, chores, dances) and 2,548 motion-capture
   takes, as readable key poses that play on any Humanoid (either engine; the full one also turns the face and hair).
     find  src/mocap/catalogs/quaternius.json, mesh2motion.json, cmu.json: each clip's name, tags and description;
@@ -385,7 +385,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.91.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.92.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped in a shared copy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };

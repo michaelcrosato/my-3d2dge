@@ -1,0 +1,13 @@
+{
+  "$about": "The short addresses the tools' local servers give the pages (tools/labs-test.mjs, stress-test.mjs, kit3d-test.mjs, and replay.mjs reading a recorded address): each source, a /:name(a|b) pattern, is served from its destination. The home page is index.html at the repository's root.",
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/:page(emberdeep|arena|stress-test|perspective-lab|mocap-lab|scarfrunner-side|labs|asset-lab|vehicle-lab|gallery-lab|track-lab|fork-lab)", "destination": "/examples/:page.html" },
+    { "source": "/labs.html", "destination": "/examples/labs.html" },
+    { "source": "/cmu-lib/:file", "destination": "/examples/cmu-lib/:file" },
+    { "source": "/kits/:kit(adventure|animlab|arcade|brawler|fighting|kart|metroidvania|platformer|puzzle|road|roguelike|rpg|shooter|stealth|tactics|rts|sim|pointclick|pinball|artillery|rhythm|sports|3d-action|3d-platformer|3d-shooter|3d-horror|3d-racing|3d-flight|3d-crawler)", "destination": "/dist/kits/my-3d2dge-:kit.html" },
+    { "source": "/3d", "destination": "/dist/my-3d2dge-3d.html" },
+    { "source": "/handoff/", "destination": "/dist/handoff/index.html" },
+    { "source": "/handoff/:file(.+)", "destination": "/dist/handoff/:file" }
+  ]
+}

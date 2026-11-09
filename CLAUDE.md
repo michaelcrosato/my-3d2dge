@@ -15,7 +15,7 @@ These rules are for changes to this repository: what merges into its `main`. An 
 
 ## Sources and built files
 
-- Edit the sources: `engine/`, `src/`, `tools/`, the docs. Never edit `examples/`, `dist/` or `API-INDEX.md` by hand: run `node tools/build.mjs` and commit what it writes (the site serves those files as they are). Every public name in the engine needs a doc comment (`node tools/api-index.mjs --missing` lists those without), or a `_` to make it private.
+- Edit the sources: `engine/`, `src/`, `tools/`, the docs. Never edit `examples/`, `dist/`, `index.html` or `API-INDEX.md` by hand: run `node tools/build.mjs` and commit what it writes (the home page, `index.html`, opens those files as they are). Every public name in the engine needs a doc comment (`node tools/api-index.mjs --missing` lists those without), or a `_` to make it private.
 - A rebuild of an unchanged tree changes nothing: the build is byte for byte repeatable.
 - No dependencies in the engine or the games, no binary files (images, sounds, models; `node tools/doctrine-check.mjs` lists the approved ones), no network. Match the code around you (dense, commented, plain JavaScript).
 - Outside `engine/`, use the engine's public API, not its private members (names starting with `_`); a prototype may. Gameplay takes time only from `dt` and the game's clocks, and randomness only from `Math.random` or `E.rng`, so the test harness can replay it exactly.
@@ -24,17 +24,17 @@ These rules are for changes to this repository: what merges into its `main`. An 
 
 ## Versioning: every engine-tier change merged to main
 
-A change confined to prototypes (a Temporary lab's own sources and its `labs.json` entry) skips these steps; the commit stamped on the Labs page says which build it is.
+A change confined to prototypes (a Temporary lab's own sources and its `labs.json` entry) skips these steps; its commit says which build it is.
 
 1. Bump the version: `node tools/version.mjs X.Y.Z` (minor for features, patch for fixes, while the major number is 0). It writes the number everywhere it lives and opens a section in `CHANGELOG.md`.
 2. Fill in that section: one line for each change, under the parts it touched (**Rendering**, **Animation**, **Art**, **Mocap**, **Engine**, **Emberdeep**, **Characters**, **Tools**, **Docs**).
 3. Rebuild (`node tools/build.mjs`). `npm test` fails while any place disagrees with `package.json` or the changelog has no section.
-4. When you report work, give the version and the commit (`v0.7.0`, `a1b2c3d`). The deployed site shows its own build: `My3D2dge.versionLabel()`, the Emberdeep title, its Settings (Keys & help), the Labs page.
+4. When you report work, give the version and the commit (`v0.7.0`, `a1b2c3d`). A built page shows its own: `My3D2dge.versionLabel()`, the Emberdeep title, its Settings (Keys & help), the Labs page (`dev-build` in the repository; `tools/stamp.mjs` fills in the commit in a copy made to share).
 
 ## Checks
 
 - Before pushing: `npm run test:changed`. It runs the version, syntax and doctrine checks and every suite that covers a file you changed (read from git against main; a change that only bumps version numbers doesn't count), says why it chose each and how long each took. A change to the engine, the build or the dependencies runs them all (the 3D engine alone runs the 3D kits' suite: only its pages load it; a module runs contract, agent, modules and the phone test of the kits that carry it). `npm run test:which` shows the choice without running it.
-- Push and merge as soon as it passes (squash merge; the Vercel preview needn't finish first). Then run the full `npm test` (every suite, about 40 minutes) in the background: a failure there is fixed forward at once, or the merge reverted. In cloud sessions `CHROMIUM_PATH` is set for you.
+- Push and merge as soon as it passes (squash merge). Then run the full `npm test` (every suite, about 40 minutes) in the background: a failure there is fixed forward at once, or the merge reverted. In cloud sessions `CHROMIUM_PATH` is set for you.
 - Fast ones while working: `node tools/ed-syntax.mjs --all`, `npm run version:check`, `npm run doctrine:check` (binaries, the manuals' token budgets, the API boundary, the decisions log), `node tools/check.mjs <page>`, `npm run test:phone` (the kits on an emulated phone, about seven minutes: what a player finds in ten).
 - A bug report with a session file (Settings → Tools → Record a session in Emberdeep; anywhere else `?record=1`, then the pause menu's Save session): `node tools/replay.mjs <file> --shots <frames> --log "<js>"` plays it back exactly, headless (`--pacing`: the device's refreshes, missed ones second by second, for choppy play); replay it again after the fix.
 - Look at what you changed: read the screenshots, record a filmstrip for any animation (`node tools/filmstrip.mjs ... --seed 1`, `--compare <the page before>` to prove a change touches only what it should).

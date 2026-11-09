@@ -1,5 +1,5 @@
 // 2D stress test check (examples/stress-test.html, built from src/stress.template.html and src/stress.game.js): its
-// cameras beyond the engine's named views. It serves the repo as Vercel does and opens /stress-test:
+// cameras beyond the engine's named views. It serves the repo with the pages' short addresses (tools/routes.json) and opens /stress-test:
 //   1. a ?cam= link opens the custom view at its turn, tilt and zoom, fixed in place
 //   2. a fixed camera stays put while the hero walks, and F frees it
 //   3. the side scrolling view
@@ -17,8 +17,8 @@ const root = resolve('.');
 const problems = [];
 const fail = m => problems.push(m);
 
-/* the page, served like Vercel (vercel.json's rewrites) */
-const rules = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8')).rewrites.map(r => ({
+/* the page, at its short address (tools/routes.json's rewrites) */
+const rules = JSON.parse(readFileSync(join(root, 'tools/routes.json'), 'utf8')).rewrites.map(r => ({
   re: new RegExp('^' + r.source.replace(/\./g, '\\.').replace(/:(\w+)\(([^)]+)\)/g, '(?<$1>$2)').replace(/:(\w+)(?![\w>])/g, '(?<$1>[^/]+)') + '$'),
   to: r.destination,
 }));

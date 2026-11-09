@@ -100,13 +100,13 @@ const ALL = {
 const modLine = mods => mods.length ? '\n       ' + wrapHead('Its modules follow it, each a script marked "inlined from engine/modules/<name>.js" that starts with its manual: ' + resolveModules(mods, MODS).map(m => m.name).join(', ') + '.', 7) : '';
 const kit = (id, mods = []) => ({
   EDITION: id + ' kit', WHOLE: 'the engine (on the kit diet: 2. says what it leaves out)', GAMES: 'one working game to copy', ENGINE: modLine(mods),
-  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit: dist/my-3d2dge.html has every slice (my-3d2dge.vercel.app/dist/my-3d2dge.html), and the\n       handoff package every kit readable, with the index, the guide and the tools (my-3d2dge.vercel.app/handoff/).',
+  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit: dist/my-3d2dge.html has every slice, and the handoff package (dist/handoff/)\n       every kit readable, with the index, the guide and the tools (both in github.com/michaelcrosato/my-3d2dge).',
   LINKS: links([id], PARTS, true)
 });
 // the 3D slices: their ids and what each is (the kit's header names it)
 const SLICES3D = { action: 'ACTION (a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test)', platformer: 'PLATFORMER (a 3D course of islands, platforms and coins, Mario 64 and Spyro)', shooter: 'SHOOTER (an open world to move through and fight in, first or third person: Apex Legends without the multiplayer)', horror: 'HORROR (a mansion\'s wings by flashlight under fixed cameras: a pistol that locks on, zombies, dogs, keys, a crank, an item box and saves, a boss; Resident Evil and Alone in the Dark)', racing: 'RACING (a kart circuit in a valley: banked bends, a hill, a jump, a dirt shortcut, five drivers, items, three laps, two players in a split screen; Mario Kart 64 and Crash Team Racing)', flight: 'FLIGHT (a stage on rails over the sea to a base, then a boss in free flight: lasers, charged lock-on shots, barrel rolls, rings and a wingman on the radio; Star Fox 64 and Panzer Dragoon)', crawler: 'CRAWLER (a dungeon in first person, a cell at a time: a party of four with portraits, gates, a lever, plates, an automap, real time or turns; Eye of the Beholder, Dungeon Master and Wizardry)' };
 const ALL3D = { EDITION: '3D edition', GAMES: 'the 3D starter games', ENGINE: '', CONTENTS: 'a title menu plus every 3D slice (' + Object.keys(SLICES3D).map(k => k.toUpperCase()).join(', ') + ').', LINKS: links(Object.keys(SLICES3D), PARTS3D) };
-const kit3d = (id, mods = []) => ({ EDITION: '3D ' + id + ' kit', GAMES: 'one 3D game to copy', ENGINE: modLine(mods), CONTENTS: 'a title menu plus the ' + SLICES3D[id] + ' slice.\n       This is a 3D genre kit: dist/my-3d2dge-3d.html has every 3D slice and the whole of both engines\n       (my-3d2dge.vercel.app/3d).', LINKS: links([id], PARTS3D, true) });
+const kit3d = (id, mods = []) => ({ EDITION: '3D ' + id + ' kit', GAMES: 'one 3D game to copy', ENGINE: modLine(mods), CONTENTS: 'a title menu plus the ' + SLICES3D[id] + ' slice.\n       This is a 3D genre kit: dist/my-3d2dge-3d.html has every 3D slice and the whole of both engines\n       (github.com/michaelcrosato/my-3d2dge).', LINKS: links([id], PARTS3D, true) });
 // the modules a slice names (@modules in its header), and those of a folder of slices together
 const sliceMods = file => sliceModules(readFileSync(join(root, file), 'utf8'));
 const dirMods = dir => [...new Set(readdirSync(join(root, dir)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).flatMap(f => sliceMods(join(dir, f))))];
@@ -128,8 +128,10 @@ const builds = [
   { template: 'src/track-lab.template.html', out: 'examples/track-lab.html', vars: {} },
   // and a pseudo-3D road that forks (several roads drawn in one pass, back to front)
   { template: 'src/fork-lab.template.html', out: 'examples/fork-lab.html', vars: {} },
-  // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
-  { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
+  // one page that links to every lab, test page and demo, from the list in src/labs.json; and the same list as the
+  // repository's home page, index.html at its root: one self-contained file whose links reach every page as files
+  { template: 'src/labs.template.html', out: 'examples/labs.html', vars: { HOME: 'labs', TITLE: 'Labs · my-3D2dge', H1: 'Labs', INTRO: 'Every page of my-3D2dge to play, test or judge, one tap away. Each opens in this tab; your browser\'s back button returns here.' } },
+  { template: 'src/labs.template.html', out: 'index.html', vars: { HOME: 'index', TITLE: 'my-3D2dge', H1: 'my-3D2dge', INTRO: 'The home page: every game, lab, kit and tool of my-3D2dge, one tap away, from the files of this repository. Emberdeep, the signature game, is the first card of The road to Emberdeep. The 2D pages open from disk; the 3D ones (the 3D starter and its kits, the stress test, the Vehicle and Track Labs) load modules, so serve the repository (npx serve at its root) and open this page there.' } },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
   { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {} },
   // the files to share with AI models: API card + engine + starter slices
@@ -263,7 +265,7 @@ async function engine3dMin() {
 
 const read = file => readFileSync(join(root, file), 'utf8').replaceAll('</script', '<\\/script');
 // every page may say which release it is: {{VERSION}} (package.json) and {{BUILD}}, a placeholder that tools/stamp.mjs
-// turns into the commit when the site deploys (the repo's copies keep it, so a rebuild matches them exactly)
+// turns into the commit in a copy made to share (the repo's copies keep it, so a rebuild matches them exactly)
 const GLOBAL = { VERSION: JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version, BUILD: 'dev-build' };
 // <!-- @boot Title --> becomes the boot screen's splash (the engine's own E.bootSplash, so the page's first paint and the
 // screen the engine takes it over with never drift apart): it shows while the page's scripts load

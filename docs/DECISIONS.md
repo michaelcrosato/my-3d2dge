@@ -1553,3 +1553,21 @@ An entry:
   the newer 3D engine is hard to find; relook at its structure and docs". The way (carry it, not point at it) is D73's
   own, made at once as a reversible call, flagged in its pull request
 - **Landed in:** v0.91.0
+
+## D86 · 2026-11-09 · No hosted site: the repository opens itself from `index.html`
+
+- **Principle:** 10 (discovery first: the human reviews on a device, at a link) and 1 (agent-readable: the docs say where
+  things are); D44's Labs page
+- **Call:** the hosted site goes: its config (routes, the build-stamp command, the ignore rule and its ignore file) is
+  deleted, and no doc names it. In its place, `index.html` at the repository's root, built from `src/labs.json` by the
+  same template as the Labs page: one self-contained file whose links reach every page as files (`examples/`, `dist/`),
+  opened from disk or from any server at the root (`npx serve`; the 3D pages need one). The tests' local servers keep
+  the pages' short addresses, now in `tools/routes.json` (`/` is the home page). `tools/stamp.mjs` stays, for a copy
+  made to share. Past entries here and past changelog sections that name the old host keep their history.
+- **Why:** the owner's word (2026-11-09): the hosted site isn't used and won't be, and the docs should not name it; a
+  single self-contained HTML file in the repository replaces it. The Labs page already opened everything as files; the
+  home page is the same list at the root, so a clone opens with one file. The cost: no link to play on a phone without a
+  local server or a copy; a deep link (`?character=codex`) is now a file's address. What would change it: a host again,
+  which `tools/routes.json` and `tools/stamp.mjs` are ready for.
+- **Answered:** yes, the ask
+- **Landed in:** v0.92.0

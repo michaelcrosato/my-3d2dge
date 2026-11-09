@@ -1,10 +1,10 @@
-# The genre kits (v0.91.1)
+# The genre kits (v0.92.0)
 
 A kit is a complete small game in one genre, written to be copied: its title, play and end, the modules it rests on,
 its sound, touch controls and a phone's screen. The API card's Genre playbook (`API.md`) names a kit for each genre (its
 "Copy slice" column: a name with 3D in front, 3D HORROR, is a 3D kit, `3d-horror` here); the tables say which file is
-which. Each kit is the same game as the single-file kit on the site (my-3d2dge.vercel.app/kits/<id>,
-/kits/3d-<id>), readable, on this package's engines.
+which. Each kit is the same game as the repository's single-file kit (dist/kits/my-3d2dge-<id>.html,
+my-3d2dge-3d-<id>.html), readable, on this package's engines.
 
 **2D or 3D?** A 2D kit draws its world in x, y and z from any of the classic angles (iso, three-quarter, side-on,
 top-down, Mode 7, the pseudo-3D road) on the 2D engine alone. A 3D kit puts a real 3D world under the game: a perspective

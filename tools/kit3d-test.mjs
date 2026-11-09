@@ -6,7 +6,7 @@
 //      vendored files that exist, and those files match their checksums (tools/vendor-3d.mjs --check)
 //   2. the manual's quick start (the ```js quickstart block in the engine's header) runs as the manual hosts it: no
 //      errors, a hero that walks and jumps, gems to take; actors added after a step drawn on a frame between steps
-//   3. every 3D kit, served as Vercel serves it (/kits/3d-<slice>, /3d), on WebGL 2 and on WebGPU (headless Chromium runs
+//   3. every 3D kit, served at its short address (/kits/3d-<slice>, /3d: tools/routes.json), on WebGL 2 and on WebGPU (headless Chromium runs
 //      WebGPU on SwiftShader, through a stand-in canvas): no page errors, the title
 //      draws, each slice starts; each slice's proof run gives the same hash twice and on both backends (the game never
 //      reads the renderer); a minute of scripted play builds no GPU pipeline mid-game (the warm-up's job) and moves
@@ -74,8 +74,8 @@ for (const f of SOURCES) {
   for (const [k, v] of Object.entries(map.imports)) if (!v.startsWith('/vendor/') || !existsSync(join(root, v))) fail(`src/starter3d.template.html import map: ${k} -> ${v} is not a vendored file that exists`);
 }
 
-/* the site, served as Vercel serves it (vercel.json's rewrites), and the quick start's page at /check/quickstart.html */
-const rules = JSON.parse(read('vercel.json')).rewrites.map(r => ({
+/* the site, served with the pages' short addresses (tools/routes.json), and the quick start's page at /check/quickstart.html */
+const rules = JSON.parse(read('tools/routes.json')).rewrites.map(r => ({
   re: new RegExp('^' + r.source.split(/(:\w+\([^)]+\))/).map((part, i) => i % 2 ? part.replace(/:(\w+)\(([^)]+)\)/, '(?<$1>$2)') : part.replace(/\./g, '\\.').replace(/:(\w+)(?![\w>])/g, '(?<$1>[^/]+)')).join('') + '$'),
   to: r.destination
 }));
