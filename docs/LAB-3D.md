@@ -60,7 +60,7 @@ runs; only showing the frame is skipped. A real browser shows it.
 3. **Self-contained, but served, not double-clicked.** three.js ships as ES modules, which browsers won't load from a
    file opened straight off the disk. The lab is one built page like the other labs (`examples/lab-3d.html`, the
    engine and the lab's code inlined) that loads the vendored libraries from `/vendor/` through an import map. It
-   works on the site and from any local web server at the repository's root (`npx serve`,
+   works from any local web server at the repository's root (`npx serve`,
    `python3 -m http.server`), not from a double-click.
 4. **"All art by code" rules out the CC0 model kits.** Props, walls and floors are written as code (boxes,
    cylinders, cones, procedural textures), the way our props are today. Agents can write new ones; nobody imports
@@ -151,7 +151,7 @@ tools/lab3d-test.mjs                 the banned-API check; opens the lab on WebG
 
 - `tools/build.mjs` writes `examples/lab-3d.html` (the engine, the mocap player and sets, Dan's body section and the
   lab's module inlined: `@inline-module` joins `src/lab3d/` into one module, `@inline-head` takes the first section of
-  `src/emberdeep/22-char-dan.js`, the class `DanRig`); `vercel.json` serves it at `/lab-3d`; `src/labs.json` lists it
+  `src/emberdeep/22-char-dan.js`, the class `DanRig`); the site served it at `/lab-3d`; `src/labs.json` lists it
   under Temporary with the date and the question. The vendored files are served as they are from `/vendor/`.
 - Our engine (`engine/my-3d2dge.js`) is loaded as is, for the rigs, the animation, the mocap store and the textures.
   The lab only reads from it.

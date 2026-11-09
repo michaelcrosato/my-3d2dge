@@ -27,7 +27,7 @@ const t0 = Date.now();
 /* the copy: the sources a build reads (not what it writes, nor .git), the fixture dropped in and registered */
 console.log('the copy: ' + repo);
 rmSync(work, { recursive: true, force: true }); mkdirSync(repo, { recursive: true });
-const SKIP = new Set(['.git', 'node_modules', 'examples', 'dist', 'check-output', '.cache', 'temp-feedback', '.vercel']);
+const SKIP = new Set(['.git', 'node_modules', 'examples', 'dist', 'check-output', '.cache', 'temp-feedback', 'index.html']);
 for (const f of readdirSync(root)) if (!SKIP.has(f)) cpSync(join(root, f), join(repo, f), { recursive: true });
 symlinkSync(join(root, 'node_modules'), join(repo, 'node_modules'), 'dir');
 // (the CMU library the cards name, which no build writes: linked as node_modules is, so their paths are there)

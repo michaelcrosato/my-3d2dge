@@ -1,5 +1,5 @@
-// Labs check: the Labs page (examples/labs.html, built from src/labs.json) and the way back to it. It serves the repo the
-// way Vercel does (vercel.json's rewrites), opens the Labs page at /labs and /labs.html, and opens every link on it: each
+// Labs check: the Labs page (examples/labs.html, built from src/labs.json) and the way back to it. It serves the repo with
+// the pages' short addresses (tools/routes.json), opens the Labs page at /labs and /labs.html, and opens every link on it: each
 // must load (status 200) without a page error. As files on disk, every link must point at a file that exists. The list
 // holds together: each next names a page on it, and each page of a line says when it was made. Each lab's
 // "All labs" link and the game's Settings button (Keys & help) must reach the Labs page, and held upright on a phone every lab's
@@ -15,8 +15,8 @@ const root = resolve('.');
 const problems = [];
 const fail = m => problems.push(m);
 
-/* a static server with vercel.json's rewrites: "/:page(a|b)" patterns, filled into the destination */
-const rules = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8')).rewrites.map(r => ({
+/* a static server with tools/routes.json's rewrites: "/:page(a|b)" patterns, filled into the destination */
+const rules = JSON.parse(readFileSync(join(root, 'tools/routes.json'), 'utf8')).rewrites.map(r => ({
   // (a group's own pattern, :file(.+), is kept as it is: only the dots outside groups are literal)
   re: new RegExp('^' + r.source.split(/(:\w+\([^)]+\))/).map((part, i) => i % 2 ? part.replace(/:(\w+)\(([^)]+)\)/, '(?<$1>$2)') : part.replace(/\./g, '\\.').replace(/:(\w+)(?![\w>])/g, '(?<$1>[^/]+)')).join('') + '$'),
   to: r.destination,
@@ -76,6 +76,21 @@ for (const href of fileLinks) {
   if (!existsSync(f)) fail('file link to a missing file: ' + f.replace(root, '.'));
 }
 
+/* the home page (index.html, the repository's root): the same list, served at / and as a file, its links reaching the
+   pages as files (examples/, dist/) wherever it is opened, each to a file that exists; self-contained (nothing loaded) */
+for (const [where, href] of [['served', SITE + '/'], ['file', pathToFileURL(join(root, 'index.html')).href]]) {
+  await page.goto(href);
+  if (await page.textContent('h1') !== 'my-3D2dge') fail(`the home page (${where}) is not the home page`);
+  const home = await links();
+  if (home.length !== siteLinks.length) fail(`the home page (${where}) has ${home.length} links, the Labs page ${siteLinks.length}`);
+  for (const h of home) {
+    const f = where === 'file' ? fileURLToPath(h.replace(/[?#].*$/, '')) : join(root, decodeURIComponent(new URL(h).pathname));
+    if (!/\/(examples|dist)\//.test(f.replace(root, ''))) fail(`home page (${where}) link not to a file in examples/ or dist/: ${h}`);
+    else if (!existsSync(f)) fail(`home page (${where}) link to a missing file: ${f.replace(root, '.')}`);
+  }
+}
+if (/<script[^>]+src=|<link[^>]+href=|<img|<iframe|@import|url\(\s*['"]?[\w./:-]+\.(?:png|jpe?g|gif|svg|webp|woff2?|ttf|css)/i.test(readFileSync(join(root, 'index.html'), 'utf8'))) fail('the home page loads a file: it must be self-contained');
+
 /* the handoff package for coding agents (dist/handoff/) is served at /handoff/ */
 for (const path of ['/handoff/', '/handoff/README.md', '/handoff/game/index.html', '/handoff/tools/check.mjs']) {
   const r = await fetch(SITE + path); if (r.status !== 200) fail(`${path} gave ${r.status}, not the handoff package's file`);
@@ -89,7 +104,7 @@ for (const lab of ['mocap-lab', 'asset-lab', 'perspective-lab', 'stress-test', '
   await Promise.all([page.waitForURL(/\/labs\.html$/), a.click()]);
   if (await page.textContent('h1') !== 'Labs') fail(lab + ': All labs did not open the Labs page');
 }
-await page.goto(SITE + '/');
+await page.goto(SITE + '/emberdeep');
 await page.waitForFunction(() => window.__ed && __ed.UI);
 await page.evaluate(() => __ed.UI.open('settings', { tab: 'help' }));
 await Promise.all([page.waitForURL(/\/labs\.html$/), page.getByRole('button', { name: 'All labs ↗' }).click()]);
@@ -115,4 +130,4 @@ if (!wide.shown || !wide.tiles) fail('asset-lab: #barrel did not show the barrel
 await browser.close();
 server.close();
 if (problems.length) { console.error('labs check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files), the way back from 5 labs and the game, 4 labs fill an upright phone, their buttons on screen, the Asset Lab fits one`);
+console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files), the home page's the same, as files, the way back from 5 labs and the game, 4 labs fill an upright phone, their buttons on screen, the Asset Lab fits one`);

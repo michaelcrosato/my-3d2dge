@@ -1,4 +1,4 @@
-# my-3D2dge handoff package (v0.91.1)
+# my-3D2dge handoff package (v0.92.0)
 
 Everything a coding agent needs to build, run, test and check a game on my-3D2dge, in one folder of text files: the 2D
 engine, the 3D engine with the libraries it loads, their manuals, a complete game in every genre (2D and 3D), two
@@ -113,7 +113,7 @@ What differs is the camera.
 
 **The asset store:** `src/assets/`, sets of objects and materials converted from CC0 libraries (Kenney, KayKit,
 ambientCG), with their catalogs. A game loads one with its script and `E.addAssets(window.ASSETS['kenney-furniture'])`;
-the Asset Lab shows them all at my-3d2dge.vercel.app/asset-lab.
+the Asset Lab shows them all (`examples/asset-lab.html` in the repository).
 
 ## Run, test, check
 

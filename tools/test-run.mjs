@@ -5,7 +5,7 @@
 //   node tools/test-run.mjs --all                           every suite, in order (what npm test runs)
 //   node tools/test-run.mjs --list                          what --changed would run, and why, without running it
 //   node tools/test-run.mjs --list --files a,b              what a change to those files would run
-// What counts as changed: source files, not what the build writes (examples/, dist/) and not the changelog; a file whose
+// What counts as changed: source files, not what the build writes (examples/, dist/, index.html) and not the changelog; a file whose
 // only changes are version numbers (the bump touches the engine, the docs and the kits) counts as unchanged. A change to
 // the engine, the build, the engine's loader or the dependencies runs everything; a change to a module (engine/modules/)
 // runs contract, agent and modules, and the kits and phone tests (kit3d, in 3D) of the kits that carry it. The quick
@@ -42,10 +42,10 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['determinism', 'node tools/determinism-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'tools/filmstrip.mjs', 'tools/determinism-test.mjs']],
   ['replay', 'node tools/replay-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'tools/replay.mjs', 'tools/replay-test.mjs']],
   ['assets', 'node tools/assets-test.mjs', ['docs/ASSETS.md', 'docs/ASSET-IMPORT.md', 'tools/assets-test.mjs', 'tools/asset-', 'src/assets/']],
-  ['labs', 'node tools/labs-test.mjs', ['src/', 'vercel.json', 'tools/labs-test.mjs']],
+  ['labs', 'node tools/labs-test.mjs', ['src/', 'tools/routes.json', 'tools/labs-test.mjs']],
   ['audio', 'node tools/audio-test.mjs', ['engine/modules/songs.js', 'engine/modules/rhythm.js', 'tools/audio-test.mjs', 'tools/fixtures/audio.html']],
-  ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'engine/modules/mode7.js', 'vercel.json', 'tools/stress-test.mjs']],
-  ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'vercel.json', 'API.md', 'tools/kit3d-test.mjs', 'tools/vendor-3d.mjs', 'tools/diet.mjs', 'src/handoff/', 'tools/check.mjs']]
+  ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'engine/modules/mode7.js', 'tools/routes.json', 'tools/stress-test.mjs']],
+  ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'tools/routes.json', 'API.md', 'tools/kit3d-test.mjs', 'tools/vendor-3d.mjs', 'tools/diet.mjs', 'src/handoff/', 'tools/check.mjs']]
 ];
 // changes that run everything: the engine (every page and suite uses it), the build, the engine's loader (every tool's),
 // the dependencies (package.json: installs keep no lockfile, and a bump that changes only its version counts as
@@ -63,7 +63,7 @@ function carriers(names) {
   return out;
 }
 // what is not a source: the build's output, the changelog, test pictures
-const IGNORE = ['examples/', 'dist/', 'check-output/', 'CHANGELOG.md'];
+const IGNORE = ['examples/', 'dist/', 'index.html', 'check-output/', 'CHANGELOG.md'];
 
 const args = process.argv.slice(2), opt = k => args.includes('--' + k);
 const baseArg = args.includes('--base') ? args[args.indexOf('--base') + 1] : null;

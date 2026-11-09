@@ -113,7 +113,7 @@ What differs is the camera.
 
 **The asset store:** `src/assets/`, sets of objects and materials converted from CC0 libraries (Kenney, KayKit,
 ambientCG), with their catalogs. A game loads one with its script and `E.addAssets(window.ASSETS['kenney-furniture'])`;
-the Asset Lab shows them all at my-3d2dge.vercel.app/asset-lab.
+the Asset Lab shows them all (`examples/asset-lab.html` in the repository).
 
 ## Run, test, check
 

@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.91.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.92.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -66,7 +66,7 @@
  *    steps at once, game.input.tap('jump') and hold('right') script input, game.debug = { snapshot() { ... } } is
  *    your game's handle for tests and tools; game.stop(), start() and dispose() stop, resume and end it.
  * Errors in your game are shown on screen and in the console (game.errors).
- * THE HANDOFF PACKAGE holds this file and what it needs (dist/handoff/ in the repo, my-3d2dge.vercel.app/handoff/):
+ * THE HANDOFF PACKAGE holds this file and what it needs (dist/handoff/ in the repo):
  *    API.md, the card (read it whole; the single-file editions embed it), API-INDEX.md (every public name, one line
  *    each: search it), AI_GUIDE.md (the recipes), tools/check.mjs, filmstrip.mjs and replay.mjs, and game/, a
  *    template game with a headless test.
@@ -84,9 +84,9 @@
 /** TAU: 2π, a full turn in radians; DEG: π/180, one degree in radians (angle * DEG) */
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
- *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
+ *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.91.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.92.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();

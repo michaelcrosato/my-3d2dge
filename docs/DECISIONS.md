@@ -477,7 +477,7 @@ An entry:
 - **Call:** the index's budget (D17, D18, D22) rises from 37,000 to 40,000 cl100k tokens; 35,697 at the raise. The
   budgets are counted exactly: `gpt-tokenizer` (MIT, a tool) is a dev dependency beside Playwright and terser, so
   `doctrine-check` counts cl100k tokens wherever `npm install` ran, and estimates (erring high) only without it. Nothing
-  in the engine or the games depends on it, and the site installs nothing (`vercel.json`).
+  in the engine or the games depends on it, and the site installs nothing (the host's config (since removed, D86)).
 - **Why:** the estimate had read the index at 36,748 of 37,000 and the API card at 14,998 of 15,000, which made the
   asset store plan (`docs/HANDOFF-ASSETS.md`, about 10 new names in its Phase 1) look blocked; counted exactly they were
   35,697 and 14,543. The owner chose the raise over splitting the index by area (D22's next step), for headroom as the 2D
@@ -890,17 +890,17 @@ An entry:
 ## D49 · 2026-10-27 · A preview loads the CMU library from the live site; pushes that change nothing served don't deploy
 
 - **Principle:** no network (a preview's Mocap Lab fetches the CMU library from another origin, the live site)
-- **Call:** a preview deployment leaves out `examples/cmu-lib` (`tools/stamp.mjs`), and `vercel.json` redirects a
-  non-production host's `/cmu-lib/` requests to `https://my-3d2dge.vercel.app/cmu-lib/`; production serves its own copy
-  as before. `vercel.json`'s `ignoreCommand` skips a deployment when the commits since the branch's last one touch only
+- **Call:** a preview deployment leaves out `examples/cmu-lib` (`tools/stamp.mjs`), and the host's config (since removed, D86) redirects a
+  non-production host's `/cmu-lib/` requests to `the production host's `/cmu-lib/``; production serves its own copy
+  as before. the `ignoreCommand` in the host's config (since removed, D86) skips a deployment when the commits since the branch's last one touch only
   `src/` and `tools/` (other than `tools/stamp.mjs`), which the deploy leaves out anyway.
-- **Why:** Vercel bills every deployment it keeps by its size ("Deployment Storage": $0.35 a day on 2026-10-04, $1.24 by
+- **Why:** The host bills every deployment it keeps by its size ("Deployment Storage": $0.35 a day on 2026-10-04, $1.24 by
   2026-10-25 with nothing deployed since the 21st, more than the plan itself), and the CMU library is about 68 MB of each
   ~100 MB deploy while it hasn't changed since v0.26. The games themselves still make no request off their page's own
   site: only a preview's library is fetched across, from the same project's live copy. What would change it: a change to
   the CMU library, which a preview would not show until it is merged (keep it in the preview then: drop the line in
-  `tools/stamp.mjs`), or Vercel storing identical files once across deployments.
-- **Answered:** yes: the owner's goal (2026-10-27, keep the Vercel cost down without losing quality or function); made
+  `tools/stamp.mjs`), or the host storing identical files once across deployments.
+- **Answered:** yes: the owner's goal (2026-10-27, keep the hosting cost down without losing quality or function); made
   at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.59.3
 
@@ -1553,3 +1553,21 @@ An entry:
   the newer 3D engine is hard to find; relook at its structure and docs". The way (carry it, not point at it) is D73's
   own, made at once as a reversible call, flagged in its pull request
 - **Landed in:** v0.91.0
+
+## D86 · 2026-11-09 · No hosted site: the repository opens itself from `index.html`
+
+- **Principle:** 10 (discovery first: the human reviews on a device, at a link) and 1 (agent-readable: the docs say where
+  things are); D44's Labs page
+- **Call:** the hosted site goes: its config (routes, the build-stamp command, the ignore rule and its ignore file) is
+  deleted, and no doc names it. In its place, `index.html` at the repository's root, built from `src/labs.json` by the
+  same template as the Labs page: one self-contained file whose links reach every page as files (`examples/`, `dist/`),
+  opened from disk or from any server at the root (`npx serve`; the 3D pages need one). The tests' local servers keep
+  the pages' short addresses, now in `tools/routes.json` (`/` is the home page). `tools/stamp.mjs` stays, for a copy
+  made to share. Past entries here and past changelog sections keep every word but the host's name, now "the host" (the owner's word: no doc names it); none is removed.
+- **Why:** the owner's word (2026-11-09): the hosted site isn't used and won't be, and the docs should not name it; a
+  single self-contained HTML file in the repository replaces it. The Labs page already opened everything as files; the
+  home page is the same list at the root, so a clone opens with one file. The cost: no link to play on a phone without a
+  local server or a copy; a deep link (`?character=codex`) is now a file's address. What would change it: a host again,
+  which `tools/routes.json` and `tools/stamp.mjs` are ready for.
+- **Answered:** yes, the ask
+- **Landed in:** v0.92.0

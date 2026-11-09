@@ -4,7 +4,7 @@
 //   node tools/replay.mjs session.json [--page examples/emberdeep.html] [--to <frame>] [--shots f1,f2,...] [--out dir]
 //                                      [--log "<js>"] [--keep-going]
 //   --page   the page to replay on; by default the one the session was recorded on (the site's address, read through
-//            vercel.json's rewrites, or a local file's name), with the address's ?query and #hash
+//            tools/routes.json's rewrites, or a local file's name), with the address's ?query and #hash
 //   --to     stop at this frame (default: the end); --shots saves a screenshot at each of these frames (and at the end)
 //   --log    JavaScript evaluated in the page at the end, printed (e.g. "__ed.ED.hero.x"); without it, the game's own
 //            game.debug.snapshot() when it has one
@@ -74,7 +74,7 @@ let page = opt('page', null);
 if (!page) {
   const p = decodeURIComponent(href.pathname);
   if (p.endsWith('.html')) page = ['examples', 'dist', 'dist/kits', 'game', '.'].map(d => d + '/' + basename(p)).find(f => existsSync(join(root, f)));
-  else if (existsSync(join(root, 'vercel.json'))) for (const r of JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8')).rewrites) {
+  else if (existsSync(join(root, 'tools/routes.json'))) for (const r of JSON.parse(readFileSync(join(root, 'tools/routes.json'), 'utf8')).rewrites) {
     const re = new RegExp('^' + r.source.replace(/:(\w+)\(([^)]+)\)/g, '(?<$1>$2)').replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), m = re.exec(p);
     if (m) { page = r.destination.replace(/:(\w+)/g, (_, k) => m.groups[k]).replace(/^\//, ''); break; }
   }

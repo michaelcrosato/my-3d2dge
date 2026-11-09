@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.91.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.92.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -13,7 +13,7 @@ AGENTS: this header is the whole manual for the 3D side; the API card (API.md) c
 moves, E.font, E.ui, E.Menu, audio). Read the code below to debug it, or to change it (it is yours to change, in any
 way you see fit): its sections start with "/* ===" and a number.
 
-## Host it (served: browsers load modules only over http; npx serve at the repository's root, or my-3d2dge.vercel.app)
+## Host it (served: browsers load modules only over http; npx serve at the repository's root)
 <script type="importmap">{ "imports": { "three": "/vendor/three-0.182.0/three.webgpu.min.js",
   "three/webgpu": "/vendor/three-0.182.0/three.webgpu.min.js", "three/tsl": "/vendor/three-0.182.0/three.tsl.min.js",
   "@dimforge/rapier3d-simd-compat": "/vendor/rapier3d-simd-compat-0.19.3/rapier.js" } }</script>
