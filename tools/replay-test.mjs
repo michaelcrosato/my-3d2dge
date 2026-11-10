@@ -10,10 +10,12 @@
 //      Chromium to the same state: while recording and replaying, the engine's portable math is used, not the browser's
 //   6. two players on one keyboard (the brawler: player 2 drops in on the right half with 2): both heroes, replayed
 //   7. a session recorded in the play file (index.html?play=emberdeep, tools/play.mjs) replays on Emberdeep's own page
+//   8. a session recorded at the old site's root (/, Emberdeep until v0.92.0: case 1's, its address changed) replays on
+//      Emberdeep, not on the play file's home
 // Usage: node tools/replay-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 // Sessions and pictures in check-output/replay-test/.
 import { chromium } from 'playwright';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -48,7 +50,7 @@ function replay(file, probe, extra = []) {
   const text = (r.stdout || '') + (r.stderr || ''), m = text.match(/ = (\[.*\])\s*$/m);
   return { code: r.status, logged: m ? m[1] : null, text };
 }
-function check(name, rec, probe) {
+function check(name, rec, probe) {   // (returns the replay's report)
   const r = replay(rec.file, probe);
   const line = (r.text.match(/^played .*$/m) || ['(no report)'])[0];
   console.log('  ' + line);
@@ -56,6 +58,7 @@ function check(name, rec, probe) {
   if (!/all matched/.test(line)) fail(name + ': not every checksum matched');
   if (r.logged !== rec.state) fail(`${name}: the replay ended in another state: ${r.logged} (recorded ${rec.state})`);
   else console.log('  ok   the same end state: ' + r.logged);
+  return r;
 }
 
 console.log('1. Emberdeep at a desk');
@@ -148,9 +151,17 @@ console.log('7. recorded in the play file, replayed on the page it played');
     await p.keyboard.press('Space'); await p.waitForTimeout(800);
   }, ED_PROBE);
   if (!/[?&]play=emberdeep\b/.test(inPlay.S.href)) fail('the play file\'s session does not say which page it played: ' + inPlay.S.href);
-  const r = replay(inPlay.file, ED_PROBE);
+  const r = check('emberdeep-play-file', inPlay, ED_PROBE);
   if (!/on file:.*\/examples\/emberdeep\.html\?record=1#depth-3,/.test(r.text)) fail('the play file\'s session was not replayed on examples/emberdeep.html:\n' + r.text);
-  check('emberdeep-play-file', inPlay, ED_PROBE);
+}
+
+console.log('8. recorded at the old site\'s root (/, Emberdeep until v0.92.0), replayed on Emberdeep');
+{
+  const S = JSON.parse(readFileSync(desk.file, 'utf8')), file = join(out, 'emberdeep-old-root.json');
+  S.href = '/?record=1#depth-3';
+  writeFileSync(file, JSON.stringify(S));
+  const r = check('emberdeep-old-root', { file, state: desk.state, S }, ED_PROBE);
+  if (!/on file:.*\/examples\/emberdeep\.html\?record=1#depth-3,/.test(r.text)) fail('a session recorded at / was not replayed on examples/emberdeep.html:\n' + r.text);
 }
 
 await browser.close();
