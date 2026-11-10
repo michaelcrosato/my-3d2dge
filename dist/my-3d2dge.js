@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.92.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.93.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -86,9 +86,16 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.92.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.93.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
+// the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
+// tools/play.mjs), where every page it carries shares the path, the page it plays (?play=<id>) too. href: a recorded
+// address (a session's), else this page's
+const pageKey = (href = typeof location !== 'undefined' ? (location.pathname || '') + (location.search || '') : '') => {   // (a stand-in location may have neither)
+  const path = href.split(/[?#]/)[0], play = /[?&]play=([^&#]*)/.exec(href.split('#')[0]);   // (no URLSearchParams: Node's sandboxes lack it)
+  return (path || 'game') + (play && play[1] ? '?play=' + play[1] : '');
+};
 const _warned = new Set();
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message) */
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1587,7 +1594,7 @@ E.lang = {
     if (LANG_FAKE.includes(asked)) return asked;
     let saved = null, nav = [];
     if (!quiet && typeof document !== 'undefined') {
-      try { saved = localStorage.getItem('lang:' + location.pathname); } catch (e) { /* storage blocked */ }
+      try { saved = localStorage.getItem('lang:' + pageKey()); } catch (e) { /* storage blocked */ }
       const S = E.session, rec = S && S.replaying && S.data && S.data.env && S.data.env.languages;   // (a replay: the recorded browser's)
       nav = rec || (typeof navigator !== 'undefined' && navigator.languages) || [];
     }
@@ -1671,7 +1678,7 @@ E.lang = {
    *  it. Headless (no page to reload) it changes at once */
   choose(code) {
     if (typeof document === 'undefined' || typeof location === 'undefined') { this.load({ lines: this._src, translations: this._tr, lang: code }); return; }
-    try { localStorage.setItem('lang:' + location.pathname, code); } catch (e) { /* storage blocked: this visit only */ }
+    try { localStorage.setItem('lang:' + pageKey(), code); } catch (e) { /* storage blocked: this visit only */ }
     try { location.reload(); } catch (e) { this.load(); }
   },
   /** a number in the player's language: num(12500) is 12,500 in English, 12.500 in German (o: Intl.NumberFormat's) */
@@ -3459,7 +3466,7 @@ class Settings {
    */
   constructor(game, own = []) {
     const hide = (k, v) => Object.defineProperty(this, k, { value: v, writable: true });
-    hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game'));
+    hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || pageKey()));
     hide('saved', true);
     /** onChange(key, value): called after every change (E.Shell's settings.onChange goes through it) */
     hide('onChange', null);
@@ -4257,7 +4264,7 @@ class Saves {
     this.canSave = true; this.played = 0; this.blocked = false;
     this._mem = {};   // each slot's record as text, this visit's (what storage refused stays here)
   }
-  _key(slot) { return 'save:' + (this.game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game') + ':' + slot; }
+  _key(slot) { return 'save:' + (this.game.o.id || pageKey()) + ':' + slot; }
   _ok(slot) { return slot === 'auto' || (Number.isInteger(slot) && slot >= 0 && slot < this.slots); }
   _raw(slot) {
     if (slot in this._mem) return this._mem[slot];
@@ -10821,7 +10828,11 @@ const SESSION = (() => {
     env: { innerWidth, innerHeight, devicePixelRatio: window.devicePixelRatio || 1, safe: null, media: {}, fullscreenEnabled: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled), languages: Array.from(navigator.languages || []) },   // (languages: a replay chooses the game's language as this browser did)
     storage: [], frames: [], events: [], pads: [], checks: [], schema: SCHEMA };
   if (!R) try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); rec.storage.push([k, localStorage.getItem(k)]); } } catch (e) { /* no storage */ }
-  else try { localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(k, v); } catch (e) { /* no storage */ }
+  else try {   // (what the recorded page kept under its own name goes under this one's: a replay runs on another copy of the page)
+    const was = R.href ? pageKey(R.href) : null, now = pageKey(), mine = /^(my3d2dge:settings:|my3d2dge:save:|lang:)([\s\S]*)$/;
+    const moved = k => { const m = mine.exec(k); return m && was !== null && was !== now && (m[2] === was || m[2].startsWith(was + ':')) ? m[1] + now + m[2].slice(was.length) : k; };
+    localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(moved(k), v);
+  } catch (e) { /* no storage */ }
   S.data = rec;
   // the same math everywhere: + - * / and sqrt are exact in every JavaScript engine, but sin, cos, pow and the rest may
   // differ in their last bit between browsers (an iPhone's Safari and Chromium use different libraries), and a game
@@ -11000,7 +11011,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.92.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.93.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11224,7 +11235,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.92.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.93.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11600,7 +11611,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.92.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.93.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11833,7 +11844,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.92.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.93.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12395,7 +12406,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.92.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.93.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12578,7 +12589,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.92.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.93.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12987,7 +12998,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.92.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.93.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13196,7 +13207,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.92.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.93.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13563,7 +13574,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.92.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.93.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13770,7 +13781,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.92.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.93.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13933,7 +13944,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.92.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.93.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14116,7 +14127,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.92.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.93.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14449,7 +14460,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.92.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.93.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14603,7 +14614,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.92.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.93.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14811,7 +14822,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.92.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.93.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -15253,7 +15264,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.92.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.93.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

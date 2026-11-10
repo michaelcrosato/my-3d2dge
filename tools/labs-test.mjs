@@ -3,7 +3,11 @@
 // must load (status 200) without a page error. As files on disk, every link must point at a file that exists. The list
 // holds together: each next names a page on it, and each page of a line says when it was made. Each lab's
 // "All labs" link and the game's Settings button (Keys & help) must reach the Labs page, and held upright on a phone every lab's
-// picture must fill the screen with none of its buttons running off the edge (the Asset Lab, a page: nothing off its side). It fails (exit code 1) on any of these.
+// picture must fill the screen with none of its buttons running off the edge (the Asset Lab, a page: nothing off its side).
+// The play file (index.html, tools/play.mjs) is the same list with every page inside it: its links are its own routes;
+// each page it carries is the page's own file, letter for letter, but for its links; and opened from the file every route
+// plays its page (a 3D page's world starts) without a page error, loading nothing but the file and the modules it makes.
+// Its pages' All labs links and the game's Settings button come back to its home. It fails (exit code 1) on any of these.
 // Usage: node tools/labs-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -76,20 +80,70 @@ for (const href of fileLinks) {
   if (!existsSync(f)) fail('file link to a missing file: ' + f.replace(root, '.'));
 }
 
-/* the home page (index.html, the repository's root): the same list, served at / and as a file, its links reaching the
-   pages as files (examples/, dist/) wherever it is opened, each to a file that exists; self-contained (nothing loaded) */
-for (const [where, href] of [['served', SITE + '/'], ['file', pathToFileURL(join(root, 'index.html')).href]]) {
+/* the play file (index.html, the repository's root): the list as its home, every page inside it (tools/play.mjs). Served
+   at / and as a file, its links are its own routes (?play=<id>): the Labs page's, less the CMU library's (not carried) */
+const { pages: playPages, prepare } = await import('./play.mjs');
+const PLAY = pathToFileURL(join(root, 'index.html')).href, carried = playPages(root), ids = carried.map(p => p[0]);
+const notCarried = siteLinks.filter(h => /[?&]set=library\b/.test(h)).length;
+let routes = [];
+for (const [where, href] of [['served', SITE + '/'], ['file', PLAY]]) {
   await page.goto(href);
-  if (await page.textContent('h1') !== 'my-3D2dge') fail(`the home page (${where}) is not the home page`);
+  if (await page.textContent('h1') !== 'my-3D2dge') fail(`the play file (${where}) is not its home`);
   const home = await links();
-  if (home.length !== siteLinks.length) fail(`the home page (${where}) has ${home.length} links, the Labs page ${siteLinks.length}`);
-  for (const h of home) {
-    const f = where === 'file' ? fileURLToPath(h.replace(/[?#].*$/, '')) : join(root, decodeURIComponent(new URL(h).pathname));
-    if (!/\/(examples|dist)\//.test(f.replace(root, ''))) fail(`home page (${where}) link not to a file in examples/ or dist/: ${h}`);
-    else if (!existsSync(f)) fail(`home page (${where}) link to a missing file: ${f.replace(root, '.')}`);
-  }
+  if (home.length !== siteLinks.length - notCarried) fail(`the play file (${where}) has ${home.length} links, the Labs page ${siteLinks.length} (${notCarried} not carried)`);
+  for (const h of home) { const u = new URL(h); if (!u.searchParams.get('play') || u.pathname !== new URL(href).pathname) fail(`the play file (${where}) links to ${h}, not a route of its own`); }
+  if (where === 'file') routes = [...new Set(home)];
 }
-if (/<script[^>]+src=|<link[^>]+href=|<img|<iframe|@import|url\(\s*['"]?[\w./:-]+\.(?:png|jpe?g|gif|svg|webp|woff2?|ttf|css)/i.test(readFileSync(join(root, 'index.html'), 'utf8'))) fail('the home page loads a file: it must be self-contained');
+// each page it carries, letter for letter: the page's own file as prepare() makes it (its links routes, its modules inert)
+const got = await page.evaluate(() => Object.fromEntries(__play.ids().map(id => [id, __play.page(id)])));
+if (JSON.stringify(Object.keys(got)) !== JSON.stringify(ids)) fail(`the play file carries ${Object.keys(got).join(', ')}, not ${ids.join(', ')}`);
+for (const [id, f] of carried) if (got[id] !== prepare(readFileSync(join(root, f), 'utf8'), ids)) fail(`the play file's ${id} is not ${f} as the play file carries it`);
+for (const [id, s] of Object.entries(got)) for (const m of s.matchAll(/(["'])([^"'\s<>]*\.html)([?#][^"'\s]*)?\1/g)) if (!/^https?:/.test(m[2])) fail(`the play file's ${id} links to ${m[2]}, a file it doesn't carry`);
+// every route plays its page, from the file: no page error, nothing loaded but the file itself and the modules it makes
+const threeD = new Set(ids.filter(id => (got[id] || '').includes('"play:/vendor/')));
+const titleOf2 = id => ((got[id] || '').match(/<title>([^<]*)<\/title>/) || [, ''])[1].replace(/&amp;/g, '&');
+let outside = [], played = 0;
+page.on('request', q => { const u = q.url(); if (!/^(blob|data|about):/.test(u) && u.split(/[?#]/)[0] !== PLAY) outside.push(u); });
+const playRoute = async href => {
+  const id = new URL(href).searchParams.get('play');
+  if (threeD.has(id)) await page.waitForFunction(() => window.My3D2dge && My3D2dge.World3D && My3D2dge.current, null, { timeout: 30000 }).catch(() => fail(`${href.replace(PLAY, 'index.html')}: the 3D world didn't start`));
+  else await page.waitForTimeout(400);
+  if (await page.title() !== titleOf2(id)) fail(`${href.replace(PLAY, 'index.html')}: shows "${await page.title()}", not ${id} ("${titleOf2(id)}")`);
+};
+for (const href of routes) {
+  await page.goto('about:blank');
+  errors = []; outside = [];
+  await page.goto(href);
+  await playRoute(href);
+  for (const e of errors) fail(`${href.replace(PLAY, 'index.html')}: page error: ${e}`);
+  for (const u of outside) fail(`${href.replace(PLAY, 'index.html')}: loaded ${u}, outside the file`);
+  played++;
+}
+// each page keeps its own settings (and save slots, and language): the pages share the play file's path, and the page it
+// plays names what each keeps. Vibration off in the 2D edition leaves the 3D starter's as it was, and is still off after
+const settled = () => page.waitForFunction(() => window.My3D2dge && My3D2dge.current && My3D2dge.current.settings, null, { timeout: 30000 });
+await page.goto(PLAY + '?play=2d'); await settled();
+const rumble = await page.evaluate(() => My3D2dge.current.settings.rumble);
+await page.evaluate(() => My3D2dge.current.settings.set('rumble', 0));
+await page.goto(PLAY + '?play=3d'); await settled();
+const other = await page.evaluate(() => My3D2dge.current.settings.rumble);
+await page.goto(PLAY + '?play=2d'); await settled();
+const kept = await page.evaluate(() => My3D2dge.current.settings.rumble);
+if (other !== rumble || kept !== 0) fail(`the play file's pages share their settings: vibration turned off in 2d reads ${other} in 3d (it should be ${rumble}) and ${kept} back in 2d (0)`);
+// served from a web address, a 2D and a 3D page play the same
+for (const r of ['/?play=emberdeep', '/?play=3d#action']) {
+  await page.goto('about:blank'); errors = [];
+  await page.goto(SITE + r); await playRoute(SITE + r);
+  for (const e of errors) fail(`${r} (served): page error: ${e}`);
+}
+// the way back: a page's All labs link and the game's Settings button come back to the play file's home
+for (const [route, go] of [['?play=arena', () => page.locator('a.to-labs').click()], ['?play=emberdeep', async () => {
+  await page.waitForFunction(() => window.__ed && __ed.UI); await page.evaluate(() => __ed.UI.open('settings', { tab: 'help' }));
+  await page.getByRole('button', { name: 'All labs ↗' }).click(); }]]) {
+  await page.goto(PLAY + route);
+  await Promise.all([page.waitForURL(u => !new URL(u).searchParams.get('play')), go()]);
+  if (await page.textContent('h1') !== 'my-3D2dge') fail(`${route}: its way back didn't reach the play file's home`);
+}
 
 /* the handoff package for coding agents (dist/handoff/) is served at /handoff/ */
 for (const path of ['/handoff/', '/handoff/README.md', '/handoff/game/index.html', '/handoff/tools/check.mjs']) {
@@ -130,4 +184,4 @@ if (!wide.shown || !wide.tiles) fail('asset-lab: #barrel did not show the barrel
 await browser.close();
 server.close();
 if (problems.length) { console.error('labs check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files), the home page's the same, as files, the way back from 5 labs and the game, 4 labs fill an upright phone, their buttons on screen, the Asset Lab fits one`);
+console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files); the play file: ${ids.length} pages letter for letter, ${played} routes played from the file (${threeD.size} pages in 3D), each page's own settings, the way back from 2; the way back from 5 labs and the game, 4 labs fill an upright phone, their buttons on screen, the Asset Lab fits one`);

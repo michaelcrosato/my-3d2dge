@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.92.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.93.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -385,8 +385,15 @@ only what the game needs; never read one whole. Its home page, index.html, opens
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.92.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped in a shared copy
+const E = { version: '0.93.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped in a shared copy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
+// the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
+// tools/play.mjs), where every page it carries shares the path, the page it plays (?play=<id>) too. href: a recorded
+// address (a session's), else this page's
+const pageKey = (href = typeof location !== 'undefined' ? (location.pathname || '') + (location.search || '') : '') => {   // (a stand-in location may have neither)
+  const path = href.split(/[?#]/)[0], play = /[?&]play=([^&#]*)/.exec(href.split('#')[0]);   // (no URLSearchParams: Node's sandboxes lack it)
+  return (path || 'game') + (play && play[1] ? '?play=' + play[1] : '');
+};
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
 E.warn = warn;
@@ -1037,7 +1044,7 @@ E.lang = {
     if (LANG_FAKE.includes(asked)) return asked;
     let saved = null, nav = [];
     if (!quiet && typeof document !== 'undefined') {
-      try { saved = localStorage.getItem('lang:' + location.pathname); } catch (e) { /* storage blocked */ }
+      try { saved = localStorage.getItem('lang:' + pageKey()); } catch (e) { /* storage blocked */ }
       const S = E.session, rec = S && S.replaying && S.data && S.data.env && S.data.env.languages;   // (a replay: the recorded browser's)
       nav = rec || (typeof navigator !== 'undefined' && navigator.languages) || [];
     }
@@ -1121,7 +1128,7 @@ E.lang = {
    *  it. Headless (no page to reload) it changes at once */
   choose(code) {
     if (typeof document === 'undefined' || typeof location === 'undefined') { this.load({ lines: this._src, translations: this._tr, lang: code }); return; }
-    try { localStorage.setItem('lang:' + location.pathname, code); } catch (e) { /* storage blocked: this visit only */ }
+    try { localStorage.setItem('lang:' + pageKey(), code); } catch (e) { /* storage blocked: this visit only */ }
     try { location.reload(); } catch (e) { this.load(); }
   },
   /** a number in the player's language: num(12500) is 12,500 in English, 12.500 in German (o: Intl.NumberFormat's) */
@@ -1883,7 +1890,7 @@ function settingValue(sp, v) {   // a value checked against its setting: the val
 class Settings {
   constructor(game, own = []) {
     const hide = (k, v) => Object.defineProperty(this, k, { value: v, writable: true });
-    hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game')); hide('saved', true); hide('onChange', null);
+    hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || pageKey())); hide('saved', true); hide('onChange', null);
     const raw = store.get(this._key, null); hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});
     if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));

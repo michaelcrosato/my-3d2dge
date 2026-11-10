@@ -4,7 +4,9 @@
 //   node tools/replay.mjs session.json [--page examples/emberdeep.html] [--to <frame>] [--shots f1,f2,...] [--out dir]
 //                                      [--log "<js>"] [--keep-going]
 //   --page   the page to replay on; by default the one the session was recorded on (the site's address, read through
-//            tools/routes.json's rewrites, or a local file's name), with the address's ?query and #hash
+//            tools/routes.json's rewrites, or a local file's name), with the address's ?query and #hash; a session
+//            played in the play file (index.html?play=<id>, whatever the file was called) replays on that page's own file,
+//            and one recorded at the old site's root (/, which played Emberdeep until v0.92.0) on Emberdeep
 //   --to     stop at this frame (default: the end); --shots saves a screenshot at each of these frames (and at the end)
 //   --log    JavaScript evaluated in the page at the end, printed (e.g. "__ed.ED.hero.x"); without it, the game's own
 //            game.debug.snapshot() when it has one
@@ -69,11 +71,21 @@ const enginePath = ['engine/my-3d2dge.js', 'my-3d2dge.js'].map(f => join(root, f
 const engine = enginePath ? readFileSync(enginePath, 'utf8').match(/version: '([^']+)'/)[1] : S.version;
 
 /* the page: --page, or the recorded address mapped to a file the way the site maps it */
-const href = new URL(S.href, 'http://site'), tail = href.search + href.hash;
-let page = opt('page', null);
+const href = new URL(S.href, 'http://site');
+let page = opt('page', null), tail = href.search + href.hash;
+if (!page && href.searchParams.get('play')) {   // the play file: the page it played, the address less its ?play=
+  // (tools/play.mjs is the repository's: the handoff package has no play file, and replays its own pages)
+  try { page = (await import('./play.mjs')).pageFile(root, href.searchParams.get('play')); } catch (e) { page = null; }
+  const rest = href.search.slice(1).split('&').filter(kv => !kv.startsWith('play='));
+  if (page) tail = (rest.length ? '?' + rest.join('&') : '') + href.hash;
+}
 if (!page) {
   const p = decodeURIComponent(href.pathname);
-  if (p.endsWith('.html')) page = ['examples', 'dist', 'dist/kits', 'game', '.'].map(d => d + '/' + basename(p)).find(f => existsSync(join(root, f)));
+  // the site's root played Emberdeep until v0.92.0 (D86): a session recorded there replays on it. Never on the play
+  // file's home (index.html, the root's page today): it plays nothing, and a session played in the play file names its
+  // page (?play=, above)
+  if (p === '/' && existsSync(join(root, 'examples/emberdeep.html'))) page = 'examples/emberdeep.html';
+  else if (p.endsWith('.html')) page = ['examples', 'dist', 'dist/kits', 'game', '.'].map(d => d + '/' + basename(p)).find(f => f !== './index.html' && existsSync(join(root, f)));
   else if (existsSync(join(root, 'tools/routes.json'))) for (const r of JSON.parse(readFileSync(join(root, 'tools/routes.json'), 'utf8')).rewrites) {
     const re = new RegExp('^' + r.source.replace(/:(\w+)\(([^)]+)\)/g, '(?<$1>$2)').replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), m = re.exec(p);
     if (m) { page = r.destination.replace(/:(\w+)/g, (_, k) => m.groups[k]).replace(/^\//, ''); break; }
