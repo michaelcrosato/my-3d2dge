@@ -1586,7 +1586,10 @@ An entry:
   engine, in every lab) is kept once; a 3D page's libraries become modules made on the device (`blob:` addresses) named
   in its import map. The kits open their editions at `#<genre>` (the kits' own files would add 16 MB for the same
   slices); the Mocap Lab's CMU library (68 MB, loaded as it is picked) stays out. `examples/labs.html` keeps the list
-  that opens each page's own file. `tools/replay.mjs` replays a session recorded in the play file on the page it played.
+  that opens each page's own file. Each page keeps its own settings, save slots and language: the engine names them by
+  the page's path and, in the play file, the page it plays (`?play=<id>`); a session's replay moves what the recorded
+  page kept to the replaying page's name. `tools/replay.mjs` replays a session recorded in the play file on the page it
+  played.
   labs-test holds it: every page letter for letter, every route played from the file without a page error and without
   loading anything outside it (a 3D page's world started), the way back; replay-test case 7 replays a session recorded in
   it.

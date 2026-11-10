@@ -261,6 +261,13 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 const E = { version: '0.93.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
+// the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
+// tools/play.mjs), where every page it carries shares the path, the page it plays (?play=<id>) too. href: a recorded
+// address (a session's), else this page's
+const pageKey = (href = typeof location !== 'undefined' ? (location.pathname || '') + (location.search || '') : '') => {   // (a stand-in location may have neither)
+  const path = href.split(/[?#]/)[0], play = /[?&]play=([^&#]*)/.exec(href.split('#')[0]);   // (no URLSearchParams: Node's sandboxes lack it)
+  return (path || 'game') + (play && play[1] ? '?play=' + play[1] : '');
+};
 const _warned = new Set();
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message) */
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1759,7 +1766,7 @@ E.lang = {
     if (LANG_FAKE.includes(asked)) return asked;
     let saved = null, nav = [];
     if (!quiet && typeof document !== 'undefined') {
-      try { saved = localStorage.getItem('lang:' + location.pathname); } catch (e) { /* storage blocked */ }
+      try { saved = localStorage.getItem('lang:' + pageKey()); } catch (e) { /* storage blocked */ }
       const S = E.session, rec = S && S.replaying && S.data && S.data.env && S.data.env.languages;   // (a replay: the recorded browser's)
       nav = rec || (typeof navigator !== 'undefined' && navigator.languages) || [];
     }
@@ -1843,7 +1850,7 @@ E.lang = {
    *  it. Headless (no page to reload) it changes at once */
   choose(code) {
     if (typeof document === 'undefined' || typeof location === 'undefined') { this.load({ lines: this._src, translations: this._tr, lang: code }); return; }
-    try { localStorage.setItem('lang:' + location.pathname, code); } catch (e) { /* storage blocked: this visit only */ }
+    try { localStorage.setItem('lang:' + pageKey(), code); } catch (e) { /* storage blocked: this visit only */ }
     try { location.reload(); } catch (e) { this.load(); }
   },
   /** a number in the player's language: num(12500) is 12,500 in English, 12.500 in German (o: Intl.NumberFormat's) */
@@ -3631,7 +3638,7 @@ class Settings {
    */
   constructor(game, own = []) {
     const hide = (k, v) => Object.defineProperty(this, k, { value: v, writable: true });
-    hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game'));
+    hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || pageKey()));
     hide('saved', true);
     /** onChange(key, value): called after every change (E.Shell's settings.onChange goes through it) */
     hide('onChange', null);
@@ -4429,7 +4436,7 @@ class Saves {
     this.canSave = true; this.played = 0; this.blocked = false;
     this._mem = {};   // each slot's record as text, this visit's (what storage refused stays here)
   }
-  _key(slot) { return 'save:' + (this.game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game') + ':' + slot; }
+  _key(slot) { return 'save:' + (this.game.o.id || pageKey()) + ':' + slot; }
   _ok(slot) { return slot === 'auto' || (Number.isInteger(slot) && slot >= 0 && slot < this.slots); }
   _raw(slot) {
     if (slot in this._mem) return this._mem[slot];
@@ -10993,7 +11000,11 @@ const SESSION = (() => {
     env: { innerWidth, innerHeight, devicePixelRatio: window.devicePixelRatio || 1, safe: null, media: {}, fullscreenEnabled: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled), languages: Array.from(navigator.languages || []) },   // (languages: a replay chooses the game's language as this browser did)
     storage: [], frames: [], events: [], pads: [], checks: [], schema: SCHEMA };
   if (!R) try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); rec.storage.push([k, localStorage.getItem(k)]); } } catch (e) { /* no storage */ }
-  else try { localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(k, v); } catch (e) { /* no storage */ }
+  else try {   // (what the recorded page kept under its own name goes under this one's: a replay runs on another copy of the page)
+    const was = R.href ? pageKey(R.href) : null, now = pageKey(), mine = /^(my3d2dge:settings:|my3d2dge:save:|lang:)([\s\S]*)$/;
+    const moved = k => { const m = mine.exec(k); return m && was !== null && was !== now && (m[2] === was || m[2].startsWith(was + ':')) ? m[1] + now + m[2].slice(was.length) : k; };
+    localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(moved(k), v);
+  } catch (e) { /* no storage */ }
   S.data = rec;
   // the same math everywhere: + - * / and sqrt are exact in every JavaScript engine, but sin, cos, pow and the rest may
   // differ in their last bit between browsers (an iPhone's Safari and Chromium use different libraries), and a game

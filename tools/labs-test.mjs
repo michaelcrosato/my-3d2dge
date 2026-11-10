@@ -119,6 +119,17 @@ for (const href of routes) {
   for (const u of outside) fail(`${href.replace(PLAY, 'index.html')}: loaded ${u}, outside the file`);
   played++;
 }
+// each page keeps its own settings (and save slots, and language): the pages share the play file's path, and the page it
+// plays names what each keeps. Vibration off in the 2D edition leaves the 3D starter's as it was, and is still off after
+const settled = () => page.waitForFunction(() => window.My3D2dge && My3D2dge.current && My3D2dge.current.settings, null, { timeout: 30000 });
+await page.goto(PLAY + '?play=2d'); await settled();
+const rumble = await page.evaluate(() => My3D2dge.current.settings.rumble);
+await page.evaluate(() => My3D2dge.current.settings.set('rumble', 0));
+await page.goto(PLAY + '?play=3d'); await settled();
+const other = await page.evaluate(() => My3D2dge.current.settings.rumble);
+await page.goto(PLAY + '?play=2d'); await settled();
+const kept = await page.evaluate(() => My3D2dge.current.settings.rumble);
+if (other !== rumble || kept !== 0) fail(`the play file's pages share their settings: vibration turned off in 2d reads ${other} in 3d (it should be ${rumble}) and ${kept} back in 2d (0)`);
 // served from a web address, a 2D and a 3D page play the same
 for (const r of ['/?play=emberdeep', '/?play=3d#action']) {
   await page.goto('about:blank'); errors = [];
@@ -173,4 +184,4 @@ if (!wide.shown || !wide.tiles) fail('asset-lab: #barrel did not show the barrel
 await browser.close();
 server.close();
 if (problems.length) { console.error('labs check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files); the play file: ${ids.length} pages letter for letter, ${played} routes played from the file (${threeD.size} pages in 3D), the way back from 2; the way back from 5 labs and the game, 4 labs fill an upright phone, their buttons on screen, the Asset Lab fits one`);
+console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files); the play file: ${ids.length} pages letter for letter, ${played} routes played from the file (${threeD.size} pages in 3D), each page's own settings, the way back from 2; the way back from 5 labs and the game, 4 labs fill an upright phone, their buttons on screen, the Asset Lab fits one`);
