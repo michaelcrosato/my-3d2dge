@@ -22,7 +22,6 @@
 //      the stick and a tap on LP throw a fireball
 //  12. metroidvania: three thumb-sized buttons (JUMP, FIRE, MAP; DASH once found); the stick walks the hero and aims
 //  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers
-//  14. road: BRAKE and GEAR, thumb-sized; it accelerates by itself; the stick steers; GEAR changes gear
 //  15. rpg's journey: its windows' rows a thumb's height; a tap on New game starts it; the stick walks the party; MENU
 //      opens the menu, a tap on a row opens it, BACK closes it
 //  16. tactics: the command list's rows a thumb's height; a tap on a unit selects it (its card); MOVE, then a tap on a
@@ -106,7 +105,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
+for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -517,24 +516,6 @@ if (want('kart')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `kart-${label.replace(/ /g, '-')}.png`) });
     check(`kart ${label}: DRIFT and ITEM, each a thumb's size`, acts === 'drift,item' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`kart ${label}: it accelerates by itself; the stick held right turns it right`, s0.auto && s0.speed > 30 && s1.angle > s0.angle + .3 && !errors.length, `speed ${Math.round(s0.speed)}, turned ${(s1.angle - s0.angle).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
-    await ctx.close();
-  }
-}
-
-/* 14. road: its buttons, the gas by itself, the stick, the gear */
-if (want('road')) {
-  console.log('road: BRAKE and GEAR, thumb-sized; it accelerates by itself; the stick steers; GEAR changes gear');
-  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
-    const { page, ctx, cdp, errors } = await open('road', vp, 'road/drive'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1500);
-    const st = () => ev(page, () => window.__game.scenes.road.state());
-    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
-    const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
-    const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
-    await drag(cdp, line([sx, sy], [sx + 50, sy], 20), 30); const s1 = await st();
-    const g = btns.find(b => b.act === 'gear'); if (g) await page.touchscreen.tap(g.x, g.y); await wait(200); const s2 = await st();
-    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `road-${label.replace(/ /g, '-')}.png`) });
-    check(`road ${label}: BRAKE and GEAR, each a thumb's size`, acts === 'brake,gear' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
-    check(`road ${label}: it accelerates by itself; the stick held right moves it right; GEAR changes gear`, s0.speed > 30 && s1.x > s0.x + .2 && s2.gear !== s1.gear && !errors.length, `speed ${s0.speed}, x ${s0.x} -> ${s1.x}, gear ${s1.gear} -> ${s2.gear}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }

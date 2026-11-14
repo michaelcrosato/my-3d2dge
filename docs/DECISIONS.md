@@ -1603,3 +1603,19 @@ An entry:
 - **Answered:** yes, the ask; the way (the home's own file, not a second file beside it) a reversible call, flagged in
   its pull request
 - **Landed in:** v0.93.0
+
+## D88 · 2026-11-14 · The ROAD kit is gone; the road module stays
+
+- **Principle:** process (the owner's review of the kits: the To check cards, `docs/HANDOFF-REVIEW.md` part 1)
+- **Call:** the ROAD slice (OutRun: `src/starter/66-road.js` and its lines) and its kit (`dist/kits/my-3d2dge-road.html`)
+  are deleted, with its Starter kits tile and its To check card on the Labs page, its route, kits-test's bot and the phone
+  test's case. The road module (`engine/modules/road.js`, `E.Road`) stays as it was: the engine's own, held by the
+  contract and views suites, what the Fork Lab's question is about, and carried by `dist/my-3d2dge.js`, the reference
+  editions and the handoff package's `modules/`. No kit carries it now, so the API card's playbook names road racing a
+  recipe (`AI_GUIDE.md`'s, on the module). The slices keep their numbers (SLICE 14 is no one's).
+- **Why:** the owner's word (2026-11-14): "remove the outrun kit, its sucks". A kit is what a model copies, so a weak
+  one costs every game started from it. The module was not named, so it stays; removing it later is a change of its
+  own (with the Fork Lab, whose question is about it). What would change it: a road racer worth copying, built again
+  on the module.
+- **Answered:** yes, the ask; keeping the module a reversible call, flagged in its pull request
+- **Landed in:** v0.94.0
