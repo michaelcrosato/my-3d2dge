@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module DRIVE v0.97.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.98.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14,7 +14,8 @@ takes away, the floor's tag under it slowing it, walls and other cars it bounces
   orange), car.boostT, car.surface, car.offroad, car.spinT; car.boost(seconds, power), car.spinOut(seconds);
   E.Car.collide(cars) bumps them apart.
 - const race = new E.Race({ path: a closed E.Path (the racing line; the full engine's), laps: 3, checkpoints: 8, countdown: 3, width: 40
-  (the track's half: the drivers' lanes), items: ['boost', 'shot', 'hazard'] }); race.grid(n) -> the start places
+  (the track's half: the drivers' lanes), items: ['boost', 'shot', 'hazard'], heights: false (true: a track that climbs and
+  crosses itself, the line's points [x, y, z]: progress measured with each car's z) }); race.grid(n) -> the start places
   [{ x, y, angle }]; race.add(car, { name, input (a player's) | ai: { skill: .95, rubber: .2 } }) -> a racer { car,
   name, lap, place, prog (distance raced), times, best, finished, time, wrong, item }.
 - Each step race.update(dt, map): the countdown (race.go once it says GO), every car driven (players by their input,
@@ -140,7 +141,7 @@ class Race {
   }
   /** a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it */
   add(car, o = {}) {
-    const d = this.path.nearest(car.x, car.y), L = this.path.length;
+    const d = this.path.nearest(car.x, car.y, this.o.heights ? car.z : undefined), L = this.path.length;
     const R = { car, name: o.name || E.t('engine.drive.car', { number: this.racers.length + 1 }), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
     this.racers.push(R); return R;
   }
@@ -195,7 +196,7 @@ class Race {
     this.hazards = this.hazards.filter(h => h.t < 9);
     for (const R of this.racers) {
       // progress round the line (unwrapped), checkpoints in order, laps
-      const d = this.path.nearest(R.car.x, R.car.y); let dd = d - R._d; if (dd > L / 2) dd -= L; if (dd < -L / 2) dd += L; R.prog += dd; R._d = d;
+      const d = this.path.nearest(R.car.x, R.car.y, this.o.heights ? R.car.z : undefined); let dd = d - R._d; if (dd > L / 2) dd -= L; if (dd < -L / 2) dd += L; R.prog += dd; R._d = d;
       if (R.finished) continue;
       if (this.go) { R.time += dt; R.lapT += dt; }
       const cp = Math.floor((((R.prog % L) + L) % L) / L * n);
@@ -219,7 +220,7 @@ class Race {
       const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
       F.text(g, E.t('engine.drive.lap', { lap: Math.min(this.o.laps, R.lap + 1), laps: this.o.laps }), rx, y, col, { align: 'right', shadow: '#000', outline: false });
       F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
-      E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });
+      if (this.o.items.length) E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });   // (the item's slot, where the race has items)
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;
       if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : E.t('engine.drive.go'), cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });

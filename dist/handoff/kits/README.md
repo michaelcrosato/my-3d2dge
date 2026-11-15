@@ -1,4 +1,4 @@
-# The genre kits (v0.97.0)
+# The genre kits (v0.98.0)
 
 A kit is a complete small game in one genre, written to be copied: its title, play and end, the modules it rests on,
 its sound, touch controls and a phone's screen. The API card's Genre playbook (`API.md`) names a kit for each genre (its
@@ -50,6 +50,7 @@ game, as its header says. Its test: copy `kits/test.mjs`'s three stand-ins (`win
 | SKY | [sky.js](sky.js), [sky.html](sky.html) | Mode 7 flight: a light plane through rings onto a runway, a skydive onto a target, an airship over a world that curves away; the camera pitched and rolled | mode7, mesh | #sky, #sky/plane, #sky/dive, #sky/voyage |
 | KART | [kart.js](kart.js), [kart.html](kart.html) | Mode 7 karts: six on a circuit, three laps, items, two players in a split screen | mode7, drive | #kart, #kart/race, #kart/vs |
 | ROAD | [road.js](road.js), [road.html](road.html) | the pseudo-3D road: a coast run of six stages picked at the forks, in a car or on a bike that leans, traffic, checkpoints, a rewind; a police chase that rams a getaway car | road, mesh, rewind | #road, #road/car, #road/bike, #road/chase |
+| ZERO | [zero.js](zero.js), [zero.html](zero.html) | anti-gravity racing in Mode 7: a night city circuit with energy, dash plates and a pit, and a ribbon track raised on pillars that climbs and crosses itself; two to four players split | mode7, mesh, drive | #zero, #zero/gp, #zero/city, #zero/sky, #zero/vs |
 | SPORTS | [sports.js](sports.js), [sports.html](sports.html) | two against two in a walled cage, up to four players: a ball that bounces and curls, passes, lobs, shots on a meter, formations, a match clock; Sensible Soccer and NBA Jam | none | #sports, #sports/match, #sports/vs |
 | STEALTH | [stealth.js](stealth.js), [stealth.html](stealth.html) | third-person stealth and parkour: a rooftop district at dusk, guards with sight and suspicion, climbing, takedowns, an HTML HUD; Assassin's Creed, Metal Gear | none | #stealth |
 

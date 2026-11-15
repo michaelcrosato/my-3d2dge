@@ -1,28 +1,29 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.97.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.98.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and 23 working games and an animation lab.
+  AI MODELS: this one file is the whole engine, its documentation and 24 working games and an animation lab.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below, whole.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". It is yours to change: fix, extend
        or rewrite any of it as you see fit (readable in dist/my-3d2dge.html, its source in the repository).
        Every module follows it, each a script marked "inlined from engine/modules/<name>.js" that starts with its manual.
-    3. The games live between GAME START and GAME END: a title menu plus 23 vertical slices (ADVENTURE, PLATFORMER,
-       METROIDVANIA, BRAWLER, FIGHTING, SHOOTER, ARCADE, PINBALL, KART, ROAD, BLASTER, SKY, PUZZLE, RHYTHM, RPG,
-       ROGUELIKE, TACTICS, RTS, SIM, ARTILLERY, POINT-AND-CLICK, STEALTH, SPORTS) and an ANIMATION LAB that plays
-       every move, pose and skin in every view.
+    3. The games live between GAME START and GAME END: a title menu plus 24 vertical slices (ADVENTURE, PLATFORMER,
+       METROIDVANIA, BRAWLER, FIGHTING, SHOOTER, ARCADE, PINBALL, KART, ROAD, BLASTER, ZERO, SKY, PUZZLE, RHYTHM,
+       RPG, ROGUELIKE, TACTICS, RTS, SIM, ARTILLERY, POINT-AND-CLICK, STEALTH, SPORTS) and an ANIMATION LAB that
+       plays every move, pose and skin in every view.
        To make a new game, change the slice closest to your genre into yours (its own title, play and game-over
        scenes) and delete what you don't use of the rest.
   HUMANS: open this file in a browser and play. Press ? for the API card.
   Deep links: add #adventure, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #pinball, #kart,
-       #road, #blaster, #sky, #puzzle, #rhythm, #rpg, #roguelike, #tactics, #rts, #sim, #artillery, #pointclick,
-       #stealth, #sports, #animlab to the address to start a slice; #metroidvania/miniboss, #metroidvania/boss,
-       #metroidvania/map, #fighting/versus, #fighting/arcade, #fighting/training, #shooter/horizontal,
-       #arcade/maze, #arcade/formation, #arcade/rocks, #kart/race, #kart/vs, #road/car, #road/bike, #road/chase,
-       #blaster/harrier, #blaster/burner, #blaster/safari, #sky/plane, #sky/dive, #sky/voyage, #rhythm/stepup,
-       #rhythm/rapschool, #rhythm/calibrate, #rpg/battle, #tactics/battle, #tactics/phases, #artillery/cpu,
-       #sports/match, #sports/vs jump into a part.
+       #road, #blaster, #zero, #sky, #puzzle, #rhythm, #rpg, #roguelike, #tactics, #rts, #sim, #artillery,
+       #pointclick, #stealth, #sports, #animlab to the address to start a slice; #metroidvania/miniboss,
+       #metroidvania/boss, #metroidvania/map, #fighting/versus, #fighting/arcade, #fighting/training,
+       #shooter/horizontal, #arcade/maze, #arcade/formation, #arcade/rocks, #kart/race, #kart/vs, #road/car,
+       #road/bike, #road/chase, #blaster/harrier, #blaster/burner, #blaster/safari, #zero/gp, #zero/city,
+       #zero/sky, #zero/vs, #sky/plane, #sky/dive, #sky/voyage, #rhythm/stepup, #rhythm/rapschool,
+       #rhythm/calibrate, #rpg/battle, #tactics/battle, #tactics/phases, #artillery/cpu, #sports/match, #sports/vs
+       jump into a part.
 -->
 <html lang="en">
 <head>
@@ -30,7 +31,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.97.0)
+# my-3D2dge API card (v0.98.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -287,7 +288,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Rhythm (Dance Dance Revolution, PaRappa, Beatmania, Space Channel 5) | any (a highway on the overlay) | `E.Rhythm` (the rhythm module): a chart of lane strings in parts on a song's steps, judged in ms of the music clock, combo, life, grade, holds, calls a teacher plays and you answer, `rh.draw` (`arrows: true`); the songbook's songs (`E.Songbook`); lanes as `input.zones` on a phone; `audio.onBeat` moves the dancer | RHYTHM |
 | Sports (Sensible Soccer, NBA Jam) | `threequarter` / `topdown` | the ball an `E.Body` (`bounce`; curl: turn its velocity across its path), passes led to the teammate, `E.arc` for a lob, a shot's meter, formations by where the ball is, `game.allowJoin({ max: 4 })` | SPORTS |
 | Third-person stealth (Assassin's Creed, Metal Gear, Tenchu) | `iso` / `threequarter` | TileMap roofs, Mover, `E.sees`, `E.Suspicion`, FlowField `jump` | STEALTH |
-| Kart racing (Super Mario Kart, F-Zero) | Mode 7 (the mode7 module, over any view) | `E.Mode7` over a TileMap track (floor tags: grass, sand, boost), `E.Car` karts (`kart: true`: hop, drift, boost) in an `E.Race` round an `E.Path` (laps, checkpoints, drivers, items), rigs in karts as billboards, `game.splitScreen(2)` for two | KART |
+| Kart and anti-gravity racing (Super Mario Kart, F-Zero, Power Drift) | Mode 7 (the mode7 module, over any view) | `E.Mode7` over a TileMap track (floor tags: grass, sand, boost), `E.Car` karts (`kart: true`: hop, drift, boost) in an `E.Race` round an `E.Path` (laps, checkpoints, drivers, items), rigs as billboards or machines as `m7.mesh`, a raised track (`heights`), `game.splitScreen(n)` | KART, ZERO |
 | 3D kart racing (Mario Kart 64, Crash Team Racing) | the 3D engine's `'behind'` camera | `world.track` (banked, walls, pads, `gaps` for a shortcut), `world.vehicle` karts raced by `E.Race`, split screen through `world.cameras` | 3D RACING |
 | Rail shooters (Star Fox 64, Panzer Dragoon) | the 3D engine's `'behind'` camera | `world.flyer` on rails or free in bounds, rolls (`f.rolling`) turn shots aside, `f.seek` for a charged lock, `Dialog`'s radio | 3D FLIGHT |
 | Into the screen (Space Harrier, After Burner, Yoshi's Safari) | Mode 7, rolled; first person on rails | shots and foes in world space, a jet's bank as `cam.roll`, a cursor's shot by `m7.pick(sx, sy, boxes)` after `m7.begin` in update | BLASTER |
@@ -311,11 +312,11 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE, ARCADE.
   - `fight` (the full engine only): one-on-one fighting: `E.Fighter` (frame data, hurt boxes from the rig's joints, guards, throws, cancels, juggles, specials by motion or charge, a meter, projectiles), `E.Match` (rounds, KO, the HUD, training), `E.FightAI`, `E.FightSelect`. FIGHTING.
   - `rooms`: a world of rooms on a grid of screens (`E.World`): walking between them at open edges, the explored map (`drawMap`, or `shellMap()` for `E.Shell`), gates that abilities or keys open, saves in `E.store`. METROIDVANIA.
-  - `mode7`: the SNES's Mode 7 (`E.Mode7`): a camera over a flat floor (a TileMap's, a function's or a canvas), a turning sky, billboards far to near (rigs, sprites, shapes, models, quads, your drawing), fog, roll, a globe (`curve`), `project`, `toFloor`, `pick`, split screens. KART, SKY, BLASTER.
-  - `mesh`: low-poly models (`E.Mesh`): parts (box, tube, ball, face) drawn flat-shaded and crisp through any projection (Mode 7's, the road's, your own). SKY, BLASTER, ROAD.
+  - `mode7`: the SNES's Mode 7 (`E.Mode7`): a camera over a flat floor (a TileMap's, a function's or a canvas), a turning sky, billboards far to near (rigs, sprites, shapes, models, quads, your drawing), fog, roll, a globe (`curve`), `project`, `toFloor`, `pick`, split screens. KART, SKY, BLASTER, ZERO.
+  - `mesh`: low-poly models (`E.Mesh`): parts (box, tube, ball, face) drawn flat-shaded and crisp through any projection (Mode 7's, the road's, your own). SKY, BLASTER, ROAD, ZERO.
   - `road`: the pseudo-3D road (`E.Road`): segments with curves and hills, lanes, rumble strips, tunnels, forks, scenery and cars (models: `road.mesh`) scaled by distance and hidden past a crest, the sky's parallax on curves. ROAD.
   - `rewind`: time run backwards (`E.Rewind`): snapshots kept in update, walked back while a key is held. ROAD.
-  - `drive`: cars on the ground plane (`E.Car`: grip and slide, a kart's hop and drift boost, floor tags, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, places, drivers that pass and rubber-band, items, the HUD; the 3D engine's `world.vehicle` too). KART.
+  - `drive`: cars on the ground plane (`E.Car`: grip and slide, a kart's hop and drift boost, floor tags, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, places, drivers that pass and rubber-band, items, the HUD; the 3D engine's `world.vehicle` too). KART, ZERO.
   - `story`: dialogue as data (`E.Story`): lines with speakers and portraits, choices with conditions, flags and values, gotos, the game's events, a quest log, balloons over heads, a backlog, auto and skip; its state for a save. RPG, POINT-AND-CLICK, TACTICS.
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG, 3D HORROR.
   - `strategy` (the full engine only; needs `grid`): `E.Strategy` for real-time strategy (selection by click, box and group; queued orders; formations; production, resources, placement; fog, the minimap; an AI's build order and waves) and for sims `E.Clock` (days, the light), `E.needs` and `E.choose`, `E.overlay`, `E.tooltip`. RTS, SIM.
@@ -393,6 +394,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "starter.slice.kart.about": "MODE 7 KARTS, THREE LAPS",
     "starter.slice.road": "ROAD",
     "starter.slice.road.about": "A COAST ROAD, ITS FORKS, A CHASE",
+    "starter.slice.zero": "ZERO",
+    "starter.slice.zero.about": "ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY",
     "starter.slice.sky": "SKY",
     "starter.slice.sky.about": "A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP",
     "starter.slice.puzzle": "PUZZLE",
@@ -1723,6 +1726,25 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "road.best": "BEST {n}",
     "action.nitro": "Nitro",
     "action.rewind": "Rewind",
+    "zero.title": "ZERO",
+    "zero.menu.gp": "GRAND PRIX",
+    "zero.menu.city": "NEON CITY",
+    "zero.menu.sky": "SKY RIBBON",
+    "zero.menu.vs": "VS (2-4 PLAYERS)",
+    "zero.menu.back": "BACK",
+    "zero.menu.next": "RACE ON",
+    "zero.menu.menu": "MENU",
+    "zero.join": "PLAYERS 2-4: PRESS START ON A PAD (2 ON THE KEYBOARD)",
+    "zero.kmh": "{n} KM/H",
+    "zero.boost": "{key}: BOOST",
+    "zero.row": "{place}. {name}",
+    "zero.name.flare": "FLARE",
+    "zero.name.vex": "VEX",
+    "zero.name.moss": "MOSS",
+    "zero.name.halo": "HALO",
+    "zero.name.drift": "DRIFT",
+    "zero.name.ash": "ASH",
+    "action.boost": "Boost",
     "sports.title": "CAGE CUP",
     "sports.about": "TWO AGAINST TWO, UP TO FOUR PLAYERS",
     "sports.menu.match": "MATCH",
@@ -2818,6 +2840,18 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "road.nitro": "The chase: {n} boosts of speed are left.",
     "action.nitro": "A control's name, and its touch button: a burst of speed.",
     "action.rewind": "A control's name, and its touch button: hold to run time backwards.",
+    "zero.title": "The anti-gravity racer's title, on its menu.",
+    "zero.menu.gp": "A mode: both tracks in a row, points for each place.",
+    "zero.menu.city": "A track: a circuit through a city at night (a single race).",
+    "zero.menu.sky": "A track: a ribbon raised in the air over a desert (a single race).",
+    "zero.menu.vs": "A mode: two to four players in a split screen.",
+    "zero.menu.next": "After a race: the next race (or the same again).",
+    "zero.join": "Waiting for more players: each presses Start on a game pad, or 2 on the keyboard.",
+    "zero.kmh": "The speed, {n} kilometres an hour.",
+    "zero.boost": "{key} is the key or button that spends energy for a burst of speed.",
+    "zero.row": "A row of the results: {place} is the place, {name} the pilot's name.",
+    "zero.name.flare": "A pilot's name.",
+    "action.boost": "A control's name, and its touch button: a burst of speed that costs energy.",
     "sports.title": "The football game's title: the cup played in the cage (a walled pitch).",
     "sports.about": "Under the title: two footballers a side, and up to four people can play.",
     "sports.menu.match": "A mode: you against the CPU.",
@@ -2924,7 +2958,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.97.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.98.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -2952,7 +2986,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.97.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.98.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -3039,7 +3073,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.97.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.98.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -13967,7 +14001,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.97.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.98.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14194,7 +14228,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/click.js ---- */
 /*!
-my-3D2dge module CLICK v0.97.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.98.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14573,7 +14607,7 @@ E.Click = Click;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.97.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.98.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14588,7 +14622,8 @@ takes away, the floor's tag under it slowing it, walls and other cars it bounces
   orange), car.boostT, car.surface, car.offroad, car.spinT; car.boost(seconds, power), car.spinOut(seconds);
   E.Car.collide(cars) bumps them apart.
 - const race = new E.Race({ path: a closed E.Path (the racing line; the full engine's), laps: 3, checkpoints: 8, countdown: 3, width: 40
-  (the track's half: the drivers' lanes), items: ['boost', 'shot', 'hazard'] }); race.grid(n) -> the start places
+  (the track's half: the drivers' lanes), items: ['boost', 'shot', 'hazard'], heights: false (true: a track that climbs and
+  crosses itself, the line's points [x, y, z]: progress measured with each car's z) }); race.grid(n) -> the start places
   [{ x, y, angle }]; race.add(car, { name, input (a player's) | ai: { skill: .95, rubber: .2 } }) -> a racer { car,
   name, lap, place, prog (distance raced), times, best, finished, time, wrong, item }.
 - Each step race.update(dt, map): the countdown (race.go once it says GO), every car driven (players by their input,
@@ -14714,7 +14749,7 @@ class Race {
   }
   /** a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it */
   add(car, o = {}) {
-    const d = this.path.nearest(car.x, car.y), L = this.path.length;
+    const d = this.path.nearest(car.x, car.y, this.o.heights ? car.z : undefined), L = this.path.length;
     const R = { car, name: o.name || E.t('engine.drive.car', { number: this.racers.length + 1 }), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
     this.racers.push(R); return R;
   }
@@ -14769,7 +14804,7 @@ class Race {
     this.hazards = this.hazards.filter(h => h.t < 9);
     for (const R of this.racers) {
       // progress round the line (unwrapped), checkpoints in order, laps
-      const d = this.path.nearest(R.car.x, R.car.y); let dd = d - R._d; if (dd > L / 2) dd -= L; if (dd < -L / 2) dd += L; R.prog += dd; R._d = d;
+      const d = this.path.nearest(R.car.x, R.car.y, this.o.heights ? R.car.z : undefined); let dd = d - R._d; if (dd > L / 2) dd -= L; if (dd < -L / 2) dd += L; R.prog += dd; R._d = d;
       if (R.finished) continue;
       if (this.go) { R.time += dt; R.lapT += dt; }
       const cp = Math.floor((((R.prog % L) + L) % L) / L * n);
@@ -14793,7 +14828,7 @@ class Race {
       const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
       F.text(g, E.t('engine.drive.lap', { lap: Math.min(this.o.laps, R.lap + 1), laps: this.o.laps }), rx, y, col, { align: 'right', shadow: '#000', outline: false });
       F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
-      E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });
+      if (this.o.items.length) E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });   // (the item's slot, where the race has items)
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;
       if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : E.t('engine.drive.go'), cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
@@ -14809,7 +14844,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.97.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.98.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -15374,7 +15409,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.97.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.98.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15560,7 +15595,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.97.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.98.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15972,7 +16007,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mesh.js ---- */
 /*!
-my-3D2dge module MESH v0.97.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.98.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16113,7 +16148,7 @@ E.Mesh = Mesh;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.97.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.98.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16132,10 +16167,10 @@ billboards (rigs drawn at the size their distance gives, sprites, models, your o
   (body.angle, or angle) each step: back 0 and a low h is first person.
 - In draw: m7.rig(rig, x, y, z), m7.sprite(spr or E.anim, x, y, z, { scale, flip, t, target }), m7.shape(id, x, y, z,
   { facing, size, params, mats }) (full engine), m7.mesh(model, x, y, z, o) (the mesh module's E.Mesh, o its draw's:
-  yaw, pitch, roll, colors, target), m7.quad([[x, y, z], ...], color, target) (a wall, a sign: a flat polygon in the
-  world), m7.add(x, y, z, (g, sx, sy, k) => ..., { target, w, h }) gather what is drawn (k: screen pixels per world unit
-  there); m7.draw(r, cam) draws sky, floor, fog and them, far to near, as an overlay (in a split screen, in r.viewport:
-  give each player's cam).
+  yaw, pitch, roll, colors, target), m7.quad([[x, y, z], ...], color, target, layer) (a wall, a sign: a flat polygon in
+  the world; layer -1 draws it before the rest: pillars under a raised track), m7.add(x, y, z, (g, sx, sy, k) => ...,
+  { target, w, h }) gather what is drawn (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor,
+  fog and them, far to near, as an overlay (in a split screen, in r.viewport: give each player's cam).
 - m7.pick(sx, sy) -> { target, k } nearest under a screen point in the view last drawn (a target's box: a sprite's or
   model's drawn size, add's w x h units over its foot; a quad blocks what is behind it), or null; m7.pick(sx, sy, [{ x,
   y, z, w, h, target }]) tests those boxes through the camera begun, nothing drawn: a light gun's shot that replays
@@ -16236,8 +16271,9 @@ class Mode7 {
     return [P.x + px * m, P.y + py * m, s];
   }
   /** gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit; hit: { target, w,
-   *  h } gives m7.pick its box (w x h world units over its foot) */
-  add(x, y, z, fn, hit) { this.items.push({ x, y, z: z || 0, fn, hit: hit || null }); return this; }
+   *  h } gives m7.pick its box (w x h world units over its foot); deep: sorted by its depth from the camera (models and
+   *  quads are: one under another sorts behind it), else by its distance ahead on the floor */
+  add(x, y, z, fn, hit, deep, layer) { this.items.push({ x, y, z: z || 0, fn, hit: hit || null, deep: !!deep, layer: layer || 0 }); return this; }
   /** gather a rig, drawn by the engine at the size its distance gives, from the camera's side (it faces rig.facing) */
   rig(rig, x, y, z = 0) { return this.add(x, y, z, (g, sx, sy, k) => rig.draw(g, Math.round(sx), Math.round(sy), this.view(k))); }
   /** gather a sprite (E.sprite, or E.anim's frames at o.t, the game's time by default), its foot at the point: o.scale
@@ -16269,18 +16305,19 @@ class Mode7 {
       model.draw(g, pr, Object.assign({}, o, { x, y, z, mix: a < 1 && fog ? [fog.color || '#a8c0e0', (1 - a) * .9] : o.mix }));
       g.globalAlpha = a; E.px.reset(g);
       if (o.target !== undefined && x1 >= x0) this._seen.push({ target: o.target, k, box: [x0, y0, x1 - x0, y1 - y0] });
-    });
+    }, null, true);
   }
   /** gather a flat polygon in the world ([[x, y, z], ...]: a wall, a fence, a sign), sorted with the billboards by its
-   *  middle's distance; target: m7.pick finds it (null: it only blocks what is behind it) */
-  quad(pts, color, target = null) {
+   *  middle's depth; target: m7.pick finds it (null: it only blocks what is behind it); layer -1: drawn before the rest
+   *  (a pillar under a raised track, which no sort by depth keeps behind it) */
+  quad(pts, color, target = null, layer = 0) {
     const n = pts.length, c = pts.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n, a[2] + (p[2] || 0) / n], [0, 0, 0]);
     return this.add(c[0], c[1], c[2], (g, sx, sy, k) => {
       const q = pts.map(p => this.project(p[0], p[1], p[2] || 0)); if (q.some(p => !p)) return;
       const a = g.globalAlpha, fog = this.o.fog; g.globalAlpha = 1;   // (a wall shows nothing behind it, so fog mixes its color)
       E.px.poly(g, q.map(p => [p[0], p[1]]), a < 1 && fog ? E.mix(color, fog.color || '#a8c0e0', (1 - a) * .9) : color);
       g.globalAlpha = a; E.px.reset(g); this._seen.push({ target, k, poly: q });
-    });
+    }, null, true, layer);
   }
   /** what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null; with a
    *  list ([{ x, y, z, w, h, target }]: boxes w x h world units over those feet), those boxes through the camera begun,
@@ -16336,9 +16373,9 @@ class Mode7 {
     const P = this._P, fog = this.o.fog, far = fog && fog.far || this.o.far, list = [];
     for (const it of items) {
       const p = this.project(it.x, it.y, it.z); if (!p || p[0] < vp.x - 200 || p[0] > vp.x + vp.w + 200) continue;
-      const d = P.R ? P.f / p[2] : (it.x - P.x) * P.fx + (it.y - P.y) * P.fy; if (d <= far) list.push([d, it, p]);
+      const d = P.R || it.deep ? P.f / p[2] : (it.x - P.x) * P.fx + (it.y - P.y) * P.fy; if (d <= far) list.push([d, it, p]);   // (a model or a quad by its depth from the camera: one under another sorts behind it)
     }
-    list.sort((a, b) => b[0] - a[0]);
+    list.sort((a, b) => a[1].layer - b[1].layer || b[0] - a[0]);   // (a lower layer first: what stands under a track)
     for (const [d, it, p] of list) {
       cg.globalAlpha = fog ? clamp(1 - (d - (fog.near || 0)) / (far - (fog.near || 0)) * .8, .2, 1) : 1; E.px.reset(cg); it.fn(cg, p[0], p[1], p[2]);   // (the color cache forgotten: the floor and the sky set colors directly)
       const h = it.hit; if (h) this._seen.push({ target: h.target, k: p[2], box: [p[0] - (h.w || 16) * p[2] / 2, p[1] - (h.h || 16) * p[2], (h.w || 16) * p[2], (h.h || 16) * p[2]] });
@@ -16445,7 +16482,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!
-my-3D2dge module PHYSICS v0.97.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.98.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16815,7 +16852,7 @@ E.Physics = Physics;
 <script>
 /* ---- inlined from engine/modules/rewind.js ---- */
 /*!
-my-3D2dge module REWIND v0.97.0: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.98.0: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16878,7 +16915,7 @@ E.Rewind = Rewind;
 <script>
 /* ---- inlined from engine/modules/rhythm.js ---- */
 /*!
-my-3D2dge module RHYTHM v0.97.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.98.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -17088,7 +17125,7 @@ E.Rhythm = Rhythm;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.97.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.98.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17275,7 +17312,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.97.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.98.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17461,7 +17498,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.97.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.98.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17797,7 +17834,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/songs.js ---- */
 /*!
-my-3D2dge module SONGS v0.97.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.98.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17954,7 +17991,7 @@ E.Songbook = Songbook;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.97.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.98.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18165,7 +18202,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.97.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.98.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -18610,7 +18647,7 @@ E.tooltip = (r, x, y, lines) => {
 <script>
 /* ---- inlined from engine/modules/terrain.js ---- */
 /*!
-my-3D2dge module TERRAIN v0.97.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.98.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18915,7 +18952,7 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 31-blaster.js, 32-arcade.js, 33-pinball.js, 34-artillery.js, 35-puzzle.js, 37-rhythm.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 64-sky.js, 65-kart.js, 66-road.js, 68-sports.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 31-blaster.js, 32-arcade.js, 33-pinball.js, 34-artillery.js, 35-puzzle.js, 37-rhythm.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 64-sky.js, 65-kart.js, 66-road.js, 67-zero.js, 68-sports.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
  * slice adds an animation lab). Each slice is a complete small game, written to be copied and changed: its own header
@@ -18960,6 +18997,7 @@ const SLICES = [
   { id: 'pinball', label: 'PINBALL', about: 'ONE TABLE: RAMP, MULTIBALL, JACKPOT', family: 'ARCADE' },
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
   { id: 'road', label: 'ROAD', about: 'A COAST ROAD, ITS FORKS, A CHASE', family: 'RACING' },
+  { id: 'zero', label: 'ZERO', about: 'ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY', family: 'RACING' },
   { id: 'sky', label: 'SKY', about: 'A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP', family: 'FLIGHT' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },
@@ -29790,6 +29828,232 @@ const ROAD = (() => {
     }, () => P && [P.z, P.x, P.speed, P.clock, P.crash, P.score], () => { game.input.lastDevice = 'keyboard'; }) };
 })();
 scenes.road = ROAD;
+
+/* =====================================================================================
+ * SLICE 26  ZERO  (F-Zero, F-Zero X, Power Drift; Street Racer's four players). @modules mode7 mesh drive
+ * Anti-gravity racing in Mode 7, six machines, three laps. NEON CITY: a night circuit on the floor, its magnetic barriers
+ * draining energy, dash plates, a pit lane that fills it back up. SKY RIBBON: a track raised on pillars over the desert
+ * that climbs, banks and crosses over itself (a figure of eight, the low pass under the high one). Energy is your
+ * life and your boost: from the second lap, BOOST spends some of it for a burst; out of it, the machine limps.
+ * GRAND PRIX: both tracks, points for places. VS: two to four players in a split screen on the city.
+ * Deep links: #zero/gp, #zero/city, #zero/sky, #zero/vs.
+ * KEYS: left / right steer, up / Z gas, down / X brake, Space / C boost. A pad: the stick, A gas, X brake, B boost.
+ * TOUCH: the stick steers, it accelerates by itself; BOOST.
+ * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floors, and the ribbon as m7.quad strips over them; E.Car and
+ * E.Race (the drive module) the machines, the laps and the drivers (heights: true, as the ribbon crosses itself); E.Mesh
+ * (the mesh module) the machines; this file the tracks, the energy, the ribbon's walls and the HUD.
+ * ===================================================================================== */
+const ZERO = (() => {
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0', 'Pad7'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2', 'Pad6'], boost: ['Space', 'KeyC', 'ShiftLeft', 'Pad1', 'Pad5'] });
+  for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
+  const hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
+  const MACHINE = new E.Mesh([['box', [2, 0, 3.4], [13, 6, 1.8], 'body', { top: [.8, .7], tip: [-2, 0] }], ['box', [12, 0, 3], [5, 3.6, 1.2], 'body', { top: [.4, .6] }], ['ball', [1, 0, 6], [5, 2.6, 2], '#8ae8ff', { n: 6 }],
+    ['tube', [-11, 4.6, 3.6], 1.8, 3, '#3a3a46', { mirror: true, n: 6 }], ['tube', [-14.4, 4.6, 3.6], 1.3, .4, 'glow', { mirror: true, n: 6 }], ['face', [[-6, 6, 4.4], [-13, 6, 4.4], [-14, 10.5, 3.8], [-9, 10.5, 3.8]], 'trim', { both: true, mirror: true }],
+    ['face', [[-8, 0, 5], [-13, 0, 5], [-14, 0, 9.5], [-11, 0, 9.5]], 'trim', { both: true }]]);
+  const CAST = [{ name: 'zero.name.flare', body: '#3a6ae8', trim: '#ffd040' }, { name: 'zero.name.vex', body: '#e8402a', trim: '#f0f0f0' }, { name: 'zero.name.moss', body: '#3ac85a', trim: '#1a3a2a' },
+    { name: 'zero.name.halo', body: '#f0e050', trim: '#c83aa8' }, { name: 'zero.name.drift', body: '#c83ae8', trim: '#3ae0ff' }, { name: 'zero.name.ash', body: '#8a8a9a', trim: '#e83a3a' }];
+  /* ---- NEON CITY: a line round a 2048-unit floor, the walls and the floor's tags from each cell's distance to it ---- */
+  const T = 16, N = 128, HALF = 52;
+  const CITY = new E.Path([[400, 1700], [400, 900], [520, 500], [900, 360], [1400, 380], [1650, 560], [1640, 900], [1350, 1050], [1300, 1300], [1600, 1450], [1700, 1750], [1450, 1880], [900, 1860], [560, 1840]], { closed: true, smooth: 'catmull' });
+  const CL = CITY.length, PIT = [CL * .02, CL * .14], DASH = [CL * .3, CL * .55, CL * .8];
+  let city = null;
+  function buildCity() {
+    const cells = [], floor = [];
+    for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) {
+      const x = (cx + .5) * T, y = (cy + .5) * T, d = CITY.nearest(x, y), p = CITY.at(d), e = Math.hypot(p.x - x, p.y - y), side = (x - p.x) * -Math.sin(p.angle) + (y - p.y) * Math.cos(p.angle);
+      const wall = e > HALF + 10 || cx === 0 || cy === 0 || cx === N - 1 || cy === N - 1;
+      const tag = e < HALF ? (d > PIT[0] && d < PIT[1] && side > HALF * .35 ? 'pit' : DASH.some(b => Math.abs(d - b) < 12) && e < HALF * .5 ? 'boost' : d < 10 || d > CL - 10 ? 'start' : null) : 'kerb';
+      cells.push(wall ? 1 : 0); floor.push(wall ? null : tag);
+    }
+    const map = new E.TileMap({ w: N, h: N, cells, floor, types: { 1: { h: 30, side: '#2a2a3a', top: '#3a3a4a' } } });
+    const look = (x, y) => {
+      const cx = x >> 4, cy = y >> 4, n = hash(x >> 1, y >> 1) % 7;
+      if (map.cell(cx, cy) > 0) { const lit = (hash(x >> 5, y >> 5) % 5) === 0 && (x & 7) > 1 && (y & 7) > 1; return lit ? [230, 200, 110] : ((x >> 5) + (y >> 5)) % 3 ? [26 + n, 28 + n, 44 + n] : [34, 36, 54]; }
+      const tag = map.floorAt(x, y);
+      if (tag === 'kerb') return (((x + y) >> 4) & 1) ? [255, 58, 176] : [58, 224, 255];
+      if (tag === 'pit') return ((x + y) >> 3) & 1 ? [40, 120, 96] : [52, 150, 120];
+      if (tag === 'start') return ((x >> 3) + (y >> 3)) & 1 ? [240, 240, 240] : [24, 24, 30];
+      if (tag === 'boost') return ((y + (x & 15)) >> 4) & 1 ? [255, 220, 40] : [255, 130, 30];
+      return ((x & 31) === 0 || (y & 31) === 0) ? [70, 76, 104] : [56 + n, 60 + n, 82 + n];
+    };
+    const m7 = new E.Mode7({ floor: look, size: [N * T, N * T], texel: 2, outside: '#1a1c2a', sky: new E.Backdrop('city-night'), far: 1600, fog: { color: '#2a2440', near: 700, far: 1600 } });
+    const towers = []; const R = E.rng(9);
+    for (let i = 0; i < 70; i++) { const x = 80 + R() * 1890, y = 80 + R() * 1890, p = CITY.at(CITY.nearest(x, y)); if (Math.hypot(p.x - x, p.y - y) > HALF + 50) towers.push({ x, y, w: 30 + R() * 30, h: 60 + R() * 140, c: ['#2a2e4a', '#3a2a4a', '#2a3a48'][i % 3], seed: i }); }
+    return { map, m7, towers };
+  }
+  /* ---- SKY RIBBON: a figure of eight in the air (the line's points [x, y, z]), its segments, pillars and shadow ---- */
+  const HW = 64, RIB = new E.Path(Array.from({ length: 24 }, (_, i) => { const a = i / 24 * Math.PI * 2; return [2048 + 1500 * Math.sin(a), 2048 + 1050 * Math.sin(a) * Math.cos(a), 230 + 170 * Math.cos(a) + 30 * Math.sin(a * 3)]; }), { closed: true, smooth: 'catmull' });
+  const RL = RIB.length, STEP = 64;
+  let sky = null;
+  function buildSky() {
+    const segs = [];
+    for (let s = 0; s < RL; s += STEP) {
+      const p = RIB.at(s), q = RIB.at(s + 30), bank = clamp(E.angDiff(p.angle, q.angle) * 9, -.45, .45), rx = -Math.sin(p.angle), ry = Math.cos(p.angle), dz = Math.sin(bank) * HW;
+      segs.push({ s, x: p.x, y: p.y, z: p.z, L: [p.x - rx * HW, p.y - ry * HW, p.z + dz], R: [p.x + rx * HW, p.y + ry * HW, p.z - dz] });
+    }
+    const cv = E.mkCanvas(1024, 1024), g = cv.getContext('2d'), img = g.createImageData(1024, 1024), d = img.data;
+    for (let y = 0; y < 1024; y++) for (let x = 0; x < 1024; x++) { const n = hash(x, y) % 8, m = E.noise2(x / 40, y / 40), i = (y * 1024 + x) * 4, c = m > .66 ? [150 + n, 96, 70] : ((x >> 4) + (y >> 4)) & 1 ? [214 - n, 168, 112] : [206 - n, 160, 106]; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; }
+    g.putImageData(img, 0, 0);
+    for (const q of segs) px.disc(g, (q.x + q.z * .35) / 4, (q.y + q.z * .45) / 4, HW / 4, '#8a6a4a');   // (its shadow, cast by a sun high in the north-west)
+    return { segs, m7: new E.Mode7({ floor: cv, texel: 4, outside: '#c8a070', sky: new E.Backdrop('desert'), far: 3000, fog: { color: '#e8c898', near: 1400, far: 3000 } }) };
+  }
+  // the ribbon as the cars' map: its height under a car is the ground (it rides it, gripping), and its rails are the
+  // walls (a car past one is put back on, E.Body bouncing it: a knock); its z picks the right pass where it crosses
+  const RIBMAP = { floorAt: () => null,
+    groundAt: (x, y, r, z) => RIB.at(RIB.nearest(x, y, z)).z,
+    collide(b) { const p = RIB.at(RIB.nearest(b.x, b.y, b.z)), rx = -Math.sin(p.angle), ry = Math.cos(p.angle), u = (b.x - p.x) * rx + (b.y - p.y) * ry, lim = HW - 9; if (Math.abs(u) <= lim) return false; b.x = p.x + rx * Math.sign(u) * lim; b.y = p.y + ry * Math.sign(u) * lim; return true; } };
+  /** a car on the ribbon: held to its surface (it grips down a slope as up one), its slope (the camera pitches with it) */
+  const RPIT = [RL * .62, RL * .72];   // (the ribbon's pit: a green stretch that fills energy back up)
+  function ride(R) { const c = R.car, s = RIB.nearest(c.x, c.y, c.z), z = RIB.at(s).z; R.pit = s > RPIT[0] && s < RPIT[1]; R.slope = (RIB.at(s + 20).z - z) / 20; c.z = z; c.vz = 0; c.onGround = true; }   // (held to it: down a slope it never leaves the ground)
+
+
+  /* ---- THE RACE ---- */
+  const SONG = { bpm: 156, steps: 4, tracks: [
+    { wave: 'square', vol: .05, notes: 'D5 . D5 F5 . D5 C5 . | A4 . C5 . D5 . . . | D5 . D5 F5 . G5 F5 . | A5 . G5 . F5 . . . | D5 . D5 F5 . D5 C5 . | A4 . C5 . D5 . F5 . | G5 . F5 . D5 . C5 . | D5 . . . . . . .' },
+    { wave: 'saw', vol: .08, notes: 'D2 D2 D3 D2 D2 D3 D2 D3 | A#1 A#1 A#2 A#1 C2 C2 C3 C2 | D2 D2 D3 D2 D2 D3 D2 D3 | F2 F2 F3 F2 C2 C2 C3 C2 | D2 D2 D3 D2 D2 D3 D2 D3 | A#1 A#1 A#2 A#1 C2 C2 C3 C2 | G1 G1 G2 G1 A1 A1 A2 A1 | D2 D2 D3 D2 D2 . . .' },
+    { wave: 'drums', vol: .07, notes: 'k . h k s . h . k k h . s . h h' }] };
+  let mode = 'menu', G = null, race = null, players = [], cams = [], t = 0, over = 0, track = 'city', auto = false;
+  const menu = new E.Menu(game, [E.t('zero.menu.gp'), E.t('zero.menu.city'), E.t('zero.menu.sky'), E.t('zero.menu.vs'), E.t('zero.menu.back')], { onPick: i => i === 4 ? game.go('title') : i === 3 ? versus() : (G = { gp: i === 0, pts: CAST.map(() => 0) }, go(i === 2 ? 'sky' : 'city')) });
+  const after = new E.Menu(game, [E.t('zero.menu.next'), E.t('zero.menu.menu')], { onPick: i => i === 0 ? (G && G.gp && track === 'city' ? go('sky') : G && G.vs ? go('city', true) : go(track)) : toMenu() });
+  function toMenu() { mode = 'menu'; race = null; G = null; game.splitScreen(0); A.music('title'); }
+  function versus() { G = { vs: true, pts: CAST.map(() => 0) }; if (game.players.length >= 2) go('city', true); else { mode = 'join'; A.sfx('select'); } }
+  /** a race on a track: six machines on the grid (the players' at the back), three laps */
+  function go(which, vs) {
+    track = which; mode = 'race'; over = 0; t = 0;
+    if (which === 'city' && !city) city = buildCity(); if (which === 'sky' && !sky) sky = buildSky();
+    race = new E.Race({ path: which === 'city' ? CITY : RIB, laps: 3, width: which === 'city' ? HALF * .8 : HW * .7, checkpoints: 12, items: [], heights: which === 'sky' });
+    const n = vs ? Math.min(4, game.players.length) : 1, grid = race.grid(6); players = [];
+    for (let k = 0; k < 6; k++) {
+      const ci = (k + 6 - n) % 6, g = grid[k], human = ci < n && !auto, car = new E.Car(Object.assign({ top: 300, accel: 160, turn: 2.05, grip: 14, drag: .4, kart: false, r: 9, surfaces: { pit: { top: .75 }, kerb: { top: .8 } } }, g));
+      if (which === 'sky') car.z = RIB.at(RIB.nearest(g.x, g.y)).z;
+      const R = race.add(car, human ? { name: E.t(CAST[ci].name), input: game.players[ci] || game.input } : { name: E.t(CAST[ci].name), ai: { skill: .9 + ci * .014, rubber: .25 } });
+      R.cast = CAST[ci]; R.ci = ci; R.energy = 100; if (ci < n) players[ci] = R;
+    }
+    cams = players.map(R => ({ x: R.car.x, y: R.car.y, h: 22, angle: R.car.angle, pitch: 9, fov: 66 }));
+    game.splitScreen(n > 1 ? n : 0, { layout: n === 2 ? 'rows' : 'grid' }); A.music(SONG); game.input.consumeAll();
+  }
+
+  function update(dt) {
+    const I = game.input; I.touchSet('boost', null, mode === 'race');
+    t += dt;
+    if (mode === 'menu') { menu.update(dt); return; }
+    if (mode === 'join') { if (game.players.length >= 2) go('city', true); else if (I.pressed('cancel')) mode = 'menu'; return; }
+    if (mode === 'results') { after.update(dt); return; }
+    for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch';
+    const was = race.t; race.update(dt, track === 'city' ? city.map : RIBMAP);
+    if (was < 0 && Math.floor(was) !== Math.floor(race.t)) A.sfx(race.t >= 0 ? 'confirm' : 'select');
+    for (const R of race.racers) {
+      const c = R.car; if (track === 'sky') ride(R);
+      if (c.bumped && !R._touch) { R.energy = Math.max(0, R.energy - 3); if (players.includes(R)) A.sfx('bump', { vol: .35 }); } else if (c.bumped) R.energy = Math.max(0, R.energy - 4 * dt);   // (a knock costs 3, scraping along a barrier a little more each second)
+      R._touch = c.bumped;
+      if (c.surface === 'pit' || (track === 'sky' && R.pit)) R.energy = Math.min(100, R.energy + 50 * dt);
+      const want = R.lap >= 2 && R.energy > 30 && (R.input ? R.input.pressed('boost') : (auto || !R.input) && c.boostT <= 0 && Math.floor((t + R.ci) * .7) % 4 === 0 && R.energy > 50);
+      if (want && race.go && c.boostT <= 0) { c.boost(1.2, .45); R.energy -= 14; if (players.includes(R)) A.sfx('powerup', { vol: .5 }); }
+      c.o.top = R.energy <= 0 ? 210 : 300;   // (out of energy: it limps)
+      if (R.lap !== R._lap) { if (R._lap !== undefined && !R.finished && players.includes(R)) A.sfx('oneup'); R._lap = R.lap; }
+    }
+    const tall = game.H > game.W * (players.length > 1 ? .5 : 1);
+    players.forEach((R, i) => {   // (on the ribbon the camera looks along the track, so it stays over it)
+      const c = cams[i], k = 1 - Math.exp(-dt * 6), V = view(), a = track === 'sky' ? RIB.at(RIB.nearest(R.car.x, R.car.y, R.car.z)).angle : 0, line = track === 'sky' ? a + E.angDiff(a, R.car.angle) * .3 : R.car.angle; c.angle += E.angDiff(c.angle, line) * k;
+      V.chase({ x: R.car.x, y: R.car.y, angle: c.angle }, { back: tall ? 96 : 66, h: (tall ? 40 : 26) + R.car.z }); Object.assign(c, V.cam); c.pitch = (tall ? 13 : 9) - (R.slope || 0) * 45; c.fov = tall ? 84 : 66;
+    });
+    if (players.length && players.every(R => R.finished)) { over += dt; if (over > 2.5 && mode === 'race') finish(); }
+  }
+  const view = () => track === 'city' ? city.m7 : sky.m7;
+  function finish() {
+    mode = 'results'; after.i = 0;
+    const PTS = [9, 6, 4, 3, 2, 1]; race.racers.slice().sort((a, b) => a.place - b.place).forEach((R, i) => { G.pts[R.ci] += PTS[i] || 0; });
+    A.sfx(players[0] && players[0].place === 1 ? 'secret' : 'confirm');
+  }
+
+  /* ---- the look ---- */
+  function draw(r) {
+    const W = r.W, H = r.H;
+    if (mode === 'menu' || mode === 'join') {
+      if (!city) city = buildCity(); const p = CITY.at(t * 120); city.m7.cam = { x: p.x, y: p.y, h: 50, angle: p.angle, pitch: 12, fov: 70 }; towersOf(city.m7.cam); city.m7.draw(r);
+      r.overlay(g => { E.font.title(g, E.t('zero.title'), W / 2, 20, { scale: 4, align: 'center', colors: ['#ffffff', '#a8f0ff', '#3ae0ff', '#c83ae8'], depth: 3 }); if (mode === 'join') E.font.text(g, E.t('zero.join'), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false }); });
+      if (mode === 'menu') { menu.y = Math.round(H / 2) - 10; menu.draw(r); }
+      return;
+    }
+    const i = r.viewport ? r.viewport.i : 0, me = players[i], cam = cams[i], V = view();
+    if (track === 'city') towersOf(cam); else ribbonFor(cam);
+    const fx = Math.cos(cam.angle), fy = Math.sin(cam.angle);
+    for (const R of race.racers) if (R === me || (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 26) V.mesh(MACHINE, R.car.x, R.car.y, R.car.z + 3 + Math.sin(t * 9 + R.ci) * .6, { scale: .8, yaw: R.car.angle, roll: clamp(R.car.slide * .012, -.5, .5), colors: { body: R.cast.body, trim: R.cast.trim, glow: R.car.boostT > 0 ? '#ffe060' : '#ff6a2a' } });   // (it leans with its slide; one beside the camera, nearer than its near plane can draw, is left out)
+    V.draw(r, cam);
+    if (me) race.hud(r, me, { color: players.length > 1 ? ['#a0d8ff', '#ffd080', '#a0ffa0', '#ffa0e0'][i] : '#ffffff', right: r.viewport && r.viewport.y > 0 ? null : cornerX() });
+    if (me) r.overlay(g => {   // the energy bar and the speed, under the race's own HUD
+      const vp = r.viewport || { x: 0, y: 0, w: W, h: H }, w = Math.min(90, vp.w * .3), x = vp.x + 6, y = vp.y + vp.h - 14, e = me.energy / 100;
+      px.rect(g, x - 1, y - 1, w + 2, 7, '#0a0a14'); px.rect(g, x, y, Math.round(w * e), 5, e < .25 ? (Math.floor(t * 6) % 2 ? '#ff3a3a' : '#ffd040') : '#3ae0ff');
+      E.font.text(g, E.t('zero.kmh', { n: Math.round(me.car.speed * 1.6) }), x + w + 6, y - 2, '#ffffff', { shadow: '#000', outline: false });
+      if (me.lap >= 2 && me.energy > 30) E.font.text(g, E.t('zero.boost', { key: game.input.label('boost') }), x, y - E.font.lineHeight() - 2, '#ffe060', { shadow: '#000', outline: false });
+    });
+    if (players.length < 2 && mode === 'results') board(r);
+  }
+  // the city's towers within sight of a camera: dark blocks with lit windows
+  function towersOf(c) {
+    const fx = Math.cos(c.angle), fy = Math.sin(c.angle);
+    for (const b of city.towers) { const d = (b.x - c.x) * fx + (b.y - c.y) * fy; if (d > 30 && d < 1500) city.m7.add(b.x, b.y, 0, (g, sx, sy, k) => { const w = b.w * k, h = b.h * k; if (w < 1) return; px.rect(g, sx - w / 2, sy - h, w, h, b.c); if (w > 6) for (let yy = 0; yy < 12; yy++) for (let xx = 0; xx < 3; xx++) if ((b.seed * 7 + yy * 3 + xx) % 4) px.rect(g, sx - w / 2 + w * (.12 + xx * .3), sy - h + h * (.05 + yy * .078), Math.max(1, w * .16), Math.max(1, h * .035), '#ffd870'); }); }
+  }
+  // the ribbon near a camera: each segment's surface, its rails (neon), a pillar every fourth, the start line
+  function ribbonFor(c) {
+    const S = sky.segs, n = S.length, fx = Math.cos(c.angle), fy = Math.sin(c.angle);
+    for (let k = 0; k < n; k++) {
+      const a = S[k], b = S[(k + 1) % n], d = (a.x - c.x) * fx + (a.y - c.y) * fy; if (d < -160 || Math.hypot(a.x - c.x, a.y - c.y) > 2800) continue;
+      sky.m7.quad([a.L, a.R, b.R, b.L], k === 0 ? '#f0f0f0' : a.s > RPIT[0] && a.s < RPIT[1] ? (k % 2 ? '#2a8a6a' : '#34a07a') : k % 2 ? '#4a4f72' : '#42476a');
+      if (k % 2) sky.m7.quad([[(a.L[0] + a.R[0]) / 2 - (a.R[0] - a.L[0]) * .02, (a.L[1] + a.R[1]) / 2 - (a.R[1] - a.L[1]) * .02, (a.L[2] + a.R[2]) / 2 + .5], [(a.L[0] + a.R[0]) / 2 + (a.R[0] - a.L[0]) * .02, (a.L[1] + a.R[1]) / 2 + (a.R[1] - a.L[1]) * .02, (a.L[2] + a.R[2]) / 2 + .5], [(b.L[0] + b.R[0]) / 2, (b.L[1] + b.R[1]) / 2, (b.L[2] + b.R[2]) / 2 + .5]], '#e8e8f0');
+      for (const [e1, e2, col] of [[a.L, b.L, '#ff3ab0'], [a.R, b.R, '#3ae0ff']]) sky.m7.quad([e1, e2, [e2[0], e2[1], e2[2] + 9], [e1[0], e1[1], e1[2] + 9]], col);
+      if (k % 4 === 0 && d > 90) for (const off of [-.5, .5]) { const ux = (a.R[0] - a.L[0]) / (2 * HW) * 10, uy = (a.R[1] - a.L[1]) / (2 * HW) * 10, x = a.x + (a.R[0] - a.x) * off, y = a.y + (a.R[1] - a.y) * off; sky.m7.quad([[x - ux, y - uy, 0], [x + ux, y + uy, 0], [x + ux, y + uy, a.z - 4], [x - ux, y - uy, a.z - 4]], '#8a8478', null, -1); }   // (pillars first: the track over them covers them)
+    }
+  }
+  // the results: every machine's place and time, and the Grand Prix's points
+  function board(r) {
+    const W = r.W, H = r.H;
+    r.overlay(g => {
+      const w = 200, rows = race.racers.slice().sort((a, b) => a.place - b.place), h = 18 + rows.length * 11, x = Math.round((W - w) / 2), y = Math.round(H / 2 - h / 2 - 24);
+      E.ui.box(g, x, y, w, h, { bg: '#10142a', border: '#a8f0ff' });
+      rows.forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? Math.floor(R.time / 60) + "'" + (R.time % 60).toFixed(2).padStart(5, '0') : '--'; E.font.text(g, E.t('zero.row', { place: R.place, name: R.name }), x + 8, yy, players.includes(R) ? '#ffe04a' : '#e8e8f0', { outline: false }); E.font.text(g, (G && G.gp ? G.pts[R.ci] + ' ' : '') + fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
+    });
+    after.y = Math.round(H / 2) + 50; after.draw(r);
+  }
+
+  /** the bot (tools/kits-test.mjs): the Grand Prix with every machine driven by its driver (yours too): both tracks to
+   *  the end; then four players in a split screen on the city, the gas held a while */
+  function bot(s = 1) {
+    const was = Math.random; Math.random = E.rng(s);
+    try {
+      game.go('zero', null, { fade: 0 }); game.advance(1 / 120); auto = true; const out = {};
+      G = { gp: true, pts: CAST.map(() => 0) };
+      for (const tr of ['city', 'sky']) { go(tr); let n = 0, stuck = 0; for (; n < 220 && !race.over; n++) { game.advance(1); for (const R of race.racers) stuck = Math.max(stuck, R._stuck || 0); } out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +stuck.toFixed(2), energy: race.racers.map(R => Math.round(R.energy)) }; if (race.over) finish(); }
+      out.points = G.pts.slice(); auto = false;
+      while (game.players.length < 4) game.addPlayer({ keys: game.players.length === 1 ? 'right' : undefined });
+      G = { vs: true, pts: CAST.map(() => 0) }; go('city', true); for (const P of game.players) P.hold('gas'); game.advance(8); for (const P of game.players) P.hold('gas', false);
+      out.vs = { viewports: game.viewports.length, prog: players.map(R => Math.round(R.prog)) };
+      toMenu(); while (game.players.length > 1) game.removePlayer(game.players.length);
+      return Object.assign(out, { errors: game.errors.length });
+    } finally { Math.random = was; auto = false; }
+  }
+
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['boost'], camera: { zoom: false },
+    enter(d) {
+      mode = 'menu'; race = null; menu.i = 0; auto = false; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; game.allowJoin({ max: 4 }); A.music('title');
+      if (d && d.part) { if (d.part === 'vs') versus(); else { G = { gp: d.part === 'gp', pts: CAST.map(() => 0) }; go(d.part === 'sky' ? 'sky' : 'city'); } }
+    },
+    exit() { game.splitScreen(0); game.allowJoin(false); },
+    back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
+    update, draw, bot, hud: r => { if (players.length > 1 && mode === 'results') board(r); },
+    /** a race driven by the autopilot (a demo; the bot's): 'city' or 'sky' */
+    demo(tr) { auto = true; G = { gp: false, pts: CAST.map(() => 0) }; go(tr === 'sky' ? 'sky' : 'city'); },
+    state: () => race && { mode, track, t: +race.t.toFixed(2), you: players[0] && { x: Math.round(players[0].car.x), y: Math.round(players[0].car.y), z: Math.round(players[0].car.z), angle: +players[0].car.angle.toFixed(3), speed: Math.round(players[0].car.speed), energy: Math.round(players[0].energy), lap: players[0].lap, place: players[0].place, auto: players[0].car.o.auto }, racers: race.racers.map(R => ({ name: R.name, lap: R.lap, place: R.place, z: Math.round(R.car.z) })), viewports: game.viewports.length },
+    race: () => race,   // (for tests)
+    /** the proof: the city race, the gas held, a boost tried, a turn into the first bend */
+    run: (n = 600) => proof('zero', n, (i, k) => {
+      if (i === 2) { G = { gp: false, pts: CAST.map(() => 0) }; go('city'); }
+      if (i === 380) k.hold('gas');
+      if (i === 520) { k.hold('right'); k.tap('boost'); }
+      if (i === 580) k.up('right');
+    }, () => race ? race.racers.map(R => [R.car.x, R.car.y, R.car.angle, R.prog, R.energy]) : null, () => { game.input.lastDevice = 'keyboard'; }) };
+})();
+scenes.zero = ZERO;
 
 /* =====================================================================================
  * SLICE 22  SPORTS  (Sensible Soccer, NBA Jam, Tecmo Bowl).

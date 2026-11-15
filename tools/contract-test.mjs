@@ -920,6 +920,9 @@ function views(E, ed) {
       const d = pm.project(128, 100, 10), w = pm.project(100, 160, 15); out = [d && pm.pick(d[0], d[1]), w && pm.pick(w[0], w[1]), pm.pick(2, 2)]; return out; };
     const s0 = shot(0), s1 = shot(30);
     check(`${ed}: views: mode7: pick finds a target's box under a point, a quad in front blocks (target null), the sky nothing; rolled the same`, [s0, s1].every(s => s[0] && s[0].target === 'deer' && s[1] && s[1].target === null && s[2] === null), JSON.stringify([s0, s1]));
+    const order = [], og = new E.Game({ headless: true, draw: true, res: [320, 180] }), om = new E.Mode7({ floor: () => [40, 90, 40], size: [256, 256] });   // (what a layer does: ZERO's pillars)
+    og.start({ update() {}, draw(r) { order.length = 0; om.add(128, 160, 0, () => order.push('near')); om.add(128, 40, 0, () => order.push('far')); om.add(128, 100, 0, () => order.push('under'), null, true, -1); om.draw(r, { x: 128, y: 230, h: 20, angle: -Math.PI / 2, pitch: 6, fov: 70 }); } }); og.advance(.05);
+    check(`${ed}: views: mode7: a lower layer is drawn first, wherever it stands (the pillars under a raised track); then far to near`, order.join() === 'under,far,near', order.join());
   }
   // the road
   const road = new E.Road({ segment: 200 }); road.add(30).add(60, { curve: 4, hill: 3000 }).add(30, { tunnel: true });
@@ -1070,6 +1073,12 @@ function drive(E, ed) {
   const back = lapRace.add(new E.Car({ x: path.at(L / 2).x, y: path.at(L / 2).y, angle: path.at(L / 2).angle + Math.PI }), { input: { move: () => [0, 0], down: a2 => a2 === 'gas', pressed: () => false } });
   for (let i = 0; i < 160; i++) lapRace.update(1 / 120, oval);
   check(`${ed}: drive: race: driving against the line says WRONG WAY`, back.wrong && !hand.wrong);
+  // a track that passes over itself (ZERO's ribbon): with heights, a car's place is the nearest point in 3D, the upper
+  // pass or the lower; without, the plan can't tell them apart
+  const fig = []; for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; fig.push([400 + 300 * Math.sin(a), 400 + 150 * Math.sin(2 * a), 100 + 80 * Math.cos(a)]); }
+  const rib = new E.Path(fig, { closed: true, smooth: 'catmull' }), RL = rib.length, at3 = z => new E.Race({ path: rib, heights: true }).add(Object.assign(new E.Car({ x: 400, y: 400, angle: 0 }), { z }))._d;
+  const up = at3(180), down = at3(20), near = (d, to) => Math.min(Math.abs(d - to), RL - Math.abs(d - to));
+  check(`${ed}: drive: race: heights: where the track passes over itself, a car up on the upper pass is placed on it, a car below on the lower`, near(up, 0) < 30 && near(down, RL / 2) < 30, [up, down, RL].map(Math.round).join());
   // six drivers, three laps
   const race = new E.Race({ path, laps: 3 }), was = Math.random; Math.random = E.rng(3);
   try {
