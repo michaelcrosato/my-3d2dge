@@ -121,7 +121,7 @@ class Road {
       const C = this._cam = { x: (v.x || 0) * o.width, y: (v.h === undefined ? o.height : v.h) + this.yAt(z), z, cx: vp.x + W / 2, cy: vp.y + H / 2, hw: W / 2, hh: o.square ? W / 2 : H / 2, pct, bend: [] };   // (square: one focal length)
       const out = this._out && this._out.width === W && this._out.height === H ? this._out : (this._out = E.mkCanvas(W, H)), cg = E.ctx2d(out);
       cg.setTransform(1, 0, 0, 1, -vp.x, -vp.y);
-      if (o.sky && o.sky.draw) { const val = value => ({ value }); o.sky.draw(Object.create(r, { ctx: val(cg), bw: val(W), bh: val(H), W: val(W), H: val(H), ix: val(v.turn || 0), iy: val(0) })); }
+      if (o.sky && o.sky.draw) { const val = value => ({ value }); cg.setTransform(1, 0, 0, 1, 0, 0); o.sky.draw(Object.create(r, { ctx: val(cg), bw: val(W), bh: val(H), W: val(W), H: val(H), ix: val(v.turn || 0), iy: val(0) })); cg.setTransform(1, 0, 0, 1, -vp.x, -vp.y); }   // (a Backdrop draws from the canvas's own corner: in a split screen's lower half too)
       else E.px.rect(cg, vp.x, vp.y, W, H, o.sky || '#6aa8e8');
       // near to far: each segment projected, bending as the curves add up; it shows only above the last one shown (a
       // crest hides the road past it)
