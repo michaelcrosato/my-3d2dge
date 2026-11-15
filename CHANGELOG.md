@@ -13,7 +13,7 @@ Anti-gravity racing in Mode 7: the ZERO kit (F-Zero, F-Zero X, Power Drift; Stre
 - **Engine**: the drive module's `E.Race({ heights: true })`: a car's place on the racing line is the nearest point in 3D, so a track that passes over itself keeps its laps; the item box is drawn only in a race with items.
 - **Rendering**: the mode7 module's `m7.quad(pts, color, target, layer)`: a lower layer is drawn first (the pillars under a raised track); quads and models sort by their depth from the camera, so a ribbon's stretches stack right where it climbs over itself.
 - **Tools**: the kits test and the phone test cover ZERO (both tracks finished by six drivers, four players split; BOOST thumb-sized, the gas by itself, the stick steering); the Labs page has its tile and a To check card.
-- **Docs**: ZERO in the README, the API card's racing row and module rows, `AI_GUIDE.md` (Anti-gravity racing), the review handoff (28 cards); D92: ZERO's budget of its own (222,000 tokens).
+- **Docs**: ZERO in the README, the API card's racing row and module rows, `AI_GUIDE.md` (Anti-gravity racing; the rest of the Mode 7 and pseudo-3D family, each on its closest kit: split screens, battle mode, Road Rash, rails, a floor that turns, Blue Sphere's planet, Sonic 2's half-pipe), the review handoff (28 cards); D92: ZERO's budget of its own (222,000 tokens).
 
 ## 0.97.0 (2026-11-15)
 
