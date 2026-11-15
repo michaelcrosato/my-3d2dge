@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.95.0)
+# my-3D2dge API index (v0.96.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -116,7 +116,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.95.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.96.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1568,7 +1568,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `mode7.drawSky(g, r, vp)`: the sky above the horizon: a Backdrop turned with the heading, or a gradient of two colors
 - `mode7.fullRes(game, on)`: draw at the screen's own pixels (on, called each step: sharper, slower) or the game's again (off); returns the pixel size the game had (1 when it had no other)
 - `mode7.mesh(model, x, y, z = 0, o = {})`: gather a model (the mesh module's E.Mesh, or any { draw(g, project, o) }) at (x, y, z), drawn through this camera: o as its draw takes (yaw, pitch, roll, scale, colors), o.target (m7.pick finds it by the box it was drawn in)
-- `mode7.pick(sx, sy)`: what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null
+- `mode7.pick(sx, sy, list)`: what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null; with a list ([{ x, y, z, w, h, target }]: boxes w x h world units over those feet), those boxes through the camera begun, nothing drawn (gameplay that replays: m7.begin(rect, cam) in update first)
 - `mode7.project(x, y, z = 0)`: a world point -> [screen x, screen y, screen pixels per unit there], or null at or behind the camera (or past a globe's edge)
 - `mode7.quad(pts, color, target = null)`: gather a flat polygon in the world ([[x, y, z], ...]: a wall, a fence, a sign), sorted with the billboards by its middle's distance; target: m7.pick finds it (null: it only blocks what is behind it)
 - `mode7.refresh()`: forget the floor's baked texture (after changing the map or the function: it bakes again)

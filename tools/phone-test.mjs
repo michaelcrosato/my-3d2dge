@@ -22,6 +22,7 @@
 //      the stick and a tap on LP throw a fireball
 //  12. metroidvania: three thumb-sized buttons (JUMP, FIRE, MAP; DASH once found); the stick walks the hero and aims
 //  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers
+//  13c. blaster: the jet's MISSILE and ROLL thumb-sized; the stick banks it; in the valley a tap shoots where it lands
 //  13b. sky: GAS and SLOW thumb-sized in the plane (ACT only where it acts: the chute, a landing); the stick banks the
 //      plane and it turns; GAS opens the throttle
 //  15. rpg's journey: its windows' rows a thumb's height; a tap on New game starts it; the stick walks the party; MENU
@@ -108,7 +109,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'sky', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
+for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'sky', 'blaster', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -538,6 +539,25 @@ if (want('sky')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `sky-${label.replace(/ /g, '-')}.png`) });
     check(`sky ${label}: GAS and SLOW, each a thumb's size`, acts === 'gas,slow' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`sky ${label}: the stick held right banks the plane right and turns it; GAS opens the throttle`, s1.roll > .3 && E_turn(s0.yaw, s1.yaw) > .1 && s2.thr > s1.thr + .2 && !errors.length, `roll ${s1.roll}, turned ${E_turn(s0.yaw, s1.yaw).toFixed(2)}, throttle ${s1.thr} -> ${s2.thr}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 13c. blaster: the jet's buttons and the stick; a tap's shot in the valley */
+if (want('blaster')) {
+  console.log('blaster: MISSILE and ROLL, thumb-sized; the stick banks the jet; a tap in the valley shoots where it lands');
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, cdp, errors } = await open('blaster', vp, 'blaster/burner'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(2600);
+    const st = () => ev(page, () => window.__game.scenes.blaster.state());
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height }; }));
+    const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
+    const sx = vp.width * .2, sy = vp.height * .75;
+    await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+    await ev(page, () => window.__game.game.go('blaster', { part: 'safari' }, { fade: 0 })); await wait(2600); const v0 = await st();
+    await page.touchscreen.tap(vp.width * .6, vp.height * .45); await wait(400); const v1 = await st();
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `blaster-${label.replace(/ /g, '-')}.png`) });
+    check(`blaster ${label}: MISSILE and ROLL, each a thumb's size`, acts === 'missile,roll' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
+    check(`blaster ${label}: the stick held right banks the jet; a tap in the valley moves the cursor there and shoots`, s1.hero[3] > .3 && v1.hero[1] !== v0.hero[1] && v1.shots >= 0 && !errors.length, `roll ${s1.hero[3]}, cursor ${v0.hero[1]} -> ${v1.hero[1]}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }

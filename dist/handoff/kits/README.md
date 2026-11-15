@@ -1,4 +1,4 @@
-# The genre kits (v0.95.0)
+# The genre kits (v0.96.0)
 
 A kit is a complete small game in one genre, written to be copied: its title, play and end, the modules it rests on,
 its sound, touch controls and a phone's screen. The API card's Genre playbook (`API.md`) names a kit for each genre (its
@@ -33,6 +33,7 @@ game, as its header says. Its test: copy `kits/test.mjs`'s three stand-ins (`win
 | PLATFORMER | [platformer.js](platformer.js), [platformer.html](platformer.html) | a side-scroller: a night approach to a castle in five zones, a sword, a dash, candles, a 2.5D view; Castlevania, Mega Man X, Klonoa | none | #platformer |
 | METROIDVANIA | [metroidvania.js](metroidvania.js), [metroidvania.html](metroidvania.html) | a world of rooms: its map, two abilities that open its gates, a save room, two bosses | rooms | #metroidvania, #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map |
 | SHOOTER | [shooter.js](shooter.js), [shooter.html](shooter.html) | a vertical shoot-'em-up stage, then a horizontal one: waves, power-ups, bosses; 1943 and Raiden, then Gradius and R-Type | arcade | #shooter, #shooter/horizontal |
+| BLASTER | [blaster.js](blaster.js), [blaster.html](blaster.html) | shooters into the screen: a jet-pack hero over a checkered plain, a jet that rolls the horizon and locks on, a first-person ride with a cursor; three bosses | mode7, mesh | #blaster, #blaster/harrier, #blaster/burner, #blaster/safari |
 | ARCADE | [arcade.js](arcade.js), [arcade.html](arcade.html) | a cabinet of three: maze, formation, rocks | arcade, grid, gen | #arcade, #arcade/maze, #arcade/formation, #arcade/rocks |
 | PINBALL | [pinball.js](pinball.js), [pinball.html](pinball.html) | one table: flippers, bumpers, a ramp, drop targets, a spinner, a kickback, a mission, multiball, tilt, a dot-matrix display | physics, arcade | #pinball |
 | ARTILLERY | [artillery.js](artillery.js), [artillery.html](artillery.html) | two teams of three on an island every blast carves: turns, aim and power, wind, a rocket, a bouncing grenade, a cluster bomb, falls and the sea, a CPU that tries its shots in simulation | physics, terrain, grid | #artillery, #artillery/cpu |
