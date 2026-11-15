@@ -1,0 +1,39 @@
+{
+ "lines": {
+  "zero.title": "ZERO",
+  "zero.menu.gp": "GRAND PRIX",
+  "zero.menu.city": "NEON CITY",
+  "zero.menu.sky": "SKY RIBBON",
+  "zero.menu.vs": "VS (2-4 PLAYERS)",
+  "zero.menu.back": "BACK",
+  "zero.menu.next": "RACE ON",
+  "zero.menu.menu": "MENU",
+  "zero.join": "PLAYERS 2-4: PRESS START ON A PAD (2 ON THE KEYBOARD)",
+  "zero.kmh": "{n} KM/H",
+  "zero.boost": "{key}: BOOST",
+  "zero.row": "{place}. {name}",
+  "zero.name.flare": "FLARE",
+  "zero.name.vex": "VEX",
+  "zero.name.moss": "MOSS",
+  "zero.name.halo": "HALO",
+  "zero.name.drift": "DRIFT",
+  "zero.name.ash": "ASH",
+  "action.gas": "Gas",
+  "action.brake": "Brake",
+  "action.boost": "Boost"
+ },
+ "notes": {
+  "zero.title": "The anti-gravity racer's title, on its menu.",
+  "zero.menu.gp": "A mode: both tracks in a row, points for each place.",
+  "zero.menu.city": "A track: a circuit through a city at night (a single race).",
+  "zero.menu.sky": "A track: a ribbon raised in the air over a desert (a single race).",
+  "zero.menu.vs": "A mode: two to four players in a split screen.",
+  "zero.menu.next": "After a race: the next race (or the same again).",
+  "zero.join": "Waiting for more players: each presses Start on a game pad, or 2 on the keyboard.",
+  "zero.kmh": "The speed, {n} kilometres an hour.",
+  "zero.boost": "{key} is the key or button that spends energy for a burst of speed.",
+  "zero.row": "A row of the results: {place} is the place, {name} the pilot's name.",
+  "zero.name.flare": "A pilot's name.",
+  "action.boost": "A control's name, and its touch button: a burst of speed that costs energy."
+ }
+}

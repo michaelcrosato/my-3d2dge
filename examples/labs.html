@@ -187,6 +187,14 @@ const LABS = {
           "links": [["The bike", "#road/bike"], ["The chase", "#road/chase"]]
         },
         {
+          "page": "dist/kits/my-3d2dge-zero.html",
+          "at": "#zero",
+          "title": "Zero: does it feel like F-Zero and Power Drift?",
+          "what": "GRAND PRIX runs both tracks for points. NEON CITY: up or Z the gas, down or X the brake, left and right steer; the barriers drain your energy (the bar at the bottom), the green pit lane on the start straight fills it, the yellow dash plates fling you; from the second lap Space spends energy on a boost. SKY RIBBON: the same on a track raised over a desert on pillars, banking in the bends and passing over itself; its pit is the green stretch. VS: two to four players in a split screen (player 2 presses 2, or Start on a pad). Added with v0.98.0.",
+          "look": "Is it fast and slick, the machines hovering, the barriers worth fearing? Does the energy-and-boost trade feel like F-Zero's? Does the ribbon feel raised, the climb and the drop, the pass over and under itself like Power Drift? Is four players in a split screen playable? On your phone: it drives itself forward; the stick steers; BOOST.",
+          "links": [["Sky ribbon", "#zero/sky"], ["VS", "#zero/vs"]]
+        },
+        {
           "page": "dist/kits/my-3d2dge-sky.html",
           "at": "#sky",
           "title": "Sky: does it feel like Pilotwings and Final Fantasy's airship?",
@@ -441,6 +449,12 @@ const LABS = {
           "links": [["Car", "#road/car"], ["Bike", "#road/bike"], ["Chase", "#road/chase"]]
         },
         {
+          "page": "dist/kits/my-3d2dge-zero.html",
+          "title": "Zero",
+          "what": "Anti-gravity racing in Mode 7 (F-Zero, F-Zero X, Power Drift): six machines on a night city circuit (energy, barriers, dash plates, a pit) and on a ribbon raised on pillars that climbs, banks and crosses itself; a Grand Prix; two to four players in a split screen.",
+          "links": [["Grand Prix", "#zero/gp"], ["City", "#zero/city"], ["Ribbon", "#zero/sky"], ["VS", "#zero/vs"]]
+        },
+        {
           "page": "dist/kits/my-3d2dge-sky.html",
           "title": "Sky",
           "what": "Mode 7 flight (Pilotwings, Final Fantasy VI's airship): a light plane through ten rings and onto a runway, a skydive through hoops onto a target, an airship over a world that curves away below it; the camera pitched and rolled with the plane, the craft low-poly models.",
@@ -691,7 +705,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = target('emberdeep', '');
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was built from (dev-build in the repository; tools/stamp.mjs fills in a commit for a copy)
-el('div', 'ver', 'my-3D2dge v0.97.0 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.98.0 · dev-build', foot);
 })();
 </script>
 

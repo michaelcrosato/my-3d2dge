@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.97.0)
+# my-3D2dge API index (v0.98.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -117,7 +117,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.97.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.98.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1561,7 +1561,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 ## Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js)
 
 - `new E.Mode7(o = {}) → mode7`: new E.Mode7({ floor, size, texel, outside, wrap, sky, fog, far, curve }): a Mode 7 view (the manual above)
-- `mode7.add(x, y, z, fn, hit)`: gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit; hit: { target, w, h } gives m7.pick its box (w x h world units over its foot)
+- `mode7.add(x, y, z, fn, hit, deep, layer)`: gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit; hit: { target, w, h } gives m7.pick its box (w x h world units over its foot); deep: sorted by its depth from the camera (models and quads are: one under another sorts behind it), else by its distance ahead on the floor
 - `mode7.begin(rect = {}, cam = this.cam)`: set up the projection for a camera (default this.cam) and a rectangle of the screen ({ W, H, x, y, cx, cy }: its size, its top left and its centre; focal: screen pixels per unit at a distance of one, instead of the fov)
 - `mode7.chase(b, o = {})`: the camera behind a body each step: back units behind it, h high, looking along its angle (o.angle to set one)
 - `mode7.draw(r, cam = this.cam)`: draw the view as an overlay over r's frame (in a split screen, r.viewport's part): sky, floor, fog, then the billboards far to near (gathered with add, rig, sprite, mesh, quad; they are used up)
@@ -1571,7 +1571,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `mode7.mesh(model, x, y, z = 0, o = {})`: gather a model (the mesh module's E.Mesh, or any { draw(g, project, o) }) at (x, y, z), drawn through this camera: o as its draw takes (yaw, pitch, roll, scale, colors), o.target (m7.pick finds it by the box it was drawn in)
 - `mode7.pick(sx, sy, list)`: what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null; with a list ([{ x, y, z, w, h, target }]: boxes w x h world units over those feet), those boxes through the camera begun, nothing drawn (gameplay that replays: m7.begin(rect, cam) in update first)
 - `mode7.project(x, y, z = 0)`: a world point -> [screen x, screen y, screen pixels per unit there], or null at or behind the camera (or past a globe's edge)
-- `mode7.quad(pts, color, target = null)`: gather a flat polygon in the world ([[x, y, z], ...]: a wall, a fence, a sign), sorted with the billboards by its middle's distance; target: m7.pick finds it (null: it only blocks what is behind it)
+- `mode7.quad(pts, color, target = null, layer = 0)`: gather a flat polygon in the world ([[x, y, z], ...]: a wall, a fence, a sign), sorted with the billboards by its middle's depth (one lying flat, a floor or a track, by its far edge: what stands on it draws over it); target: m7.pick finds it (null: it only blocks what is behind it); layer -1: drawn before the rest (a pillar under a raised track, which no sort by depth keeps behind it)
 - `mode7.refresh()`: forget the floor's baked texture (after changing the map or the function: it bakes again)
 - `mode7.rig(rig, x, y, z = 0)`: gather a rig, drawn by the engine at the size its distance gives, from the camera's side (it faces rig.facing)
 - `mode7.rowDepth(sy)`: a screen row's floor distance ahead of the camera, or 0 at or above the horizon (a flat floor, unrolled)
