@@ -1,6 +1,6 @@
 /* =====================================================================================
  * SLICE 24  BLASTER  (Space Harrier, After Burner, Yoshi's Safari / Battle Clash). @modules mode7 mesh
- * Shooters into the screen, three stages in a row (or one picked on the menu). HARRIER: a hero with a jet pack over a
+ * Shooters into the screen, four stages in a row (or one picked on the menu). HARRIER: a hero with a jet pack over a
  * checkered plain, anywhere on the screen, firing into it at saucers and jets; columns to dodge; a serpent at the end.
  * BURNER: a jet over the sea, the horizon tilting as it banks: its cannon, missiles at what the reticle has locked, a
  * barrel roll that shakes off missiles; a bomber at the end. SAFARI: first person on rails through a valley, a cursor
@@ -8,7 +8,7 @@
  * ZONE (HyperZone, Super Star Wars' speeders): a craft along a winding course over a neon grid, the camera banking
  * into its bends: pods to shoot, mines on the course to steer round, the gate at its end.
  * Three lives, a score and a best. Deep links: #blaster/harrier, #blaster/burner, #blaster/safari, #blaster/zone.
- * KEYS: the arrows (the hero, the jet: down climbs; the cursor), J / Z / Space or a click fire, K / X the missiles,
+ * KEYS: the arrows (the hero, the jet: up climbs; the cursor), J / Z / Space or a click fire, K / X the missiles,
  * L / C / Shift the barrel roll. A pad: the stick, A fire, X missiles, B the roll. TOUCH: the stick, and it fires by
  * itself; MISSILE and ROLL in the jet; in the safari a tap shoots where it lands.
  * HOW IT WORKS: E.Mode7 (the mode7 module): the plain, the sea and the valley, the camera rolled with the jet, m7.pick
@@ -65,22 +65,25 @@ const BLASTER = (() => {
   const menu = new E.Menu(game, [E.t('blaster.menu.start'), E.t('blaster.stage.harrier'), E.t('blaster.stage.burner'), E.t('blaster.stage.safari'), E.t('blaster.stage.zone'), E.t('blaster.menu.back')], { onPick: i => i === 5 ? game.go('title') : begin(i ? i - 1 : 0, i > 0) });
   const after = new E.Menu(game, [E.t('blaster.menu.again'), E.t('blaster.menu.menu')], { onPick: i => i === 0 ? begin(R.first, R.one) : toMenu() });
   function toMenu() { mode = 'menu'; R = null; A.music('title'); }
-  /** a run from a stage (one: that stage alone) */
-  function begin(i, one) { floors(); R = { first: i, one, stage: -1, score: 0, lives: 3, hits: 0, best: 0 }; next(i); }
+  /** a run from a stage (one: that stage alone); a game of one: players who joined elsewhere (a split screen) leave, and
+   *  player 1 has the whole keyboard again */
+  function begin(i, one) { while (game.players.length > 1) game.removePlayer(game.players.length); floors(); R = { first: i, one, stage: -1, score: 0, lives: 3, hits: 0, best: 0 }; next(i); }
   function next(i) {
-    Object.assign(R, { stage: i, name: STAGES[i], t: 0, phase: 'intro', phaseT: 2, hurt: 0, cool: 0, shots: [], hot: [], foes: [], fx: [], boss: null, waves: 0 });
+    Object.assign(R, { stage: i, name: STAGES[i], t: 0, phase: 'intro', phaseT: 2, hurt: 0, cool: 0, fired: 0, shots: [], hot: [], foes: [], fx: [], boss: null, waves: 0 });
     mode = 'play'; STAGE[STAGES[i]].start(); A.music(i === 2 ? 'adventure' : SONG); game.input.consumeAll();
   }
   const boom = (x, y, z, s = 1) => { R.fx.push({ x, y, z, t: 0, s }); A.sfx('explode', { vol: .5 }); };
   const score = n => { R.score += n; };
   function hurt() {
-    if (R.hurt > 0 || R.phase === 'clear') return;
+    if (R.hurt > 0 || R.phase === 'clear' || R.phase === 'intro') return;   // (the stage card is a grace: the zone's first pods are on you before it ends)
     R.hits++; R.hurt = 2; game.shake(5); game.flash('#ff4040', .15, .5); A.sfx('hurt');
     if (!auto && --R.lives <= 0) { R.phase = 'over'; R.phaseT = 2.5; }
   }
   function clear() { if (R.phase === 'clear') return; R.phase = 'clear'; R.phaseT = 3; A.music('victory'); score(5000); }
-  // the player's controls, or the autopilot's (the bot): { x, y, fire, missile, roll, aim: [sx, sy] }
-  const pad = () => { const I = game.input, [x, y] = I.move(); return { x, y, fire: I.down('fire') || I.lastDevice === 'touch', missile: I.pressed('missile'), roll: I.pressed('roll'), tap: I.clicked && I.clicked() }; };
+  // the player's controls, or the autopilot's (the bot): { x, y, fire, missile, roll, tap: [sx, sy] where a touch tapped }
+  // (a mouse's click is fire, through Mouse0, at the cursor that follows it, even pressed and let go between two steps:
+  // a tap of its own would shoot it twice)
+  const pad = () => { const I = game.input, [x, y] = I.move(); return { x, y, fire: I.down('fire') || I.pressed('fire') || I.lastDevice === 'touch', missile: I.pressed('missile'), roll: I.pressed('roll'), tap: I.lastDevice === 'touch' && I.clicked && I.clicked() }; };
 
   /* ---- THE STAGES ---- */
   const STAGE = {
@@ -90,9 +93,10 @@ const BLASTER = (() => {
       at(s, u, z) { const p = ZONE.at(s); return { x: p.x - Math.sin(p.angle) * u, y: p.y + Math.cos(p.angle) * u, z, a: p.angle }; },
       cam() { const c = this.at(R.s - 170, R.u * .6, 0), a = ZONE.at(R.s).angle, bend = E.angDiff(a, ZONE.at(R.s + 260).angle); return { x: c.x, y: c.y, h: 46 + R.zh * .55, angle: c.a + E.angDiff(c.a, a) * .5, pitch: 6 + R.zh * .02, fov: 70, roll: clamp(bend * 70, -24, 24) + R.steer * -6 }; },
       update(dt, k) {
-        R.s += 760 * dt; R.steer += (k.x - R.steer) * Math.min(1, dt * 8); R.u = clamp(R.u + R.steer * 300 * dt, -150, 150); R.zh = clamp(R.zh - k.y * 220 * dt, 16, 160);
+        R.s = R.phase === 'clear' ? R.s + (ZL - 10 - R.s) * Math.min(1, dt * 2) : R.s + 760 * dt;   // (through the gate, the craft eases to a stop at the course's end: past it the camera would see nothing)
+        R.steer += (k.x - R.steer) * Math.min(1, dt * 8); R.u = clamp(R.u + R.steer * 300 * dt, -150, 150); R.zh = clamp(R.zh - k.y * 220 * dt, 16, 160);
         const me = this.at(R.s, R.u, R.zh);
-        if (k.fire && R.cool <= 0) { R.cool = .11; R.shots.push({ x: me.x, y: me.y, z: me.z + 4, vx: Math.cos(me.a) * 1700, vy: Math.sin(me.a) * 1700, vz: 0, t: 0 }); A.sfx('shoot', { vol: .3 }); }
+        if (k.fire && R.cool <= 0) { R.cool = .11; R.fired++; R.shots.push({ x: me.x, y: me.y, z: me.z + 4, vx: Math.cos(me.a) * 1700, vy: Math.sin(me.a) * 1700, vz: 0, t: 0 }); A.sfx('shoot', { vol: .3 }); }
         while (R.spawn < R.s + 2400 && R.spawn < ZL - 900) {   // what lies ahead, placed along the course: pods in threes, now and then a mine on it
           const n = Math.round(R.spawn / 260), u = Math.sin(n * .9) * 110, mine = n % 4 === 3;
           if (mine) { const q = this.at(R.spawn, -u * .6, 14); R.foes.push({ kind: 'mine', s: R.spawn, u: -u * .6, x: q.x, y: q.y, z: 14, hp: 2, r: 16 }); }
@@ -122,15 +126,17 @@ const BLASTER = (() => {
         const sh = this.at(R.s, R.u, 0); V.add(sh.x, sh.y, 0, (g, sx, sy, k) => { const a = g.globalAlpha; g.globalAlpha = .4; px.ell(g, sx, sy, 30 * k, 9 * k, '#000000'); g.globalAlpha = a; });
       }
     },
-    /** the plain: the hero 150 ahead of the camera, which follows across and up; waves by time, then the serpent */
+    /** the plain: the hero 150 ahead of the camera, which follows across and up (closely enough to keep the hero on the
+     *  screen, its corners too); waves by time, then the serpent */
     harrier: {
       start() { Object.assign(R, { F: 0, hx: 0, hz: 60 }); },
-      cam() { const tall = game.H > game.W; return { x: R.hx * .5, y: R.F + (tall ? 170 : 115), h: 38 + R.hz * .55, angle: -Math.PI / 2, pitch: 5 + R.hz * .012, fov: tall ? 80 : 66 }; },
+      cam() { const tall = game.H > game.W; return { x: R.hx * .8, y: R.F + (tall ? 170 : 115), h: 38 + R.hz * .85, angle: -Math.PI / 2, pitch: 5 + R.hz * .012, fov: tall ? 80 : 66 }; },
       update(dt, k) {
         R.F -= 520 * dt; R.hx = clamp(R.hx + k.x * 330 * dt, -260, 260); R.hz = clamp(R.hz - k.y * 280 * dt, 0, 240);
         HERO.update(dt, { x: 0, y: 0, z: 0, vx: 0, vy: R.hz < 6 ? -150 : 0, facing: -Math.PI / 2, air: R.hz > 6, point: true });
-        if (k.fire && R.cool <= 0) { const aim = R.foes.filter(f => f.y < R.F && R.F - f.y < 1500).sort((a, b) => Math.abs(a.x - R.hx) - Math.abs(b.x - R.hx))[0], dx = aim && Math.abs(aim.x - R.hx) < 90 ? (aim.x - R.hx) / ((R.F - aim.y) / 1500) : 0;
-          R.shots.push({ x: R.hx + 4, y: R.F - 10, z: R.hz + 26, vx: clamp(dx, -260, 260), vy: -1500, vz: 0, t: 0 }); R.cool = .11; A.sfx('shoot', { vol: .3 }); }
+        if (k.fire && R.cool <= 0) {   // (the aim leans to what a shot can hit: a saucer, a jet, the serpent's head; not a column or a bush)
+          const aim = R.foes.filter(f => f.hp > 0 && f.kind !== 'bush').concat(R.boss && R.boss.hp > 0 && R.boss.parts ? [R.boss.parts[0]] : []).filter(f => f.y < R.F && R.F - f.y < 1500).sort((a, b) => Math.abs(a.x - R.hx) - Math.abs(b.x - R.hx))[0], dx = aim && Math.abs(aim.x - R.hx) < 90 ? (aim.x - R.hx) / ((R.F - aim.y) / 1500) : 0;
+          R.shots.push({ x: R.hx + 4, y: R.F - 10, z: R.hz + 26, vx: clamp(dx, -260, 260), vy: -1500, vz: 0, t: 0 }); R.cool = .11; R.fired++; A.sfx('shoot', { vol: .3 }); }
         const T = R.t, W = R.waves, ahead = R.F - 2400;
         const wave = (at, fn) => { if (T >= at && W === wave.n) { fn(); R.waves++; } wave.n++; }; wave.n = 0;
         for (const [at, kind, n] of [[1.5, 'v', 5], [4, 'cols', 8], [7, 'ring', 6], [9, 'jets', 4], [12, 'v', 5], [14, 'cols', 12], [17, 'ring', 8], [20, 'v', 7], [22, 'cols', 8], [24, 'jets', 6]])
@@ -178,17 +184,17 @@ const BLASTER = (() => {
     /** the sea: the jet's heading, bank, height and a barrel roll; bandits ahead and behind; the lock-on; the bomber */
     burner: {
       start() { R.j = { x: 4096, y: 4096, z: 420, yaw: -Math.PI / 2, roll: 0, pitch: 0, spin: 0, speed: 560, missiles: 60 }; R.locks = []; },
-      cam() { const j = R.j, back = 90 * (game.H > game.W ? 1.4 : 1); return { x: j.x - Math.cos(j.yaw) * back, y: j.y - Math.sin(j.yaw) * back, h: j.z + 34 - j.pitch * 40, angle: j.yaw, pitch: 12 + j.pitch * 25, fov: game.H > game.W ? 84 : 68, roll: j.roll * 34 + (j.spin > 0 ? (1 - j.spin / .9) * 360 : 0) }; },
+      cam() { const j = R.j, back = 90 * (game.H > game.W ? 1.4 : 1); return { x: j.x - Math.cos(j.yaw) * back, y: j.y - Math.sin(j.yaw) * back, h: j.z + 34 - j.pitch * 40, angle: j.yaw, pitch: 12 - j.pitch * 25, fov: game.H > game.W ? 84 : 68, roll: j.roll * 34 + (j.spin > 0 ? (1 - j.spin / .9) * 360 : 0) }; },
       update(dt, k) {
         const j = R.j;
         j.roll += (clamp(k.x, -1, 1) * 1.15 - j.roll) * Math.min(1, dt * 3); j.yaw += Math.sin(j.roll) * 1.5 * dt;
         j.pitch += (-clamp(k.y, -1, 1) * .35 - j.pitch) * Math.min(1, dt * 4); j.z = clamp(j.z + j.pitch * 700 * dt, 140, 900);
         if (k.roll && j.spin <= 0) { j.spin = .9; A.sfx('whoosh'); } if (j.spin > 0) j.spin -= dt;
         j.x += Math.cos(j.yaw) * j.speed * dt; j.y += Math.sin(j.yaw) * j.speed * dt;
-        if (k.fire && R.cool <= 0) { const n = JET.at(16, 0, 4, { x: j.x, y: j.y, z: j.z, yaw: j.yaw }); R.shots.push({ x: n[0], y: n[1], z: n[2], vx: Math.cos(j.yaw) * 2600, vy: Math.sin(j.yaw) * 2600, vz: j.pitch * 1200, t: 0 }); R.cool = .07; A.sfx('shoot', { vol: .2 }); }
-        // the lock-on: what stays near the reticle (ahead of the jet, on the screen) a moment is locked, four at most
+        if (k.fire && R.cool <= 0) { const n = JET.at(16, 0, 4, { x: j.x, y: j.y, z: j.z, yaw: j.yaw }); R.shots.push({ x: n[0], y: n[1], z: n[2], vx: Math.cos(j.yaw) * 2600, vy: Math.sin(j.yaw) * 2600, vz: j.pitch * 1200, t: 0 }); R.cool = .07; R.fired++; A.sfx('shoot', { vol: .2 }); }
+        // the lock-on: what stays near the reticle (ahead of the jet, on the screen) a moment is locked, four at most, while a missile is left
         VP.sea.begin({ W: game.W, H: game.H }, this.cam());
-        for (const f of R.foes) if (f.hp > 0 && (f.p = VP.sea.project(f.x, f.y, f.z + 6))) { const near = Math.hypot(f.p[0] - game.W / 2, f.p[1] - game.H * .38) < 60 && f.p[2] > .05; f.lockT = near ? (f.lockT || 0) + dt : 0; if (f.lockT > .25 && !R.locks.includes(f) && R.locks.length < 4) { R.locks.push(f); A.sfx('blip'); } }
+        for (const f of R.foes) if (f.hp > 0 && (f.p = VP.sea.project(f.x, f.y, f.z + 6))) { const near = Math.hypot(f.p[0] - game.W / 2, f.p[1] - game.H * .38) < 60 && f.p[2] > .05; f.lockT = near ? (f.lockT || 0) + dt : 0; if (f.lockT > .25 && !R.locks.includes(f) && R.locks.length < 4 && j.missiles > 0) { R.locks.push(f); A.sfx('blip'); } }
         R.locks = R.locks.filter(f => f.hp > 0);
         if (k.missile && R.locks.length && j.missiles > 0) { for (const f of R.locks.splice(0)) if (j.missiles > 0 && j.missiles--) R.shots.push({ x: j.x, y: j.y, z: j.z - 6, vx: Math.cos(j.yaw) * 700, vy: Math.sin(j.yaw) * 700, vz: 0, t: 0, homing: f, sp: 1100 }); A.sfx('laser'); }
         // the bandits: from ahead (head on, firing) and from behind (overtaking); then the bomber
@@ -236,7 +242,7 @@ const BLASTER = (() => {
         if (ptr && (!R.ptr || ptr[0] !== R.ptr[0] || ptr[1] !== R.ptr[1])) R.cur = ptr.slice(); R.ptr = ptr;
         R.cur = [clamp(R.cur[0] + k.x * 230 * dt, 6, game.W - 6), clamp(R.cur[1] + k.y * 230 * dt, 6, game.H - 6)];
         const shoot = k.tap || (k.fire && R.cool <= 0 && !(I.lastDevice === 'touch' && !auto)); if (k.tap) R.cur = k.tap.slice();
-        if (shoot) { R.cool = .22; A.sfx('shoot', { vol: .4 }); R.flash = .06; VP.vale.begin({ W: game.W, H: game.H }, this.cam()); const h = VP.vale.pick(R.cur[0], R.cur[1], targets()), f = h && h.target;
+        if (shoot) { R.cool = .22; R.fired++; A.sfx('shoot', { vol: .4 }); R.flash = .06; VP.vale.begin({ W: game.W, H: game.H }, this.cam()); const h = VP.vale.pick(R.cur[0], R.cur[1], targets()), f = h && h.target;
           if (f && f.hp > 0) { f.hp--; if (f.hp <= 0) { boom(f.x, f.y, f.z + 12, f.weak ? 1.6 : 1); score(f.weak ? 3000 : f.kind === 'shell' ? 200 : 500); } else A.sfx('hit', { vol: .4 }); } }
         if (R.flash > 0) R.flash -= dt;
         if (!R.boss) { R.s = Math.min(RAIL.length - 40, R.s + 150 * dt); if (R.s >= RAIL.length - 40) { const p = RAIL.at(RAIL.length), ap = p.angle; R.boss = { x: p.x + Math.cos(ap) * 230, y: p.y + Math.sin(ap) * 230, t: 0 };
@@ -254,7 +260,7 @@ const BLASTER = (() => {
           if (f.kind === 'shell') { f.t += dt; const u = f.t / 1.6; f.x = f.x0 + (c.x - f.x0) * u; f.y = f.y0 + (c.y - f.y0) * u; f.z = 70 + Math.sin(u * Math.PI) * 50 - u * 50; if (u >= 1) { f.hp = 0; hurt(); } }
         }
         const B = R.boss;
-        if (B) {   // the walker: two arm cannons, then its core; it stamps closer and fires shells you can shoot down
+        if (B) {   // the walker: two arm cannons, then its core; it stamps in place and fires shells you can shoot down
           B.t += dt; const a = Math.atan2(c.y - B.y, c.x - B.x), arms = B.parts.filter(p => p.kind === 'arm' && p.hp > 0); B.yaw = a;
           for (const p of B.parts) { const at = WALKER.at(p.kind === 'core' ? 22 : 8, p.kind === 'core' ? 0 : p.side * 40, p.kind === 'core' ? 74 : 68, { x: B.x, y: B.y, yaw: a }); p.x = at[0]; p.y = at[1]; p.z = at[2]; }
           B.parts[2].shield = arms.length > 0;
@@ -368,7 +374,7 @@ const BLASTER = (() => {
         px.rect(g, cx - 14, cy - 1, 9, 2, '#80ff90'); px.rect(g, cx + 6, cy - 1, 9, 2, '#80ff90'); px.rect(g, cx - 1, cy - 14, 2, 9, '#80ff90'); px.rect(g, cx - 1, cy + 6, 2, 9, '#80ff90');
         for (const f of R.locks) { const p = VP.sea.project(f.x, f.y, f.z + 6); if (p) { const s = 10; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { px.rect(g, p[0] + a * s - (a > 0 ? 4 : 0), p[1] + b * s, 5, 1, '#ff4040'); px.rect(g, p[0] + a * s, p[1] + b * s - (b > 0 ? 4 : 0), 1, 5, '#ff4040'); } } }
         txt(E.t('blaster.missiles', { n: j.missiles }), 6, 10 + lh * 2, '#ffffff');
-        if (R.locks.length) txt(E.t('blaster.lock', { n: R.locks.length, key: game.input.label('missile') }), cx, cy + 20, '#ff6060', { align: 'center' });
+        if (R.locks.length && j.missiles > 0) txt(E.t('blaster.lock', { n: R.locks.length, key: game.input.label('missile') }), cx, cy + 20, '#ff6060', { align: 'center' });
       }
       if (R.name === 'safari') {   // the cursor: a ring and a cross
         const [cx, cy] = R.cur, c = R.flash > 0 ? '#ffffff' : '#ff3a3a';
@@ -378,7 +384,7 @@ const BLASTER = (() => {
       const B = R.boss, hp = B && (R.name === 'safari' ? (B.parts ? B.parts.reduce((a, p) => a + Math.max(0, p.hp), 0) / 22 : 0) : Math.max(0, B.hp) / B.max);
       if (B && hp > 0) { const w = Math.min(160, W - 80), x = Math.round((W - w) / 2), y = H - 14; px.rect(g, x - 1, y - 1, w + 2, 6, '#100818'); px.rect(g, x, y, Math.round(w * hp), 4, '#ff4a4a'); txt(E.t('blaster.boss'), W / 2, y - lh - 2, '#ffd0d0', { align: 'center' }); }
       if (R.phase === 'intro') txt(E.t('blaster.stage.' + R.name), W / 2, Math.round(H * .3), '#ffffff', { align: 'center', scale: 2 });
-      if (R.phase === 'clear') txt(E.t('blaster.clear'), W / 2, Math.round(H * .3), '#ffe890', { align: 'center', scale: 2 });
+      if (R.phase === 'clear' && mode === 'play') txt(E.t('blaster.clear'), W / 2, Math.round(H * .3), '#ffe890', { align: 'center', scale: 2 });
       if (R.phase === 'over' || mode === 'results') txt(E.t(R.won ? 'blaster.won' : 'blaster.over'), W / 2, Math.round(H * .26), R.won ? '#ffe890' : '#ff8080', { align: 'center', scale: 2 });
       if (mode === 'results') { txt(E.t('blaster.final', { n: R.score }), W / 2, Math.round(H * .26) + lh * 2 + 4, '#ffffff', { align: 'center' }); txt(E.t('blaster.best', { n: R.best }), W / 2, Math.round(H * .26) + lh * 3 + 6, '#c8b8f0', { align: 'center' }); }
     });
@@ -403,7 +409,7 @@ const BLASTER = (() => {
     update, draw, bot,
     /** a stage played by the autopilot (a demo; the bot's) */
     demo(stage) { begin(Math.max(0, STAGES.indexOf(stage)), true); auto = true; },
-    state: () => R && { mode, stage: R.name, phase: R.phase, t: +R.t.toFixed(2), score: R.score, lives: R.lives, hits: R.hits, foes: R.foes.length, shots: R.shots.length,
+    state: () => R && { mode, stage: R.name, phase: R.phase, t: +R.t.toFixed(2), score: R.score, lives: R.lives, hits: R.hits, foes: R.foes.length, shots: R.shots.length, fired: R.fired,
       hero: R.name === 'harrier' ? [Math.round(R.hx), Math.round(R.hz)] : R.name === 'burner' ? [Math.round(R.j.x), Math.round(R.j.y), Math.round(R.j.z), +R.j.roll.toFixed(3)] : R.name === 'zone' ? [Math.round(R.s), Math.round(R.u), Math.round(R.zh)] : [Math.round(R.s), Math.round(R.cur[0]), Math.round(R.cur[1])], boss: R.boss ? (R.boss.hp !== undefined ? R.boss.hp : R.boss.parts.map(p => p.hp)) : null },
     /** the proof: the harrier stage, flying up and right, firing, then down and left */
     run: (n = 600) => proof('blaster', n, (i, k) => {

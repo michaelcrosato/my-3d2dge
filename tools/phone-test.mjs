@@ -27,7 +27,8 @@
 //  13f. special: JUMP thumb-sized on the planet; in the fort the stick turns the soldier (and the world under him)
 //  13e. zero: BOOST thumb-sized; it accelerates by itself; the stick steers
 //  13b. sky: GAS and SLOW thumb-sized in the plane (ACT only where it acts: the chute, a landing); the stick banks the
-//      plane and it turns; GAS opens the throttle
+//      plane and it turns; GAS opens the throttle; the dive's ACT and SLOW (no GAS): ACT tapped above the chute's band
+//      opens nothing, in it the chute; the voyage's GAS, SLOW and ACT (its landings)
 //  15. rpg's journey: its windows' rows a thumb's height; a tap on New game starts it; the stick walks the party; MENU
 //      opens the menu, a tap on a row opens it, BACK closes it
 //  16. tactics: the command list's rows a thumb's height; a tap on a unit selects it (its card); MOVE, then a tap on a
@@ -527,13 +528,15 @@ if (want('kart')) {
   }
 }
 
-/* 13b. sky: its buttons, the stick banking the plane, GAS */
+/* 13b. sky: its buttons, the stick banking the plane, GAS; the dive's ACT, the chute; the voyage's buttons */
 if (want('sky')) {
-  console.log('sky: GAS and SLOW, thumb-sized; the stick banks the plane and it turns; GAS opens the throttle');
+  console.log('sky: GAS and SLOW, thumb-sized; the stick banks the plane and it turns; GAS opens the throttle; the dive\'s ACT opens the chute in its band, not above it; the voyage has GAS, SLOW and ACT');
+  const shown = page => ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+  const tap = async (cdp, b) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x, y: b.y }] }); await wait(150); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(150); };
   for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
     const { page, ctx, cdp, errors } = await open('sky', vp, 'sky/plane'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1200);
     const st = () => ev(page, () => window.__game.scenes.sky.state());
-    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+    const btns = await shown(page);
     const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
     const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
     await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
@@ -542,6 +545,18 @@ if (want('sky')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `sky-${label.replace(/ /g, '-')}.png`) });
     check(`sky ${label}: GAS and SLOW, each a thumb's size`, acts === 'gas,slow' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`sky ${label}: the stick held right banks the plane right and turns it; GAS opens the throttle`, s1.roll > .3 && E_turn(s0.yaw, s1.yaw) > .1 && s2.thr > s1.thr + .2 && !errors.length, `roll ${s1.roll}, turned ${E_turn(s0.yaw, s1.yaw).toFixed(2)}, throttle ${s1.thr} -> ${s2.thr}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    // the dive: ACT tapped high above the band (nothing), then the fall run on at once to the band (z 1050) and ACT again
+    await ev(page, () => window.__game.game.go('sky', { part: 'dive' }, { fade: 0 })); await wait(600);
+    const dv = await shown(page), dacts = dv.map(b => b.act).sort().join(), dsmall = Math.min(...dv.map(b => Math.min(b.w, b.h))), act = dv.find(b => b.act === 'act');
+    if (act) await tap(cdp, act); const d0 = await st();
+    await ev(page, () => { const g = window.__game.game, sky = window.__game.scenes.sky; for (let i = 0; i < 400 && sky.state().z > 1050; i++) g.advance(1 / 20); });
+    if (act) await tap(cdp, act); const d1 = await st();
+    await page.screenshot({ path: resolve('check-output/phone', `sky-dive-${label.replace(/ /g, '-')}.png`) });
+    check(`sky ${label}: the dive's ACT and SLOW (no GAS), each a thumb's size`, dacts === 'act,slow' && dsmall >= 44, `buttons ${dacts}, smallest ${Math.round(dsmall)} CSS px`);
+    check(`sky ${label}: ACT tapped above the chute's band opens nothing; tapped in it, the chute`, d0.ev === 'dive' && d0.z > 1150 && d0.chute === null && d1.chute > 600 && d1.chute < 1150 && !errors.length, `at ${d0.z}: ${d0.chute === null ? 'nothing' : 'opened at ' + d0.chute}; at the band: ${d1.chute === null ? 'nothing' : 'opened at ' + d1.chute}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ev(page, () => window.__game.game.go('sky', { part: 'voyage' }, { fade: 0 })); await wait(600);
+    const vy = await shown(page), vacts = vy.map(b => b.act).sort().join(), vsmall = Math.min(...vy.map(b => Math.min(b.w, b.h)));
+    check(`sky ${label}: the voyage's GAS, SLOW and ACT, each a thumb's size`, vacts === 'act,gas,slow' && vsmall >= 44 && !errors.length, `buttons ${vacts}, smallest ${Math.round(vsmall)} CSS px${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
@@ -560,7 +575,7 @@ if (want('blaster')) {
     await page.touchscreen.tap(vp.width * .6, vp.height * .45); await wait(400); const v1 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `blaster-${label.replace(/ /g, '-')}.png`) });
     check(`blaster ${label}: MISSILE and ROLL, each a thumb's size`, acts === 'missile,roll' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
-    check(`blaster ${label}: the stick held right banks the jet; a tap in the valley moves the cursor there and shoots`, s1.hero[3] > .3 && v1.hero[1] !== v0.hero[1] && v1.shots >= 0 && !errors.length, `roll ${s1.hero[3]}, cursor ${v0.hero[1]} -> ${v1.hero[1]}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    check(`blaster ${label}: the stick held right banks the jet; a tap in the valley moves the cursor there and shoots, once`, s1.hero[3] > .3 && v1.hero[1] !== v0.hero[1] && v1.fired === v0.fired + 1 && !errors.length, `roll ${s1.hero[3]}, cursor ${v0.hero[1]} -> ${v1.hero[1]}, shots fired ${v0.fired} -> ${v1.fired}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
