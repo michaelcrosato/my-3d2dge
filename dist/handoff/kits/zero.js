@@ -226,6 +226,13 @@ const ZERO = (() => {
       const p = RIB.at(s), q = RIB.at(s + 30), bank = clamp(E.angDiff(p.angle, q.angle) * 9, -.45, .45), rx = -Math.sin(p.angle), ry = Math.cos(p.angle), dz = Math.sin(bank) * HW;
       segs.push({ s, x: p.x, y: p.y, z: p.z, dz, bank, L: [p.x - rx * HW, p.y - ry * HW, p.z + dz], R: [p.x + rx * HW, p.y + ry * HW, p.z - dz] });
     }
+    segs.forEach((a, k) => {   // the pillars under every fourth stretch, two abreast; none where the track passes underneath (they'd stand in its road)
+      a.pil = []; if (k % 4) return;
+      for (const off of [-.5, .5]) {
+        const ux = (a.R[0] - a.L[0]) / (2 * HW) * 10, uy = (a.R[1] - a.L[1]) / (2 * HW) * 10, x = a.x + (a.R[0] - a.x) * off, y = a.y + (a.R[1] - a.y) * off;
+        if (!segs.some(q => q.z < a.z - 40 && Math.hypot(q.x - x, q.y - y) < HW + 14)) a.pil.push([[x - ux, y - uy, 0], [x + ux, y + uy, 0], [x + ux, y + uy, a.z - 4], [x - ux, y - uy, a.z - 4]]);
+      }
+    });
     const cv = E.mkCanvas(1024, 1024), g = cv.getContext('2d'), img = g.createImageData(1024, 1024), d = img.data;
     for (let y = 0; y < 1024; y++) for (let x = 0; x < 1024; x++) { const n = hash(x, y) % 8, m = E.noise2(x / 40, y / 40), i = (y * 1024 + x) * 4, c = m > .66 ? [150 + n, 96, 70] : ((x >> 4) + (y >> 4)) & 1 ? [214 - n, 168, 112] : [206 - n, 160, 106]; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; }
     g.putImageData(img, 0, 0);
@@ -257,7 +264,7 @@ const ZERO = (() => {
     { wave: 'drums', vol: .07, notes: 'k . h k s . h . k k h . s . h h' }] };
   let mode = 'menu', G = null, race = null, players = [], cams = [], t = 0, over = 0, track = 'city', auto = false;
   const menu = new E.Menu(game, [E.t('zero.menu.gp'), E.t('zero.menu.city'), E.t('zero.menu.sky'), E.t('zero.menu.vs'), E.t('zero.menu.back')], { onPick: i => i === 4 ? game.go('title') : i === 3 ? versus() : (G = { gp: i === 0, pts: CAST.map(() => 0) }, go(i === 2 ? 'sky' : 'city')) });
-  const after = new E.Menu(game, [E.t('zero.menu.next'), E.t('zero.menu.menu')], { onPick: i => i === 0 ? (G && G.gp && track === 'city' ? go('sky') : G && G.vs ? go('city', true) : go(track)) : toMenu() });
+  const after = new E.Menu(game, [E.t('zero.menu.next'), E.t('zero.menu.menu')], { onPick: i => i === 0 ? (G && G.gp ? (track === 'city' ? go('sky') : (G.pts = CAST.map(() => 0), go('city'))) : G && G.vs ? go('city', true) : go(track)) : toMenu() });   // (after the ribbon a Grand Prix is over: RACE ON starts another)
   function toMenu() { mode = 'menu'; race = null; G = null; game.splitScreen(0); A.music('title'); }
   function versus() { G = { vs: true, pts: CAST.map(() => 0) }; if (game.players.length >= 2) go('city', true); else { mode = 'join'; A.sfx('select'); } }
   /** a race on a track: six machines on the grid (the players' at the back), three laps */
@@ -267,10 +274,9 @@ const ZERO = (() => {
     race = new E.Race({ path: which === 'city' ? CITY : RIB, laps: 3, width: which === 'city' ? HALF * .8 : HW * .7, checkpoints: 12, items: [], heights: which === 'sky' });
     const n = vs ? Math.min(4, game.players.length) : 1, grid = race.grid(6); players = [];
     for (let k = 0; k < 6; k++) {
-      const ci = (k + 6 - n) % 6, g = grid[k], human = ci < n && !auto, car = new E.Car(Object.assign({ top: 300, accel: 160, turn: 2.05, grip: 14, drag: .4, kart: false, r: 9, surfaces: { pit: { top: .75 }, kerb: { top: .8 } } }, g));
-      if (which === 'sky') car.z = RIB.at(RIB.nearest(g.x, g.y)).z;
+      const ci = (k + n) % 6, g = grid[k], human = ci < n && !auto, car = new E.Car(Object.assign({ top: 300, accel: 160, turn: 2.05, grip: 14, drag: .4, kart: false, r: 9, surfaces: { pit: { top: .75 }, kerb: { top: .8 } } }, g));
       const R = race.add(car, human ? { name: E.t(CAST[ci].name), input: game.players[ci] || game.input } : { name: E.t(CAST[ci].name), ai: { skill: .9 + ci * .014, rubber: .25 } });
-      R.cast = CAST[ci]; R.ci = ci; R.energy = 100; R.calm = 9; if (ci < n) players[ci] = R;
+      R.cast = CAST[ci]; R.ci = ci; R.energy = 100; R.calm = 9; R.stuck = 0; if (ci < n) players[ci] = R;
     }
     cams = players.map(R => ({ x: R.car.x, y: R.car.y, h: 22, angle: R.car.angle, pitch: 9, fov: 66 }));
     game.splitScreen(n > 1 ? n : 0, { layout: n === 2 ? 'rows' : 'grid' }); A.music(SONG); game.input.consumeAll();
@@ -280,7 +286,7 @@ const ZERO = (() => {
     const I = game.input; I.touchSet('boost', null, mode === 'race');
     t += dt;
     if (mode === 'menu') { menu.update(dt); return; }
-    if (mode === 'join') { if (game.players.length >= 2) go('city', true); else if (I.pressed('cancel')) mode = 'menu'; return; }
+    if (mode === 'join') { if (game.players.length >= 2 && I.pressed('confirm')) go('city', true); else if (I.pressed('cancel')) mode = 'menu'; return; }   // (up to four join; player 1 starts it)
     if (mode === 'results') { after.update(dt); return; }
     for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch';
     for (const R of race.racers) R.v0 = R.car.speed;
@@ -294,8 +300,10 @@ const ZERO = (() => {
       }
       if (c.bumped && R.calm > .4) { R.energy = Math.max(0, R.energy - 3); if (players.includes(R)) A.sfx('bump', { vol: .35 }); } else if (R.calm < .25) R.energy = Math.max(0, R.energy - 6 * dt);   // (a knock costs 3; grinding along a barrier, 6 a second)
       R.calm = c.bumped ? 0 : R.calm + dt;
+      R.stuck = race.go && !R.finished && Math.abs(c.speed) < 12 ? R.stuck + dt : 0;
+      if (R.input && c.o.auto && R.stuck > 1.5) { const P = track === 'city' ? CITY : RIB, p = P.at(P.nearest(c.x, c.y, track === 'sky' ? c.z : undefined) + 30); Object.assign(c, { x: p.x, y: p.y, angle: p.angle, vx: 0, vy: 0 }); if (track === 'sky') ride(R); R.stuck = 0; }   // (a phone has no reverse: stuck against a wall, it is set back on the line)
       if (c.surface === 'pit' || (track === 'sky' && R.pit)) R.energy = Math.min(100, R.energy + 50 * dt);
-      const want = R.lap >= 2 && R.energy > 30 && (R.input ? R.input.pressed('boost') : (auto || !R.input) && c.boostT <= 0 && Math.floor((t + R.ci) * .7) % 4 === 0 && R.energy > 50);
+      const want = R.lap >= 1 && R.energy > 30 && (R.input ? R.input.pressed('boost') : (auto || !R.input) && c.boostT <= 0 && Math.floor((t + R.ci) * .7) % 4 === 0 && R.energy > 50);
       if (want && race.go && c.boostT <= 0) { c.boost(1.2, .45); R.energy -= 14; if (players.includes(R)) A.sfx('powerup', { vol: .5 }); }
       c.o.top = R.energy <= 0 ? 210 : R.calm < .25 ? 230 : 300;   // (out of energy it limps; grinding a barrier it drags)
       if (R.lap !== R._lap) { if (R._lap !== undefined && !R.finished && players.includes(R)) A.sfx('oneup'); R._lap = R.lap; }
@@ -323,7 +331,7 @@ const ZERO = (() => {
     const W = r.W, H = r.H;
     if (mode === 'menu' || mode === 'join') {
       if (!city) city = buildCity(); const p = CITY.at(t * 120); city.m7.cam = { x: p.x, y: p.y, h: 50, angle: p.angle, pitch: 12, fov: 70 }; towersOf(city.m7.cam); city.m7.draw(r);
-      r.overlay(g => { E.font.title(g, E.t('zero.title'), W / 2, 20, { scale: 4, align: 'center', colors: ['#ffffff', '#a8f0ff', '#3ae0ff', '#c83ae8'], depth: 3 }); if (mode === 'join') E.font.text(g, E.t('zero.join'), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false }); });
+      r.overlay(g => { E.font.title(g, E.t('zero.title'), W / 2, 20, { scale: 4, align: 'center', colors: ['#ffffff', '#a8f0ff', '#3ae0ff', '#c83ae8'], depth: 3 }); if (mode === 'join') E.font.text(g, E.t('zero.join'), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false }); if (mode === 'join' && game.players.length >= 2) E.font.text(g, E.t('zero.join.go', { n: game.players.length, key: game.input.label('confirm') }), W / 2, H / 2 + 16, '#ffe060', { align: 'center', shadow: '#000', outline: false }); });
       if (mode === 'menu') { menu.y = Math.round(H / 2) - 10; menu.draw(r); }
       return;
     }
@@ -337,7 +345,7 @@ const ZERO = (() => {
       const vp = r.viewport || { x: 0, y: 0, w: W, h: H }, w = Math.min(90, vp.w * .3), x = vp.x + 6, y = vp.y + vp.h - 14, e = me.energy / 100;
       px.rect(g, x - 1, y - 1, w + 2, 7, '#0a0a14'); px.rect(g, x, y, Math.round(w * e), 5, e < .25 ? (Math.floor(t * 6) % 2 ? '#ff3a3a' : '#ffd040') : '#3ae0ff');
       E.font.text(g, E.t('zero.kmh', { n: Math.round(me.car.speed * 1.6) }), x + w + 6, y - 2, '#ffffff', { shadow: '#000', outline: false });
-      if (me.lap >= 2 && me.energy > 30) E.font.text(g, E.t('zero.boost', { key: game.input.label('boost') }), x, y - E.font.lineHeight() - 2, '#ffe060', { shadow: '#000', outline: false });
+      if (me.lap >= 1 && me.energy > 30) E.font.text(g, E.t('zero.boost', { key: (me.input || game.input).label('boost') }), x, y - E.font.lineHeight() - 2, '#ffe060', { shadow: '#000', outline: false });
     });
     if (players.length < 2 && mode === 'results') board(r);
   }
@@ -358,7 +366,7 @@ const ZERO = (() => {
       }
       if (k % 2) sky.m7.quad([[(a.L[0] + a.R[0]) / 2 - (a.R[0] - a.L[0]) * .02, (a.L[1] + a.R[1]) / 2 - (a.R[1] - a.L[1]) * .02, (a.L[2] + a.R[2]) / 2 + .5], [(a.L[0] + a.R[0]) / 2 + (a.R[0] - a.L[0]) * .02, (a.L[1] + a.R[1]) / 2 + (a.R[1] - a.L[1]) * .02, (a.L[2] + a.R[2]) / 2 + .5], [(b.L[0] + b.R[0]) / 2, (b.L[1] + b.R[1]) / 2, (b.L[2] + b.R[2]) / 2 + .5]], '#e8e8f0');
       for (const [e1, e2, col] of [[a.L, b.L, '#ff3ab0'], [a.R, b.R, '#3ae0ff']]) sky.m7.quad([e1, e2, [e2[0], e2[1], e2[2] + 9], [e1[0], e1[1], e1[2] + 9]], col);
-      if (k % 4 === 0 && d > 90) for (const off of [-.5, .5]) { const ux = (a.R[0] - a.L[0]) / (2 * HW) * 10, uy = (a.R[1] - a.L[1]) / (2 * HW) * 10, x = a.x + (a.R[0] - a.x) * off, y = a.y + (a.R[1] - a.y) * off; sky.m7.quad([[x - ux, y - uy, 0], [x + ux, y + uy, 0], [x + ux, y + uy, a.z - 4], [x - ux, y - uy, a.z - 4]], '#8a8478', null, -1); }   // (pillars first: the track over them covers them)
+      if (d > 90) for (const q of a.pil) sky.m7.quad(q, '#8a8478', null, -1);   // (pillars first: the track over them covers them)
     }
   }
   // the results: every machine's place and time, and the Grand Prix's points

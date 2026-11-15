@@ -920,6 +920,24 @@ function views(E, ed) {
       const d = pm.project(128, 100, 10), w = pm.project(100, 160, 15); out = [d && pm.pick(d[0], d[1]), w && pm.pick(w[0], w[1]), pm.pick(2, 2)]; return out; };
     const s0 = shot(0), s1 = shot(30);
     check(`${ed}: views: mode7: pick finds a target's box under a point, a quad in front blocks (target null), the sky nothing; rolled the same`, [s0, s1].every(s => s[0] && s[0].target === 'deer' && s[1] && s[1].target === null && s[2] === null), JSON.stringify([s0, s1]));
+    const agree = roll => {   // the pick of boxes in update (a replay's) against the pick of the frame drawn, point by point, the camera rolled
+      const g2 = new E.Game({ headless: true, draw: true, res: [200, 200] }), m2 = new E.Mode7({ floor: () => [40, 90, 40], size: [256, 256], sky: ['#000', '#fff'] }), cam = { x: 128, y: 230, h: 20, angle: -Math.PI / 2, pitch: 6, fov: 70, roll }, box = [{ x: 128, y: 160, z: 0, w: 30, h: 20, target: 'deer' }], drawn = [];
+      g2.start({ update() {}, draw(r) { m2.add(128, 160, 0, () => {}, { target: 'deer', w: 30, h: 20 }); m2.draw(r, cam); } }); g2.advance(.05);
+      for (let y = 0; y < 200; y += 2) for (let x = 0; x < 200; x += 2) drawn.push(!!m2.pick(x, y));
+      m2.begin({ W: 200, H: 200 }, cam); let bad = 0, hits = 0, i = 0;
+      for (let y = 0; y < 200; y += 2) for (let x = 0; x < 200; x += 2) { const l = !!m2.pick(x, y, box); if (l !== drawn[i++]) bad++; if (l) hits++; }
+      return [roll, bad, hits]; };
+    const ag = [0, 30, 90, -40].map(agree);
+    check(`${ed}: views: mode7: pick(sx, sy, boxes) in update agrees with the pick of the frame drawn, the camera rolled or not`, ag.every(([, bad, hits]) => bad <= 2 && hits > 20), JSON.stringify(ag));
+    const tower = new E.Mesh([['box', [0, 0, 30], [24, 24, 60], '#c0a080']]), tg = new E.Game({ headless: true, draw: true, res: [320, 240] }), tm = new E.Mode7({ floor: () => [40, 90, 40], size: [4096, 4096], wrap: true, curve: 2200, sky: ['#000', '#fff'] }), tfill = E.px.poly; let polys = 0;   // (SKY's beacons over a globe's edge: the floor and the sky draw no polygons, so each is one of its faces)
+    E.px.poly = (g, pts, c) => { polys++; return tfill(g, pts, c); };
+    try { tg.start({ update() {}, draw(r) { polys = 0; tm.mesh(tower, 2000, 850, 0); tm.draw(r, { x: 2000, y: 2000, h: 250, angle: -Math.PI / 2, pitch: 17.9, fov: 64 }); } }); tg.advance(.02); } finally { E.px.poly = tfill; }
+    tm.begin({ W: 320, H: 240 }, { x: 2000, y: 2000, h: 250, angle: -Math.PI / 2, pitch: 17.9, fov: 64 }); const foot = tm.project(2000, 850, 0), top = tm.project(2000, 850, 60);
+    check(`${ed}: views: mode7: curve: a tall model whose foot is past a globe's edge still shows what stands above it`, foot === null && !!top && polys > 0, JSON.stringify({ foot, top: !!top, polys }));
+    const nq = [], ng = new E.Game({ headless: true, draw: true, res: [320, 180] }), nm = new E.Mode7({ floor: () => [40, 90, 40], size: [256, 256] }), nfill = E.px.poly;   // (a camera riding a track: the stretch under it)
+    E.px.poly = (g, pts, c) => { nq.push(c); return nfill(g, pts, c); };
+    try { ng.start({ update() {}, draw(r) { nq.length = 0; nm.quad([[118, 330, 0], [138, 330, 0], [138, 200, 0], [118, 200, 0]], '#abcdef'); nm.draw(r, { x: 128, y: 230, h: 20, angle: -Math.PI / 2, pitch: 6, fov: 70 }); } }); ng.advance(.05); } finally { E.px.poly = nfill; }
+    check(`${ed}: views: mode7: a quad whose middle is behind the camera is still drawn, cut at the near plane`, nq.includes('#abcdef'), nq.join());
     const order = [], og = new E.Game({ headless: true, draw: true, res: [320, 180] }), om = new E.Mode7({ floor: () => [40, 90, 40], size: [256, 256] });   // (what a layer does: ZERO's pillars)
     og.start({ update() {}, draw(r) { order.length = 0; om.add(128, 160, 0, () => order.push('near')); om.add(128, 40, 0, () => order.push('far')); om.add(128, 100, 0, () => order.push('under'), null, true, -1); om.draw(r, { x: 128, y: 230, h: 20, angle: -Math.PI / 2, pitch: 6, fov: 70 }); } }); og.advance(.05);
     check(`${ed}: views: mode7: a lower layer is drawn first, wherever it stands (the pillars under a raised track); then far to near`, order.join() === 'under,far,near', order.join());
@@ -938,6 +956,8 @@ function views(E, ed) {
   const fk = new E.Road({ segment: 200 }); fk.add(20).add(40, { split: 2 }).add(30, { branch: 4 });
   const c0 = fk.centers(10 * 200), c1 = fk.centers(21 * 200), c2 = fk.centers(59 * 200), b0 = fk.centers(60 * 200), b1 = fk.centers(89 * 200);
   check(`${ed}: views: road: a split eases one road into two (a gap of 2 half roads at its end); a branch starts beside and bends away`, c0.length === 1 && c1.length === 2 && Math.abs(c1[1]) < .1 && Math.abs(c2[1] - 2) < 1e-9 && Math.abs(c2[0] + 2) < 1e-9 && b0[0] === 0 && b0[1] > 4 && b1[1] > b0[1] + 10, JSON.stringify({ c0, c1, c2, b0, b1 }));
+  const fk2 = new E.Road({ segment: 200 }).add(10).add(20, { split: 3 }).add(20, { split: 3 }), g1 = fk2.centers(29 * 200 + 10), g2 = fk2.centers(30 * 200 + 10), g3 = fk2.centers(49 * 200 + 10);   // (the ROAD kit's fork: more of the same past its end)
+  check(`${ed}: views: road: a split after a split goes on from its gap (it doesn't ease the two roads back into one)`, [g1, g2, g3].every(c => Math.abs(c[1] - 2.5) < 1e-9 && Math.abs(c[0] + 2.5) < 1e-9), JSON.stringify([g1, g2, g3]));
   const car = fk.mesh({ bounds: 10, draw() { return 1; } }, 3000, .5, { scale: 2 });
   check(`${ed}: views: road: road.mesh gives a car for draw (its place, its width from the model's size)`, car.z === 3000 && car.x === .5 && car.w === 40 && typeof car.draw === 'function', JSON.stringify(car));
   if (E.Rewind) {   // the rewind module: kept a snapshot at a time, walked back to the oldest, play going on from there

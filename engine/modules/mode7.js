@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module MODE7 v0.98.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.98.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -93,7 +93,7 @@ class Mode7 {
     if (P.R) {   // on a globe: the point set on the sphere by its distance over the floor (the nearest copy where it repeats)
       if (P.ww) { dx -= Math.round(dx / P.ww) * P.ww; dy -= Math.round(dy / P.wh) * P.wh; }
       const s = Math.hypot(dx, dy), th = s / P.R, rz = P.R + z;
-      if (th > P.lim + Math.acos(Math.min(1, P.R / Math.max(P.R, rz)))) return null;
+      if (!P.all && th > P.lim + Math.acos(Math.min(1, P.R / Math.max(P.R, rz)))) return null;   // (P.all: a model past the edge, drawn before the floor)
       const k = s ? rz * Math.sin(th) / s : 0; dx *= k; dy *= k; dz = rz * Math.cos(th) - P.R - P.h;
     }
     const D = dx * P.fx + dy * P.fy, L = dx * P.rx + dy * P.ry, zc = D * P.cp - dz * P.sp;
@@ -123,8 +123,9 @@ class Mode7 {
     return [P.x + px * m, P.y + py * m, s];
   }
   /** gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit; hit: { target, w,
-   *  h } gives m7.pick its box (w x h world units over its foot); deep: sorted by its depth from the camera (models and
-   *  quads are: one under another sorts behind it), else by its distance ahead on the floor */
+   *  h } gives m7.pick its box (w x h world units over its foot); everything sorts by its depth from the camera (one under
+   *  another behind it); deep: it draws its own shape, each point projected (models and quads are), so on a globe it is
+   *  kept with its foot past the edge, what stands above the edge shown; layer: a lower one is drawn first */
   add(x, y, z, fn, hit, deep, layer) { this.items.push({ x, y, z: z || 0, fn, hit: hit || null, deep: !!deep, layer: layer || 0 }); return this; }
   /** gather a rig, drawn by the engine at the size its distance gives, from the camera's side (it faces rig.facing) */
   rig(rig, x, y, z = 0) { return this.add(x, y, z, (g, sx, sy, k) => rig.draw(g, Math.round(sx), Math.round(sy), this.view(k))); }
@@ -181,16 +182,20 @@ class Mode7 {
       if (q.some(p => !p)) { if (this._P.R) return; q = this._clip(pts); if (!q) return; }   // (crossing the near plane: cut there, not dropped)
       const a = g.globalAlpha, fog = this.o.fog; g.globalAlpha = 1;   // (a wall shows nothing behind it, so fog mixes its color)
       E.px.poly(g, q.map(p => [p[0], p[1]]), a < 1 && fog ? E.mix(color, fog.color || '#a8c0e0', (1 - a) * .9) : color);
-      g.globalAlpha = a; E.px.reset(g); this._seen.push({ target, k, poly: q });
+      g.globalAlpha = a; E.px.reset(g); this._seen.push({ target, k: flat ? Math.min(...q.map(v => v[2])) : k, poly: q });   // (a floor as deep as its far edge: what stands on it is picked first)
     }, null, true, layer);
-    if (flat) this.items[this.items.length - 1].floor = pts;
+    const it = this.items[this.items.length - 1]; it.pts = pts; if (flat) it.floor = pts;
     return this;
   }
   /** what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null; with a
    *  list ([{ x, y, z, w, h, target }]: boxes w x h world units over those feet), those boxes through the camera begun,
    *  nothing drawn (gameplay that replays: m7.begin(rect, cam) in update first) */
   pick(sx, sy, list) {
-    if (list) { let best = null; for (const q of list) { const p = this.project(q.x, q.y, q.z || 0); if (!p) continue; const w = (q.w || 16) * p[2], h = (q.h || 16) * p[2]; if (sx >= p[0] - w / 2 && sx < p[0] + w / 2 && sy >= p[1] - h && sy < p[1] && (!best || p[2] > best.k)) best = { target: q.target === undefined ? null : q.target, k: p[2] }; } return best; }
+    if (list) {   // (a rolled camera: the shot and each foot turned back level, where the box stands upright as draw drew it)
+      const P = this._P, lv = (x, y) => { const du = x - P.cx, dv = y - P.cy; return [P.cx + du * P.cr - dv * P.sr, P.cy + du * P.sr + dv * P.cr]; }, [x, y] = P.sr ? lv(sx, sy) : [sx, sy]; let best = null;
+      for (const q of list) { const p = this.project(q.x, q.y, q.z || 0); if (!p) continue; const [fx, fy] = P.sr ? lv(p[0], p[1]) : p, w = (q.w || 16) * p[2], h = (q.h || 16) * p[2]; if (x >= fx - w / 2 && x < fx + w / 2 && y >= fy - h && y < fy && (!best || p[2] > best.k)) best = { target: q.target === undefined ? null : q.target, k: p[2] }; }
+      return best;
+    }
     const T = this._pt; let x = sx, y = sy;
     if (T) { const du = sx - T.rx, dv = sy - T.ry; x = T.cx + du * T.cr - dv * T.sr; y = T.cy + du * T.sr + dv * T.cr; }   // (into the unrolled picture)
     const inPoly = (P, px, py) => { let inside = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > py) !== (P[j][1] > py) && px < (P[j][0] - P[i][0]) * (py - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) inside = !inside; return inside; };
@@ -236,19 +241,24 @@ class Mode7 {
   _scene(cg, r, vp, items) {
     this.drawSky(cg, r, vp);
     if (this.o.curve) { const sky = this.o.sky, H0 = Math.round(clamp(this.horizon, vp.y, vp.y + vp.h)); E.px.rect(cg, vp.x, H0, vp.w, vp.y + vp.h - H0, Array.isArray(sky) ? sky[sky.length - 1] : this.o.outside); }   // (a globe's edge shows the sky below the horizon)
-    this.drawFloor(cg, vp);
-    const P = this._P, fog = this.o.fog, far = fog && fog.far || this.o.far, list = [];
+    const P = this._P, fog = this.o.fog, far = fog && fog.far || this.o.far, list = [], past = [];
     for (const it of items) {
-      const p = this.project(it.x, it.y, it.z); if (!p || p[0] < vp.x - 200 || p[0] > vp.x + vp.w + 200) continue;
-      let d = P.R || it.deep ? P.f / p[2] : (it.x - P.x) * P.fx + (it.y - P.y) * P.fy;   // (a model or a quad by its depth from the camera: one under another sorts behind it)
-      if (it.floor) for (const q of it.floor) { const pq = this.project(q[0], q[1], q[2] || 0); if (pq) d = Math.max(d, P.f / pq[2]); }   // (a floor by its far edge)
-      if (d <= far) list.push([d, it, p]);
+      let p = this.project(it.x, it.y, it.z), L = list;
+      if (!p && it.pts) for (const q of it.pts) { const pq = this.project(q[0], q[1], q[2] || 0); if (pq && (!p || pq[2] < p[2])) p = pq; }   // (a quad whose middle is behind the camera: by its farthest corner in view, cut at the near plane as it is drawn)
+      if (!p && P.R && it.deep) { P.all = true; p = this.project(it.x, it.y, it.z); P.all = false; L = past; }   // (a model or a quad whose foot is past a globe's edge: drawn before the floor, which hides what the globe hides)
+      if (!p || !it.pts && (p[0] < vp.x - 200 || p[0] > vp.x + vp.w + 200)) continue;
+      const f = P.f / p[2]; let d = f, n = f;   // (everything by its depth from the camera, models, quads and billboards alike: one under another sorts behind it)
+      if (it.floor) for (const q of it.floor) { const pq = this.project(q[0], q[1], q[2] || 0); if (pq) { d = Math.max(d, P.f / pq[2]); n = Math.min(n, P.f / pq[2]); } }   // (a floor sorts by its far edge, is cut by its near one)
+      if (n <= far) L.push([d, it, p, f]);
     }
-    list.sort((a, b) => a[1].layer - b[1].layer || b[0] - a[0]);   // (a lower layer first: what stands under a track)
-    for (const [d, it, p] of list) {
-      cg.globalAlpha = fog ? clamp(1 - (d - (fog.near || 0)) / (far - (fog.near || 0)) * .8, .2, 1) : 1; E.px.reset(cg); it.fn(cg, p[0], p[1], p[2]);   // (the color cache forgotten: the floor and the sky set colors directly)
-      const h = it.hit; if (h) this._seen.push({ target: h.target, k: p[2], box: [p[0] - (h.w || 16) * p[2] / 2, p[1] - (h.h || 16) * p[2], (h.w || 16) * p[2], (h.h || 16) * p[2]] });
-    }
+    const paint = L => { L.sort((a, b) => a[1].layer - b[1].layer || b[0] - a[0]);   // (a lower layer first: what stands under a track)
+      for (const [d, it, p, f] of L) {
+        cg.globalAlpha = fog ? clamp(1 - (f - (fog.near || 0)) / (far - (fog.near || 0)) * .8, .2, 1) : 1; E.px.reset(cg); it.fn(cg, p[0], p[1], p[2]);   // (the color cache forgotten: the floor and the sky set colors directly)
+        const h = it.hit; if (h) this._seen.push({ target: h.target, k: p[2], box: [p[0] - (h.w || 16) * p[2] / 2, p[1] - (h.h || 16) * p[2], (h.w || 16) * p[2], (h.h || 16) * p[2]] });
+      }
+    };
+    if (past.length) { P.all = true; paint(past); P.all = false; }
+    this.drawFloor(cg, vp); paint(list);
     cg.globalAlpha = 1;
   }
   /** the sky above the horizon: a Backdrop turned with the heading, or a gradient of two colors */

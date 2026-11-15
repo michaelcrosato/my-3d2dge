@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.98.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.98.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -86,7 +86,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.98.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.98.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -11011,7 +11011,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.98.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.98.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11235,7 +11235,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.98.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.98.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11611,7 +11611,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.98.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.98.1: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11628,8 +11628,8 @@ takes away, the floor's tag under it slowing it, walls and other cars it bounces
   E.Car.collide(cars) bumps them apart.
 - const race = new E.Race({ path: a closed E.Path (the racing line; the full engine's), laps: 3, checkpoints: 8, countdown: 3, width: 40
   (the track's half: the drivers' lanes), items: ['boost', 'shot', 'hazard'], heights: false (true: a track that climbs and
-  crosses itself, the line's points [x, y, z]: progress measured with each car's z) }); race.grid(n) -> the start places
-  [{ x, y, angle }]; race.add(car, { name, input (a player's) | ai: { skill: .95, rubber: .2 } }) -> a racer { car,
+  crosses itself, the line's points [x, y, z]: progress measured with each car's z; items hit only a car on their own
+  pass) }); race.grid(n) -> the start places [{ x, y, z, angle }]; race.add(car, { name, input (a player's) | ai: { skill: .95, rubber: .2 } }) -> a racer { car,
   name, lap, place, prog (distance raced), times, best, finished, time, wrong, item }.
 - Each step race.update(dt, map): the countdown (race.go once it says GO), every car driven (players by their input,
   the rest by race.drive(racer): look ahead along the line, brake for bends, overtake, unstick, rubber band), bumps,
@@ -11685,7 +11685,7 @@ class Car extends E.Body {
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
     let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
-    const drift = inp ? c.down('drift') : !!c.drift, hop = inp ? c.pressed('drift') : drift && !this._held;
+    const dr = inp && (!c.map || c.map.drift), drift = inp ? !!dr && c.down('drift') : !!c.drift, hop = inp ? !!dr && c.pressed('drift') : drift && !this._held;   // (an input with no drift action: none, and no warning)
     this._held = drift;
     const tag = o.ground ? o.ground(this.x, this.y) : map && map.floorAt ? map.floorAt(this.x, this.y) : null, S = (tag && o.surfaces[tag]) || {};
     this.surface = tag; this.offroad = (S.top || 1) < 1;
@@ -11740,16 +11740,16 @@ class Race {
   constructor(o = {}) {
     if (!o.path) throw new Error('E.Race needs { path }: a closed E.Path along the track (the racing line)');
     /** o: its options */
-    this.o = Object.assign({ laps: 3, checkpoints: 8, countdown: 3, width: 40, items: ['boost', 'shot', 'hazard'] }, o);
+    this.o = Object.assign({ laps: 3, checkpoints: 8, countdown: 3, width: 40, items: ['boost', 'shot', 'hazard'] }, o); if (!this.o.items) this.o.items = [];   // (null: none)
     /** path: the racing line; racers: every racer, in the order added; t: seconds since GO (- before it); go: racing (the
      *  countdown over); over: every racer finished; results: the racers as they finished; boxes, shots, hazards: the
      *  items on the track */
     this.path = o.path; this.racers = []; this.t = -this.o.countdown; this.go = false; this.over = false; this.results = []; this.boxes = []; this.shots = []; this.hazards = [];
   }
-  /** the start: n places behind the line, two by two, facing along it: [{ x, y, angle }] */
+  /** the start: n places behind the line, two by two, facing along it: [{ x, y, z (the line's, with heights), angle }] */
   grid(n) {
     const out = [], w = this.o.width * .45;
-    for (let i = 0; i < n; i++) { const p = this.path.at(-14 - i * 22), a = p.angle, side = i % 2 ? 1 : -1; out.push({ x: p.x - Math.sin(a) * w * side, y: p.y + Math.cos(a) * w * side, angle: a }); }
+    for (let i = 0; i < n; i++) { const p = this.path.at(-14 - i * 22), a = p.angle, side = i % 2 ? 1 : -1; out.push({ x: p.x - Math.sin(a) * w * side, y: p.y + Math.cos(a) * w * side, z: this.o.heights ? p.z : 0, angle: a }); }   // (heights: on the line's pass, so race.add places it there)
     return out;
   }
   /** a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it */
@@ -11758,8 +11758,9 @@ class Race {
     const R = { car, name: o.name || E.t('engine.drive.car', { number: this.racers.length + 1 }), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
     this.racers.push(R); return R;
   }
-  /** an item box at (x, y): a racer that drives through it gets an item (when it holds none) */
-  box(x, y) { this.boxes.push({ x, y, t: 0 }); return this; }
+  /** an item box at (x, y) (z: its pass, where a track with heights crosses itself): a racer that drives through it gets
+   *  an item (when it holds none) */
+  box(x, y, z) { this.boxes.push({ x, y, z, t: 0 }); return this; }
   /** a racer's way round: the intent race.update gives an AI racer's car (look ahead along the line, bends, overtakes,
    *  unsticking, the rubber band) */
   drive(R, dt) {
@@ -11786,8 +11787,8 @@ class Race {
   use(R) {
     const c = R.car, it = R.item; if (!it) return; R.item = null;
     if (it === 'boost') c.boost(1, .45);
-    else if (it === 'shot') this.shots.push({ x: c.x + Math.cos(c.angle) * 12, y: c.y + Math.sin(c.angle) * 12, vx: Math.cos(c.angle) * (c.o.top * 1.6), vy: Math.sin(c.angle) * (c.o.top * 1.6), t: 0, by: R });
-    else this.hazards.push({ x: c.x - Math.cos(c.angle) * 14, y: c.y - Math.sin(c.angle) * 14, t: 0 });
+    else if (it === 'shot') this.shots.push({ x: c.x + Math.cos(c.angle) * 12, y: c.y + Math.sin(c.angle) * 12, z: this.o.heights ? c.z : undefined, vx: Math.cos(c.angle) * (c.o.top * 1.6), vy: Math.sin(c.angle) * (c.o.top * 1.6), t: 0, by: R });
+    else this.hazards.push({ x: c.x - Math.cos(c.angle) * 14, y: c.y - Math.sin(c.angle) * 14, z: this.o.heights ? c.z : undefined, t: 0 });
   }
   /** one step: the countdown, every car, bumps, items, progress, laps, wrong way, places, the finish */
   update(dt, map) {
@@ -11798,14 +11799,15 @@ class Race {
       R.car.update(dt, map, ctl);
     }
     Car.collide(cars.filter(c => !c.isVehicle));   // (the 3D engine's vehicles bump in Rapier)
-    for (const b of this.boxes) { b.t -= dt; if (b.t > 0) continue; for (const R of this.racers) if (!R.item && Math.hypot(R.car.x - b.x, R.car.y - b.y) < R.car.r + 8) { const I = this.o.items; R.item = I[Math.floor(Math.random() * I.length)]; b.t = 2; break; } }
+    const on = (R, z) => z === undefined || Math.abs(R.car.z - z) < 24;   // (heights: an item touches only a car on its own pass)
+    for (const b of this.boxes) { b.t -= dt; if (b.t > 0) continue; for (const R of this.racers) if (!R.item && on(R, b.z) && Math.hypot(R.car.x - b.x, R.car.y - b.y) < R.car.r + 8) { const I = this.o.items; R.item = I[Math.floor(Math.random() * I.length)]; b.t = 2; break; } }
     for (const s of this.shots) {
       s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;
       if (map && map.collide) { const b = { x: s.x, y: s.y, r: 3 }; if (map.collide(b)) { s.t = 9; continue; } }
-      for (const R of this.racers) if (R !== s.by && Math.hypot(R.car.x - s.x, R.car.y - s.y) < R.car.r + 4) { R.car.spinOut(1); s.t = 9; }
+      for (const R of this.racers) if (R !== s.by && on(R, s.z) && Math.hypot(R.car.x - s.x, R.car.y - s.y) < R.car.r + 4) { R.car.spinOut(1); s.t = 9; }
     }
     this.shots = this.shots.filter(s => s.t < 3);
-    for (const h of this.hazards) for (const R of this.racers) if (h.t < 9 && Math.hypot(R.car.x - h.x, R.car.y - h.y) < R.car.r + 4 && R.car.onGround) { R.car.spinOut(.9); h.t = 9; }
+    for (const h of this.hazards) for (const R of this.racers) if (h.t < 9 && on(R, h.z) && Math.hypot(R.car.x - h.x, R.car.y - h.y) < R.car.r + 4 && R.car.onGround) { R.car.spinOut(.9); h.t = 9; }
     this.hazards = this.hazards.filter(h => h.t < 9);
     for (const R of this.racers) {
       // progress round the line (unwrapped), checkpoints in order, laps
@@ -11833,7 +11835,7 @@ class Race {
       const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
       F.text(g, E.t('engine.drive.lap', { lap: Math.min(this.o.laps, R.lap + 1), laps: this.o.laps }), rx, y, col, { align: 'right', shadow: '#000', outline: false });
       F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
-      if (this.o.items.length) E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });   // (the item's slot, where the race has items)
+      if (this.o.items && this.o.items.length) E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });   // (the item's slot, where the race has items)
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;
       if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : E.t('engine.drive.go'), cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
@@ -11846,7 +11848,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.98.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.98.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12408,7 +12410,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.98.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.98.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12591,7 +12593,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.98.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.98.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13000,7 +13002,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MESH v0.98.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.98.1: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13138,7 +13140,7 @@ E.Mesh = Mesh;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.98.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.98.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13232,7 +13234,7 @@ class Mode7 {
     if (P.R) {   // on a globe: the point set on the sphere by its distance over the floor (the nearest copy where it repeats)
       if (P.ww) { dx -= Math.round(dx / P.ww) * P.ww; dy -= Math.round(dy / P.wh) * P.wh; }
       const s = Math.hypot(dx, dy), th = s / P.R, rz = P.R + z;
-      if (th > P.lim + Math.acos(Math.min(1, P.R / Math.max(P.R, rz)))) return null;
+      if (!P.all && th > P.lim + Math.acos(Math.min(1, P.R / Math.max(P.R, rz)))) return null;   // (P.all: a model past the edge, drawn before the floor)
       const k = s ? rz * Math.sin(th) / s : 0; dx *= k; dy *= k; dz = rz * Math.cos(th) - P.R - P.h;
     }
     const D = dx * P.fx + dy * P.fy, L = dx * P.rx + dy * P.ry, zc = D * P.cp - dz * P.sp;
@@ -13262,8 +13264,9 @@ class Mode7 {
     return [P.x + px * m, P.y + py * m, s];
   }
   /** gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit; hit: { target, w,
-   *  h } gives m7.pick its box (w x h world units over its foot); deep: sorted by its depth from the camera (models and
-   *  quads are: one under another sorts behind it), else by its distance ahead on the floor */
+   *  h } gives m7.pick its box (w x h world units over its foot); everything sorts by its depth from the camera (one under
+   *  another behind it); deep: it draws its own shape, each point projected (models and quads are), so on a globe it is
+   *  kept with its foot past the edge, what stands above the edge shown; layer: a lower one is drawn first */
   add(x, y, z, fn, hit, deep, layer) { this.items.push({ x, y, z: z || 0, fn, hit: hit || null, deep: !!deep, layer: layer || 0 }); return this; }
   /** gather a rig, drawn by the engine at the size its distance gives, from the camera's side (it faces rig.facing) */
   rig(rig, x, y, z = 0) { return this.add(x, y, z, (g, sx, sy, k) => rig.draw(g, Math.round(sx), Math.round(sy), this.view(k))); }
@@ -13320,16 +13323,20 @@ class Mode7 {
       if (q.some(p => !p)) { if (this._P.R) return; q = this._clip(pts); if (!q) return; }   // (crossing the near plane: cut there, not dropped)
       const a = g.globalAlpha, fog = this.o.fog; g.globalAlpha = 1;   // (a wall shows nothing behind it, so fog mixes its color)
       E.px.poly(g, q.map(p => [p[0], p[1]]), a < 1 && fog ? E.mix(color, fog.color || '#a8c0e0', (1 - a) * .9) : color);
-      g.globalAlpha = a; E.px.reset(g); this._seen.push({ target, k, poly: q });
+      g.globalAlpha = a; E.px.reset(g); this._seen.push({ target, k: flat ? Math.min(...q.map(v => v[2])) : k, poly: q });   // (a floor as deep as its far edge: what stands on it is picked first)
     }, null, true, layer);
-    if (flat) this.items[this.items.length - 1].floor = pts;
+    const it = this.items[this.items.length - 1]; it.pts = pts; if (flat) it.floor = pts;
     return this;
   }
   /** what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null; with a
    *  list ([{ x, y, z, w, h, target }]: boxes w x h world units over those feet), those boxes through the camera begun,
    *  nothing drawn (gameplay that replays: m7.begin(rect, cam) in update first) */
   pick(sx, sy, list) {
-    if (list) { let best = null; for (const q of list) { const p = this.project(q.x, q.y, q.z || 0); if (!p) continue; const w = (q.w || 16) * p[2], h = (q.h || 16) * p[2]; if (sx >= p[0] - w / 2 && sx < p[0] + w / 2 && sy >= p[1] - h && sy < p[1] && (!best || p[2] > best.k)) best = { target: q.target === undefined ? null : q.target, k: p[2] }; } return best; }
+    if (list) {   // (a rolled camera: the shot and each foot turned back level, where the box stands upright as draw drew it)
+      const P = this._P, lv = (x, y) => { const du = x - P.cx, dv = y - P.cy; return [P.cx + du * P.cr - dv * P.sr, P.cy + du * P.sr + dv * P.cr]; }, [x, y] = P.sr ? lv(sx, sy) : [sx, sy]; let best = null;
+      for (const q of list) { const p = this.project(q.x, q.y, q.z || 0); if (!p) continue; const [fx, fy] = P.sr ? lv(p[0], p[1]) : p, w = (q.w || 16) * p[2], h = (q.h || 16) * p[2]; if (x >= fx - w / 2 && x < fx + w / 2 && y >= fy - h && y < fy && (!best || p[2] > best.k)) best = { target: q.target === undefined ? null : q.target, k: p[2] }; }
+      return best;
+    }
     const T = this._pt; let x = sx, y = sy;
     if (T) { const du = sx - T.rx, dv = sy - T.ry; x = T.cx + du * T.cr - dv * T.sr; y = T.cy + du * T.sr + dv * T.cr; }   // (into the unrolled picture)
     const inPoly = (P, px, py) => { let inside = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > py) !== (P[j][1] > py) && px < (P[j][0] - P[i][0]) * (py - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) inside = !inside; return inside; };
@@ -13375,19 +13382,24 @@ class Mode7 {
   _scene(cg, r, vp, items) {
     this.drawSky(cg, r, vp);
     if (this.o.curve) { const sky = this.o.sky, H0 = Math.round(clamp(this.horizon, vp.y, vp.y + vp.h)); E.px.rect(cg, vp.x, H0, vp.w, vp.y + vp.h - H0, Array.isArray(sky) ? sky[sky.length - 1] : this.o.outside); }   // (a globe's edge shows the sky below the horizon)
-    this.drawFloor(cg, vp);
-    const P = this._P, fog = this.o.fog, far = fog && fog.far || this.o.far, list = [];
+    const P = this._P, fog = this.o.fog, far = fog && fog.far || this.o.far, list = [], past = [];
     for (const it of items) {
-      const p = this.project(it.x, it.y, it.z); if (!p || p[0] < vp.x - 200 || p[0] > vp.x + vp.w + 200) continue;
-      let d = P.R || it.deep ? P.f / p[2] : (it.x - P.x) * P.fx + (it.y - P.y) * P.fy;   // (a model or a quad by its depth from the camera: one under another sorts behind it)
-      if (it.floor) for (const q of it.floor) { const pq = this.project(q[0], q[1], q[2] || 0); if (pq) d = Math.max(d, P.f / pq[2]); }   // (a floor by its far edge)
-      if (d <= far) list.push([d, it, p]);
+      let p = this.project(it.x, it.y, it.z), L = list;
+      if (!p && it.pts) for (const q of it.pts) { const pq = this.project(q[0], q[1], q[2] || 0); if (pq && (!p || pq[2] < p[2])) p = pq; }   // (a quad whose middle is behind the camera: by its farthest corner in view, cut at the near plane as it is drawn)
+      if (!p && P.R && it.deep) { P.all = true; p = this.project(it.x, it.y, it.z); P.all = false; L = past; }   // (a model or a quad whose foot is past a globe's edge: drawn before the floor, which hides what the globe hides)
+      if (!p || !it.pts && (p[0] < vp.x - 200 || p[0] > vp.x + vp.w + 200)) continue;
+      const f = P.f / p[2]; let d = f, n = f;   // (everything by its depth from the camera, models, quads and billboards alike: one under another sorts behind it)
+      if (it.floor) for (const q of it.floor) { const pq = this.project(q[0], q[1], q[2] || 0); if (pq) { d = Math.max(d, P.f / pq[2]); n = Math.min(n, P.f / pq[2]); } }   // (a floor sorts by its far edge, is cut by its near one)
+      if (n <= far) L.push([d, it, p, f]);
     }
-    list.sort((a, b) => a[1].layer - b[1].layer || b[0] - a[0]);   // (a lower layer first: what stands under a track)
-    for (const [d, it, p] of list) {
-      cg.globalAlpha = fog ? clamp(1 - (d - (fog.near || 0)) / (far - (fog.near || 0)) * .8, .2, 1) : 1; E.px.reset(cg); it.fn(cg, p[0], p[1], p[2]);   // (the color cache forgotten: the floor and the sky set colors directly)
-      const h = it.hit; if (h) this._seen.push({ target: h.target, k: p[2], box: [p[0] - (h.w || 16) * p[2] / 2, p[1] - (h.h || 16) * p[2], (h.w || 16) * p[2], (h.h || 16) * p[2]] });
-    }
+    const paint = L => { L.sort((a, b) => a[1].layer - b[1].layer || b[0] - a[0]);   // (a lower layer first: what stands under a track)
+      for (const [d, it, p, f] of L) {
+        cg.globalAlpha = fog ? clamp(1 - (f - (fog.near || 0)) / (far - (fog.near || 0)) * .8, .2, 1) : 1; E.px.reset(cg); it.fn(cg, p[0], p[1], p[2]);   // (the color cache forgotten: the floor and the sky set colors directly)
+        const h = it.hit; if (h) this._seen.push({ target: h.target, k: p[2], box: [p[0] - (h.w || 16) * p[2] / 2, p[1] - (h.h || 16) * p[2], (h.w || 16) * p[2], (h.h || 16) * p[2]] });
+      }
+    };
+    if (past.length) { P.all = true; paint(past); P.all = false; }
+    this.drawFloor(cg, vp); paint(list);
     cg.globalAlpha = 1;
   }
   /** the sky above the horizon: a Backdrop turned with the heading, or a gradient of two colors */
@@ -13487,7 +13499,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.98.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.98.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13854,7 +13866,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module REWIND v0.98.0: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.98.1: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13914,7 +13926,7 @@ E.Rewind = Rewind;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.98.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.98.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14121,7 +14133,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.98.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.98.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14133,8 +14145,9 @@ and road drawn smaller with its distance, bending and rising, and what stands be
   a Backdrop (full engine) | '#color', square: true (one focal length: a unit across is a unit up on a screen of any
   shape; without it the picture stretches to the screen's, as the arcades' did) }).
 - Build it: road.add(n, { curve: -6..6 (+ bends right), hill: units up (- down) over the n segments, tunnel: true,
-  colors, split: g (OutRun's fork: the road becomes two that ease apart, g half roads between them at the end),
-  branch: d (a second road d half roads aside, + right, bending away out of sight: the way not taken, after a fork) })
+  colors, split: g (OutRun's fork: the road becomes two that ease apart, g half roads between them at the end; after a
+  split, from its gap), branch: d (a second road d half roads aside, + right, bending away out of sight: the way not
+  taken, after a fork) })
   (curves eased in and out); road.centers(z): the roads' middles there, in half roads (one road: [0]; a split: two);
   road.place(z, offset, what, scale): scenery at distance z, offset across (-1 and 1: the road's edges; beyond:
   roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or { draw(g, sx, sy, scale), w: its width in
@@ -14181,10 +14194,11 @@ class Road {
   }
   /** n segments more, bending (curve) and climbing (hill: units up, - down), eased in and out; o.tunnel, o.colors */
   add(n, o = {}) {
-    const y0 = this.segs.length ? this.segs[this.segs.length - 1].y1 : 0, curve = o.curve || 0, hill = o.hill || 0, e = Math.max(1, Math.min(n / 3, 25)), L = this.o.segment;
+    const last = this.segs[this.segs.length - 1], y0 = last ? last.y1 : 0, curve = o.curve || 0, hill = o.hill || 0, e = Math.max(1, Math.min(n / 3, 25)), L = this.o.segment;
+    const g0 = o.split && last && last.roads && last.roads[0] === -last.roads[1] ? last.roads[1] : 0;   // (a split after a split goes on from its gap)
     for (let k = 0; k < n; k++) {
       const c = k < e ? easeIn(0, curve, k / e) : k > n - e ? easeInOut(curve, 0, (k - (n - e)) / e) : curve, i = this.segs.length;
-      const g = o.split ? (1 + o.split / 2) * easeInOut(0, 1, (k + 1) / n) : 0, b = o.branch ? o.branch + Math.sign(o.branch) * ((k + 1) / 8) ** 2 : 0;   // (a split's two roads slide apart from one; a branch bends away)
+      const g = o.split ? g0 + (1 + o.split / 2 - g0) * easeInOut(0, 1, (k + 1) / n) : 0, b = o.branch ? o.branch + Math.sign(o.branch) * ((k + 1) / 8) ** 2 : 0;   // (a split's two roads slide apart from one; a branch bends away)
       this.segs.push({ i, z: i * L, y0: easeInOut(y0, y0 + hill, k / n), y1: easeInOut(y0, y0 + hill, (k + 1) / n), curve: c, tunnel: !!o.tunnel, colors: o.colors || null, things: [], roads: o.split ? [-g, g] : o.branch ? [0, b] : null });
     }
     this.length = this.segs.length * this.o.segment; return this;
@@ -14305,7 +14319,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.98.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.98.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14488,7 +14502,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.98.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.98.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14821,7 +14835,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.98.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.98.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14975,7 +14989,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.98.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.98.1: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15183,7 +15197,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.98.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.98.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -15625,7 +15639,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.98.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.98.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

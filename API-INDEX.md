@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.98.0)
+# my-3D2dge API index (v0.98.1)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -117,7 +117,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.98.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.98.1"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1382,9 +1382,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `car.vx`, `car.vy`: its speed on the ground (E.Body's): along its heading and the slide
 - `new E.Race(o = {}) → race`: new E.Race({ path, laps, checkpoints, countdown, width, items }): a race round a closed path (the manual)
 - `race.add(car, o = {})`: a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it
-- `race.box(x, y)`: an item box at (x, y): a racer that drives through it gets an item (when it holds none)
+- `race.box(x, y, z)`: an item box at (x, y) (z: its pass, where a track with heights crosses itself): a racer that drives through it gets an item (when it holds none)
 - `race.drive(R, dt)`: a racer's way round: the intent race.update gives an AI racer's car (look ahead along the line, bends, overtakes, unsticking, the rubber band)
-- `race.grid(n)`: the start: n places behind the line, two by two, facing along it: [{ x, y, angle }]
+- `race.grid(n)`: the start: n places behind the line, two by two, facing along it: [{ x, y, z (the line's, with heights), angle }]
 - `race.hud(r, R, o = {})`: the standard HUD for a racer, in its viewport: place, lap, time, item, the countdown, WRONG WAY, FINISH (o.color; o.right: the x its right-hand text ends before, clear of a corner button)
 - `race.update(dt, map)`: one step: the countdown, every car, bumps, items, progress, laps, wrong way, places, the finish
 - `race.use(R)`: fire a racer's item: boost (now), shot (ahead along its heading), hazard (behind it)
@@ -1561,7 +1561,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 ## Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js)
 
 - `new E.Mode7(o = {}) → mode7`: new E.Mode7({ floor, size, texel, outside, wrap, sky, fog, far, curve }): a Mode 7 view (the manual above)
-- `mode7.add(x, y, z, fn, hit, deep, layer)`: gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit; hit: { target, w, h } gives m7.pick its box (w x h world units over its foot); deep: sorted by its depth from the camera (models and quads are: one under another sorts behind it), else by its distance ahead on the floor
+- `mode7.add(x, y, z, fn, hit, deep, layer)`: gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit; hit: { target, w, h } gives m7.pick its box (w x h world units over its foot); everything sorts by its depth from the camera (one under another behind it); deep: it draws its own shape, each point projected (models and quads are), so on a globe it is kept with its foot past the edge, what stands above the edge shown; layer: a lower one is drawn first
 - `mode7.begin(rect = {}, cam = this.cam)`: set up the projection for a camera (default this.cam) and a rectangle of the screen ({ W, H, x, y, cx, cy }: its size, its top left and its centre; focal: screen pixels per unit at a distance of one, instead of the fov)
 - `mode7.chase(b, o = {})`: the camera behind a body each step: back units behind it, h high, looking along its angle (o.angle to set one)
 - `mode7.draw(r, cam = this.cam)`: draw the view as an overlay over r's frame (in a split screen, r.viewport's part): sky, floor, fog, then the billboards far to near (gathered with add, rig, sprite, mesh, quad; they are used up)

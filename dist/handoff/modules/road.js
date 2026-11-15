@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ROAD v0.98.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.98.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11,8 +11,9 @@ and road drawn smaller with its distance, bending and rising, and what stands be
   a Backdrop (full engine) | '#color', square: true (one focal length: a unit across is a unit up on a screen of any
   shape; without it the picture stretches to the screen's, as the arcades' did) }).
 - Build it: road.add(n, { curve: -6..6 (+ bends right), hill: units up (- down) over the n segments, tunnel: true,
-  colors, split: g (OutRun's fork: the road becomes two that ease apart, g half roads between them at the end),
-  branch: d (a second road d half roads aside, + right, bending away out of sight: the way not taken, after a fork) })
+  colors, split: g (OutRun's fork: the road becomes two that ease apart, g half roads between them at the end; after a
+  split, from its gap), branch: d (a second road d half roads aside, + right, bending away out of sight: the way not
+  taken, after a fork) })
   (curves eased in and out); road.centers(z): the roads' middles there, in half roads (one road: [0]; a split: two);
   road.place(z, offset, what, scale): scenery at distance z, offset across (-1 and 1: the road's edges; beyond:
   roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or { draw(g, sx, sy, scale), w: its width in
@@ -59,10 +60,11 @@ class Road {
   }
   /** n segments more, bending (curve) and climbing (hill: units up, - down), eased in and out; o.tunnel, o.colors */
   add(n, o = {}) {
-    const y0 = this.segs.length ? this.segs[this.segs.length - 1].y1 : 0, curve = o.curve || 0, hill = o.hill || 0, e = Math.max(1, Math.min(n / 3, 25)), L = this.o.segment;
+    const last = this.segs[this.segs.length - 1], y0 = last ? last.y1 : 0, curve = o.curve || 0, hill = o.hill || 0, e = Math.max(1, Math.min(n / 3, 25)), L = this.o.segment;
+    const g0 = o.split && last && last.roads && last.roads[0] === -last.roads[1] ? last.roads[1] : 0;   // (a split after a split goes on from its gap)
     for (let k = 0; k < n; k++) {
       const c = k < e ? easeIn(0, curve, k / e) : k > n - e ? easeInOut(curve, 0, (k - (n - e)) / e) : curve, i = this.segs.length;
-      const g = o.split ? (1 + o.split / 2) * easeInOut(0, 1, (k + 1) / n) : 0, b = o.branch ? o.branch + Math.sign(o.branch) * ((k + 1) / 8) ** 2 : 0;   // (a split's two roads slide apart from one; a branch bends away)
+      const g = o.split ? g0 + (1 + o.split / 2 - g0) * easeInOut(0, 1, (k + 1) / n) : 0, b = o.branch ? o.branch + Math.sign(o.branch) * ((k + 1) / 8) ** 2 : 0;   // (a split's two roads slide apart from one; a branch bends away)
       this.segs.push({ i, z: i * L, y0: easeInOut(y0, y0 + hill, k / n), y1: easeInOut(y0, y0 + hill, (k + 1) / n), curve: c, tunnel: !!o.tunnel, colors: o.colors || null, things: [], roads: o.split ? [-g, g] : o.branch ? [0, b] : null });
     }
     this.length = this.segs.length * this.o.segment; return this;

@@ -106,7 +106,7 @@ const ROAD = (() => {
   let banner = null, bannerT = 0; const say = (s, secs = 2) => { banner = s; bannerT = secs; };
   function update(dt) {
     const I = game.input;
-    I.touchSet('brake', null, mode === 'drive'); I.touchSet('rewind', null, mode === 'drive' && P && !P.chase && P.rewinds > 0); I.touchSet('nitro', null, mode === 'drive' && P && P.chase);
+    I.touchSet('brake', null, mode === 'drive'); I.touchSet('rewind', null, mode === 'drive' && P && !P.chase && (P.rewinds > 0 || P.rewinding)); I.touchSet('nitro', null, mode === 'drive' && P && P.chase);   // (the last rewind's button stays under the finger while it runs)
     t += dt; if (bannerT > 0) bannerT -= dt;
     if (mode === 'menu') { menu.update(dt); return; }
     if (mode === 'results') { after.update(dt); return; }

@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module DRIVE v0.98.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.98.1: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16,8 +16,8 @@ takes away, the floor's tag under it slowing it, walls and other cars it bounces
   E.Car.collide(cars) bumps them apart.
 - const race = new E.Race({ path: a closed E.Path (the racing line; the full engine's), laps: 3, checkpoints: 8, countdown: 3, width: 40
   (the track's half: the drivers' lanes), items: ['boost', 'shot', 'hazard'], heights: false (true: a track that climbs and
-  crosses itself, the line's points [x, y, z]: progress measured with each car's z) }); race.grid(n) -> the start places
-  [{ x, y, angle }]; race.add(car, { name, input (a player's) | ai: { skill: .95, rubber: .2 } }) -> a racer { car,
+  crosses itself, the line's points [x, y, z]: progress measured with each car's z; items hit only a car on their own
+  pass) }); race.grid(n) -> the start places [{ x, y, z, angle }]; race.add(car, { name, input (a player's) | ai: { skill: .95, rubber: .2 } }) -> a racer { car,
   name, lap, place, prog (distance raced), times, best, finished, time, wrong, item }.
 - Each step race.update(dt, map): the countdown (race.go once it says GO), every car driven (players by their input,
   the rest by race.drive(racer): look ahead along the line, brake for bends, overtake, unstick, rubber band), bumps,
@@ -73,7 +73,7 @@ class Car extends E.Body {
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
     let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
-    const drift = inp ? c.down('drift') : !!c.drift, hop = inp ? c.pressed('drift') : drift && !this._held;
+    const dr = inp && (!c.map || c.map.drift), drift = inp ? !!dr && c.down('drift') : !!c.drift, hop = inp ? !!dr && c.pressed('drift') : drift && !this._held;   // (an input with no drift action: none, and no warning)
     this._held = drift;
     const tag = o.ground ? o.ground(this.x, this.y) : map && map.floorAt ? map.floorAt(this.x, this.y) : null, S = (tag && o.surfaces[tag]) || {};
     this.surface = tag; this.offroad = (S.top || 1) < 1;
@@ -128,16 +128,16 @@ class Race {
   constructor(o = {}) {
     if (!o.path) throw new Error('E.Race needs { path }: a closed E.Path along the track (the racing line)');
     /** o: its options */
-    this.o = Object.assign({ laps: 3, checkpoints: 8, countdown: 3, width: 40, items: ['boost', 'shot', 'hazard'] }, o);
+    this.o = Object.assign({ laps: 3, checkpoints: 8, countdown: 3, width: 40, items: ['boost', 'shot', 'hazard'] }, o); if (!this.o.items) this.o.items = [];   // (null: none)
     /** path: the racing line; racers: every racer, in the order added; t: seconds since GO (- before it); go: racing (the
      *  countdown over); over: every racer finished; results: the racers as they finished; boxes, shots, hazards: the
      *  items on the track */
     this.path = o.path; this.racers = []; this.t = -this.o.countdown; this.go = false; this.over = false; this.results = []; this.boxes = []; this.shots = []; this.hazards = [];
   }
-  /** the start: n places behind the line, two by two, facing along it: [{ x, y, angle }] */
+  /** the start: n places behind the line, two by two, facing along it: [{ x, y, z (the line's, with heights), angle }] */
   grid(n) {
     const out = [], w = this.o.width * .45;
-    for (let i = 0; i < n; i++) { const p = this.path.at(-14 - i * 22), a = p.angle, side = i % 2 ? 1 : -1; out.push({ x: p.x - Math.sin(a) * w * side, y: p.y + Math.cos(a) * w * side, angle: a }); }
+    for (let i = 0; i < n; i++) { const p = this.path.at(-14 - i * 22), a = p.angle, side = i % 2 ? 1 : -1; out.push({ x: p.x - Math.sin(a) * w * side, y: p.y + Math.cos(a) * w * side, z: this.o.heights ? p.z : 0, angle: a }); }   // (heights: on the line's pass, so race.add places it there)
     return out;
   }
   /** a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it */
@@ -146,8 +146,9 @@ class Race {
     const R = { car, name: o.name || E.t('engine.drive.car', { number: this.racers.length + 1 }), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
     this.racers.push(R); return R;
   }
-  /** an item box at (x, y): a racer that drives through it gets an item (when it holds none) */
-  box(x, y) { this.boxes.push({ x, y, t: 0 }); return this; }
+  /** an item box at (x, y) (z: its pass, where a track with heights crosses itself): a racer that drives through it gets
+   *  an item (when it holds none) */
+  box(x, y, z) { this.boxes.push({ x, y, z, t: 0 }); return this; }
   /** a racer's way round: the intent race.update gives an AI racer's car (look ahead along the line, bends, overtakes,
    *  unsticking, the rubber band) */
   drive(R, dt) {
@@ -174,8 +175,8 @@ class Race {
   use(R) {
     const c = R.car, it = R.item; if (!it) return; R.item = null;
     if (it === 'boost') c.boost(1, .45);
-    else if (it === 'shot') this.shots.push({ x: c.x + Math.cos(c.angle) * 12, y: c.y + Math.sin(c.angle) * 12, vx: Math.cos(c.angle) * (c.o.top * 1.6), vy: Math.sin(c.angle) * (c.o.top * 1.6), t: 0, by: R });
-    else this.hazards.push({ x: c.x - Math.cos(c.angle) * 14, y: c.y - Math.sin(c.angle) * 14, t: 0 });
+    else if (it === 'shot') this.shots.push({ x: c.x + Math.cos(c.angle) * 12, y: c.y + Math.sin(c.angle) * 12, z: this.o.heights ? c.z : undefined, vx: Math.cos(c.angle) * (c.o.top * 1.6), vy: Math.sin(c.angle) * (c.o.top * 1.6), t: 0, by: R });
+    else this.hazards.push({ x: c.x - Math.cos(c.angle) * 14, y: c.y - Math.sin(c.angle) * 14, z: this.o.heights ? c.z : undefined, t: 0 });
   }
   /** one step: the countdown, every car, bumps, items, progress, laps, wrong way, places, the finish */
   update(dt, map) {
@@ -186,14 +187,15 @@ class Race {
       R.car.update(dt, map, ctl);
     }
     Car.collide(cars.filter(c => !c.isVehicle));   // (the 3D engine's vehicles bump in Rapier)
-    for (const b of this.boxes) { b.t -= dt; if (b.t > 0) continue; for (const R of this.racers) if (!R.item && Math.hypot(R.car.x - b.x, R.car.y - b.y) < R.car.r + 8) { const I = this.o.items; R.item = I[Math.floor(Math.random() * I.length)]; b.t = 2; break; } }
+    const on = (R, z) => z === undefined || Math.abs(R.car.z - z) < 24;   // (heights: an item touches only a car on its own pass)
+    for (const b of this.boxes) { b.t -= dt; if (b.t > 0) continue; for (const R of this.racers) if (!R.item && on(R, b.z) && Math.hypot(R.car.x - b.x, R.car.y - b.y) < R.car.r + 8) { const I = this.o.items; R.item = I[Math.floor(Math.random() * I.length)]; b.t = 2; break; } }
     for (const s of this.shots) {
       s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;
       if (map && map.collide) { const b = { x: s.x, y: s.y, r: 3 }; if (map.collide(b)) { s.t = 9; continue; } }
-      for (const R of this.racers) if (R !== s.by && Math.hypot(R.car.x - s.x, R.car.y - s.y) < R.car.r + 4) { R.car.spinOut(1); s.t = 9; }
+      for (const R of this.racers) if (R !== s.by && on(R, s.z) && Math.hypot(R.car.x - s.x, R.car.y - s.y) < R.car.r + 4) { R.car.spinOut(1); s.t = 9; }
     }
     this.shots = this.shots.filter(s => s.t < 3);
-    for (const h of this.hazards) for (const R of this.racers) if (h.t < 9 && Math.hypot(R.car.x - h.x, R.car.y - h.y) < R.car.r + 4 && R.car.onGround) { R.car.spinOut(.9); h.t = 9; }
+    for (const h of this.hazards) for (const R of this.racers) if (h.t < 9 && on(R, h.z) && Math.hypot(R.car.x - h.x, R.car.y - h.y) < R.car.r + 4 && R.car.onGround) { R.car.spinOut(.9); h.t = 9; }
     this.hazards = this.hazards.filter(h => h.t < 9);
     for (const R of this.racers) {
       // progress round the line (unwrapped), checkpoints in order, laps
@@ -221,7 +223,7 @@ class Race {
       const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
       F.text(g, E.t('engine.drive.lap', { lap: Math.min(this.o.laps, R.lap + 1), laps: this.o.laps }), rx, y, col, { align: 'right', shadow: '#000', outline: false });
       F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
-      if (this.o.items.length) E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });   // (the item's slot, where the race has items)
+      if (this.o.items && this.o.items.length) E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });   // (the item's slot, where the race has items)
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;
       if (this.t < 1) F.text(g, this.t < 0 ? String(Math.ceil(-this.t)) : E.t('engine.drive.go'), cx, cy, this.t < 0 ? '#ffffff' : '#4ae04a', { align: 'center', scale: 3, shadow: '#000', outline: false });
