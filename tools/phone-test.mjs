@@ -24,6 +24,7 @@
 //  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers
 //  13c. blaster: the jet's MISSILE and ROLL thumb-sized; the stick banks it; in the valley a tap shoots where it lands
 //  13d. road: BRAKE and REWIND thumb-sized; it accelerates by itself; the stick steers
+//  13f. special: JUMP thumb-sized on the planet; in the fort the stick turns the soldier (and the world under him)
 //  13e. zero: BOOST thumb-sized; it accelerates by itself; the stick steers
 //  13b. sky: GAS and SLOW thumb-sized in the plane (ACT only where it acts: the chute, a landing); the stick banks the
 //      plane and it turns; GAS opens the throttle
@@ -111,7 +112,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'zero', 'sky', 'blaster', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
+for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'zero', 'special', 'sky', 'blaster', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -594,6 +595,23 @@ if (want('zero')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `zero-${label.replace(/ /g, '-')}.png`) });
     check(`zero ${label}: BOOST, a thumb's size`, acts === 'boost' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`zero ${label}: it accelerates by itself; the stick held right turns it right`, s0.auto && s0.speed > 30 && E_turn(s0.angle, s1.angle) > .3 && !errors.length, `speed ${s0.speed}, turned ${E_turn(s0.angle, s1.angle).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 13f. special: its button, and the stick turning the fort */
+if (want('special')) {
+  console.log('special: JUMP, thumb-sized; the stick turns the soldier in the fort');
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, cdp, errors } = await open('special', vp, 'special/turn'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(600);
+    const st = () => ev(page, () => window.__game.scenes.special.state());
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, text: b.textContent }; }));
+    const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
+    const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
+    await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `special-${label.replace(/ /g, '-')}.png`) });
+    check(`special ${label}: FIRE, a thumb's size`, acts === 'fire' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
+    check(`special ${label}: the stick held right turns the soldier right`, s0.part === 'turn' && E_turn(s0.a, s1.a) > .3 && !errors.length, `turned ${E_turn(s0.a, s1.a).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }

@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.99.0 (2026-11-15)
+
+The Mode 7 era's bonus stages and arenas as a kit of their own: SPECIAL (D93: its budget).
+
+- **Engine**: the SPECIAL kit (`#special`, `src/starter/68-special.js`, the mode7 and drive modules), four stages, each with an autopilot. PLANET (Sonic 3's Blue Sphere): a checkered world so small it curves away on every side (`curve` and `wrap`); run over every blue sphere (it turns red behind you), jump the red ones, turn a quarter at a crossing. TUBE (Sonic 2's special stage): a half-pipe that twists and climbs through space, drawn as `m7.quad` strips, the camera rolled with the runner so the pipe's floor stays down; rings past the bombs, enough by each of three gates. ARENA (Super Mario Kart's battle): four karts (`E.Car`), three balloons each, shells that bounce off the walls, two minutes; one to four players in a split screen. TURN (Contra III's top-down stages, Super Castlevania IV's turning room): a fort seen from straight above (`pitch: 90`) that turns as the soldier does; crawlers that find their way round its walls (a flow field); three nests to clear. Deep links `#special/planet`, `#special/tube`, `#special/arena`, `#special/turn`. On a phone: the stick and one button (JUMP or FIRE).
+- **Tools**: the kits test (every sphere, all three gates, a battle to its end, every nest) and the phone test (FIRE thumb-sized, the stick turning the fort) cover SPECIAL; the Labs page has its tile and a To check card.
+- **Docs**: SPECIAL in the README (twenty-five slices, the genre table), the API card (a row for bonus stages; the racing and flight rows made shorter to fit), `AI_GUIDE.md`'s recipes pointing at its stages, `docs/KITS.md`, the review handoff (29 cards); D93: SPECIAL's budget of its own (225,000 tokens).
+
 ## 0.98.1 (2026-11-15)
 
 Fixes to the Mode 7 kits: the six findings Codex left on #217 and #218 once they had merged, and those of a review of v0.98.0, each reproduced before it was fixed.

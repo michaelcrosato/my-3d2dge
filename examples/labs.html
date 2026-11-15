@@ -195,6 +195,14 @@ const LABS = {
           "links": [["Sky ribbon", "#zero/sky"], ["VS", "#zero/vs"]]
         },
         {
+          "page": "dist/kits/my-3d2dge-special.html",
+          "at": "#special",
+          "title": "Special: do the bonus stages and the arena feel right?",
+          "what": "PLANET: left and right turn a quarter at the next crossing, Space jumps; run over every blue sphere (it turns red), never touch a red one. TUBE: left and right run up the half-pipe's walls, Space jumps; enough rings by each of three gates, past the bombs. ARENA: up or Z the gas, left and right steer, Space fires a shell that bounces off the walls; pop the other karts' balloons, keep yours (players 2 to 4 press 2 or Start before it begins). TURN: left and right turn the soldier, the fort turning under him, up and down walk, Space fires; clear the three nests. Added with v0.99.0.",
+          "look": "Does the planet curve away on every side? Does the tube twist and roll with you, the runner on its wall? Is the battle fun, the shells' bounces readable? Does the fort turn smoothly, the soldier always facing up? On your phone: the stick and one button (JUMP or FIRE).",
+          "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"]]
+        },
+        {
           "page": "dist/kits/my-3d2dge-sky.html",
           "at": "#sky",
           "title": "Sky: does it feel like Pilotwings and Final Fantasy's airship?",
@@ -455,6 +463,12 @@ const LABS = {
           "links": [["Grand Prix", "#zero/gp"], ["City", "#zero/city"], ["Ribbon", "#zero/sky"], ["VS", "#zero/vs"]]
         },
         {
+          "page": "dist/kits/my-3d2dge-special.html",
+          "title": "Special",
+          "what": "The Mode 7 era's bonus stages and arenas (Sonic 3's Blue Sphere, Sonic 2's half-pipe, Super Mario Kart's battle, Contra III's top-down stages): a checkered planet that curves away, a half-pipe in space, karts with balloons for one to four players, a fort seen from above that turns with you.",
+          "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"]]
+        },
+        {
           "page": "dist/kits/my-3d2dge-sky.html",
           "title": "Sky",
           "what": "Mode 7 flight (Pilotwings, Final Fantasy VI's airship): a light plane through ten rings and onto a runway, a skydive through hoops onto a target, an airship over a world that curves away below it; the camera pitched and rolled with the plane, the craft low-poly models.",
@@ -705,7 +719,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = target('emberdeep', '');
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was built from (dev-build in the repository; tools/stamp.mjs fills in a commit for a copy)
-el('div', 'ver', 'my-3D2dge v0.98.1 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.99.0 · dev-build', foot);
 })();
 </script>
 
