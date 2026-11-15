@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.100.0 (2026-11-15)
+
+The rest of the owner's Mode 7 list made playable: HyperZone and Super Star Wars (BLASTER's ZONE), Night Striker (ROAD's STRIKER), Mario Kart: Super Circuit's small screen (`#kart/gba`); fixes from Codex's review of v0.99.0.
+
+- **Engine**: BLASTER's ZONE (HyperZone, Super Star Wars' speeders; `#blaster/zone`, the fourth stage of a run): a craft along a winding course over a neon grid, its rails of light drawn as flat `m7.quad` strips, the camera banking into the bends; pods in threes that fire, mines on the course to steer round, a gate at its end.
+- **Engine**: ROAD's STRIKER (Night Striker, `#road/striker`): an armoured car that flies over the night road: up and down rise and fall, left and right cross it, FIRE at the drones in the air and the armoured cars on the road that come at you and shoot back; a shield of five, its shadow on the road under it.
+- **Engine**: KART: `#kart/gba` races at the Game Boy Advance's 240 x 160 (Mario Kart: Super Circuit).
+- **Engine**: ZERO: the city's start line sits partway up its straight, so the grid behind it does too (the back of the grid had stood in the bend before it, a machine there meeting the barrier at once).
+- **Engine**: fixed, from Codex's review of v0.99.0: `#road/duel` goes to the duel (it had started the coast run); each ROAD mode keeps a best score of its own (the rash's had overwritten the coast run's); two cars over the duel's line in one step: the one further past it wins (both had, player 1 announced); ZERO's attract mode is cleared on leaving and entering the scene (left by the pause menu's quit, it had thrown the next race back to the menu); ROAD's touch buttons shown or hidden by a strict true or false (an undefined had left NITRO up in the coast run).
+- **Tools**: the kits test covers ZONE (the course to its gate) and STRIKER (through the city, ten or more shot down).
+- **Docs**: the README's BLASTER, KART, ZERO and ROAD lines, `AI_GUIDE.md`'s rails recipe pointing at ZONE and STRIKER, the Labs page's links and cards.
+
 ## 0.99.0 (2026-11-15)
 
 The Mode 7 era's bonus stages and arenas as a kit of their own, SPECIAL (D93: its budget); Road Rash and Top Gear in ROAD; F-Zero: Maximum Velocity's small screen and F-Zero's attract mode in ZERO.

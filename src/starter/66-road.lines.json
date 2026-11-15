@@ -55,7 +55,13 @@
   "road.duel.you": "PLAYER {n}",
   "road.duel.ahead": "{m} M AHEAD",
   "road.duel.behind": "{m} M BEHIND",
-  "road.duel.won": "PLAYER {n} WINS!"
+  "road.duel.won": "PLAYER {n} WINS!",
+  "road.menu.striker": "STRIKER: FLY AND FIGHT",
+  "road.fire": "FIRE",
+  "road.striker.kills": "{n} DOWN",
+  "road.striker.fire": "{key}: FIRE",
+  "road.striker.won": "THROUGH THE CITY!",
+  "road.striker.down": "SHIELD GONE"
  },
  "notes": {
   "road.title": "The driving game's title, on its menu: a run along a coast road.",
@@ -103,6 +109,12 @@
   "road.duel.you": "Which player's half of the screen this is.",
   "road.duel.ahead": "How far ahead of the other player you are, {m} metres.",
   "road.duel.behind": "How far behind the other player you are, {m} metres.",
-  "road.duel.won": "The duel is over: player {n} crossed the line first."
+  "road.duel.won": "The duel is over: player {n} crossed the line first.",
+  "road.menu.striker": "A flying car over the night road, shooting the drones and armoured cars that come at it.",
+  "road.fire": "A touch button: shoot ahead.",
+  "road.striker.kills": "How many foes you have shot down, {n}.",
+  "road.striker.fire": "{key} is the key or button that shoots ahead.",
+  "road.striker.won": "The flight is over: you reached the end of the road.",
+  "road.striker.down": "The flight is over: your shield ran out."
  }
 }

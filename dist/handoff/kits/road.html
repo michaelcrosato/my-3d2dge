@@ -144,6 +144,12 @@
     "road.duel.ahead": "{m} M AHEAD",
     "road.duel.behind": "{m} M BEHIND",
     "road.duel.won": "PLAYER {n} WINS!",
+    "road.menu.striker": "STRIKER: FLY AND FIGHT",
+    "road.fire": "FIRE",
+    "road.striker.kills": "{n} DOWN",
+    "road.striker.fire": "{key}: FIRE",
+    "road.striker.won": "THROUGH THE CITY!",
+    "road.striker.down": "SHIELD GONE",
     "engine.key.space": "Space",
     "engine.key.shift_left": "Shift",
     "engine.key.shift_right": "R Shift",
@@ -433,7 +439,13 @@
     "road.duel.you": "Which player's half of the screen this is.",
     "road.duel.ahead": "How far ahead of the other player you are, {m} metres.",
     "road.duel.behind": "How far behind the other player you are, {m} metres.",
-    "road.duel.won": "The duel is over: player {n} crossed the line first."
+    "road.duel.won": "The duel is over: player {n} crossed the line first.",
+    "road.menu.striker": "A flying car over the night road, shooting the drones and armoured cars that come at it.",
+    "road.fire": "A touch button: shoot ahead.",
+    "road.striker.kills": "How many foes you have shot down, {n}.",
+    "road.striker.fire": "{key} is the key or button that shoots ahead.",
+    "road.striker.won": "The flight is over: you reached the end of the road.",
+    "road.striker.down": "The flight is over: your shield ran out."
   },
   "names": ["my-3D2dge"],
   "brief": "The my-3D2dge starter: a title menu of small games, one per genre, each a complete slice to copy and change. Its menus and notices are short, arcade-like, mostly in capitals; keep them short, since they sit on a 320 x 240 screen. The player is unnamed and unseen in the menus; address them with the familiar \"you\" where a line needs one.\n\nLines with ids starting engine. are the engine's own words: its pause menu, settings, controls screen, save slots, notices and key names, shown on every game made with it. Keep them short: they sit on buttons and in narrow rows."
@@ -441,7 +453,7 @@
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">ROAD</b><span>Starting · my-3D2dge v0.99.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">ROAD</b><span>Starting · my-3D2dge v0.100.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <canvas id="screen"></canvas>
 <script src="../my-3d2dge.js"></script>
 <script src="road.js"></script>
