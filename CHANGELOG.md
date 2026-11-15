@@ -7,13 +7,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 
 ## 0.98.0 (2026-11-15)
 
-Anti-gravity racing in Mode 7: the ZERO kit (F-Zero, F-Zero X, Power Drift; Street Racer's four players), and the races and Mode 7 views it needed.
+Anti-gravity racing in Mode 7: the ZERO kit (F-Zero, F-Zero X, Power Drift; Street Racer's four players), and the races and Mode 7 views it needed (D92: its budget of its own).
 
 - **Engine**: the ZERO kit (`#zero`, `src/starter/67-zero.js`, the mode7, mesh and drive modules): six hovering machines (`E.Mesh` models, banked into the bends) on NEON CITY, a night circuit whose barriers drain energy, whose pit lane refills it and whose dash plates fling you, a boost from the second lap that spends it, a machine out of energy that limps; and SKY RIBBON, a track raised on pillars over a desert that climbs, drops, banks and passes over and under itself (Power Drift), with its own pit. GRAND PRIX runs both for points; VS is two to four players in a split screen (`#zero/gp`, `#zero/city`, `#zero/sky`, `#zero/vs`). On a phone it accelerates by itself, the stick steers, BOOST is a button.
 - **Engine**: the drive module's `E.Race({ heights: true })`: a car's place on the racing line is the nearest point in 3D, so a track that passes over itself keeps its laps; the item box is drawn only in a race with items.
 - **Rendering**: the mode7 module's `m7.quad(pts, color, target, layer)`: a lower layer is drawn first (the pillars under a raised track); quads and models sort by their depth from the camera, so a ribbon's stretches stack right where it climbs over itself.
 - **Tools**: the kits test and the phone test cover ZERO (both tracks finished by six drivers, four players split; BOOST thumb-sized, the gas by itself, the stick steering); the Labs page has its tile and a To check card.
-- **Docs**: ZERO in the README, the API card's racing row and module rows, `AI_GUIDE.md` (Anti-gravity racing), the review handoff (28 cards).
+- **Docs**: ZERO in the README, the API card's racing row and module rows, `AI_GUIDE.md` (Anti-gravity racing), the review handoff (28 cards); D92: ZERO's budget of its own (222,000 tokens).
 
 ## 0.97.0 (2026-11-15)
 
