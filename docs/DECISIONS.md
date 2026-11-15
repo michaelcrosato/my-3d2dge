@@ -1693,3 +1693,16 @@ An entry:
   the battle's karts with hand-made motion and drop `drive` from its `@modules`, or move a stage to a kit of its own.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.99.0
+
+## D94 · 2026-11-15 · KART keeps a budget of its own: 218,000 tokens
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D69 (a 2D kit at most 216,000
+  cl100k tokens, but for the kits that keep budgets of their own)
+- **Call:** the KART kit stood at 215,996 tokens at v0.101.0, its header trimmed twice to fit `#kart/gba`; the mode7
+  module's fix to a globe's floor took it to 216,001, and the fixes an audit of the Mode 7 kits found in it (a kart
+  stuck against a wall on a phone, a finished kart grinding the wall, the keyboard after a two-player race) need more.
+  It joins `KIT2D` with 218,000.
+- **Why:** a kit that can't take a fix without cutting its own manual is a kit whose bugs stay; the 2,000 tokens are
+  for its fixes, not for new modes.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.101.1
