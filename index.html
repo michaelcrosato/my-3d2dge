@@ -11766,7 +11766,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
-<script type="text/plain" data-part="2aff3b63cd2f">
+<script type="text/plain" data-part="e0b8aa787eda">
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
 my-3D2dge module MODE7 v0.101.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
@@ -12027,7 +12027,7 @@ class Mode7 {
         const h = it.hit; if (h) this._seen.push({ target: h.target, k: p[2], box: [p[0] - (h.w || 16) * p[2] / 2, p[1] - (h.h || 16) * p[2], (h.w || 16) * p[2], (h.h || 16) * p[2]] });
       }
     };
-    if (past.length) { P.all = true; paint(past); P.all = false; }
+    if (past.length) { P.all = true; paint(past); P.all = false; cg.globalAlpha = 1; }   // (the floor whole, not at the last model's fog)
     this.drawFloor(cg, vp); paint(list);
     cg.globalAlpha = 1;
   }
@@ -19971,7 +19971,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
   <div class="touch" aria-hidden="true"><button data-act="dash">Dash</button><button data-act="skill">Ember</button><button data-act="attack">Slash</button></div>
 </div>
 script>82c904ec091f/script>
-script>2aff3b63cd2f/script>
+script>e0b8aa787eda/script>
 script>
 /* ---- inlined from src/stress.game.js ---- */
 /* =============================================================================
@@ -80793,7 +80793,7 @@ E.Mesh = Mesh;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /script>
-script>2aff3b63cd2f/script>
+script>e0b8aa787eda/script>
 script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!

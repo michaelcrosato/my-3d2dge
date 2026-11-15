@@ -16505,7 +16505,7 @@ class Mode7 {
         const h = it.hit; if (h) this._seen.push({ target: h.target, k: p[2], box: [p[0] - (h.w || 16) * p[2] / 2, p[1] - (h.h || 16) * p[2], (h.w || 16) * p[2], (h.h || 16) * p[2]] });
       }
     };
-    if (past.length) { P.all = true; paint(past); P.all = false; }
+    if (past.length) { P.all = true; paint(past); P.all = false; cg.globalAlpha = 1; }   // (the floor whole, not at the last model's fog)
     this.drawFloor(cg, vp); paint(list);
     cg.globalAlpha = 1;
   }
