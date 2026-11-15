@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.93.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.94.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and 21 working games and an animation lab.
+  AI MODELS: this one file is the whole engine, its documentation and 20 working games and an animation lab.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below, whole.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". It is yours to change: fix, extend
        or rewrite any of it as you see fit (readable in dist/my-3d2dge.html, its source in the repository).
        Every module follows it, each a script marked "inlined from engine/modules/<name>.js" that starts with its manual.
-    3. The games live between GAME START and GAME END: a title menu plus 21 vertical slices (ADVENTURE, PLATFORMER,
-       METROIDVANIA, BRAWLER, FIGHTING, SHOOTER, ARCADE, PINBALL, KART, ROAD, PUZZLE, RHYTHM, RPG, ROGUELIKE,
-       TACTICS, RTS, SIM, ARTILLERY, POINT-AND-CLICK, STEALTH, SPORTS) and an ANIMATION LAB that plays every move,
-       pose and skin in every view.
+    3. The games live between GAME START and GAME END: a title menu plus 20 vertical slices (ADVENTURE, PLATFORMER,
+       METROIDVANIA, BRAWLER, FIGHTING, SHOOTER, ARCADE, PINBALL, KART, PUZZLE, RHYTHM, RPG, ROGUELIKE, TACTICS,
+       RTS, SIM, ARTILLERY, POINT-AND-CLICK, STEALTH, SPORTS) and an ANIMATION LAB that plays every move, pose and
+       skin in every view.
        To make a new game, change the slice closest to your genre into yours (its own title, play and game-over
        scenes) and delete what you don't use of the rest.
   HUMANS: open this file in a browser and play. Press ? for the API card.
   Deep links: add #adventure, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #pinball, #kart,
-       #road, #puzzle, #rhythm, #rpg, #roguelike, #tactics, #rts, #sim, #artillery, #pointclick, #stealth, #sports,
+       #puzzle, #rhythm, #rpg, #roguelike, #tactics, #rts, #sim, #artillery, #pointclick, #stealth, #sports,
        #animlab to the address to start a slice; #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map,
        #fighting/versus, #fighting/arcade, #fighting/training, #shooter/horizontal, #arcade/maze,
-       #arcade/formation, #arcade/rocks, #kart/race, #kart/vs, #road/drive, #rhythm/stepup, #rhythm/rapschool,
+       #arcade/formation, #arcade/rocks, #kart/race, #kart/vs, #rhythm/stepup, #rhythm/rapschool,
        #rhythm/calibrate, #rpg/battle, #tactics/battle, #tactics/phases, #artillery/cpu, #sports/match, #sports/vs
        jump into a part.
 -->
@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.93.0)
+# my-3D2dge API card (v0.94.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -289,7 +289,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Kart racing (Super Mario Kart, F-Zero) | Mode 7 (the mode7 module, over any view) | `E.Mode7` over a TileMap track (floor tags: grass, sand, boost), `E.Car` karts (`kart: true`: hop, drift, boost) in an `E.Race` round an `E.Path` (laps, checkpoints, drivers, items), rigs in karts as billboards, `game.splitScreen(2)` for two | KART |
 | 3D kart racing (Mario Kart 64, Crash Team Racing) | the 3D engine's `'behind'` camera | `world.track` (banked, walls, pads, `gaps` for a shortcut), `world.vehicle` karts raced by `E.Race`, split screen through `world.cameras` | 3D RACING |
 | Rail shooters (Star Fox 64, Panzer Dragoon) | the 3D engine's `'behind'` camera | `world.flyer` on rails or free in bounds, rolls (`f.rolling`) turn shots aside, `f.seek` for a charged lock, `Dialog`'s radio | 3D FLIGHT |
-| Road racing (OutRun, Pole Position, Road Rash) | the pseudo-3D road (the road module) | `E.Road` segments (curves, hills, tunnels), scenery and traffic placed on it, `curveAt` throwing the car outward, a clock and checkpoints | ROAD |
+| Road racing (OutRun, Pole Position, Road Rash) | the pseudo-3D road (the road module) | `E.Road` segments (curves, hills, tunnels), scenery and traffic placed on it, `curveAt` throwing the car outward, a clock and checkpoints | (a recipe) |
 | Top-down racing and driving (Micro Machines, RC Pro-Am, GTA) | `topdown` / `iso` | `E.Car` on a TileMap (its floor tags slow it, its walls bounce it), `E.Race` for laps and drivers, cars drawn with `px.poly` on `r.w()` corner points | KART |
 | First-person shooter (Doom, GoldenEye 007, Apex Legends) | the 3D engine's first person (or third) | a level of text rows or a terrain, `world.ray` hitscan, recoil and reloads, doors (`world.thing('door')`), raiders on `world.flow()` | 3D SHOOTER |
 | Bomberman, Frogger, Sokoban, Gauntlet, Robotron; Sonic, Prince of Persia; light guns | as the recipe says | `AI_GUIDE.md`'s Genre recipes: each on the kit closest to it | (a recipe) |
@@ -309,7 +309,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `fight` (the full engine only): one-on-one fighting: `E.Fighter` (frame data, hurt boxes from the rig's joints, guards, throws, cancels, juggles, specials by motion or charge, a meter, projectiles), `E.Match` (rounds, KO, the HUD, training), `E.FightAI`, `E.FightSelect`. FIGHTING.
   - `rooms`: a world of rooms on a grid of screens (`E.World`): walking between them at open edges, the explored map (`drawMap`, or `shellMap()` for `E.Shell`), gates that abilities or keys open, saves in `E.store`. METROIDVANIA.
   - `mode7`: the SNES's Mode 7 (`E.Mode7`): a camera over a flat floor (a TileMap's, a function's or a canvas), a turning sky, billboards far to near (rigs, sprites, shapes, your drawing), fog, `project` and `toFloor`, split screens. KART.
-  - `road`: the pseudo-3D road (`E.Road`): segments with curves and hills, lanes, rumble strips, tunnels, scenery and cars scaled by distance and hidden past a crest, the sky's parallax on curves. ROAD.
+  - `road`: the pseudo-3D road (`E.Road`): segments with curves and hills, lanes, rumble strips, tunnels, scenery and cars scaled by distance and hidden past a crest, the sky's parallax on curves.
   - `drive`: cars on the ground plane (`E.Car`: grip and slide, a kart's hop and drift boost, floor tags, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, places, drivers that pass and rubber-band, items, the HUD; the 3D engine's `world.vehicle` too). KART.
   - `story`: dialogue as data (`E.Story`): lines with speakers and portraits, choices with conditions, flags and values, gotos, the game's events, a quest log, balloons over heads, a backlog, auto and skip; its state for a save. RPG, POINT-AND-CLICK, TACTICS.
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG, 3D HORROR.
@@ -384,8 +384,6 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "starter.slice.pinball.about": "ONE TABLE: RAMP, MULTIBALL, JACKPOT",
     "starter.slice.kart": "KART",
     "starter.slice.kart.about": "MODE 7 KARTS, THREE LAPS",
-    "starter.slice.road": "ROAD",
-    "starter.slice.road.about": "A COAST ROAD AGAINST THE CLOCK",
     "starter.slice.puzzle": "PUZZLE",
     "starter.slice.puzzle.about": "FALLING BLOCKS AND FALLING PAIRS",
     "starter.slice.rhythm": "RHYTHM",
@@ -1610,34 +1608,6 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "action.brake": "Brake",
     "action.drift": "Drift",
     "action.item": "Item",
-    "road.title": "ROAD",
-    "road.radio": "PICK A SONG",
-    "road.radio.keys": "LEFT / RIGHT, THEN {key:confirm}",
-    "road.radio.touch": "TAP A SONG, TAP IT AGAIN TO DRIVE",
-    "road.song.breeze": "SEA BREEZE",
-    "road.song.sunset": "SUNSET DRIVE",
-    "road.song.neon": "NEON HIGHWAY",
-    "road.area.beach": "COCONUT BEACH",
-    "road.area.hills": "GREEN HILLS",
-    "road.area.tunnel": "CLIFF TUNNEL",
-    "road.area.desert": "DESERT AT DUSK",
-    "road.area.city": "CITY NIGHTS",
-    "road.banner.check": "EXTENDED PLAY! {area}",
-    "road.sign.slow": "SLOW",
-    "road.sign.goal": "GOAL",
-    "road.sign.turn": "TURN",
-    "road.arch.checkpoint": "CHECKPOINT",
-    "road.arch.goal": "GOAL",
-    "road.hud.time": "TIME",
-    "road.hud.score": "SCORE {score}",
-    "road.hud.speed": "{speed} KM/H",
-    "road.gear.low": "LOW",
-    "road.gear.high": "HIGH",
-    "road.goal": "GOAL!",
-    "road.over": "GAME OVER",
-    "road.end": "SCORE {score}   DISTANCE {distance}%",
-    "road.again": "TO DRIVE AGAIN",
-    "action.gear": "Gear",
     "sports.title": "CAGE CUP",
     "sports.about": "TWO AGAINST TWO, UP TO FOUR PLAYERS",
     "sports.menu.match": "MATCH",
@@ -2646,31 +2616,6 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "action.brake": "An action's name on the controls screen and its touch button.",
     "action.drift": "Hop into a bend and slide through it: an action's name on the controls screen and its touch button.",
     "action.item": "Use the item you hold (a boost, a shell, a peel): an action's name on the controls screen and its touch button.",
-    "road.title": "The driving game's title, over the radio.",
-    "road.radio": "Before the drive: pick the song the car's radio plays.",
-    "road.radio.keys": "LEFT / RIGHT: the arrow keys that change the song; {key:confirm} the key or button that starts the drive.",
-    "road.radio.touch": "On a phone: tap a song to pick it, tap it again to start the drive.",
-    "road.song.breeze": "A song's title on the radio: translate or keep, as song titles go in your language.",
-    "road.song.sunset": "A song's title on the radio.",
-    "road.song.neon": "A song's title on the radio.",
-    "road.area.beach": "A stretch of the road, named in big letters as you reach it.",
-    "road.area.tunnel": "A stretch of the road that runs through a tunnel in the cliffs.",
-    "road.banner.check": "You passed a checkpoint and the clock got more time (the arcade's call); {area} is the next stretch's name.",
-    "road.sign.slow": "A roadside sign.",
-    "road.sign.goal": "A roadside sign (the finish ahead).",
-    "road.sign.turn": "A roadside sign (a bend ahead).",
-    "road.arch.checkpoint": "Written across an arch over the road.",
-    "road.arch.goal": "Written across the arch at the finish.",
-    "road.hud.time": "Over the countdown clock.",
-    "road.hud.score": "{score} is the score, in digits.",
-    "road.hud.speed": "{speed} in kilometres per hour.",
-    "road.gear.low": "The gear the car is in: low gear (a touch button and the HUD).",
-    "road.gear.high": "The gear the car is in: high gear (a touch button and the HUD).",
-    "road.goal": "You reached the finish in time.",
-    "road.over": "The clock ran out.",
-    "road.end": "At the end: {score} the score (digits), {distance} how far you got, in percent of the road. Three spaces between the two.",
-    "road.again": "After a key or button's name: press it to drive again.",
-    "action.gear": "Change gear (low, high): an action's name on the controls screen and its touch button.",
     "sports.title": "The football game's title: the cup played in the cage (a walled pitch).",
     "sports.about": "Under the title: two footballers a side, and up to four people can play.",
     "sports.menu.match": "A mode: you against the CPU.",
@@ -2768,18 +2713,16 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "pinball.dmd.star_storm": 10,
     "pinball.dmd.game_over": 10,
     "pinball.dmd.tilt": 10,
-    "road.gear.low": 6,
-    "road.gear.high": 6,
     "sports.team.gulls": 8,
     "sports.team.rust": 8
   },
   "names": ["my-3D2dge","Lise","Pip","Mana","Rabite","Finn","Morwen","Bruno","Bram","SCUMM","Sierra","Monkey Island","Vale","EAGLE 1","NEBULA RUN","SPUD","NIBBS","BOFF","WIGGLE","DOT","MUNCH","MASTER BEAT","Rowan","Lyra","Sera","Brightwater","Marta","Sleeping Dragon","Aldo","Wren","Sable","Liora","Grimwald","Thornwatch","Ash Legion","Ash Clan","Sunny Bay Park","MAX","JACK","RAZOR","SID","VINNIE","TANK","BARON","SKULLZ","ACME","RYO","GORM","VEX","RABITE","NOVA","LUMA","BRAKK","IRIS","TOK","ROOK","GULLS","RUST","NOOR","BEX","DRAGO","KIT"],
-  "brief": "The my-3D2dge starter: a title menu of small games, one per genre, each a complete slice to copy and change. Its menus and notices are short, arcade-like, mostly in capitals; keep them short, since they sit on a 320 x 240 screen. The player is unnamed and unseen in the menus; address them with the familiar \"you\" where a line needs one.\n\nThe adventure slice: a top-down action adventure in the manner of Secret of Mana and Zelda, bright and cheerful. A young swordsman, called only HERO (a man), walks from Mana Village across the river into the Mossy Ruins and the Shrine of Mana; the villagers (the old elder, Lise the florist, Pip a village boy) talk to him in a friendly, plain way. Rabites are small rabbit-like monsters (from Secret of Mana); Mana is the world's magic. Lines in the dialog box are typed out a letter at a time.\n\nThe point-and-click slice, The Light on Gull Rock: a comic adventure in the manner of Monkey Island, warm and wry. On a fishing harbour at dusk the lighthouse on Gull Rock has gone dark with the fleet out in the fog, and Pip, a young deckhand (a boy: the others call him lad), relights it. Pip speaks most lines, in the first person, describing what the player points at and tries (often with a dry joke); Finn, an old fisherman, Bruno, the tavern keeper (a man), and Morwen, the harbour master (a woman, proud of never losing a riddle contest), talk with him. Morwen's three riddles must work in your language with the same right answers (see their notes). Gull Rock and the Salty Gull (the tavern) are place names you may translate.\n\nThe platformer slice: a side-scrolling action platformer in the manner of Castlevania: Symphony of the Night, gothic and grave. Vale, a swordsman (a man), fights skeletons, bats and armored knights across a graveyard to a castle's gate; he speaks only to himself, briefly and solemnly. The hints on the ribbon at the bottom are short and lower case.\n\nThe metroidvania slice: in the manner of Metroid and Super Metroid, a lone explorer in a powered suit with an arm cannon (a person of unknown sex, never named or seen without the suit) explores a research station buried in a moon, room by room, finding abilities that open new gates. Its words are terse, technical, sci-fi notices in capitals, like an old console game's: room names, item banners, the map, the bosses' names. Nobody speaks.\n\nThe shooter: an arcade shoot-'em-up in two stages, a vertical one over farmland (Emerald Valley) and a horizontal one through crystal caves (Crystal Caverns). Its screen words are short arcade capitals on a small screen; the radio calls are short, urgent, military-radio sentences between the player's pilot (call sign EAGLE 1; the player, man or woman unstated) and HQ (a gruff commander). The place names are descriptive and may be translated. The power bar's words (SPEED, MISSILE...) come from Gradius.\n\nThe arcade cabinet: three short games after the golden-age classics (MAZE after Pac-Man, FORMATION after Galaga, ROCKS after Asteroids), each with its high-score table, picked from a row of cabinets. Its words are short arcade capitals, as on 1980s cabinets: cards (STAGE 2, READY!), names on marquees, a line about each game. The player is unseen; address them with the familiar \"you\".\n\nThe pinball slice: one table, NEBULA RUN (a space theme: a run through a nebula), after Pinball Fantasies and Space Cadet. Most of its words are on the table's dot-matrix display, 128 x 32 dots: two short lines of capitals, or one big word; keep them as short as the English. The player is unseen.\n\nThe artillery slice: BLAST ISLAND, after Worms and Scorched Earth: two teams of three grubs (small, comic worm-like fighters with silly names) take turns firing rockets, grenades and cluster bombs across an island that every blast carves. Light-hearted, cartoonish; its words are short capitals on a small screen. The player is unseen (YOU plays a team).\n\nThe puzzle slice: two falling-piece games on one neon stage, BLOCKS (after Tetris) and PAIRS (after Puyo Puyo), and VERSUS for two players. Short arcade capitals beside the playing field. The player is unseen.\n\nThe rhythm slice: STEP UP!, a dance club where a dancer moves to the beat and to each note you hit (after Dance Dance Revolution, Beatmania and PaRappa the Rapper). Two songs: STEP UP (arrows on four lanes) and RAP SCHOOL, where the teacher, Master Beat (a man), raps a line and you answer it. Upbeat and short: arcade capitals on a small screen. The player is unseen; address them with the familiar \"you\".\n\nThe RPG slice: a short JRPG in the manner of Dragon Quest and Final Fantasy. The town of Brightwater's wells ran dry when the Dread Knight took the cave in the northern mountains; three heroes, Rowan (he, the leader and swordsman), Lyra (she, a black mage) and Sera (she, a healer), clear the cave. Townsfolk speak to the party warmly and plainly, the Dread Knight menaces; the tone is light and friendly. Battle commands, menus and items follow Final Fantasy's English conventions (Potion, Hi-Potion, Phoenix Down, Ether); keep them short: they sit in narrow windows and buttons.\n\nThe roguelike slice: ten generated floors of a torch-lit crypt in the manner of Rogue and Mystery Dungeon. The hero (unnamed, a wanderer, the player's own) goes down for the Amulet of Embers, fighting rats, bats, slimes, goblins, skeletons and wraiths. Its messages are terse, in capitals, like an old dungeon crawler's log: address the hero as \"you\". Keep them short: four of them stack in the corner of a small screen.\n\nThe tactics slice: a battle on an isometric map in the manner of Final Fantasy Tactics and Fire Emblem. Four heroes of the Crown (Aldo, he, a paladin who leads; Wren, she, a ranger; Sable, she, a mage; Liora, she, a cleric) storm Thornwatch, a hill fort held by the Ash Legion under the knight Grimwald (he). A short scene before the battle is heroic and a little mocking; the HUD, units and commands are terse, in capitals, as in a 16-bit strategy game. The player commands the heroes and is never addressed by name.\n\nThe RTS slice: a real-time strategy match in the manner of Warcraft II and Command & Conquer. The player leads the Vale (workers, footmen, archers, knights, a hall, barracks and a stable) against the Ash Clan across a river, and wins by burning the clan's camp. Its HUD, buttons and alerts are terse military capitals, like a 1990s RTS; buttons are narrow, in a tiny font, so keep their words short.\n\nThe sim slice: a small theme-park builder in the manner of Theme Park and RollerCoaster Tycoon. The player lays paths, builds rides (a carousel, a Ferris wheel, teacups, a swing tower) and food and drink stands, and sets their prices; guests come in, ride, eat, and think aloud. The HUD and messages are short, in capitals, like a 1990s management game; money is in dollars. Guests' thoughts are casual first-person remarks.\n\nThe brawler: a side-scrolling beat-'em-up in the spirit of Final Fight. One or two street fighters, MAX and (for a second player) JACK, both men, clear a city block of a gang wave by wave, then beat its boss, BARON, who taunts the hero once and calls him kid. Arcade tone, tough and short, mostly in capitals. The shop signs, posters and the gang's graffiti tag are painted on the buildings: keep them as short as the English, they sit on small boards.\n\nThe fighting game: one on one in the spirit of Street Fighter II, best of three rounds on a temple courtyard, with three fighters: RYO (a man, an all-rounder), GORM (a man, a grappler) and VEX (a woman, fast). Its menus and calls are arcade-style, short and in capitals. LP, HP, LK and HK are light punch, heavy punch, light kick and heavy kick; motions are written in number-pad notation (236), which stays as numbers.\n\nThe animation lab: a tool, not a game. It plays every animation the engine's characters can do (walking, sword and fist moves, kicks, poses, reactions) on every skin (a character type: knight, mage, slime...) from every camera view, with a timeline of each move's phases. Its words are short technical labels, mostly in capitals, in narrow lists: keep them as short as the English. WIND is a move's wind-up, HIT the moment it strikes, RECOVER its return to guard.\n\nThe kart racer: Mode 7 karts in the spirit of Super Mario Kart. Six drivers (NOVA, LUMA, BRAKK, IRIS, TOK and ROOK: made-up names, gender not stated) race three laps of a meadow circuit, you against five CPU drivers or two players in a split screen. Arcade tone: short words in capitals.\n\nThe road: an arcade driving game in the spirit of OutRun. A convertible drives a coast road through five areas against a countdown clock; each checkpoint gives time back (EXTENDED PLAY! is the arcade call for it), and the goal must be reached before it runs out. First the player picks a song on the car's radio; the songs have titles. Short words, mostly in capitals.\n\nThe sports slice: two-against-two football (soccer) in a walled cage, in the spirit of Sensible Soccer, for up to four players: the GULLS (NOOR and BEX) against the RUST (DRAGO and KIT); the footballers' gender is not stated. A radio commentator, CAGE RADIO, calls the match in short, excited lines in capitals. Two halves on the clock; if it ends level, a golden goal: the next goal wins.\n\nThe stealth slice: rooftop stealth and parkour in the manner of Assassin's Creed and Metal Gear, at dusk in an old town. A hooded assassin (a person of unknown sex, never named) steals a ledger (an account book) from a brick roof and slips out by the east gate past three patrolling guards. Nobody speaks: its words are an objective with a distance, a status, key hints, short notices and the results, plain and quiet in tone.\n\nLines with ids starting engine. are the engine's own words: its pause menu, settings, controls screen, save slots, notices and key names, shown on every game made with it. Keep them short: they sit on buttons and in narrow rows."
+  "brief": "The my-3D2dge starter: a title menu of small games, one per genre, each a complete slice to copy and change. Its menus and notices are short, arcade-like, mostly in capitals; keep them short, since they sit on a 320 x 240 screen. The player is unnamed and unseen in the menus; address them with the familiar \"you\" where a line needs one.\n\nThe adventure slice: a top-down action adventure in the manner of Secret of Mana and Zelda, bright and cheerful. A young swordsman, called only HERO (a man), walks from Mana Village across the river into the Mossy Ruins and the Shrine of Mana; the villagers (the old elder, Lise the florist, Pip a village boy) talk to him in a friendly, plain way. Rabites are small rabbit-like monsters (from Secret of Mana); Mana is the world's magic. Lines in the dialog box are typed out a letter at a time.\n\nThe point-and-click slice, The Light on Gull Rock: a comic adventure in the manner of Monkey Island, warm and wry. On a fishing harbour at dusk the lighthouse on Gull Rock has gone dark with the fleet out in the fog, and Pip, a young deckhand (a boy: the others call him lad), relights it. Pip speaks most lines, in the first person, describing what the player points at and tries (often with a dry joke); Finn, an old fisherman, Bruno, the tavern keeper (a man), and Morwen, the harbour master (a woman, proud of never losing a riddle contest), talk with him. Morwen's three riddles must work in your language with the same right answers (see their notes). Gull Rock and the Salty Gull (the tavern) are place names you may translate.\n\nThe platformer slice: a side-scrolling action platformer in the manner of Castlevania: Symphony of the Night, gothic and grave. Vale, a swordsman (a man), fights skeletons, bats and armored knights across a graveyard to a castle's gate; he speaks only to himself, briefly and solemnly. The hints on the ribbon at the bottom are short and lower case.\n\nThe metroidvania slice: in the manner of Metroid and Super Metroid, a lone explorer in a powered suit with an arm cannon (a person of unknown sex, never named or seen without the suit) explores a research station buried in a moon, room by room, finding abilities that open new gates. Its words are terse, technical, sci-fi notices in capitals, like an old console game's: room names, item banners, the map, the bosses' names. Nobody speaks.\n\nThe shooter: an arcade shoot-'em-up in two stages, a vertical one over farmland (Emerald Valley) and a horizontal one through crystal caves (Crystal Caverns). Its screen words are short arcade capitals on a small screen; the radio calls are short, urgent, military-radio sentences between the player's pilot (call sign EAGLE 1; the player, man or woman unstated) and HQ (a gruff commander). The place names are descriptive and may be translated. The power bar's words (SPEED, MISSILE...) come from Gradius.\n\nThe arcade cabinet: three short games after the golden-age classics (MAZE after Pac-Man, FORMATION after Galaga, ROCKS after Asteroids), each with its high-score table, picked from a row of cabinets. Its words are short arcade capitals, as on 1980s cabinets: cards (STAGE 2, READY!), names on marquees, a line about each game. The player is unseen; address them with the familiar \"you\".\n\nThe pinball slice: one table, NEBULA RUN (a space theme: a run through a nebula), after Pinball Fantasies and Space Cadet. Most of its words are on the table's dot-matrix display, 128 x 32 dots: two short lines of capitals, or one big word; keep them as short as the English. The player is unseen.\n\nThe artillery slice: BLAST ISLAND, after Worms and Scorched Earth: two teams of three grubs (small, comic worm-like fighters with silly names) take turns firing rockets, grenades and cluster bombs across an island that every blast carves. Light-hearted, cartoonish; its words are short capitals on a small screen. The player is unseen (YOU plays a team).\n\nThe puzzle slice: two falling-piece games on one neon stage, BLOCKS (after Tetris) and PAIRS (after Puyo Puyo), and VERSUS for two players. Short arcade capitals beside the playing field. The player is unseen.\n\nThe rhythm slice: STEP UP!, a dance club where a dancer moves to the beat and to each note you hit (after Dance Dance Revolution, Beatmania and PaRappa the Rapper). Two songs: STEP UP (arrows on four lanes) and RAP SCHOOL, where the teacher, Master Beat (a man), raps a line and you answer it. Upbeat and short: arcade capitals on a small screen. The player is unseen; address them with the familiar \"you\".\n\nThe RPG slice: a short JRPG in the manner of Dragon Quest and Final Fantasy. The town of Brightwater's wells ran dry when the Dread Knight took the cave in the northern mountains; three heroes, Rowan (he, the leader and swordsman), Lyra (she, a black mage) and Sera (she, a healer), clear the cave. Townsfolk speak to the party warmly and plainly, the Dread Knight menaces; the tone is light and friendly. Battle commands, menus and items follow Final Fantasy's English conventions (Potion, Hi-Potion, Phoenix Down, Ether); keep them short: they sit in narrow windows and buttons.\n\nThe roguelike slice: ten generated floors of a torch-lit crypt in the manner of Rogue and Mystery Dungeon. The hero (unnamed, a wanderer, the player's own) goes down for the Amulet of Embers, fighting rats, bats, slimes, goblins, skeletons and wraiths. Its messages are terse, in capitals, like an old dungeon crawler's log: address the hero as \"you\". Keep them short: four of them stack in the corner of a small screen.\n\nThe tactics slice: a battle on an isometric map in the manner of Final Fantasy Tactics and Fire Emblem. Four heroes of the Crown (Aldo, he, a paladin who leads; Wren, she, a ranger; Sable, she, a mage; Liora, she, a cleric) storm Thornwatch, a hill fort held by the Ash Legion under the knight Grimwald (he). A short scene before the battle is heroic and a little mocking; the HUD, units and commands are terse, in capitals, as in a 16-bit strategy game. The player commands the heroes and is never addressed by name.\n\nThe RTS slice: a real-time strategy match in the manner of Warcraft II and Command & Conquer. The player leads the Vale (workers, footmen, archers, knights, a hall, barracks and a stable) against the Ash Clan across a river, and wins by burning the clan's camp. Its HUD, buttons and alerts are terse military capitals, like a 1990s RTS; buttons are narrow, in a tiny font, so keep their words short.\n\nThe sim slice: a small theme-park builder in the manner of Theme Park and RollerCoaster Tycoon. The player lays paths, builds rides (a carousel, a Ferris wheel, teacups, a swing tower) and food and drink stands, and sets their prices; guests come in, ride, eat, and think aloud. The HUD and messages are short, in capitals, like a 1990s management game; money is in dollars. Guests' thoughts are casual first-person remarks.\n\nThe brawler: a side-scrolling beat-'em-up in the spirit of Final Fight. One or two street fighters, MAX and (for a second player) JACK, both men, clear a city block of a gang wave by wave, then beat its boss, BARON, who taunts the hero once and calls him kid. Arcade tone, tough and short, mostly in capitals. The shop signs, posters and the gang's graffiti tag are painted on the buildings: keep them as short as the English, they sit on small boards.\n\nThe fighting game: one on one in the spirit of Street Fighter II, best of three rounds on a temple courtyard, with three fighters: RYO (a man, an all-rounder), GORM (a man, a grappler) and VEX (a woman, fast). Its menus and calls are arcade-style, short and in capitals. LP, HP, LK and HK are light punch, heavy punch, light kick and heavy kick; motions are written in number-pad notation (236), which stays as numbers.\n\nThe animation lab: a tool, not a game. It plays every animation the engine's characters can do (walking, sword and fist moves, kicks, poses, reactions) on every skin (a character type: knight, mage, slime...) from every camera view, with a timeline of each move's phases. Its words are short technical labels, mostly in capitals, in narrow lists: keep them as short as the English. WIND is a move's wind-up, HIT the moment it strikes, RECOVER its return to guard.\n\nThe kart racer: Mode 7 karts in the spirit of Super Mario Kart. Six drivers (NOVA, LUMA, BRAKK, IRIS, TOK and ROOK: made-up names, gender not stated) race three laps of a meadow circuit, you against five CPU drivers or two players in a split screen. Arcade tone: short words in capitals.\n\nThe sports slice: two-against-two football (soccer) in a walled cage, in the spirit of Sensible Soccer, for up to four players: the GULLS (NOOR and BEX) against the RUST (DRAGO and KIT); the footballers' gender is not stated. A radio commentator, CAGE RADIO, calls the match in short, excited lines in capitals. Two halves on the clock; if it ends level, a golden goal: the next goal wins.\n\nThe stealth slice: rooftop stealth and parkour in the manner of Assassin's Creed and Metal Gear, at dusk in an old town. A hooded assassin (a person of unknown sex, never named) steals a ledger (an account book) from a brick roof and slips out by the east gate past three patrolling guards. Nobody speaks: its words are an objective with a distance, a status, key hints, short notices and the results, plain and quiet in tone.\n\nLines with ids starting engine. are the engine's own words: its pause menu, settings, controls screen, save slots, notices and key names, shown on every game made with it. Keep them short: they sit on buttons and in narrow rows."
 }
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.93.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.94.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -2807,7 +2750,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.93.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.94.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -2894,7 +2837,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.93.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.94.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -13822,7 +13765,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.93.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.94.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14049,7 +13992,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/click.js ---- */
 /*!
-my-3D2dge module CLICK v0.93.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.94.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14428,7 +14371,7 @@ E.Click = Click;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.93.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.94.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14664,7 +14607,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.93.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.94.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -15229,7 +15172,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.93.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.94.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15415,7 +15358,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.93.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.94.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15827,7 +15770,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.93.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.94.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16039,7 +15982,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!
-my-3D2dge module PHYSICS v0.93.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.94.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16409,7 +16352,7 @@ E.Physics = Physics;
 <script>
 /* ---- inlined from engine/modules/rhythm.js ---- */
 /*!
-my-3D2dge module RHYTHM v0.93.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.94.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -16619,7 +16562,7 @@ E.Rhythm = Rhythm;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.93.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.94.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16785,7 +16728,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.93.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.94.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16971,7 +16914,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.93.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.94.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17307,7 +17250,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/songs.js ---- */
 /*!
-my-3D2dge module SONGS v0.93.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.94.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17464,7 +17407,7 @@ E.Songbook = Songbook;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.93.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.94.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17675,7 +17618,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.93.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.94.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -18120,7 +18063,7 @@ E.tooltip = (r, x, y, lines) => {
 <script>
 /* ---- inlined from engine/modules/terrain.js ---- */
 /*!
-my-3D2dge module TERRAIN v0.93.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.94.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18425,7 +18368,7 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 33-pinball.js, 34-artillery.js, 35-puzzle.js, 37-rhythm.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 68-sports.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 33-pinball.js, 34-artillery.js, 35-puzzle.js, 37-rhythm.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 68-sports.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
  * slice adds an animation lab). Each slice is a complete small game, written to be copied and changed: its own header
@@ -18468,7 +18411,6 @@ const SLICES = [
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
   { id: 'pinball', label: 'PINBALL', about: 'ONE TABLE: RAMP, MULTIBALL, JACKPOT', family: 'ARCADE' },
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
-  { id: 'road', label: 'ROAD', about: 'A COAST ROAD AGAINST THE CLOCK', family: 'RACING' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
@@ -28322,206 +28264,6 @@ const KART = (() => {
     }, () => race ? race.racers.map(R => [R.car.x, R.car.y, R.car.angle, R.prog]) : null, () => { game.input.lastDevice = 'keyboard'; }) };   // (fresh: the gas by itself follows the device, which the proof's holds turn to touch)
 })();
 scenes.kart = KART;
-
-/* =====================================================================================
- * SLICE 14  ROAD  (OutRun, Pole Position, Hang-On, Road Rash). @modules road
- * A convertible on a coast road: the beach, the hills, a tunnel through the cliffs, the desert at dusk, the city at
- * night. Curves throw you outward, the shoulder slows you, palms and rocks and signs stop you dead, traffic weaves in
- * its lanes. A clock counts down; each checkpoint's arch gives time back; reach the goal before it runs out. Pick a
- * song on the radio first. Low gear pulls away hard but tops out early; high gear runs to 290.
- * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift the gear (low, high), left and right on
- * the radio. A pad: the stick, A gas, X brake, R the gear. TOUCH: the stick steers, BRAKE and GEAR; it accelerates by
- * itself. Deep link: #road/drive (the radio skipped).
- * HOW IT WORKS: E.Road (the road module) draws the road, its hills, its tunnel, the scenery and the traffic far to near
- * and says how hard it bends; this file the stage, the car (drawn by code from behind), the traffic, the clock and
- * the radio.
- * ===================================================================================== */
-const ROAD = (() => {
-  const A = game.audio, SEG = 200, KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2'], gear: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5', 'Pad7'] });
-  for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
-  /* ---- THE STAGE: five stretches, each its colors and sky; checkpoints between them; the goal at the end. The words on
-   * the road (an area's name, the signs, the arches) are lines (road.*) ---- */
-  const AREAS = [
-    { name: E.t('road.area.beach'), sky: 'ocean', colors: { grass: ['#e8d8a0', '#dccb90'], rumble: ['#f0f0f0', '#d83030'] } },
-    { name: E.t('road.area.hills'), sky: 'day', colors: { grass: ['#4aa848', '#3e9a3e'], rumble: ['#f0f0f0', '#3050c0'] } },
-    { name: E.t('road.area.tunnel'), sky: 'day', colors: { grass: ['#6a5a48', '#5e5040'], rumble: ['#f0f0f0', '#d83030'] } },
-    { name: E.t('road.area.desert'), sky: 'dusk', colors: { grass: ['#d8a060', '#c89050'], rumble: ['#f0e0c0', '#b04820'], road: ['#6a6070', '#625868'] } },
-    { name: E.t('road.area.city'), sky: 'city-night', colors: { grass: ['#2a2a3a', '#24243a'], rumble: ['#e0e0f0', '#e0b030'], road: ['#4a4a58', '#444452'], lane: '#e0d060' } }];
-  const road = new E.Road({ segment: SEG, lanes: 3, draw: 200, fog: null });
-  const AT = [];   // where each area starts (a segment)
-  const stretch = (ai, parts) => { AT.push(road.segs.length); for (const [n, o] of parts) road.add(n, Object.assign({ colors: AREAS[ai].colors }, o)); };
-  stretch(0, [[40, {}], [60, { curve: 3 }], [40, { hill: 2000 }], [60, { curve: -4, hill: -2000 }], [50, {}], [70, { curve: 5 }], [40, {}]]);
-  stretch(1, [[50, { hill: 4000 }], [60, { curve: -3, hill: -3000 }], [40, { hill: 3000 }], [70, { curve: 4, hill: -4000 }], [50, { curve: -5 }], [40, { hill: 2000 }], [40, { hill: -2000 }]]);
-  stretch(2, [[30, {}], [80, { tunnel: true, curve: 2, colors: Object.assign({}, AREAS[2].colors, { grass: ['#3a3430', '#34302c'] }) }], [30, {}], [60, { curve: -4 }], [40, { curve: 3, hill: 1500 }]]);
-  stretch(3, [[60, { curve: -2 }], [50, { hill: 3000 }], [60, { curve: 5, hill: -3000 }], [80, {}], [60, { curve: -5 }], [50, { curve: 2 }]]);
-  stretch(4, [[60, {}], [60, { curve: 4 }], [50, { curve: -4 }], [80, { hill: 1000 }], [60, {}], [40, {}]]);
-  const GOAL = (road.segs.length - 30) * SEG, CHECKS = AT.slice(1).map(s => s * SEG);
-  // the scenery: each area's own, both sides, a checkpoint arch at each area's start, the goal's
-  const PALM = E.prop('palm').frames[0], ROCK = E.prop('rock', { size: 2 }).frames[0], CACTUS = E.prop('cactus').frames[0], TREE = E.prop('tree').frames[0];
-  const bldg = (w, h, col, lit) => ({ w, draw(g, x, y, s) { const W = w * s, H = h * s; if (W < 1) return; E.px.rect(g, x - W / 2, y - H, W, H, col); if (W > 6) for (let yy = 4 * s; yy < H - 4 * s; yy += 10 * s * 4) for (let xx = -W / 2 + 4 * s * 4; xx < W / 2 - 4 * s * 4; xx += 12 * s * 4) E.px.rect(g, x + xx, y - H + yy, Math.max(1, 5 * s * 4), Math.max(1, 5 * s * 4), lit); } });
-  const sign = text => ({ w: 600, draw(g, x, y, s) { const W = 600 * s, H = 300 * s; if (W < 2) return; E.px.rect(g, x - W * .04, y - H * 2, W * .08, H * 2, '#606068'); E.px.rect(g, x - W / 2, y - H * 2.4, W, H, '#f0e0a0'); if (W > 40) E.font.text(g, text, Math.round(x), Math.round(y - H * 2.1), '#c03020', { align: 'center', outline: false }); } });
-  const arch = (text, col) => ({ w: 0, draw(g, x, y, s) { const W = 2600 * s, H = 1500 * s; if (W < 3) return; for (const sx of [-1, 1]) E.px.rect(g, x + sx * W - 40 * s, y - H, 80 * s, H, '#e0e0e8'); E.px.rect(g, x - W, y - H, W * 2, H * .2, col); if (W > 60) E.font.text(g, text, Math.round(x), Math.round(y - H * .93), '#ffffff', { align: 'center', outline: false, scale: W > 400 ? 2 : 1 }); } });
-  for (let z = 0; z < road.length; z += SEG * 4) {
-    const a = AREAS.findIndex((_, i) => i === AREAS.length - 1 || z < AT[i + 1] * SEG), side = (z / SEG / 4) % 2 ? 1 : -1, r = (z * 7919) % 100;
-    if (road.seg(z).tunnel) continue;
-    if (a === 0) road.place(z, side * (1.5 + r / 200), PALM, 50);
-    else if (a === 1) road.place(z, side * (1.6 + r / 150), r < 50 ? TREE : ROCK, 60);
-    else if (a === 2) road.place(z, side * 1.7, ROCK, 70);
-    else if (a === 3) road.place(z, side * (1.5 + r / 120), r < 70 ? CACTUS : ROCK, 60);
-    else road.place(z, side * (2 + r / 200), bldg(900 + r * 8, 1600 + r * 30, ['#2a2a4a', '#3a2a4a', '#2a3a4a'][r % 3], '#ffd870'), 1);
-    if (r < 12) road.place(z + SEG * 2, -side * 1.4, sign(E.t('road.sign.' + ['slow', 'goal', 'turn'][r % 3])), 1);
-  }
-  CHECKS.forEach((z, i) => road.place(z, 0, arch(E.t('road.arch.checkpoint'), '#2a8a3a'), 1));
-  road.place(GOAL, 0, arch(E.t('road.arch.goal'), '#d02a2a'), 1);
-  const SONGS = [
-    { name: E.t('road.song.breeze'), bpm: 132, steps: 4, tracks: [
-      { wave: 'square', vol: .06, notes: 'E5 . G5 A5 . G5 E5 D5 | C5 . D5 E5 . . . . | E5 . G5 A5 . B5 A5 G5 | A5 . G5 E5 . . D5 .' },
-      { wave: 'triangle', vol: .26, notes: 'A2 . A3 . A2 . A3 . | F2 . F3 . F2 . F3 . | C3 . C4 . C3 . C4 . | G2 . G3 . G2 . G3 .' },
-      { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s . h h' }] },
-    { name: E.t('road.song.sunset'), bpm: 112, steps: 4, tracks: [
-      { wave: 'pulse12', vol: .06, notes: 'D5 - - F5 E5 - D5 - | C5 - - - A4 - - - | D5 - - F5 A5 - G5 - | F5 - E5 - D5 - - -' },
-      { wave: 'triangle', vol: .26, notes: 'D3 . . D3 . . A2 . | F2 . . F2 . . C3 . | G2 . . G2 . . D3 . | A2 . . A2 . . C3 .' },
-      { wave: 'drums', vol: .06, notes: 'k . . h s . . h k . k h s . . h' }] },
-    { name: E.t('road.song.neon'), bpm: 150, steps: 4, tracks: [
-      { wave: 'square', vol: .05, notes: 'A4 A5 E5 A4 G5 E5 C5 G4 | F4 F5 C5 F4 E5 C5 A4 E4 | G4 G5 D5 G4 F5 D5 B4 F4 | E4 E5 B4 E4 G#5 E5 B4 G#4' },
-      { wave: 'triangle', vol: .26, notes: 'A1 A2 A1 A2 A1 A2 A1 A2 | F1 F2 F1 F2 F1 F2 F1 F2 | G1 G2 G1 G2 G1 G2 G1 G2 | E1 E2 E1 E2 E1 E2 E1 E2' },
-      { wave: 'drums', vol: .07, notes: 'k h s h k h s h k h s h k k s h' }] }];
-  const SKIES = {}; const skyOf = n => SKIES[n] || (SKIES[n] = new E.Backdrop(n));
-
-  /* ---- THE DRIVE ---- */
-  const MAX = [190, 293], ACC = [130, 75], H = 1000;   // km/h by gear (low, high); the camera over the road
-  let mode = 'radio', song = 0, z = 0, x = 0, speed = 0, gear = 0, clock = 60, turn = 0, crash = 0, bump = 0, banner = null, score = 0, reached = 0, traffic = [], t = 0, endT = 0, area = 0;
-  const ahead = road.ahead(H), kmh = () => Math.round(speed);
-  function begin() {
-    mode = 'drive'; z = 0; x = 0; speed = 0; gear = 0; clock = 60; turn = 0; crash = 0; bump = 0; score = 0; reached = 0; t = 0; endT = 0; area = 0; banner = { text: AREAS[0].name, t: 0 };
-    traffic = []; for (let i = 0; i < 26; i++) traffic.push({ z: 3000 + i * 4200 + (i * 977) % 1800, x: [-.66, 0, .66][i % 3], v: 80 + (i * 37) % 70, col: ['#3060d0', '#e0e0e0', '#30a050', '#e0b020', '#a03070'][i % 5], w: 380, draw: carBack });
-    A.music(SONGS[song]); game.input.consumeAll();
-  }
-  // a car from behind: its body, rear window, tail lights and tyres, scale pixels a unit
-  function carBack(g, sx, sy, s) {
-    const W = this.w * s, Hh = W * .45; if (W < 2) return;
-    E.px.rect(g, sx - W / 2, sy - Hh, W, Hh * .7, this.col); E.px.rect(g, sx - W * .35, sy - Hh * 1.25, W * .7, Hh * .55, E.shade(this.col, -.3));
-    E.px.rect(g, sx - W * .3, sy - Hh * 1.15, W * .6, Hh * .35, '#a0c8e0'); E.px.rect(g, sx - W / 2, sy - Hh * .3, W * .18, Hh * .3, '#1a1a1a'); E.px.rect(g, sx + W * .32, sy - Hh * .3, W * .18, Hh * .3, '#1a1a1a');
-    if (W > 8) { E.px.rect(g, sx - W * .45, sy - Hh * .6, W * .12, Hh * .12, '#ff3020'); E.px.rect(g, sx + W * .33, sy - Hh * .6, W * .12, Hh * .12, '#ff3020'); }
-  }
-  function update(dt) {
-    const I = game.input; t += dt;
-    for (const k of ['brake', 'gear']) I.touchSet(k, k === 'gear' ? E.t(gear ? 'road.gear.high' : 'road.gear.low') : null, mode === 'drive');
-    if (mode === 'radio') {
-      if (I.pressed('left') || I.pressed('right')) { song = (song + (I.pressed('left') ? 2 : 1)) % 3; A.music(SONGS[song]); A.sfx('select'); }
-      const tap = I.clicked && I.clicked(); if (tap) { const k = Math.floor(tap[0] / (game.W / 3)); if (k === song) begin(); else { song = clamp(k, 0, 2); A.music(SONGS[song]); A.sfx('select'); } }
-      if (I.pressed('confirm') || I.pressed('gas')) { A.sfx('confirm'); begin(); }
-      return;
-    }
-    if (mode === 'over' || mode === 'goal') { endT += dt; if (endT > 1.5 && (I.pressed('confirm') || I.pressed('gas') || (I.clicked && I.clicked()))) { mode = 'radio'; A.sfx('confirm'); } speed = Math.max(0, speed - 120 * dt); z += speed * dt * 12; return; }
-    if (banner) { banner.t += dt; if (banner.t > 2.5) banner = null; }
-    // the clock: each checkpoint passed gives time; none left, the game is over
-    clock -= dt; if (clock <= 0) { clock = 0; mode = 'over'; endT = 0; A.music(null); A.sfx('die'); }
-    if (reached < CHECKS.length && z + ahead >= CHECKS[reached]) { reached++; clock += 40; area = reached; banner = { text: AREAS[area].name, t: 0, check: true }; A.sfx('oneup'); score += 5000; }
-    if (z + ahead >= GOAL) { mode = 'goal'; endT = 0; score += Math.round(clock) * 1000; A.music(null); A.sfx('secret'); }
-    if (I.pressed('gear')) { gear = 1 - gear; A.sfx('select', { vol: .5 }); }
-    const auto = I.lastDevice === 'touch', gas = I.down('gas') || auto, brake = I.down('brake') || I.move()[1] > .7, off = Math.abs(x) > 1.05, steer = I.move()[0];
-    // speed: the gear's pull and top, the shoulder's drag, a crash's stop
-    if (crash > 0) { crash -= dt; speed = Math.max(0, speed - 400 * dt); x += (Math.sign(x) * .5 - x) * Math.min(1, dt * 3); }   // (a crash: it spins to a stop and is put back on the road)
-    else {
-      const top = MAX[gear] * (off ? .45 : 1);
-      if (gas && speed < top) speed = Math.min(top, speed + ACC[gear] * (gear && speed < 100 ? .5 : 1) * dt);
-      else if (speed > top) speed = Math.max(top, speed - 150 * dt);
-      if (brake) speed = Math.max(0, speed - 220 * dt);
-      if (!gas && !brake) speed = Math.max(0, speed - 30 * dt);
-    }
-    const pct = speed / MAX[1], dz = speed * 12 * dt;   // (km/h to road units: 290 km/h about 3,500 a second)
-    x += steer * dt * 2.4 * (pct > .02 ? Math.min(1, pct * 2) : 0);
-    x -= road.curveAt(z + ahead) * pct * pct * dt * .7;   // a bend throws it outward (the hardest faster than it steers: slow for them)
-    x = clamp(x, -2.4, 2.4); z += dz; turn += road.curveAt(z) * dz * .004;
-    score += Math.round(dz * .02);
-    // the scenery stops it; the traffic bumps it
-    if (crash <= 0 && Math.abs(x) > 1.2 && road.hits(z + ahead, x, .25).length && speed > 10) { crash = 1.2; speed *= .2; A.sfx('explode', { vol: .6 }); game.shake(.4); }
-    for (const c of traffic) {
-      c.z += c.v * 12 * dt; if (c.z > road.length) c.z -= road.length;
-      if (bump <= 0 && Math.abs(c.z - (z + ahead)) < 260 && Math.abs(c.x - x) < .38) { bump = .6; speed = Math.min(speed, c.v * .6); x += x < c.x ? -.3 : .3; A.sfx('bump'); game.shake(.2); }
-    }
-    bump -= dt;
-  }
-  // the car, drawn by code from behind at the screen's bottom: leaning into a steer, bouncing on rough ground
-  function drawCar(g, sx, sy, s, steer, rough) {
-    const W = 64 * s, Hh = 26 * s, lean = steer * 3 * s, b = rough ? Math.round(Math.sin(t * 40)) * s : 0, y = sy + b;
-    E.px.ell(g, sx, y - 1, W * .55, 5 * s, 'rgba(0,0,0,.35)');
-    E.px.poly(g, [[sx - W / 2, y - Hh * .2], [sx - W / 2 + 4 * s + lean, y - Hh], [sx + W / 2 - 4 * s + lean, y - Hh], [sx + W / 2, y - Hh * .2]], '#d82020');
-    E.px.rect(g, sx - W / 2, y - Hh * .45, W, Hh * .3, '#a81818'); E.px.rect(g, sx - W * .42, y - Hh * .38, W * .14, 4 * s, '#ff4030'); E.px.rect(g, sx + W * .28, y - Hh * .38, W * .14, 4 * s, '#ff4030');
-    E.px.rect(g, sx - W * .1, y - Hh * .38, W * .2, 4 * s, '#e8e8e8');
-    for (const k of [-1, 1]) E.px.rect(g, sx + k * W * .36 - 6 * s, y - Hh * .15, 12 * s, Hh * .25, '#141414');
-    for (const [k, hair] of [[-.18, '#3a2010'], [.18, '#e8c050']]) { E.px.disc(g, sx + W * k + lean, y - Hh - 6 * s, 5 * s, '#e8b088'); E.px.disc(g, sx + W * k + lean, y - Hh - 8 * s, 5 * s, hair); }
-    E.px.rect(g, sx - W * .3 + lean, y - Hh * 1.05, W * .6, 2 * s, '#c8d8e8');   // the windscreen's top
-  }
-  function draw(r) {
-    const W = r.W, Hs = r.H, I = game.input;
-    road.o.sky = skyOf(AREAS[mode === 'radio' ? 0 : area].sky);
-    const cz = mode === 'radio' ? (t * 1600) % road.length : z;
-    road.draw(r, { z: cz, x: mode === 'radio' ? 0 : x, h: H, turn, cars: traffic });
-    r.overlay(g => {
-      if (mode === 'radio') {
-        E.font.title(g, E.t('road.title'), W / 2, 26, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
-        E.font.text(g, E.t('road.radio'), W / 2, Hs / 2 - 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        SONGS.forEach((s, k) => { const xx = Math.round(W * (k + .5) / 3); E.ui.box(g, xx - 46, Hs / 2 - 14, 92, 26, { bg: k === song ? '#3a2a6a' : '#141a3a', border: k === song ? '#ffe04a' : '#8888aa' }); E.font.text(g, s.name, xx, Hs / 2 - 4, k === song ? '#ffe04a' : '#c8c8e0', { align: 'center', outline: false, font: 'tiny' }); });
-        E.font.text(g, E.t(touch() ? 'road.radio.touch' : 'road.radio.keys'), W / 2, Hs / 2 + 24, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
-        return;
-      }
-      const p = road.project(z + ahead, x, 0), cs = Math.max(.6, Hs / 200);
-      if (p) { drawCar(g, p[0], p[1], cs, crash > 0 ? Math.sin(crash * 18) * 1.5 : I.move()[0], Math.abs(x) > 1.05 && speed > 20); if (crash > 0) { const al = g.globalAlpha; g.globalAlpha = .7; for (let k = 0; k < 4; k++) E.px.disc(g, p[0] + Math.sin(t * 7 + k * 2) * 16 * cs, p[1] - (12 + k * 6 + (t * 30 % 6)) * cs, (3 + k * 1.5) * cs, k % 2 ? '#d8d8d8' : '#a8a8b0'); g.globalAlpha = al; } }
-      // the HUD: the clock, the speed and gear, the score, the stage's progress
-      E.font.text(g, E.t('road.hud.time'), W / 2, 4, '#ffe04a', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
-      E.font.text(g, String(Math.ceil(clock)), W / 2, 12, clock < 10 && Math.floor(t * 4) % 2 ? '#ff4030' : '#ffffff', { align: 'center', scale: 3, shadow: '#000', outline: false });
-      E.font.text(g, E.t('road.hud.score', { score: String(score) }), 6, 6, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' });
-      const bx = Math.min(cornerX(), W) - 6; E.font.text(g, E.t('road.hud.speed', { speed: kmh() }), bx, Hs - 26, '#ffffff', { align: 'right', scale: 2, shadow: '#000', outline: false });
-      E.font.text(g, E.t(gear ? 'road.gear.high' : 'road.gear.low'), bx, Hs - 10, gear ? '#ff9a3a' : '#5ae05a', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
-      const pw = Math.min(120, W / 3), px0 = 6, py = 16; E.px.rect(g, px0, py, pw, 3, '#203050'); E.px.rect(g, px0, py, pw * Math.min(1, (z + ahead) / GOAL), 3, '#ffe04a');
-      for (const c of CHECKS) E.px.rect(g, px0 + pw * c / GOAL, py - 1, 1, 5, '#5ae05a');
-      if (banner) E.font.text(g, banner.check ? E.t('road.banner.check', { area: banner.text }) : banner.text, W / 2, Hs * .3, banner.check ? '#5ae05a' : '#ffffff', { align: 'center', scale: 2, shadow: '#000', outline: false });
-      if (mode === 'over' || mode === 'goal') {
-        E.font.title(g, E.t(mode === 'goal' ? 'road.goal' : 'road.over'), W / 2, Hs * .3, { scale: 3, align: 'center', colors: mode === 'goal' ? ['#fff6d0', '#ffd060', '#e8782a'] : ['#ffffff', '#ff8a6a', '#c0302a'] });
-        E.font.text(g, E.t('road.end', { score: String(score), distance: Math.round((z + ahead) / GOAL * 100) }), W / 2, Hs * .3 + 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        if (endT > 1.5) E.font.text(g, prompt('confirm', E.t('road.again')), W / 2, Hs * .3 + 44, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
-      }
-    });
-  }
-
-  /** the bot (tools/kits-test.mjs): drives the stage by the keys, steering for the road's middle ahead and round the
-   *  traffic, in high gear once moving, to the goal */
-  function bot(s = 1) {
-    const was = Math.random; Math.random = E.rng(s); const I = game.input, held = new Set(), hold = (a, on) => { if (on && !held.has(a)) { held.add(a); I.hold(a); } else if (!on && held.has(a)) { held.delete(a); I.hold(a, false); } };
-    try {
-      game.go('road', null, { fade: 0 }); game.advance(1 / 120); song = 0; begin(); hold('gas', true);
-      let n = 0, crashes = 0, was2 = 0;
-      for (; n < 120 * 400 && mode === 'drive'; n++) {
-        if (speed > 120 && !gear) { I.tap('gear'); }
-        const bend = road.curveAt(z + ahead + 1500); let want = bend * .1;   // (a little inside a bend: it throws you outward)
-        for (const c of traffic) { const dz = c.z - (z + ahead); if (dz > -200 && dz < 2400 && Math.abs(c.x - want) < .45) want = c.x > 0 ? c.x - .7 : c.x + .7; }
-        hold('right', x < want - .05); hold('left', x > want + .05); hold('brake', Math.abs(bend) > 3.6 && speed > 230);
-        game.advance(1 / 120); if (crash > 0 && !was2) crashes++; was2 = crash > 0;
-      }
-      return { mode, goal: mode === 'goal', checkpoints: reached, clock: Math.round(clock), score, crashes, seconds: Math.round(n / 120), errors: game.errors.length };
-    } finally { for (const a of [...held]) hold(a, false); Math.random = was; }
-  }
-
-  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: ['brake', 'gear'], camera: { zoom: false },
-    enter(d) {
-      game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; t = 0;
-      if (d && d.part) begin(); else { mode = 'radio'; A.music(SONGS[song]); }
-    },
-    back() { if (mode === 'drive') return false; if (mode !== 'radio') { mode = 'radio'; return true; } game.go('title'); return true; },
-    update, draw, bot,
-    state: () => ({ mode, z: Math.round(z), x: +x.toFixed(3), speed: Math.round(speed), gear, clock: +clock.toFixed(2), reached, score }),   // for tests
-    /** the proof: the drive, the gas held, high gear, steering through the first bends; a hash of the run */
-    run: (n = 600) => proof('road', n, (i, k) => {
-      if (i === 2) begin();
-      if (i === 4) k.hold('gas');
-      if (i === 200) k.tap('gear');
-      if (i === 300) k.hold('left'); if (i === 340) k.up('left');
-      if (i === 450) k.hold('right'); if (i === 520) k.up('right');
-    }, () => [z, x, speed, gear, clock, traffic.map(c => c.z)], () => { game.input.lastDevice = 'keyboard'; }) };   // (fresh: the gas by itself follows the device, which the proof's holds turn to touch)
-})();
-scenes.road = ROAD;
 
 /* =====================================================================================
  * SLICE 22  SPORTS  (Sensible Soccer, NBA Jam, Tecmo Bowl).

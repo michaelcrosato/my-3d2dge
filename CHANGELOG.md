@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.94.0 (2026-11-14)
+
+The ROAD kit (OutRun) is gone, on the owner's word (D88); the road module it was built on stays.
+
+- **Engine**: the ROAD kit is gone: its slice (`src/starter/66-road.js` and its lines), its kit (`dist/kits/my-3d2dge-road.html`), and its entry on the starter's title menu, in the reference editions and in the play file. The road module (`E.Road`, `engine/modules/road.js`) stays as it was, in `dist/my-3d2dge.js`, the reference editions and the handoff package's `modules/`, held by the contract and views suites; no kit carries it now.
+- **Tools**: the build's slices and the routes (`/kits/road`) lose the kit, and kits-test's ROAD bot and the phone test's road case are gone.
+- **Docs**: README (the kits, the twenty slices, genre coverage), the API card (road racing is a recipe in the playbook; the road module's row names no kit), `AI_GUIDE.md` (road racing on the road module), the Labs page (the Road tile and its To check card gone), `docs/HANDOFF-REVIEW.md` (24 cards to check), D88.
+
 ## 0.93.0 (2026-11-09)
 
 `index.html` is the play file: everything of my-3D2dge in one self-contained file to download, open in a browser and send to a friend. Its home is the Labs list, and every page it opens is inside it, 2D and 3D, offline (D87).

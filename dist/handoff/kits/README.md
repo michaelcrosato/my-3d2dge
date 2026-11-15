@@ -1,4 +1,4 @@
-# The genre kits (v0.93.0)
+# The genre kits (v0.94.0)
 
 A kit is a complete small game in one genre, written to be copied: its title, play and end, the modules it rests on,
 its sound, touch controls and a phone's screen. The API card's Genre playbook (`API.md`) names a kit for each genre (its
@@ -47,7 +47,6 @@ game, as its header says. Its test: copy `kits/test.mjs`'s three stand-ins (`win
 | FIGHTING | [fighting.js](fighting.js), [fighting.html](fighting.html) | one on one: three fighters, versus, arcade, training | fight | #fighting, #fighting/versus, #fighting/arcade, #fighting/training |
 | ANIMATION LAB | [animlab.js](animlab.js), [animlab.html](animlab.html) | every move, pose, skin and view of the character rigs | none | #animlab |
 | KART | [kart.js](kart.js), [kart.html](kart.html) | Mode 7 karts: six on a circuit, three laps, items, two players in a split screen | mode7, drive | #kart, #kart/race, #kart/vs |
-| ROAD | [road.js](road.js), [road.html](road.html) | a pseudo-3D coast road against the clock: curves, hills, a tunnel, traffic, checkpoints, a radio | road | #road, #road/drive |
 | SPORTS | [sports.js](sports.js), [sports.html](sports.html) | two against two in a walled cage, up to four players: a ball that bounces and curls, passes, lobs, shots on a meter, formations, a match clock; Sensible Soccer and NBA Jam | none | #sports, #sports/match, #sports/vs |
 | STEALTH | [stealth.js](stealth.js), [stealth.html](stealth.html) | third-person stealth and parkour: a rooftop district at dusk, guards with sight and suspicion, climbing, takedowns, an HTML HUD; Assassin's Creed, Metal Gear | none | #stealth |
 
