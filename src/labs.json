@@ -84,7 +84,7 @@
           "page": "dist/kits/my-3d2dge-road.html",
           "at": "#road",
           "title": "Road: does it feel like OutRun, Super Hang-On and Chase H.Q.?",
-          "what": "COAST RUN (the car or the bike): pick a song on the radio (left and right, then Enter), then drive: up or Z the gas, down or X the brake, left and right steer. Make each checkpoint before the clock runs out; where the road splits, keep left or right to pick the next stage (six in a pyramid). Hit the scenery fast and you spin out; hold R to rewind (three a run). CHASE: catch the getaway car through the night traffic and ram it until it stops; C the nitro (three). Rebuilt with v0.97.0.",
+          "what": "DUEL (Top Gear, Lotus): two players on one road, the screen split (player 2 joins with Start on a pad or 2 on the keyboard). RASH (Road Rash): a bike race down the canyon against seven riders; C punches the one beside you (three blows and he falls), they punch back; finish in the top three. COAST RUN (the car or the bike): pick a song on the radio (left and right, then Enter), then drive: up or Z the gas, down or X the brake, left and right steer. Make each checkpoint before the clock runs out; where the road splits, keep left or right to pick the next stage (six in a pyramid). Hit the scenery fast and you spin out; hold R to rewind (three a run). CHASE: catch the getaway car through the night traffic and ram it until it stops; C the nitro (three). Rebuilt with v0.97.0.",
           "look": "Does it feel fast: the stripes, the palms and the bends rushing at you, the hills hiding the road? Does the car (and the bike's lean) look right from behind, the traffic worth weaving through? Do the forks read, the two roads parting? Is the clock tight but fair, and is the rewind a relief? Does the chase's ramming feel good? On your phone: it drives itself forward; the stick steers; BRAKE and REWIND (NITRO in the chase).",
           "links": [["The bike", "#road/bike"], ["The chase", "#road/chase"]]
         },
@@ -95,6 +95,14 @@
           "what": "GRAND PRIX runs both tracks for points. NEON CITY: up or Z the gas, down or X the brake, left and right steer; the barriers drain your energy (the bar at the bottom), the green pit lane on the start straight fills it, the yellow dash plates fling you; from the second lap Space spends energy on a boost. SKY RIBBON: the same on a track raised over a desert on pillars, banking in the bends and passing over itself; its pit is the green stretch. VS: two to four players in a split screen (player 2 presses 2, or Start on a pad). Added with v0.98.0.",
           "look": "Is it fast and slick, the machines hovering, the barriers worth fearing? Does the energy-and-boost trade feel like F-Zero's? Does the ribbon feel raised, the climb and the drop, the pass over and under itself like Power Drift? Is four players in a split screen playable? On your phone: it drives itself forward; the stick steers; BOOST.",
           "links": [["Sky ribbon", "#zero/sky"], ["VS", "#zero/vs"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-special.html",
+          "at": "#special",
+          "title": "Special: do the bonus stages and the arena feel right?",
+          "what": "PLANET: left and right turn a quarter at the next crossing, Space jumps; run over every blue sphere (it turns red), never touch a red one. TUBE: left and right run up the half-pipe's walls, Space jumps; enough rings by each of three gates, past the bombs. ARENA: up or Z the gas, left and right steer, Space fires a shell that bounces off the walls; pop the other karts' balloons, keep yours (players 2 to 4 press 2 or Start before it begins). TURN: left and right turn the soldier, the fort turning under him, up and down walk, Space fires; clear the three nests. Added with v0.99.0.",
+          "look": "Does the planet curve away on every side? Does the tube twist and roll with you, the runner on its wall? Is the battle fun, the shells' bounces readable? Does the fort turn smoothly, the soldier always facing up? On your phone: the stick and one button (JUMP or FIRE).",
+          "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"]]
         },
         {
           "page": "dist/kits/my-3d2dge-sky.html",
@@ -348,13 +356,19 @@
           "page": "dist/kits/my-3d2dge-road.html",
           "title": "Road",
           "what": "The pseudo-3D road (OutRun, Super Hang-On, Chase H.Q.): a coast run of six stages in a pyramid, picked where the road forks, in a convertible or on a bike that leans, traffic, checkpoints and a rewind; a police chase that rams a getaway car to a stop. The cars low-poly models.",
-          "links": [["Car", "#road/car"], ["Bike", "#road/bike"], ["Chase", "#road/chase"]]
+          "links": [["Duel", "#road/duel"], ["Rash", "#road/rash"], ["Car", "#road/car"], ["Bike", "#road/bike"], ["Chase", "#road/chase"]]
         },
         {
           "page": "dist/kits/my-3d2dge-zero.html",
           "title": "Zero",
           "what": "Anti-gravity racing in Mode 7 (F-Zero, F-Zero X, Power Drift): six machines on a night city circuit (energy, barriers, dash plates, a pit) and on a ribbon raised on pillars that climbs, banks and crosses itself; a Grand Prix; two to four players in a split screen.",
           "links": [["Grand Prix", "#zero/gp"], ["City", "#zero/city"], ["Ribbon", "#zero/sky"], ["VS", "#zero/vs"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-special.html",
+          "title": "Special",
+          "what": "The Mode 7 era's bonus stages and arenas (Sonic 3's Blue Sphere, Sonic 2's half-pipe, Super Mario Kart's battle, Contra III's top-down stages): a checkered planet that curves away, a half-pipe in space, karts with balloons for one to four players, a fort seen from above that turns with you.",
+          "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"]]
         },
         {
           "page": "dist/kits/my-3d2dge-sky.html",

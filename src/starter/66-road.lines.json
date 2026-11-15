@@ -40,7 +40,22 @@
   "action.gas": "Gas",
   "action.brake": "Brake",
   "action.nitro": "Nitro",
-  "action.rewind": "Rewind"
+  "action.rewind": "Rewind",
+  "road.menu.rash": "RASH: RACE AND FIGHT",
+  "road.arch.finish": "FINISH",
+  "road.punch": "PUNCH",
+  "road.rash.place": "PLACE {n}/{of}",
+  "road.rash.punch": "{key}: PUNCH",
+  "road.rash.down": "RIDER DOWN!",
+  "road.rash.thrown": "THROWN!",
+  "road.rash.won": "PLACED {n}: YOU QUALIFY",
+  "road.rash.lost": "PLACED {n}: NOT IN THE TOP THREE",
+  "road.menu.duel": "DUEL: TWO PLAYERS",
+  "road.duel.join": "PLAYER 2: PRESS START ON A PAD (2 ON THE KEYBOARD)",
+  "road.duel.you": "PLAYER {n}",
+  "road.duel.ahead": "{m} M AHEAD",
+  "road.duel.behind": "{m} M BEHIND",
+  "road.duel.won": "PLAYER {n} WINS!"
  },
  "notes": {
   "road.title": "The driving game's title, on its menu: a run along a coast road.",
@@ -73,6 +88,21 @@
   "road.target": "The chase: the getaway car is {m} metres ahead.",
   "road.nitro": "The chase: {n} boosts of speed are left.",
   "action.nitro": "A control's name, and its touch button: a burst of speed.",
-  "action.rewind": "A control's name, and its touch button: hold to run time backwards."
+  "action.rewind": "A control's name, and its touch button: hold to run time backwards.",
+  "road.menu.rash": "A bike race against seven riders who fight: punch them, they punch back.",
+  "road.arch.finish": "Written across the arch at the end of the bike race.",
+  "road.punch": "A touch button: punch the rider beside you.",
+  "road.rash.place": "Your place in the race, {n}, of {of} riders.",
+  "road.rash.punch": "{key} is the key or button that punches the rider beside you.",
+  "road.rash.down": "A rider you punched has fallen off.",
+  "road.rash.thrown": "You were punched off your bike.",
+  "road.rash.won": "The race is over: you finished in place {n}, in the top three.",
+  "road.rash.lost": "The race is over: you finished in place {n}, outside the top three.",
+  "road.menu.duel": "Two players race each other on one road, the screen split in two.",
+  "road.duel.join": "Waiting for the second player: they press Start on a game pad, or 2 on the keyboard.",
+  "road.duel.you": "Which player's half of the screen this is.",
+  "road.duel.ahead": "How far ahead of the other player you are, {m} metres.",
+  "road.duel.behind": "How far behind the other player you are, {m} metres.",
+  "road.duel.won": "The duel is over: player {n} crossed the line first."
  }
 }

@@ -1680,3 +1680,16 @@ An entry:
   `m7.add` and drop `mesh` from its `@modules`.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.98.0
+
+## D93 · 2026-11-15 · SPECIAL keeps a budget of its own: 225,000 tokens
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D69 (a 2D kit at most 216,000
+  cl100k tokens, but for the kits that keep budgets of their own)
+- **Call:** the SPECIAL kit (v0.99.0) is 221,496 tokens, over the 2D budget, so it joins `KIT2D` with 225,000. It is
+  four games in one slice (Blue Sphere's planet, Sonic 2's half-pipe, Super Mario Kart's battle, Contra III's turning
+  fort) on Mode 7 and the drive module, whose `E.Car` the battle's karts are.
+- **Why:** the owner asked for kits that do the Mode 7 family properly, its bonus stages and arena modes among them
+  (2026-11-14), and a written recipe is not a stage a builder can play and copy. Revert it to cut the kit back: draw
+  the battle's karts with hand-made motion and drop `drive` from its `@modules`, or move a stage to a kit of its own.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.99.0

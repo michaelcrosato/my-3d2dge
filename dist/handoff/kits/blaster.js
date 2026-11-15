@@ -1,5 +1,5 @@
 // The BLASTER kit's game (shooters into the screen: a jet-pack hero over a checkered plain, a jet that rolls the horizon and locks on, a first-person ride with a cursor; three bosses), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 167 (src/starter/31-blaster.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 168 (src/starter/31-blaster.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. blaster.html plays it; node kits/test.mjs blaster runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -46,6 +46,7 @@ const SLICES = [
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
   { id: 'road', label: 'ROAD', about: 'A COAST ROAD, ITS FORKS, A CHASE', family: 'RACING' },
   { id: 'zero', label: 'ZERO', about: 'ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY', family: 'RACING' },
+  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT', family: 'ARCADE' },
   { id: 'sky', label: 'SKY', about: 'A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP', family: 'FLIGHT' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },

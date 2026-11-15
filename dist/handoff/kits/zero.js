@@ -1,5 +1,5 @@
 // The ZERO kit's game (anti-gravity racing in Mode 7: a night city circuit with energy, dash plates and a pit, and a ribbon track raised on pillars that climbs and crosses itself; two to four players split), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 167 (src/starter/67-zero.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 168 (src/starter/67-zero.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. zero.html plays it; node kits/test.mjs zero runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -46,6 +46,7 @@ const SLICES = [
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
   { id: 'road', label: 'ROAD', about: 'A COAST ROAD, ITS FORKS, A CHASE', family: 'RACING' },
   { id: 'zero', label: 'ZERO', about: 'ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY', family: 'RACING' },
+  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT', family: 'ARCADE' },
   { id: 'sky', label: 'SKY', about: 'A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP', family: 'FLIGHT' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },
@@ -171,7 +172,7 @@ scenes.over = {
  * that climbs, banks and crosses over itself (a figure of eight, the low pass under the high one). Energy is your
  * life and your boost: from the second lap, BOOST spends some of it for a burst; out of it, the machine limps.
  * GRAND PRIX: both tracks, points for places. VS: two to four players in a split screen on the city.
- * Deep links: #zero/gp, #zero/city, #zero/sky, #zero/vs.
+ * Deep links: #zero/gp, #zero/city, #zero/sky, #zero/vs; #zero/gba the Grand Prix at the Game Boy Advance's 240 x 160.
  * KEYS: left / right steer, up / Z gas, down / X brake, Space / C boost. A pad: the stick, A gas, X brake, B boost.
  * TOUCH: the stick steers, it accelerates by itself; BOOST.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floors, and the ribbon as m7.quad strips over them; E.Car and
@@ -262,10 +263,10 @@ const ZERO = (() => {
     { wave: 'square', vol: .05, notes: 'D5 . D5 F5 . D5 C5 . | A4 . C5 . D5 . . . | D5 . D5 F5 . G5 F5 . | A5 . G5 . F5 . . . | D5 . D5 F5 . D5 C5 . | A4 . C5 . D5 . F5 . | G5 . F5 . D5 . C5 . | D5 . . . . . . .' },
     { wave: 'saw', vol: .08, notes: 'D2 D2 D3 D2 D2 D3 D2 D3 | A#1 A#1 A#2 A#1 C2 C2 C3 C2 | D2 D2 D3 D2 D2 D3 D2 D3 | F2 F2 F3 F2 C2 C2 C3 C2 | D2 D2 D3 D2 D2 D3 D2 D3 | A#1 A#1 A#2 A#1 C2 C2 C3 C2 | G1 G1 G2 G1 A1 A1 A2 A1 | D2 D2 D3 D2 D2 . . .' },
     { wave: 'drums', vol: .07, notes: 'k . h k s . h . k k h . s . h h' }] };
-  let mode = 'menu', G = null, race = null, players = [], cams = [], t = 0, over = 0, track = 'city', auto = false;
+  let mode = 'menu', G = null, race = null, players = [], cams = [], t = 0, over = 0, track = 'city', auto = false, idle = 0, attract = false;
   const menu = new E.Menu(game, [E.t('zero.menu.gp'), E.t('zero.menu.city'), E.t('zero.menu.sky'), E.t('zero.menu.vs'), E.t('zero.menu.back')], { onPick: i => i === 4 ? game.go('title') : i === 3 ? versus() : (G = { gp: i === 0, pts: CAST.map(() => 0) }, go(i === 2 ? 'sky' : 'city')) });
   const after = new E.Menu(game, [E.t('zero.menu.next'), E.t('zero.menu.menu')], { onPick: i => i === 0 ? (G && G.gp ? (track === 'city' ? go('sky') : (G.pts = CAST.map(() => 0), go('city'))) : G && G.vs ? go('city', true) : go(track)) : toMenu() });   // (after the ribbon a Grand Prix is over: RACE ON starts another)
-  function toMenu() { mode = 'menu'; race = null; G = null; game.splitScreen(0); A.music('title'); }
+  function toMenu() { mode = 'menu'; race = null; G = null; idle = 0; if (attract) { attract = false; auto = false; } game.splitScreen(0); A.music('title'); }
   function versus() { G = { vs: true, pts: CAST.map(() => 0) }; if (game.players.length >= 2) go('city', true); else { mode = 'join'; A.sfx('select'); } }
   /** a race on a track: six machines on the grid (the players' at the back), three laps */
   function go(which, vs) {
@@ -285,9 +286,10 @@ const ZERO = (() => {
   function update(dt) {
     const I = game.input; I.touchSet('boost', null, mode === 'race');
     t += dt;
-    if (mode === 'menu') { menu.update(dt); return; }
+    if (mode === 'menu') { menu.update(dt); idle = I.anyPressed() ? 0 : idle + dt; if (idle > 25) { idle = 0; attract = true; auto = true; G = { gp: false, pts: CAST.map(() => 0) }; go(Math.floor(t / 25) % 2 ? 'sky' : 'city'); } return; }   // (left alone, it races by itself: an attract mode)
+    if (attract && I.anyPressed()) { attract = false; auto = false; toMenu(); return; }
     if (mode === 'join') { if (game.players.length >= 2 && I.pressed('confirm')) go('city', true); else if (I.pressed('cancel')) mode = 'menu'; return; }   // (up to four join; player 1 starts it)
-    if (mode === 'results') { after.update(dt); return; }
+    if (mode === 'results') { if (attract && (over += dt) > 8) toMenu(); else after.update(dt); return; }
     for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch';
     for (const R of race.racers) R.v0 = R.car.speed;
     const was = race.t; race.update(dt, track === 'city' ? city.map : RIBMAP);
@@ -400,7 +402,8 @@ const ZERO = (() => {
   return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['boost'], camera: { zoom: false },
     enter(d) {
       mode = 'menu'; race = null; menu.i = 0; auto = false; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; game.allowJoin({ max: 4 }); A.music('title');
-      if (d && d.part) { if (d.part === 'vs') versus(); else { G = { gp: d.part === 'gp', pts: CAST.map(() => 0) }; go(d.part === 'sky' ? 'sky' : 'city'); } }
+      game.screen.setOptions({ res: d && d.part === 'gba' ? 'gba' : 'ps1' });   // (#zero/gba: the Game Boy Advance's 240 x 160, F-Zero: Maximum Velocity's)
+      if (d && d.part) { if (d.part === 'vs') versus(); else { G = { gp: d.part === 'gp' || d.part === 'gba', pts: CAST.map(() => 0) }; go(d.part === 'sky' ? 'sky' : 'city'); } }
     },
     exit() { game.splitScreen(0); game.allowJoin(false); },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },

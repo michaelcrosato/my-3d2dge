@@ -48,6 +48,8 @@
     "starter.slice.road.about": "A COAST ROAD, ITS FORKS, A CHASE",
     "starter.slice.zero": "ZERO",
     "starter.slice.zero.about": "ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY",
+    "starter.slice.special": "SPECIAL",
+    "starter.slice.special.about": "A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT",
     "starter.slice.sky": "SKY",
     "starter.slice.sky.about": "A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP",
     "starter.slice.puzzle": "PUZZLE",
@@ -127,6 +129,21 @@
     "action.brake": "Brake",
     "action.nitro": "Nitro",
     "action.rewind": "Rewind",
+    "road.menu.rash": "RASH: RACE AND FIGHT",
+    "road.arch.finish": "FINISH",
+    "road.punch": "PUNCH",
+    "road.rash.place": "PLACE {n}/{of}",
+    "road.rash.punch": "{key}: PUNCH",
+    "road.rash.down": "RIDER DOWN!",
+    "road.rash.thrown": "THROWN!",
+    "road.rash.won": "PLACED {n}: YOU QUALIFY",
+    "road.rash.lost": "PLACED {n}: NOT IN THE TOP THREE",
+    "road.menu.duel": "DUEL: TWO PLAYERS",
+    "road.duel.join": "PLAYER 2: PRESS START ON A PAD (2 ON THE KEYBOARD)",
+    "road.duel.you": "PLAYER {n}",
+    "road.duel.ahead": "{m} M AHEAD",
+    "road.duel.behind": "{m} M BEHIND",
+    "road.duel.won": "PLAYER {n} WINS!",
     "engine.key.space": "Space",
     "engine.key.shift_left": "Shift",
     "engine.key.shift_right": "R Shift",
@@ -401,7 +418,22 @@
     "road.target": "The chase: the getaway car is {m} metres ahead.",
     "road.nitro": "The chase: {n} boosts of speed are left.",
     "action.nitro": "A control's name, and its touch button: a burst of speed.",
-    "action.rewind": "A control's name, and its touch button: hold to run time backwards."
+    "action.rewind": "A control's name, and its touch button: hold to run time backwards.",
+    "road.menu.rash": "A bike race against seven riders who fight: punch them, they punch back.",
+    "road.arch.finish": "Written across the arch at the end of the bike race.",
+    "road.punch": "A touch button: punch the rider beside you.",
+    "road.rash.place": "Your place in the race, {n}, of {of} riders.",
+    "road.rash.punch": "{key} is the key or button that punches the rider beside you.",
+    "road.rash.down": "A rider you punched has fallen off.",
+    "road.rash.thrown": "You were punched off your bike.",
+    "road.rash.won": "The race is over: you finished in place {n}, in the top three.",
+    "road.rash.lost": "The race is over: you finished in place {n}, outside the top three.",
+    "road.menu.duel": "Two players race each other on one road, the screen split in two.",
+    "road.duel.join": "Waiting for the second player: they press Start on a game pad, or 2 on the keyboard.",
+    "road.duel.you": "Which player's half of the screen this is.",
+    "road.duel.ahead": "How far ahead of the other player you are, {m} metres.",
+    "road.duel.behind": "How far behind the other player you are, {m} metres.",
+    "road.duel.won": "The duel is over: player {n} crossed the line first."
   },
   "names": ["my-3D2dge"],
   "brief": "The my-3D2dge starter: a title menu of small games, one per genre, each a complete slice to copy and change. Its menus and notices are short, arcade-like, mostly in capitals; keep them short, since they sit on a 320 x 240 screen. The player is unnamed and unseen in the menus; address them with the familiar \"you\" where a line needs one.\n\nLines with ids starting engine. are the engine's own words: its pause menu, settings, controls screen, save slots, notices and key names, shown on every game made with it. Keep them short: they sit on buttons and in narrow rows."
@@ -409,7 +441,7 @@
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">ROAD</b><span>Starting · my-3D2dge v0.98.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">ROAD</b><span>Starting · my-3D2dge v0.99.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <canvas id="screen"></canvas>
 <script src="../my-3d2dge.js"></script>
 <script src="road.js"></script>
