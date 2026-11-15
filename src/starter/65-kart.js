@@ -1,14 +1,12 @@
 /* =====================================================================================
  * SLICE 13  KART  (Super Mario Kart, F-Zero, Mario Kart 64). @modules mode7 drive
- * A circuit in a meadow seen the SNES way, Mode 7: the floor drawn a row at a time under a sky that turns with you,
- * six karts on it, three laps. Kerbs, grass that slows you, sand inside the tight bends, boost pads on the straights,
+ * A meadow circuit in Mode 7: the floor drawn a row at a time under a sky that turns with you, six karts, three laps. Kerbs, grass that slows you, sand inside the tight bends, boost pads on the straights,
  * walls round the edge, item boxes in rows across the track: a BOOST, a SHELL that flies ahead and spins out whoever it
  * hits, or a PEEL dropped behind. Hop into a bend and hold the drift: sparks blue, then orange; let go for a boost.
  * MODES: RACE (you against five), VS (two players in a split screen, against four: player 2 joins with 2 on the
- * keyboard or Start on a pad). Deep links: #kart/race, #kart/vs; #kart/gba the race at the GBA's 240 x 160.
+ * keyboard or Start on a pad). Deep links: #kart/race, #kart/vs, #kart/gba (240 x 160).
  * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift hop and drift, E / J the item. A pad: the
- * stick, A gas, X brake, R hop and drift, L the item. TOUCH: the stick steers (pulled down it brakes), DRIFT and ITEM;
- * it accelerates by itself.
+ * stick, A gas, X brake, R hop and drift, L the item. TOUCH: the stick steers (down brakes), DRIFT, ITEM; gas by itself.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floor, the sky and the karts far to near; E.Car and E.Race (the
  * drive module) the karts, the laps, the drivers and the items; this file the track, the karts' look (HD rigs in
  * karts), the HUD's map and the menus.
@@ -206,10 +204,10 @@ const KART = (() => {
     enter(d) {
       mode = 'menu'; race = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false;
       game.allowJoin({ max: 2 }); A.music('title');
-      game.screen.setOptions({ res: d && d.part === 'gba' ? 'gba' : 'ps1' });   // (Super Circuit's screen)
+      const gba = !!d && d.part === 'gba'; game.screen.setOptions({ res: gba ? 'gba' : 'ps1', expand: !gba });   // (Super Circuit's screen, exactly)
       if (d && d.part) d.part === 'vs' ? versus() : start(false);
     },
-    exit() { game.splitScreen(0); game.allowJoin(false); },
+    exit() { game.splitScreen(0); game.allowJoin(false); game.screen.setOptions({ res: 'ps1', expand: true }); },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
     update, draw, bot, hud: board,
     state: () => race && { mode, t: +race.t.toFixed(2), you: players[0] && { x: players[0].car.x, y: players[0].car.y, angle: players[0].car.angle, speed: players[0].car.speed, auto: players[0].car.o.auto }, racers: race.racers.map(R => ({ name: R.name, lap: R.lap, place: R.place, x: Math.round(R.car.x), y: Math.round(R.car.y), speed: Math.round(R.car.speed), item: R.item })) },   // for tests

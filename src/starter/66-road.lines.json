@@ -61,7 +61,8 @@
   "road.striker.kills": "{n} DOWN",
   "road.striker.fire": "{key}: FIRE",
   "road.striker.won": "THROUGH THE CITY!",
-  "road.striker.down": "SHIELD GONE"
+  "road.striker.down": "SHIELD GONE",
+  "road.drift": "DRIFT"
  },
  "notes": {
   "road.title": "The driving game's title, on its menu: a run along a coast road.",
@@ -115,6 +116,7 @@
   "road.striker.kills": "How many foes you have shot down, {n}.",
   "road.striker.fire": "{key} is the key or button that shoots ahead.",
   "road.striker.won": "The flight is over: you reached the end of the road.",
-  "road.striker.down": "The flight is over: your shield ran out."
+  "road.striker.down": "The flight is over: your shield ran out.",
+  "road.drift": "The car is sliding sideways through a bend; the bar under it is the boost it charges."
  }
 }
