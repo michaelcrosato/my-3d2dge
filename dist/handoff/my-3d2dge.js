@@ -11621,7 +11621,8 @@ takes away, the floor's tag under it slowing it, walls and other cars it bounces
   at speed), grip: 10, drift: 4.5 (the grip drifting), kart: true (a hop into a drift; held, it charges a boost),
   surfaces: { grass: { top: .5, grip: .9 }, sand, dirt, ice, boost: { boost: .8 } (seconds), ... }, ground: (x, y) =>
   tag (else map.floorAt) }): an E.Body. Each step car.update(dt, map, game.input (steer left/right; gas, brake, drift:
-  actions; o.auto: gas by itself) or an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor) }).
+  actions; o.auto: gas by itself) or an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor), hold
+  (the brake stops it, never backs it up: the countdown's) }).
 - car.speed (along it), car.slide (sideways), car.angle, car.drifting (-1, 0, 1), car.charge (a drift's: 1 blue, 2
   orange), car.boostT, car.surface, car.offroad, car.spinT; car.boost(seconds, power), car.spinOut(seconds);
   E.Car.collide(cars) bumps them apart.
@@ -11683,7 +11684,7 @@ class Car extends E.Body {
   /** one step: steering, engine, grip, drift, the surface, then E.Body's walls and hop. c: an input or an intent */
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
-    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0;
+    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
     const drift = inp ? c.down('drift') : !!c.drift, hop = inp ? c.pressed('drift') : drift && !this._held;
     this._held = drift;
     const tag = o.ground ? o.ground(this.x, this.y) : map && map.floorAt ? map.floorAt(this.x, this.y) : null, S = (tag && o.surfaces[tag]) || {};
@@ -11712,7 +11713,7 @@ class Car extends E.Body {
     const top = o.top * (S.top || 1) * (c.top || 1) * (this.boostT > 0 ? 1 + this._boostK : 1);
     if (gas > 0 && v < top) v = Math.min(top, v + o.accel * gas * (this.boostT > 0 ? 2.5 : 1) * dt);
     else if (v > top) v = Math.max(top, v - o.accel * 1.6 * dt);   // over this ground's top: it slows to it
-    if (brake > 0) v = v > 1 ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);
+    if (brake > 0) v = v > 1 || hold ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);   // (held: it stops, never backs up)
     if (!gas && !brake) v *= Math.exp(-o.drag * dt);
     if (!air) s *= Math.exp(-(this.drifting ? o.drift : o.grip) * (S.grip || 1) * dt);   // grip takes the slide away
     /** vx, vy: its speed on the ground (E.Body's): along its heading and the slide */
@@ -11793,7 +11794,7 @@ class Race {
     const L = this.path.length, n = this.o.checkpoints, cars = this.racers.map(R => R.car);
     this.t += dt; this.go = this.t >= 0;
     for (const R of this.racers) {
-      const ctl = !this.go ? { gas: 0, brake: 1 } : R.finished ? { gas: .4, steer: R.ai ? this.drive(R, dt).steer : 0 } : R.ai ? this.drive(R, dt) : R.input;
+      const ctl = !this.go ? { gas: 0, brake: 1, hold: true } : R.finished ? { gas: .4, steer: R.ai ? this.drive(R, dt).steer : 0 } : R.ai ? this.drive(R, dt) : R.input;
       R.car.update(dt, map, ctl);
     }
     Car.collide(cars.filter(c => !c.isVehicle));   // (the 3D engine's vehicles bump in Rapier)
@@ -13157,9 +13158,10 @@ billboards (rigs drawn at the size their distance gives, sprites, models, your o
 - In draw: m7.rig(rig, x, y, z), m7.sprite(spr or E.anim, x, y, z, { scale, flip, t, target }), m7.shape(id, x, y, z,
   { facing, size, params, mats }) (full engine), m7.mesh(model, x, y, z, o) (the mesh module's E.Mesh, o its draw's:
   yaw, pitch, roll, colors, target), m7.quad([[x, y, z], ...], color, target, layer) (a wall, a sign: a flat polygon in
-  the world; layer -1 draws it before the rest: pillars under a raised track), m7.add(x, y, z, (g, sx, sy, k) => ...,
-  { target, w, h }) gather what is drawn (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor,
-  fog and them, far to near, as an overlay (in a split screen, in r.viewport: give each player's cam).
+  the world; one lying flat sorts by its far edge; layer -1 draws it first: pillars under a raised track), m7.add(x, y,
+  z, (g, sx, sy, k) => ..., { target, w, h }) gather what is drawn (k: screen pixels per world unit there); m7.draw(r,
+  cam) draws sky, floor, fog and them, far to near, as an overlay (in a split screen, in r.viewport: give each player's
+  cam).
 - m7.pick(sx, sy) -> { target, k } nearest under a screen point in the view last drawn (a target's box: a sprite's or
   model's drawn size, add's w x h units over its foot; a quad blocks what is behind it), or null; m7.pick(sx, sy, [{ x,
   y, z, w, h, target }]) tests those boxes through the camera begun, nothing drawn: a light gun's shot that replays
@@ -13296,17 +13298,32 @@ class Mode7 {
       if (o.target !== undefined && x1 >= x0) this._seen.push({ target: o.target, k, box: [x0, y0, x1 - x0, y1 - y0] });
     }, null, true);
   }
+  // a polygon cut where it crosses the camera's near plane (a flat floor's camera), projected: null if nothing is left
+  _clip(pts) {
+    const P = this._P, N = 6.5, w = pts.map(p => { const z = p[2] || 0; return [p[0], p[1], z, ((p[0] - P.x) * P.fx + (p[1] - P.y) * P.fy) * P.cp - (z - P.h) * P.sp]; }), out = [];
+    for (let i = 0; i < w.length; i++) {
+      const a = w[i], b = w[(i + 1) % w.length]; if (a[3] >= N) out.push(a);
+      if ((a[3] >= N) !== (b[3] >= N)) { const t = (N - a[3]) / (b[3] - a[3]); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]); }
+    }
+    const q = out.length > 2 && out.map(p => this.project(p[0], p[1], p[2])); return q && !q.some(p => !p) ? q : null;
+  }
   /** gather a flat polygon in the world ([[x, y, z], ...]: a wall, a fence, a sign), sorted with the billboards by its
-   *  middle's depth; target: m7.pick finds it (null: it only blocks what is behind it); layer -1: drawn before the rest
-   *  (a pillar under a raised track, which no sort by depth keeps behind it) */
+   *  middle's depth (one lying flat, a floor or a track, by its far edge: what stands on it draws over it); target:
+   *  m7.pick finds it (null: it only blocks what is behind it); layer -1: drawn before the rest (a pillar under a raised
+   *  track, which no sort by depth keeps behind it) */
   quad(pts, color, target = null, layer = 0) {
     const n = pts.length, c = pts.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n, a[2] + (p[2] || 0) / n], [0, 0, 0]);
-    return this.add(c[0], c[1], c[2], (g, sx, sy, k) => {
-      const q = pts.map(p => this.project(p[0], p[1], p[2] || 0)); if (q.some(p => !p)) return;
+    const u = [0, 1, 2].map(i => (pts[1][i] || 0) - (pts[0][i] || 0)), v = [0, 1, 2].map(i => (pts[n - 1][i] || 0) - (pts[0][i] || 0)), nz = u[0] * v[1] - u[1] * v[0];
+    const flat = Math.abs(nz) > .7 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], nz);   // (its normal within 45 degrees of up)
+    this.add(c[0], c[1], c[2], (g, sx, sy, k) => {
+      let q = pts.map(p => this.project(p[0], p[1], p[2] || 0));
+      if (q.some(p => !p)) { if (this._P.R) return; q = this._clip(pts); if (!q) return; }   // (crossing the near plane: cut there, not dropped)
       const a = g.globalAlpha, fog = this.o.fog; g.globalAlpha = 1;   // (a wall shows nothing behind it, so fog mixes its color)
       E.px.poly(g, q.map(p => [p[0], p[1]]), a < 1 && fog ? E.mix(color, fog.color || '#a8c0e0', (1 - a) * .9) : color);
       g.globalAlpha = a; E.px.reset(g); this._seen.push({ target, k, poly: q });
     }, null, true, layer);
+    if (flat) this.items[this.items.length - 1].floor = pts;
+    return this;
   }
   /** what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null; with a
    *  list ([{ x, y, z, w, h, target }]: boxes w x h world units over those feet), those boxes through the camera begun,
@@ -13362,7 +13379,9 @@ class Mode7 {
     const P = this._P, fog = this.o.fog, far = fog && fog.far || this.o.far, list = [];
     for (const it of items) {
       const p = this.project(it.x, it.y, it.z); if (!p || p[0] < vp.x - 200 || p[0] > vp.x + vp.w + 200) continue;
-      const d = P.R || it.deep ? P.f / p[2] : (it.x - P.x) * P.fx + (it.y - P.y) * P.fy; if (d <= far) list.push([d, it, p]);   // (a model or a quad by its depth from the camera: one under another sorts behind it)
+      let d = P.R || it.deep ? P.f / p[2] : (it.x - P.x) * P.fx + (it.y - P.y) * P.fy;   // (a model or a quad by its depth from the camera: one under another sorts behind it)
+      if (it.floor) for (const q of it.floor) { const pq = this.project(q[0], q[1], q[2] || 0); if (pq) d = Math.max(d, P.f / pq[2]); }   // (a floor by its far edge)
+      if (d <= far) list.push([d, it, p]);
     }
     list.sort((a, b) => a[1].layer - b[1].layer || b[0] - a[0]);   // (a lower layer first: what stands under a track)
     for (const [d, it, p] of list) {

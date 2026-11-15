@@ -9,7 +9,8 @@ takes away, the floor's tag under it slowing it, walls and other cars it bounces
   at speed), grip: 10, drift: 4.5 (the grip drifting), kart: true (a hop into a drift; held, it charges a boost),
   surfaces: { grass: { top: .5, grip: .9 }, sand, dirt, ice, boost: { boost: .8 } (seconds), ... }, ground: (x, y) =>
   tag (else map.floorAt) }): an E.Body. Each step car.update(dt, map, game.input (steer left/right; gas, brake, drift:
-  actions; o.auto: gas by itself) or an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor) }).
+  actions; o.auto: gas by itself) or an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor), hold
+  (the brake stops it, never backs it up: the countdown's) }).
 - car.speed (along it), car.slide (sideways), car.angle, car.drifting (-1, 0, 1), car.charge (a drift's: 1 blue, 2
   orange), car.boostT, car.surface, car.offroad, car.spinT; car.boost(seconds, power), car.spinOut(seconds);
   E.Car.collide(cars) bumps them apart.
@@ -71,7 +72,7 @@ class Car extends E.Body {
   /** one step: steering, engine, grip, drift, the surface, then E.Body's walls and hop. c: an input or an intent */
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
-    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0;
+    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
     const drift = inp ? c.down('drift') : !!c.drift, hop = inp ? c.pressed('drift') : drift && !this._held;
     this._held = drift;
     const tag = o.ground ? o.ground(this.x, this.y) : map && map.floorAt ? map.floorAt(this.x, this.y) : null, S = (tag && o.surfaces[tag]) || {};
@@ -100,7 +101,7 @@ class Car extends E.Body {
     const top = o.top * (S.top || 1) * (c.top || 1) * (this.boostT > 0 ? 1 + this._boostK : 1);
     if (gas > 0 && v < top) v = Math.min(top, v + o.accel * gas * (this.boostT > 0 ? 2.5 : 1) * dt);
     else if (v > top) v = Math.max(top, v - o.accel * 1.6 * dt);   // over this ground's top: it slows to it
-    if (brake > 0) v = v > 1 ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);
+    if (brake > 0) v = v > 1 || hold ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);   // (held: it stops, never backs up)
     if (!gas && !brake) v *= Math.exp(-o.drag * dt);
     if (!air) s *= Math.exp(-(this.drifting ? o.drift : o.grip) * (S.grip || 1) * dt);   // grip takes the slide away
     /** vx, vy: its speed on the ground (E.Body's): along its heading and the slide */
@@ -181,7 +182,7 @@ class Race {
     const L = this.path.length, n = this.o.checkpoints, cars = this.racers.map(R => R.car);
     this.t += dt; this.go = this.t >= 0;
     for (const R of this.racers) {
-      const ctl = !this.go ? { gas: 0, brake: 1 } : R.finished ? { gas: .4, steer: R.ai ? this.drive(R, dt).steer : 0 } : R.ai ? this.drive(R, dt) : R.input;
+      const ctl = !this.go ? { gas: 0, brake: 1, hold: true } : R.finished ? { gas: .4, steer: R.ai ? this.drive(R, dt).steer : 0 } : R.ai ? this.drive(R, dt) : R.input;
       R.car.update(dt, map, ctl);
     }
     Car.collide(cars.filter(c => !c.isVehicle));   // (the 3D engine's vehicles bump in Rapier)

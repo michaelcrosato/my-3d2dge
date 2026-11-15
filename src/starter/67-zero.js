@@ -58,7 +58,7 @@ const ZERO = (() => {
     const segs = [];
     for (let s = 0; s < RL; s += STEP) {
       const p = RIB.at(s), q = RIB.at(s + 30), bank = clamp(E.angDiff(p.angle, q.angle) * 9, -.45, .45), rx = -Math.sin(p.angle), ry = Math.cos(p.angle), dz = Math.sin(bank) * HW;
-      segs.push({ s, x: p.x, y: p.y, z: p.z, L: [p.x - rx * HW, p.y - ry * HW, p.z + dz], R: [p.x + rx * HW, p.y + ry * HW, p.z - dz] });
+      segs.push({ s, x: p.x, y: p.y, z: p.z, dz, bank, L: [p.x - rx * HW, p.y - ry * HW, p.z + dz], R: [p.x + rx * HW, p.y + ry * HW, p.z - dz] });
     }
     const cv = E.mkCanvas(1024, 1024), g = cv.getContext('2d'), img = g.createImageData(1024, 1024), d = img.data;
     for (let y = 0; y < 1024; y++) for (let x = 0; x < 1024; x++) { const n = hash(x, y) % 8, m = E.noise2(x / 40, y / 40), i = (y * 1024 + x) * 4, c = m > .66 ? [150 + n, 96, 70] : ((x >> 4) + (y >> 4)) & 1 ? [214 - n, 168, 112] : [206 - n, 160, 106]; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; }
@@ -70,10 +70,18 @@ const ZERO = (() => {
   // walls (a car past one is put back on, E.Body bouncing it: a knock); its z picks the right pass where it crosses
   const RIBMAP = { floorAt: () => null,
     groundAt: (x, y, r, z) => RIB.at(RIB.nearest(x, y, z)).z,
-    collide(b) { const p = RIB.at(RIB.nearest(b.x, b.y, b.z)), rx = -Math.sin(p.angle), ry = Math.cos(p.angle), u = (b.x - p.x) * rx + (b.y - p.y) * ry, lim = HW - 9; if (Math.abs(u) <= lim) return false; b.x = p.x + rx * Math.sign(u) * lim; b.y = p.y + ry * Math.sign(u) * lim; return true; } };
+    collide(b) { const p = RIB.at(RIB.nearest(b.x, b.y, b.z)), rx = -Math.sin(p.angle), ry = Math.cos(p.angle), u = (b.x - p.x) * rx + (b.y - p.y) * ry, lim = HW - 9; if (Math.abs(u) <= lim) return false; b.x = p.x + rx * Math.sign(u) * (lim - 2); b.y = p.y + ry * Math.sign(u) * (lim - 2); return true; } };   // (pushed off it a little)
   /** a car on the ribbon: held to its surface (it grips down a slope as up one), its slope (the camera pitches with it) */
   const RPIT = [RL * .62, RL * .72];   // (the ribbon's pit: a green stretch that fills energy back up)
-  function ride(R) { const c = R.car, s = RIB.nearest(c.x, c.y, c.z), z = RIB.at(s).z; R.pit = s > RPIT[0] && s < RPIT[1]; R.slope = (RIB.at(s + 20).z - z) / 20; c.z = z; c.vz = 0; c.onGround = true; }   // (held to it: down a slope it never leaves the ground)
+  /** the ribbon's surface at distance s and u across (+ right, in units): its height there and its bank (the stretches' own, between them) */
+  function surf(s, u) {
+    s = ((s % RL) + RL) % RL; const S = sky.segs, k = Math.min(S.length - 1, Math.floor(s / STEP)), a = S[k], b = S[(k + 1) % S.length], t = (s - a.s) / ((k + 1 < S.length ? b.s : RL) - a.s), dz = a.dz + (b.dz - a.dz) * t;
+    return { z: RIB.at(s).z - dz * u / HW, bank: a.bank + (b.bank - a.bank) * t };
+  }
+  function ride(R) {   // (held to it: down a slope it never leaves the ground; at the middle's height, so its place on the line is exact, drawn lifted by the bank)
+    const c = R.car, s = RIB.nearest(c.x, c.y, c.z), p = RIB.at(s), f = surf(s, (c.x - p.x) * -Math.sin(p.angle) + (c.y - p.y) * Math.cos(p.angle));
+    R.pit = s > RPIT[0] && s < RPIT[1]; R.slope = (RIB.at(s + 20).z - p.z) / 20; R.bank = f.bank; R.lift = f.z - p.z; c.z = p.z; c.vz = 0; c.onGround = true;
+  }
 
 
   /* ---- THE RACE ---- */
@@ -96,7 +104,7 @@ const ZERO = (() => {
       const ci = (k + 6 - n) % 6, g = grid[k], human = ci < n && !auto, car = new E.Car(Object.assign({ top: 300, accel: 160, turn: 2.05, grip: 14, drag: .4, kart: false, r: 9, surfaces: { pit: { top: .75 }, kerb: { top: .8 } } }, g));
       if (which === 'sky') car.z = RIB.at(RIB.nearest(g.x, g.y)).z;
       const R = race.add(car, human ? { name: E.t(CAST[ci].name), input: game.players[ci] || game.input } : { name: E.t(CAST[ci].name), ai: { skill: .9 + ci * .014, rubber: .25 } });
-      R.cast = CAST[ci]; R.ci = ci; R.energy = 100; if (ci < n) players[ci] = R;
+      R.cast = CAST[ci]; R.ci = ci; R.energy = 100; R.calm = 9; if (ci < n) players[ci] = R;
     }
     cams = players.map(R => ({ x: R.car.x, y: R.car.y, h: 22, angle: R.car.angle, pitch: 9, fov: 66 }));
     game.splitScreen(n > 1 ? n : 0, { layout: n === 2 ? 'rows' : 'grid' }); A.music(SONG); game.input.consumeAll();
@@ -109,22 +117,31 @@ const ZERO = (() => {
     if (mode === 'join') { if (game.players.length >= 2) go('city', true); else if (I.pressed('cancel')) mode = 'menu'; return; }
     if (mode === 'results') { after.update(dt); return; }
     for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch';
+    for (const R of race.racers) R.v0 = R.car.speed;
     const was = race.t; race.update(dt, track === 'city' ? city.map : RIBMAP);
     if (was < 0 && Math.floor(was) !== Math.floor(race.t)) A.sfx(race.t >= 0 ? 'confirm' : 'select');
     for (const R of race.racers) {
       const c = R.car; if (track === 'sky') ride(R);
-      if (c.bumped && !R._touch) { R.energy = Math.max(0, R.energy - 3); if (players.includes(R)) A.sfx('bump', { vol: .35 }); } else if (c.bumped) R.energy = Math.max(0, R.energy - 4 * dt);   // (a knock costs 3, scraping along a barrier a little more each second)
-      R._touch = c.bumped;
+      if (c.hitWall && race.go && track === 'sky') {   // the ribbon's barrier (it runs along the line) turns it along itself, F-Zero's glance: a graze keeps most of its speed, a hit head-on little; grinding on, a little less each step (the city's walls of cells bounce it, as the kart's do)
+        const p = RIB.at(RIB.nearest(c.x, c.y, c.z)), a = Math.abs(E.angDiff(c.angle, p.angle)) < Math.PI / 2 ? p.angle : p.angle + Math.PI, off = E.angDiff(c.angle, a);
+        const v = Math.max(c.speed, R.v0 * (R.calm > .4 ? .9 - .5 * Math.abs(Math.sin(off)) : .985)); c.angle += off * .35; c.vx = Math.cos(a) * v; c.vy = Math.sin(a) * v;
+      }
+      if (c.bumped && R.calm > .4) { R.energy = Math.max(0, R.energy - 3); if (players.includes(R)) A.sfx('bump', { vol: .35 }); } else if (R.calm < .25) R.energy = Math.max(0, R.energy - 6 * dt);   // (a knock costs 3; grinding along a barrier, 6 a second)
+      R.calm = c.bumped ? 0 : R.calm + dt;
       if (c.surface === 'pit' || (track === 'sky' && R.pit)) R.energy = Math.min(100, R.energy + 50 * dt);
       const want = R.lap >= 2 && R.energy > 30 && (R.input ? R.input.pressed('boost') : (auto || !R.input) && c.boostT <= 0 && Math.floor((t + R.ci) * .7) % 4 === 0 && R.energy > 50);
       if (want && race.go && c.boostT <= 0) { c.boost(1.2, .45); R.energy -= 14; if (players.includes(R)) A.sfx('powerup', { vol: .5 }); }
-      c.o.top = R.energy <= 0 ? 210 : 300;   // (out of energy: it limps)
+      c.o.top = R.energy <= 0 ? 210 : R.calm < .25 ? 230 : 300;   // (out of energy it limps; grinding a barrier it drags)
       if (R.lap !== R._lap) { if (R._lap !== undefined && !R.finished && players.includes(R)) A.sfx('oneup'); R._lap = R.lap; }
     }
     const tall = game.H > game.W * (players.length > 1 ? .5 : 1);
-    players.forEach((R, i) => {   // (on the ribbon the camera looks along the track, so it stays over it)
-      const c = cams[i], k = 1 - Math.exp(-dt * 6), V = view(), a = track === 'sky' ? RIB.at(RIB.nearest(R.car.x, R.car.y, R.car.z)).angle : 0, line = track === 'sky' ? a + E.angDiff(a, R.car.angle) * .3 : R.car.angle; c.angle += E.angDiff(c.angle, line) * k;
-      V.chase({ x: R.car.x, y: R.car.y, angle: c.angle }, { back: tall ? 96 : 66, h: (tall ? 40 : 26) + R.car.z }); Object.assign(c, V.cam); c.pitch = (tall ? 13 : 9) - (R.slope || 0) * 45; c.fov = tall ? 84 : 66;
+    players.forEach((R, i) => {
+      const c = cams[i], k = 1 - Math.exp(-dt * 6), V = view(), back = tall ? 96 : 66, up = tall ? 40 : 26;
+      if (track === 'sky') {   // on the ribbon: the camera on the track behind, never past its barriers, looking at the machine
+        const s = RIB.nearest(R.car.x, R.car.y, R.car.z), p = RIB.at(s), u = (R.car.x - p.x) * -Math.sin(p.angle) + (R.car.y - p.y) * Math.cos(p.angle), q = RIB.at(s - back), off = clamp(u * .6, 24 - HW, HW - 24);
+        c.x = q.x - Math.sin(q.angle) * off; c.y = q.y + Math.cos(q.angle) * off; c.h = surf(s - back, off).z + up; c.angle += E.angDiff(c.angle, E.angleTo(c, R.car)) * k;
+      } else { c.angle += E.angDiff(c.angle, R.car.angle) * k; V.chase({ x: R.car.x, y: R.car.y, angle: c.angle }, { back, h: up + R.car.z }); Object.assign(c, V.cam); }
+      c.pitch = (tall ? 13 : 9) - (R.slope || 0) * 45; c.fov = tall ? 84 : 66;
     });
     if (players.length && players.every(R => R.finished)) { over += dt; if (over > 2.5 && mode === 'race') finish(); }
   }
@@ -147,7 +164,7 @@ const ZERO = (() => {
     const i = r.viewport ? r.viewport.i : 0, me = players[i], cam = cams[i], V = view();
     if (track === 'city') towersOf(cam); else ribbonFor(cam);
     const fx = Math.cos(cam.angle), fy = Math.sin(cam.angle);
-    for (const R of race.racers) if (R === me || (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 26) V.mesh(MACHINE, R.car.x, R.car.y, R.car.z + 3 + Math.sin(t * 9 + R.ci) * .6, { scale: .8, yaw: R.car.angle, roll: clamp(R.car.slide * .012, -.5, .5), colors: { body: R.cast.body, trim: R.cast.trim, glow: R.car.boostT > 0 ? '#ffe060' : '#ff6a2a' } });   // (it leans with its slide; one beside the camera, nearer than its near plane can draw, is left out)
+    for (const R of race.racers) if (R === me || (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 26) V.mesh(MACHINE, R.car.x, R.car.y, R.car.z + (track === 'sky' ? R.lift || 0 : 0) + 3 + Math.sin(t * 9 + R.ci) * .6, { scale: .8, yaw: R.car.angle, roll: clamp(R.car.slide * .012, -.5, .5) + (track === 'sky' ? R.bank || 0 : 0), colors: { body: R.cast.body, trim: R.cast.trim, glow: R.car.boostT > 0 ? '#ffe060' : '#ff6a2a' } });   // (it leans with its slide; one beside the camera, nearer than its near plane can draw, is left out)
     V.draw(r, cam);
     if (me) race.hud(r, me, { color: players.length > 1 ? ['#a0d8ff', '#ffd080', '#a0ffa0', '#ffa0e0'][i] : '#ffffff', right: r.viewport && r.viewport.y > 0 ? null : cornerX() });
     if (me) r.overlay(g => {   // the energy bar and the speed, under the race's own HUD
@@ -168,7 +185,11 @@ const ZERO = (() => {
     const S = sky.segs, n = S.length, fx = Math.cos(c.angle), fy = Math.sin(c.angle);
     for (let k = 0; k < n; k++) {
       const a = S[k], b = S[(k + 1) % n], d = (a.x - c.x) * fx + (a.y - c.y) * fy; if (d < -160 || Math.hypot(a.x - c.x, a.y - c.y) > 2800) continue;
-      sky.m7.quad([a.L, a.R, b.R, b.L], k === 0 ? '#f0f0f0' : a.s > RPIT[0] && a.s < RPIT[1] ? (k % 2 ? '#2a8a6a' : '#34a07a') : k % 2 ? '#4a4f72' : '#42476a');
+      sky.m7.quad([a.L, a.R, b.R, b.L], a.s > RPIT[0] && a.s < RPIT[1] ? (k % 2 ? '#2a8a6a' : '#34a07a') : k % 2 ? '#4a4f72' : '#42476a');
+      if (k === 0) for (let i = 0; i < 8; i++) for (let j = 0; j < 2; j++) {   // the line: a band of checks across, just over the track
+        const at = (u, v) => { const t = v * 5 / STEP, l = a.L.map((q, n) => q + (b.L[n] - q) * t), r = a.R.map((q, n) => q + (b.R[n] - q) * t); return [l[0] + (r[0] - l[0]) * u, l[1] + (r[1] - l[1]) * u, l[2] + (r[2] - l[2]) * u + .6]; };
+        sky.m7.quad([at(i / 8, j), at((i + 1) / 8, j), at((i + 1) / 8, j + 1), at(i / 8, j + 1)], (i + j) % 2 ? '#f0f0f0' : '#202030');
+      }
       if (k % 2) sky.m7.quad([[(a.L[0] + a.R[0]) / 2 - (a.R[0] - a.L[0]) * .02, (a.L[1] + a.R[1]) / 2 - (a.R[1] - a.L[1]) * .02, (a.L[2] + a.R[2]) / 2 + .5], [(a.L[0] + a.R[0]) / 2 + (a.R[0] - a.L[0]) * .02, (a.L[1] + a.R[1]) / 2 + (a.R[1] - a.L[1]) * .02, (a.L[2] + a.R[2]) / 2 + .5], [(b.L[0] + b.R[0]) / 2, (b.L[1] + b.R[1]) / 2, (b.L[2] + b.R[2]) / 2 + .5]], '#e8e8f0');
       for (const [e1, e2, col] of [[a.L, b.L, '#ff3ab0'], [a.R, b.R, '#3ae0ff']]) sky.m7.quad([e1, e2, [e2[0], e2[1], e2[2] + 9], [e1[0], e1[1], e1[2] + 9]], col);
       if (k % 4 === 0 && d > 90) for (const off of [-.5, .5]) { const ux = (a.R[0] - a.L[0]) / (2 * HW) * 10, uy = (a.R[1] - a.L[1]) / (2 * HW) * 10, x = a.x + (a.R[0] - a.x) * off, y = a.y + (a.R[1] - a.y) * off; sky.m7.quad([[x - ux, y - uy, 0], [x + ux, y + uy, 0], [x + ux, y + uy, a.z - 4], [x - ux, y - uy, a.z - 4]], '#8a8478', null, -1); }   // (pillars first: the track over them covers them)
