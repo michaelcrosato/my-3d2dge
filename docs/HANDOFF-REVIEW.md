@@ -15,11 +15,11 @@ SPORTS kits, in v0.83.0 and v0.84.0; part 3, the benchmark's era briefs, run in 
 
 ## 1. Play the kits (only the owner)
 
-The Labs page's **To check** section holds 26 cards, each saying what to do and what to look for. Most want a phone or
+The Labs page's **To check** section holds 27 cards, each saying what to do and what to look for. Most want a phone or
 a second player. A card goes once checked; what the owner wants changed becomes a plan or a fix.
 - **2D kits:** Roguelike on your phone; Puzzle (how the blocks handle, and versus); Arcade (the three classics);
   Shooter (the horizontal stage); Brawler with a friend; Fighting (Street Fighter); Metroidvania (Super Metroid); Kart
-  (Super Mario Kart); Sky (Pilotwings, Final Fantasy VI's airship); Blaster (Space Harrier, After Burner, Yoshi's Safari); RPG (Dragon Quest, Final Fantasy); Tactics (Final Fantasy Tactics, Fire Emblem);
+  (Super Mario Kart); Road (OutRun, Super Hang-On, Chase H.Q.: rebuilt); Sky (Pilotwings, Final Fantasy VI's airship); Blaster (Space Harrier, After Burner, Yoshi's Safari); RPG (Dragon Quest, Final Fantasy); Tactics (Final Fantasy Tactics, Fire Emblem);
   RTS (Warcraft II, StarCraft); Sim (Theme Park); Point-and-click (Monkey Island); Pinball (Pinball Fantasies); Artillery
   (Worms); Rhythm (Dance Dance Revolution, PaRappa); Stealth's music (the chase's layers); Sports (Sensible Soccer, NBA
   Jam: with friends).

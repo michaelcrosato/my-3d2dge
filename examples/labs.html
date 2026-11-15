@@ -179,6 +179,14 @@ const LABS = {
           "links": [["VS (two players)", "#kart/vs"]]
         },
         {
+          "page": "dist/kits/my-3d2dge-road.html",
+          "at": "#road",
+          "title": "Road: does it feel like OutRun, Super Hang-On and Chase H.Q.?",
+          "what": "COAST RUN (the car or the bike): pick a song on the radio (left and right, then Enter), then drive: up or Z the gas, down or X the brake, left and right steer. Make each checkpoint before the clock runs out; where the road splits, keep left or right to pick the next stage (six in a pyramid). Hit the scenery fast and you spin out; hold R to rewind (three a run). CHASE: catch the getaway car through the night traffic and ram it until it stops; C the nitro (three). Rebuilt with v0.97.0.",
+          "look": "Does it feel fast: the stripes, the palms and the bends rushing at you, the hills hiding the road? Does the car (and the bike's lean) look right from behind, the traffic worth weaving through? Do the forks read, the two roads parting? Is the clock tight but fair, and is the rewind a relief? Does the chase's ramming feel good? On your phone: it drives itself forward; the stick steers; BRAKE and REWIND (NITRO in the chase).",
+          "links": [["The bike", "#road/bike"], ["The chase", "#road/chase"]]
+        },
+        {
           "page": "dist/kits/my-3d2dge-sky.html",
           "at": "#sky",
           "title": "Sky: does it feel like Pilotwings and Final Fantasy's airship?",
@@ -427,6 +435,12 @@ const LABS = {
           "links": [["Race", "#kart/race"], ["VS", "#kart/vs"]]
         },
         {
+          "page": "dist/kits/my-3d2dge-road.html",
+          "title": "Road",
+          "what": "The pseudo-3D road (OutRun, Super Hang-On, Chase H.Q.): a coast run of six stages in a pyramid, picked where the road forks, in a convertible or on a bike that leans, traffic, checkpoints and a rewind; a police chase that rams a getaway car to a stop. The cars low-poly models.",
+          "links": [["Car", "#road/car"], ["Bike", "#road/bike"], ["Chase", "#road/chase"]]
+        },
+        {
           "page": "dist/kits/my-3d2dge-sky.html",
           "title": "Sky",
           "what": "Mode 7 flight (Pilotwings, Final Fantasy VI's airship): a light plane through ten rings and onto a runway, a skydive through hoops onto a target, an airship over a world that curves away below it; the camera pitched and rolled with the plane, the craft low-poly models.",
@@ -611,19 +625,6 @@ const LABS = {
               "?backend=webgl"
             ]
           ]
-        },
-        {
-          "page": "fork-lab",
-          "title": "Fork Lab",
-          "added": "2026-11-05",
-          "question": "Can a pseudo-3D road fork at the end of a stretch, one road easing into two and the side the car is on choosing the way (OutBloom and DenshaDeHalo forked road.js for it), and is that E.Road's own (road.fork(at, { left, right }): the branches as more segments, drawn together in its one pass) or roads a game draws itself (the cc-matrix plan's 7.5)?",
-          "what": "A road that forks twice a run: before each split it widens into two roads that ease apart, each with its own bends and hills; keep left or right through the split, and the view turns with the road you took while the other bends away out of sight. Arrows or WASD steer, Z the gas, X the brake. The lab draws its own roads, every row's grass and then every road over it, back to front: what would E.Road need to do this itself?",
-          "links": [
-            [
-              "Drives itself",
-              "?auto"
-            ]
-          ]
         }
       ]
     }
@@ -690,7 +691,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = target('emberdeep', '');
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was built from (dev-build in the repository; tools/stamp.mjs fills in a commit for a copy)
-el('div', 'ver', 'my-3D2dge v0.96.0 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.97.0 · dev-build', foot);
 })();
 </script>
 

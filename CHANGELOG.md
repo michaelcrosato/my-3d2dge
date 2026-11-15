@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.97.0 (2026-11-15)
+
+The pseudo-3D road done properly: the ROAD kit rebuilt (OutRun, Super Hang-On, Chase H.Q.), forks in the road module, and a rewind (D91).
+
+- **Engine**: the ROAD kit (`#road`, `src/starter/66-road.js`, the road, mesh and rewind modules): COAST RUN, a convertible (or a motorbike that leans into the bends) from the beach to a goal, six stages in a pyramid picked where the road splits, checkpoint arches that add time, traffic (sedans, vans, trucks) to weave through, curve signs, a crash that spins the car over as it slides back to the road, three rewinds a run, a radio of three songs; CHASE, a police car after a getaway car through the night city: catch it, ram it until it stops, three nitros. The cars are low-poly models drawn through the road's projection. An autopilot drives every run (`scenes.road.demo(what)`, the bot).
+- **Rendering**: the road module's forks: `road.add(n, { split: gap })` eases one road into two, `{ branch: d }` draws the way not taken bending away, `road.centers(z)` says where each road's middle is (D90); `road.mesh(model, z, x, o)` gives draw's `cars` a low-poly model drawn through the road's projection, fogged with it, its corners at or behind the camera left out.
+- **Engine**: the rewind module (`engine/modules/rewind.js`, `E.Rewind`): a ring of snapshots kept in update and walked back while a key is held (Slipstream, Forza, Prince of Persia); a replay rewinds the same way.
+- **Tools**: kits-test's ROAD bot (the coast run to the goal through two forks, a rewind, the bike to its first fork, the chase to the arrest); the phone test's road case (BRAKE and REWIND thumb-sized, the gas by itself, the stick steers); contract-test's checks of the road's forks and models and the rewind module; the Fork Lab is gone (answered, D90).
+- **Docs**: README (the kits, the slices, genre coverage), the API card (road racing's row names ROAD again; the road and rewind modules' lines), `AI_GUIDE.md` (the road racing recipe: forks, models, rewind), `docs/KITS.md` (the rewind module), the Labs page (the Road tile and its To check card), `docs/HANDOFF-REVIEW.md` (27 cards), D88 superseded by D91.
+
 ## 0.96.0 (2026-11-15)
 
 Shooters into the screen: the BLASTER kit (Space Harrier, After Burner, Yoshi's Safari), and a light gun's pick that replays.

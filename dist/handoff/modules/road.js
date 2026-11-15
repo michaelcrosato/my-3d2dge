@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ROAD v0.96.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.97.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11,9 +11,12 @@ and road drawn smaller with its distance, bending and rising, and what stands be
   a Backdrop (full engine) | '#color', square: true (one focal length: a unit across is a unit up on a screen of any
   shape; without it the picture stretches to the screen's, as the arcades' did) }).
 - Build it: road.add(n, { curve: -6..6 (+ bends right), hill: units up (- down) over the n segments, tunnel: true,
-  colors }) (curves eased in and out); road.place(z, offset, what, scale): scenery at distance z, offset across (-1
-  and 1: the road's edges; beyond: roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or {
-  draw(g, sx, sy, scale), w: its width in units }. road.length: the lap (it loops).
+  colors, split: g (OutRun's fork: the road becomes two that ease apart, g half roads between them at the end),
+  branch: d (a second road d half roads aside, + right, bending away out of sight: the way not taken, after a fork) })
+  (curves eased in and out); road.centers(z): the roads' middles there, in half roads (one road: [0]; a split: two);
+  road.place(z, offset, what, scale): scenery at distance z, offset across (-1 and 1: the road's edges; beyond:
+  roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or { draw(g, sx, sy, scale), w: its width in
+  units }. road.length: the lap (it loops).
 - Each frame: road.draw(r, { z (the camera's distance along), x (across, in half roads), h (its height over the road),
   turn (the sky's offset: add curve * speed each step), cars: [{ z, x, w, draw(g, sx, sy, scale) }] }) as an overlay
   over the frame (in a split screen, in r.viewport). A hill's crest hides what lies past it. The player's car, drawn
@@ -21,6 +24,10 @@ and road drawn smaller with its distance, bending and rising, and what stands be
 - For the game: road.curveAt(z) (how hard it bends there: the push outward), road.yAt(z) (its height), road.hits(z, x,
   w) (the scenery a body w half roads wide touches there), road.project(z, x, y) -> [sx, sy, scale] for the camera
   last drawn (scale * a width in units = pixels).
+- A low-poly car (the mesh module's E.Mesh): road.mesh(model, z, x, { yaw, roll, scale, colors, y: height }) -> a car
+  for draw's cars, drawn through the road's own projection (its forward along the road), fogged with it.
+- At a fork the game picks the road the car is on (the nearer of road.centers(z) to x) and builds the next stretch on
+  it: x less that road's middle, the other a branch of the stretch's first segments.
 
 ```js road
 const E = My3D2dge, road = new E.Road({ segment: 200 });
@@ -55,7 +62,8 @@ class Road {
     const y0 = this.segs.length ? this.segs[this.segs.length - 1].y1 : 0, curve = o.curve || 0, hill = o.hill || 0, e = Math.max(1, Math.min(n / 3, 25)), L = this.o.segment;
     for (let k = 0; k < n; k++) {
       const c = k < e ? easeIn(0, curve, k / e) : k > n - e ? easeInOut(curve, 0, (k - (n - e)) / e) : curve, i = this.segs.length;
-      this.segs.push({ i, z: i * L, y0: easeInOut(y0, y0 + hill, k / n), y1: easeInOut(y0, y0 + hill, (k + 1) / n), curve: c, tunnel: !!o.tunnel, colors: o.colors || null, things: [] });
+      const g = o.split ? (1 + o.split / 2) * easeInOut(0, 1, (k + 1) / n) : 0, b = o.branch ? o.branch + Math.sign(o.branch) * ((k + 1) / 8) ** 2 : 0;   // (a split's two roads slide apart from one; a branch bends away)
+      this.segs.push({ i, z: i * L, y0: easeInOut(y0, y0 + hill, k / n), y1: easeInOut(y0, y0 + hill, (k + 1) / n), curve: c, tunnel: !!o.tunnel, colors: o.colors || null, things: [], roads: o.split ? [-g, g] : o.branch ? [0, b] : null });
     }
     this.length = this.segs.length * this.o.segment; return this;
   }
@@ -66,6 +74,19 @@ class Road {
   place(z, offset, what, scale = 8) {
     const spr = what.isAnim ? what.frames[0] : what.isSprite ? what : null;
     this.seg(z).things.push({ offset, what, scale, w: spr ? spr.w * scale : what.w || 200 }); return this;
+  }
+  /** the roads' middles at a distance, in half roads from the line the camera follows ([0]; a split's two) */
+  centers(z) { return this.seg(z).roads || [0]; }
+  /** a car for draw's cars: a model (the mesh module's E.Mesh) at distance z, x half roads across, drawn through the
+   *  road's projection (its forward along the road; o: yaw, pitch, roll, scale, colors, y its height over the road) */
+  mesh(model, z, x, o = {}) {
+    const W = this.o.width, fog = this.o.fog;
+    return { z, x, w: model.bounds * (o.scale || 1) * 2, draw: g => {
+      const a = g.globalAlpha; g.globalAlpha = 1;   // (the road fogs a thing by its transparency: a model's faces mix toward the fog instead)
+      const C = this._cam, near = (X, Y, Z) => { let d = X - C.z; if (d < -this.length / 2) d += this.length; return d < 400 ? null : this.project(X, Y / W, Z); };   // (a corner at or behind the camera: its face left out)
+      model.draw(g, near, Object.assign({}, o, { x: z, y: x * W, z: o.y || 0, mix: a < 1 && fog ? [fog.color, (1 - a) * .9] : o.mix }));
+      g.globalAlpha = a; E.px.reset(g);
+    } };
   }
   /** how hard the road bends at a distance */
   curveAt(z) { return this.seg(z).curve; }
@@ -141,10 +162,10 @@ class Road {
     const o = this.o, px = E.px, C = s.colors ? Object.assign({}, o.colors, s.colors) : o.colors, alt = Math.floor(s.i / o.rumble) % 2, W = vp.w, X = vp.x, y1 = Math.ceil(p1.y), y2 = Math.ceil(p2.y);   // (the rows its polygons fill: from p2 down to p1, p1's not)
     const quad = (x1, w1, x2, w2, c) => px.poly(g, [[x1 - w1, p1.y], [x1 + w1, p1.y], [x2 + w2, p2.y], [x2 - w2, p2.y]], c);
     px.rect(g, X, y2, W, y1 - y2, C.grass[alt]);
-    const k = Math.max(6, 2 * o.lanes);
-    quad(p1.x, p1.w * (1 + 1 / k), p2.x, p2.w * (1 + 1 / k), C.rumble[alt]);
-    quad(p1.x, p1.w, p2.x, p2.w, C.road[alt]);
-    if (!alt) for (let l = 1; l < o.lanes; l++) { const u = -1 + 2 * l / o.lanes; quad(p1.x + u * p1.w, p1.w / (16 * o.lanes), p2.x + u * p2.w, p2.w / (16 * o.lanes), C.lane); }
+    const k = Math.max(6, 2 * o.lanes), R = s.roads || [0], n = this.segs.length, nx = this.segs[(s.i + 1) % n].roads, R2 = nx && nx.length === R.length ? nx : R;   // (a fork's roads: each its own rumble, surface and lanes; the next segment's middles for the far edge)
+    for (let j = 0; j < R.length; j++) quad(p1.x + R[j] * p1.w, p1.w * (1 + 1 / k), p2.x + R2[j] * p2.w, p2.w * (1 + 1 / k), C.rumble[alt]);
+    for (let j = 0; j < R.length; j++) quad(p1.x + R[j] * p1.w, p1.w, p2.x + R2[j] * p2.w, p2.w, C.road[alt]);
+    if (!alt) for (let j = 0; j < R.length; j++) for (let l = 1; l < o.lanes; l++) { const u = -1 + 2 * l / o.lanes; quad(p1.x + (R[j] + u) * p1.w, p1.w / (16 * o.lanes), p2.x + (R2[j] + u) * p2.w, p2.w / (16 * o.lanes), C.lane); }
     if (s.tunnel) {   // walls from beyond the rumble up to a roof; where it starts, a face round its mouth
       const e1 = p1.w * 1.25, e2 = p2.w * 1.25, t1 = p1.y - p1.w * .8, t2 = p2.y - p2.w * .8, n = this.segs.length;
       px.poly(g, [[p1.x - e1, p1.y], [p2.x - e2, p2.y], [p2.x - e2, t2], [p1.x - e1, t1]], C.wall[alt]);

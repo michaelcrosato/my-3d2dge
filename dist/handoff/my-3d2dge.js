@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.96.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.97.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -86,7 +86,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.96.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.97.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -11011,7 +11011,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.96.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.97.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11235,7 +11235,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.96.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.97.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11611,7 +11611,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.96.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.97.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11844,7 +11844,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.96.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.97.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12406,7 +12406,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.96.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.97.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12589,7 +12589,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.96.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.97.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12998,7 +12998,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MESH v0.96.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.97.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13136,7 +13136,7 @@ E.Mesh = Mesh;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.96.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.97.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13465,7 +13465,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.96.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.97.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13832,7 +13832,67 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.96.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module REWIND v0.97.0: time run backwards: the game's state kept a moment at a time, walked back on request
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+Slipstream's, Forza's and Prince of Persia's rewind: a ring of snapshots of the state a game names, taken in update,
+walked back while the player holds a key; play goes on from wherever they let go (a replay keeps the inputs, so it
+rewinds the same way).
+- const rw = new E.Rewind({ seconds: 8 (how much is kept), every: 1 / 30 (seconds of play between snapshots) }).
+- Each step of play: rw.keep(dt, () => ({ ... })): a fresh copy of what rewinds (positions, speeds, the clock: plain
+  data, nothing shared with the live game), taken when a snapshot is due.
+- Each step of rewinding: const s = rw.back(dt, speed = 1): the snapshot that far back, to put into the game (null
+  when none is kept); it stops at the oldest. rw.seconds: how much is kept now; rw.clear() forgets them (a new stage).
+
+```js rewind
+const E = My3D2dge, rw = new E.Rewind({ seconds: 2, every: .1 }); let x = 0;
+for (let i = 0; i < 30; i++) { x += 1; rw.keep(.1, () => ({ x })); }
+const s = rw.back(.5);
+if (s.x !== 25 || Math.abs(rw.seconds - 1.5) > 1e-9) throw new Error('a rewind');
+```
+Rules: keep and back from update (time from dt); a snapshot is copied when taken (never the live objects); what a
+rewind brings back is the game's to put back, and to limit (a meter, a count).
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module REWIND: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * REWIND  a ring of snapshots, kept in play and walked back on request
+ * ========================================================================== */
+class Rewind {
+  /** new E.Rewind({ seconds, every }): a rewind (the manual above) */
+  constructor(o = {}) {
+    /** o: its options; ring: the snapshots kept, oldest first */
+    this.o = Object.assign({ seconds: 8, every: 1 / 30 }, o); this.ring = []; this._due = 0; this._back = 0;
+  }
+  /** how many seconds of play are kept now */
+  get seconds() { return this.ring.length * this.o.every; }
+  /** in play: take a snapshot (fn() -> a fresh copy of the state) when one is due; returns the rewind */
+  keep(dt, fn) {
+    this._back = 0; this._due -= dt;
+    if (this._due > 1e-9) return this;
+    this._due += this.o.every; if (this._due < 0) this._due = 0;
+    this.ring.push(fn()); const max = Math.max(1, Math.round(this.o.seconds / this.o.every));
+    if (this.ring.length > max) this.ring.splice(0, this.ring.length - max);
+    return this;
+  }
+  /** rewinding: step back dt * speed seconds; the snapshot to put back (null when none is kept) */
+  back(dt, speed = 1) {
+    if (!this.ring.length) return null;
+    this._back += dt * speed;
+    while (this._back >= this.o.every - 1e-9 && this.ring.length > 1) { this._back -= this.o.every; this.ring.pop(); }
+    this._due = 0; return this.ring[this.ring.length - 1];
+  }
+  /** forget every snapshot (a new stage, a restart) */
+  clear() { this.ring.length = 0; this._due = 0; this._back = 0; return this; }
+}
+E.Rewind = Rewind;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+/*!
+my-3D2dge module RHYTHM v0.97.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14039,7 +14099,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.96.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.97.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14051,9 +14111,12 @@ and road drawn smaller with its distance, bending and rising, and what stands be
   a Backdrop (full engine) | '#color', square: true (one focal length: a unit across is a unit up on a screen of any
   shape; without it the picture stretches to the screen's, as the arcades' did) }).
 - Build it: road.add(n, { curve: -6..6 (+ bends right), hill: units up (- down) over the n segments, tunnel: true,
-  colors }) (curves eased in and out); road.place(z, offset, what, scale): scenery at distance z, offset across (-1
-  and 1: the road's edges; beyond: roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or {
-  draw(g, sx, sy, scale), w: its width in units }. road.length: the lap (it loops).
+  colors, split: g (OutRun's fork: the road becomes two that ease apart, g half roads between them at the end),
+  branch: d (a second road d half roads aside, + right, bending away out of sight: the way not taken, after a fork) })
+  (curves eased in and out); road.centers(z): the roads' middles there, in half roads (one road: [0]; a split: two);
+  road.place(z, offset, what, scale): scenery at distance z, offset across (-1 and 1: the road's edges; beyond:
+  roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or { draw(g, sx, sy, scale), w: its width in
+  units }. road.length: the lap (it loops).
 - Each frame: road.draw(r, { z (the camera's distance along), x (across, in half roads), h (its height over the road),
   turn (the sky's offset: add curve * speed each step), cars: [{ z, x, w, draw(g, sx, sy, scale) }] }) as an overlay
   over the frame (in a split screen, in r.viewport). A hill's crest hides what lies past it. The player's car, drawn
@@ -14061,6 +14124,10 @@ and road drawn smaller with its distance, bending and rising, and what stands be
 - For the game: road.curveAt(z) (how hard it bends there: the push outward), road.yAt(z) (its height), road.hits(z, x,
   w) (the scenery a body w half roads wide touches there), road.project(z, x, y) -> [sx, sy, scale] for the camera
   last drawn (scale * a width in units = pixels).
+- A low-poly car (the mesh module's E.Mesh): road.mesh(model, z, x, { yaw, roll, scale, colors, y: height }) -> a car
+  for draw's cars, drawn through the road's own projection (its forward along the road), fogged with it.
+- At a fork the game picks the road the car is on (the nearer of road.centers(z) to x) and builds the next stretch on
+  it: x less that road's middle, the other a branch of the stretch's first segments.
 
 ```js road
 const E = My3D2dge, road = new E.Road({ segment: 200 });
@@ -14095,7 +14162,8 @@ class Road {
     const y0 = this.segs.length ? this.segs[this.segs.length - 1].y1 : 0, curve = o.curve || 0, hill = o.hill || 0, e = Math.max(1, Math.min(n / 3, 25)), L = this.o.segment;
     for (let k = 0; k < n; k++) {
       const c = k < e ? easeIn(0, curve, k / e) : k > n - e ? easeInOut(curve, 0, (k - (n - e)) / e) : curve, i = this.segs.length;
-      this.segs.push({ i, z: i * L, y0: easeInOut(y0, y0 + hill, k / n), y1: easeInOut(y0, y0 + hill, (k + 1) / n), curve: c, tunnel: !!o.tunnel, colors: o.colors || null, things: [] });
+      const g = o.split ? (1 + o.split / 2) * easeInOut(0, 1, (k + 1) / n) : 0, b = o.branch ? o.branch + Math.sign(o.branch) * ((k + 1) / 8) ** 2 : 0;   // (a split's two roads slide apart from one; a branch bends away)
+      this.segs.push({ i, z: i * L, y0: easeInOut(y0, y0 + hill, k / n), y1: easeInOut(y0, y0 + hill, (k + 1) / n), curve: c, tunnel: !!o.tunnel, colors: o.colors || null, things: [], roads: o.split ? [-g, g] : o.branch ? [0, b] : null });
     }
     this.length = this.segs.length * this.o.segment; return this;
   }
@@ -14106,6 +14174,19 @@ class Road {
   place(z, offset, what, scale = 8) {
     const spr = what.isAnim ? what.frames[0] : what.isSprite ? what : null;
     this.seg(z).things.push({ offset, what, scale, w: spr ? spr.w * scale : what.w || 200 }); return this;
+  }
+  /** the roads' middles at a distance, in half roads from the line the camera follows ([0]; a split's two) */
+  centers(z) { return this.seg(z).roads || [0]; }
+  /** a car for draw's cars: a model (the mesh module's E.Mesh) at distance z, x half roads across, drawn through the
+   *  road's projection (its forward along the road; o: yaw, pitch, roll, scale, colors, y its height over the road) */
+  mesh(model, z, x, o = {}) {
+    const W = this.o.width, fog = this.o.fog;
+    return { z, x, w: model.bounds * (o.scale || 1) * 2, draw: g => {
+      const a = g.globalAlpha; g.globalAlpha = 1;   // (the road fogs a thing by its transparency: a model's faces mix toward the fog instead)
+      const C = this._cam, near = (X, Y, Z) => { let d = X - C.z; if (d < -this.length / 2) d += this.length; return d < 400 ? null : this.project(X, Y / W, Z); };   // (a corner at or behind the camera: its face left out)
+      model.draw(g, near, Object.assign({}, o, { x: z, y: x * W, z: o.y || 0, mix: a < 1 && fog ? [fog.color, (1 - a) * .9] : o.mix }));
+      g.globalAlpha = a; E.px.reset(g);
+    } };
   }
   /** how hard the road bends at a distance */
   curveAt(z) { return this.seg(z).curve; }
@@ -14181,10 +14262,10 @@ class Road {
     const o = this.o, px = E.px, C = s.colors ? Object.assign({}, o.colors, s.colors) : o.colors, alt = Math.floor(s.i / o.rumble) % 2, W = vp.w, X = vp.x, y1 = Math.ceil(p1.y), y2 = Math.ceil(p2.y);   // (the rows its polygons fill: from p2 down to p1, p1's not)
     const quad = (x1, w1, x2, w2, c) => px.poly(g, [[x1 - w1, p1.y], [x1 + w1, p1.y], [x2 + w2, p2.y], [x2 - w2, p2.y]], c);
     px.rect(g, X, y2, W, y1 - y2, C.grass[alt]);
-    const k = Math.max(6, 2 * o.lanes);
-    quad(p1.x, p1.w * (1 + 1 / k), p2.x, p2.w * (1 + 1 / k), C.rumble[alt]);
-    quad(p1.x, p1.w, p2.x, p2.w, C.road[alt]);
-    if (!alt) for (let l = 1; l < o.lanes; l++) { const u = -1 + 2 * l / o.lanes; quad(p1.x + u * p1.w, p1.w / (16 * o.lanes), p2.x + u * p2.w, p2.w / (16 * o.lanes), C.lane); }
+    const k = Math.max(6, 2 * o.lanes), R = s.roads || [0], n = this.segs.length, nx = this.segs[(s.i + 1) % n].roads, R2 = nx && nx.length === R.length ? nx : R;   // (a fork's roads: each its own rumble, surface and lanes; the next segment's middles for the far edge)
+    for (let j = 0; j < R.length; j++) quad(p1.x + R[j] * p1.w, p1.w * (1 + 1 / k), p2.x + R2[j] * p2.w, p2.w * (1 + 1 / k), C.rumble[alt]);
+    for (let j = 0; j < R.length; j++) quad(p1.x + R[j] * p1.w, p1.w, p2.x + R2[j] * p2.w, p2.w, C.road[alt]);
+    if (!alt) for (let j = 0; j < R.length; j++) for (let l = 1; l < o.lanes; l++) { const u = -1 + 2 * l / o.lanes; quad(p1.x + (R[j] + u) * p1.w, p1.w / (16 * o.lanes), p2.x + (R2[j] + u) * p2.w, p2.w / (16 * o.lanes), C.lane); }
     if (s.tunnel) {   // walls from beyond the rumble up to a roof; where it starts, a face round its mouth
       const e1 = p1.w * 1.25, e2 = p2.w * 1.25, t1 = p1.y - p1.w * .8, t2 = p2.y - p2.w * .8, n = this.segs.length;
       px.poly(g, [[p1.x - e1, p1.y], [p2.x - e2, p2.y], [p2.x - e2, t2], [p1.x - e1, t1]], C.wall[alt]);
@@ -14202,7 +14283,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.96.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.97.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14385,7 +14466,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.96.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.97.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14718,7 +14799,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.96.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.97.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14872,7 +14953,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.96.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.97.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15080,7 +15161,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.96.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.97.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -15522,7 +15603,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.96.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.97.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

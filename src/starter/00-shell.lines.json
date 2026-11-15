@@ -34,6 +34,8 @@
   "starter.slice.pinball.about": "ONE TABLE: RAMP, MULTIBALL, JACKPOT",
   "starter.slice.kart": "KART",
   "starter.slice.kart.about": "MODE 7 KARTS, THREE LAPS",
+  "starter.slice.road": "ROAD",
+  "starter.slice.road.about": "A COAST ROAD, ITS FORKS, A CHASE",
   "starter.slice.sky": "SKY",
   "starter.slice.sky.about": "A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP",
   "starter.slice.puzzle": "PUZZLE",
