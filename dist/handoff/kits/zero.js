@@ -391,6 +391,8 @@ const ZERO = (() => {
       G = { gp: true, pts: CAST.map(() => 0) };
       for (const tr of ['city', 'sky']) { go(tr); let n = 0, stuck = 0; for (; n < 220 && !race.over; n++) { game.advance(1); for (const R of race.racers) stuck = Math.max(stuck, R._stuck || 0); } out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +stuck.toFixed(2), energy: race.racers.map(R => Math.round(R.energy)) }; if (race.over) finish(); }
       out.points = G.pts.slice(); auto = false;
+      toMenu(); idle = 30; game.advance(1 / 60); out.attract = attract && mode === 'race'; toMenu();   // (left alone on the title: it races by itself)
+      game.go('zero', { part: 'gba' }, { fade: 0 }); game.advance(1 / 60); out.gba = [game.W, game.H]; game.go('zero', null, { fade: 0 }); game.advance(1 / 60); auto = false;
       while (game.players.length < 4) game.addPlayer({ keys: game.players.length === 1 ? 'right' : undefined });
       G = { vs: true, pts: CAST.map(() => 0) }; go('city', true); for (const P of game.players) P.hold('gas'); game.advance(8); for (const P of game.players) P.hold('gas', false);
       out.vs = { viewports: game.viewports.length, prog: players.map(R => Math.round(R.prog)) };
@@ -402,10 +404,10 @@ const ZERO = (() => {
   return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['boost'], camera: { zoom: false },
     enter(d) {
       mode = 'menu'; race = null; menu.i = 0; auto = false; attract = false; idle = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; game.allowJoin({ max: 4 }); A.music('title');
-      game.screen.setOptions({ res: d && d.part === 'gba' ? 'gba' : 'ps1' });   // (#zero/gba: the Game Boy Advance's 240 x 160, F-Zero: Maximum Velocity's)
+      const gba = !!d && d.part === 'gba'; game.screen.setOptions({ res: gba ? 'gba' : 'ps1', expand: !gba });   // (#zero/gba: the Game Boy Advance's 240 x 160 exactly, letterboxed: F-Zero: Maximum Velocity's)
       if (d && d.part) { if (d.part === 'vs') versus(); else { G = { gp: d.part === 'gp' || d.part === 'gba', pts: CAST.map(() => 0) }; go(d.part === 'sky' ? 'sky' : 'city'); } }
     },
-    exit() { game.splitScreen(0); game.allowJoin(false); attract = false; auto = false; idle = 0; },   // (an attract race left by the pause menu's quit: none of it carried back in)
+    exit() { game.splitScreen(0); game.allowJoin(false); attract = false; auto = false; idle = 0; game.screen.setOptions({ res: 'ps1', expand: true }); },   // (an attract race left by the pause menu's quit: none of it carried back in)
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
     update, draw, bot, hud: r => { if (players.length > 1 && mode === 'results') board(r); },
     /** a race driven by the autopilot (a demo; the bot's): 'city' or 'sky' */

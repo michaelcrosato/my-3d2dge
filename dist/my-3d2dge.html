@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.100.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.101.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and 25 working games and an animation lab.
@@ -20,7 +20,7 @@
        #artillery, #pointclick, #stealth, #sports, #animlab to the address to start a slice;
        #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map, #fighting/versus, #fighting/arcade,
        #fighting/training, #shooter/horizontal, #arcade/maze, #arcade/formation, #arcade/rocks, #kart/race,
-       #kart/vs, #kart/gba, #road/car, #road/bike, #road/rash, #road/duel, #road/chase, #road/striker,
+       #kart/vs, #kart/gba, #road/car, #road/bike, #road/rash, #road/duel, #road/chase, #road/striker, #road/hd,
        #blaster/harrier, #blaster/burner, #blaster/safari, #blaster/zone, #zero/gp, #zero/city, #zero/sky,
        #zero/vs, #zero/gba, #special/planet, #special/tube, #special/arena, #special/turn, #sky/plane, #sky/dive,
        #sky/voyage, #rhythm/stepup, #rhythm/rapschool, #rhythm/calibrate, #rpg/battle, #tactics/battle,
@@ -32,7 +32,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.100.0)
+# my-3D2dge API card (v0.101.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -1752,6 +1752,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "road.striker.fire": "{key}: FIRE",
     "road.striker.won": "THROUGH THE CITY!",
     "road.striker.down": "SHIELD GONE",
+    "road.drift": "DRIFT",
     "zero.title": "ZERO",
     "zero.menu.gp": "GRAND PRIX",
     "zero.menu.city": "NEON CITY",
@@ -2912,6 +2913,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "road.striker.fire": "{key} is the key or button that shoots ahead.",
     "road.striker.won": "The flight is over: you reached the end of the road.",
     "road.striker.down": "The flight is over: your shield ran out.",
+    "road.drift": "The car is sliding sideways through a bend; the bar under it is the boost it charges.",
     "zero.title": "The anti-gravity racer's title, on its menu.",
     "zero.menu.gp": "A mode: both tracks in a row, points for each place.",
     "zero.menu.city": "A track: a circuit through a city at night (a single race).",
@@ -3052,7 +3054,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.100.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.101.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -3080,7 +3082,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.100.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.101.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -3167,7 +3169,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.100.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.101.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -14095,7 +14097,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.100.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.101.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14322,7 +14324,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/click.js ---- */
 /*!
-my-3D2dge module CLICK v0.100.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.101.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14701,7 +14703,7 @@ E.Click = Click;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.100.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.101.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14941,7 +14943,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.100.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.101.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -15506,7 +15508,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.100.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.101.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15692,7 +15694,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.100.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.101.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16104,7 +16106,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mesh.js ---- */
 /*!
-my-3D2dge module MESH v0.100.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.101.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16245,7 +16247,7 @@ E.Mesh = Mesh;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.100.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.101.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16607,7 +16609,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!
-my-3D2dge module PHYSICS v0.100.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.101.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16977,7 +16979,7 @@ E.Physics = Physics;
 <script>
 /* ---- inlined from engine/modules/rewind.js ---- */
 /*!
-my-3D2dge module REWIND v0.100.0: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.101.0: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17040,7 +17042,7 @@ E.Rewind = Rewind;
 <script>
 /* ---- inlined from engine/modules/rhythm.js ---- */
 /*!
-my-3D2dge module RHYTHM v0.100.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.101.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -17250,7 +17252,7 @@ E.Rhythm = Rhythm;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.100.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.101.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17439,7 +17441,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.100.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.101.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17625,7 +17627,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.100.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.101.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17961,7 +17963,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/songs.js ---- */
 /*!
-my-3D2dge module SONGS v0.100.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.101.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18118,7 +18120,7 @@ E.Songbook = Songbook;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.100.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.101.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18329,7 +18331,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.100.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.101.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -18774,7 +18776,7 @@ E.tooltip = (r, x, y, lines) => {
 <script>
 /* ---- inlined from engine/modules/terrain.js ---- */
 /*!
-my-3D2dge module TERRAIN v0.100.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.101.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -29528,15 +29530,13 @@ scenes.sky = SKY;
 
 /* =====================================================================================
  * SLICE 13  KART  (Super Mario Kart, F-Zero, Mario Kart 64). @modules mode7 drive
- * A circuit in a meadow seen the SNES way, Mode 7: the floor drawn a row at a time under a sky that turns with you,
- * six karts on it, three laps. Kerbs, grass that slows you, sand inside the tight bends, boost pads on the straights,
+ * A meadow circuit in Mode 7: the floor drawn a row at a time under a sky that turns with you, six karts, three laps. Kerbs, grass that slows you, sand inside the tight bends, boost pads on the straights,
  * walls round the edge, item boxes in rows across the track: a BOOST, a SHELL that flies ahead and spins out whoever it
  * hits, or a PEEL dropped behind. Hop into a bend and hold the drift: sparks blue, then orange; let go for a boost.
  * MODES: RACE (you against five), VS (two players in a split screen, against four: player 2 joins with 2 on the
- * keyboard or Start on a pad). Deep links: #kart/race, #kart/vs; #kart/gba the race at the GBA's 240 x 160.
+ * keyboard or Start on a pad). Deep links: #kart/race, #kart/vs, #kart/gba (240 x 160).
  * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift hop and drift, E / J the item. A pad: the
- * stick, A gas, X brake, R hop and drift, L the item. TOUCH: the stick steers (pulled down it brakes), DRIFT and ITEM;
- * it accelerates by itself.
+ * stick, A gas, X brake, R hop and drift, L the item. TOUCH: the stick steers (down brakes), DRIFT, ITEM; gas by itself.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floor, the sky and the karts far to near; E.Car and E.Race (the
  * drive module) the karts, the laps, the drivers and the items; this file the track, the karts' look (HD rigs in
  * karts), the HUD's map and the menus.
@@ -29734,10 +29734,10 @@ const KART = (() => {
     enter(d) {
       mode = 'menu'; race = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false;
       game.allowJoin({ max: 2 }); A.music('title');
-      game.screen.setOptions({ res: d && d.part === 'gba' ? 'gba' : 'ps1' });   // (Super Circuit's screen)
+      const gba = !!d && d.part === 'gba'; game.screen.setOptions({ res: gba ? 'gba' : 'ps1', expand: !gba });   // (Super Circuit's screen, exactly)
       if (d && d.part) d.part === 'vs' ? versus() : start(false);
     },
-    exit() { game.splitScreen(0); game.allowJoin(false); },
+    exit() { game.splitScreen(0); game.allowJoin(false); game.screen.setOptions({ res: 'ps1', expand: true }); },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
     update, draw, bot, hud: board,
     state: () => race && { mode, t: +race.t.toFixed(2), you: players[0] && { x: players[0].car.x, y: players[0].car.y, angle: players[0].car.angle, speed: players[0].car.speed, auto: players[0].car.o.auto }, racers: race.racers.map(R => ({ name: R.name, lap: R.lap, place: R.place, x: Math.round(R.car.x), y: Math.round(R.car.y), speed: Math.round(R.car.speed), item: R.item })) },   // for tests
@@ -29763,7 +29763,9 @@ scenes.kart = KART;
  * and ram it until it stops; NITRO three times. STRIKER (Night Striker): an armoured car that flies over the night
  * road: up and down rise and fall, left and right cross it, FIRE at the drones and the cars that come at you; reach the
  * end with your shield.
- * Deep links: #road/car, #road/bike, #road/rash, #road/duel, #road/chase, #road/striker.
+ * Deep links: #road/car, #road/bike, #road/rash, #road/duel, #road/chase, #road/striker; #road/hd the coast run at
+ * 960 x 540 (today's resolution, Horizon Chase's). In the car, brake while steering hard at speed to drift: let go
+ * after a long one for a boost (Victory Heat Rally's).
  * KEYS: left / right steer, up / Z gas, down / X brake, C / L nitro (the chase) or punch (the rash), R rewind (held). A pad: the stick, A
  * gas, X brake, B nitro, LB rewind. TOUCH: the stick steers, it accelerates by itself; BRAKE, REWIND (NITRO).
  * HOW IT WORKS: E.Road (the road module) draws the road, its hills, tunnels and forks (split, branch), the scenery, and
@@ -29893,10 +29895,10 @@ const ROAD = (() => {
     if (k.rewind && !P.chase && !P.rash && !P.striker && !P.over && (P.rewinding || P.rewinds > 0) && rw.seconds > .2) { if (!P.rewinding) { P.rewinding = true; P.rewinds--; A.sfx('warp'); } const s = rw.back(dt, 2); if (s) Object.assign(P, JSON.parse(s.json), { L: s.L, traffic: undefined }), s.L.traffic.forEach((c, i) => Object.assign(c, s.cars[i])); return; }
     P.rewinding = false;
     if (DUO) {   // the duel: each player's car on the one road; the first over the line wins; they bump each other
-      DUO.forEach((Q, i) => { if (Q.over) { Q.over.t += dt; Q.speed = Math.max(0, Q.speed - 3000 * dt); Q.z += Q.speed * dt; } else drive(Q, dt, auto ? pilot(Q) : pad(game.players[i] || I), i > 0); });
+      DUO.forEach((Q, i) => { Q.z0 = Q.z; if (Q.over) { Q.over.t += dt; Q.speed = Math.max(0, Q.speed - 3000 * dt); Q.z += Q.speed * dt; } else drive(Q, dt, auto ? pilot(Q) : pad(game.players[i] || I), i > 0); });
       const [A1, B1] = DUO; if (Math.abs(A1.z - B1.z) < 1300 && Math.abs(A1.x - B1.x) < .45 && A1.bump <= 0 && B1.bump <= 0) { const s = A1.x < B1.x ? -1 : 1; A1.x += s * .25; B1.x -= s * .25; A1.bump = B1.bump = .4; A.sfx('bump'); }
-      const line = A1.L.end - SEG * 2, early = Q => Q.over && Q.over.won && Q.over.t === 0 ? (Q.z - line) / Math.max(1, Q.speed) : -1;   // (both over the line in one step: the one further past it crossed first)
-      if (early(A1) >= 0 && early(B1) >= 0) (early(A1) >= early(B1) ? B1 : A1).over.won = false;
+      const line = A1.L.end - SEG * 2, when = Q => Q.over && Q.over.won && Q.over.t === 0 ? (line - Q.z0) / Math.max(1e-6, Q.z - Q.z0) : -1;   // (both over the line in one step: when in the step each crossed, from where it was and where it is)
+      if (when(A1) >= 0 && when(B1) >= 0) (when(A1) <= when(B1) ? B1 : A1).over.won = false;
       const won = DUO.find(Q => Q.over && Q.over.won); if (won) DUO.forEach(Q => { if (!Q.over) { Q.over = { won: false, t: 0 }; } });
       if (DUO.every(Q => Q.over && Q.over.t > 2.5) && mode === 'drive') end(); return;
     }
@@ -29913,11 +29915,15 @@ const ROAD = (() => {
       P.crash -= dt; P.spin += dt * 14 * P.crash; P.speed = Math.max(0, P.speed - 5200 * dt); P.x += (on - P.x) * dt * 1.6; P.hop = Math.max(0, Math.sin((1.6 - P.crash) * 4) * 380 * P.crash);
       if (P.crash <= 0) { P.spin = 0; P.hop = 0; }
     } else {
-      const acc = k.gas ? (P.speed < 2000 ? 2600 : 1500) : -700, br = k.brake ? 5200 : 0;
+      // a drift (Victory Heat Rally's): the brake held, steering hard at speed: the car slides through the bend instead of
+      // braking, the bend pulls it outward less, and it charges a boost let go when the brake is
+      const slide = !P.bike && !P.chase && !P.striker && k.brake && Math.abs(k.x) > .5 && P.speed > TOP * .55;
+      if (slide) { if (!P.drift) P.drift = Math.sign(k.x); P.charge = Math.min(2, (P.charge || 0) + dt); } else if (P.drift) { if (P.charge > .6) { P.boost = Math.max(P.boost, P.charge * .9); A.sfx('powerup', { vol: .4 }); } P.drift = 0; P.charge = 0; }
+      const acc = k.gas ? (P.speed < 2000 ? 2600 : 1500) : -700, br = k.brake && !P.drift ? 5200 : 0;
       P.speed = clamp(P.speed + (acc - br) * dt - (off ? P.speed * 1.4 * dt : 0), 0, top);
       if (k.nitro && P.chase && P.nitro > 0 && P.boost <= 0) { P.nitro--; P.boost = 3; A.sfx('powerup'); }
       const grip = Math.min(1, P.speed / 1200), steer = clamp(k.x, -1, 1);
-      P.steer += (steer - P.steer) * Math.min(1, dt * 8); P.x += P.steer * dt * 2.3 * grip - road.curveAt(P.z) * (P.speed / TOP) ** 2 * dt * .42;
+      P.steer += (steer - P.steer) * Math.min(1, dt * 8); P.x += P.steer * dt * (P.drift ? 2 : 2.3) * grip - road.curveAt(P.z) * (P.speed / TOP) ** 2 * dt * (P.drift ? .16 : .42);
       P.lean += ((P.steer * .9 + road.curveAt(P.z) * P.speed / TOP * .08) - P.lean) * Math.min(1, dt * 5);
       if (road.hits(P.z, P.x, .17).length && P.speed > 1600) { P.crash = 1.6; A.sfx('explode'); game.shake(6); say(E.t('road.crash')); }
       else if (road.hits(P.z, P.x, .17).length) { P.speed *= .5; P.x += P.x > on ? -.15 : .15; A.sfx('bump'); }
@@ -29980,7 +29986,7 @@ const ROAD = (() => {
     P.shots = P.shots.filter(s => !s.dead && s.z < P.z + 40000);
     for (const f of P.foes) if (f.hp > 0) {
       f.z += f.speed * dt; f.sway += dt; if (f.air) f.x += Math.sin(f.sway * 1.3) * dt * .5;
-      if ((f.shot -= dt) <= 0 && f.z - P.z > 5000 && f.z - P.z < 20000) { f.shot = 2.6 + Math.random() * 2; const e = (Math.random() - .5) * .5, T = (f.z - P.z) / 7000; P.bolts.push({ z: f.z, x: f.x, alt: f.alt + 30, vx: (P.x + e - f.x) / T, va: (P.alt + e * 300 - f.alt) / T }); }   // (aimed where you are, roughly: keep moving)
+      if ((f.shot -= dt) <= 0 && f.z - P.z > 5000 && f.z - P.z < 20000) { f.shot = 2.6 + Math.random() * 2; const e = (Math.random() - .5) * .5, T = (f.z - P.z) / (7000 + P.speed); P.bolts.push({ z: f.z, x: f.x, alt: f.alt + 30, vx: (P.x + e - f.x) / T, va: (P.alt + e * 300 - f.alt) / T }); }   // (aimed where you are, roughly: keep moving)   // (it closes at its speed and yours)
       if (Math.abs(f.z - P.z) < 700 && Math.abs(f.x - P.x) < .3 && Math.abs(f.alt - P.alt) < 140 && P.hurt <= 0) { f.hp = 0; hit(P); }   // (rammed)
     }
     P.foes = P.foes.filter(f => f.hp > 0 && f.z > P.z - 3000);
@@ -30039,7 +30045,8 @@ const ROAD = (() => {
       const ro = { scale: CK, yaw: v.fall > 0 ? v.fall * 4 : 0, roll: (v.swing > 0 ? Math.sign(P.x - v.x) * .5 : 0) + (v.wob > 0 ? Math.sin(v.wob * 30) * .2 : 0), y: v.fall > 0 ? Math.abs(Math.sin(v.fall * 5)) * 300 * v.fall / 2.4 : 0 };
       cars.push(road.mesh(BIKE, v.z, v.x, Object.assign({ colors: { body: v.col } }, ro))); if (v.fall <= 1.2) cars.push(road.mesh(RIDER, v.z, v.x, Object.assign({ colors: { suit: v.suit, helm: v.col } }, ro)));
     }
-    const o = { scale: CK, yaw: P.steer * .14 + P.spin, roll: P.bike ? P.lean * .7 + (P.punch > .2 ? P.side * .5 : 0) : P.striker ? -P.steer * .4 : -P.steer * .05, y: P.striker ? P.alt : P.hop };
+    if (P.drift) for (const d of [-.13, .13]) for (let i = 0; i < 3; i++) cars.push({ z: P.z - 260 - i * 220 - (t * 3000 % 220), x: P.x + d - P.drift * i * .05, w: 120, draw: (g, sx, sy, sc) => { const a = g.globalAlpha; g.globalAlpha = .45 - i * .12; px.disc(g, sx, sy - 40 * sc, Math.max(1, (50 + i * 30) * sc), '#e0e0e8'); g.globalAlpha = a; } });   // (tyre smoke, thinning behind)
+    const o = { scale: CK, yaw: P.steer * .14 + P.spin + (P.drift || 0) * .4, roll: P.bike ? P.lean * .7 + (P.punch > .2 ? P.side * .5 : 0) : P.striker ? -P.steer * .4 : -P.steer * .05, y: P.striker ? P.alt : P.hop };
     if (P.bike) { cars.push(road.mesh(BIKE, P.z, P.x, Object.assign({ colors: { body: '#e8402a' } }, o))); cars.push(road.mesh(RIDER, P.z, P.x, Object.assign({ colors: { suit: '#2a3a8a', helm: '#f0f0f0' } }, o))); }
     else { cars.push(road.mesh(CAR, P.z, P.x, Object.assign({ colors: { body: P.chase ? '#f0f0f0' : P.n ? '#2a6ae8' : '#e8202a', shirt: '#f0f0f0', tail: game.input.down('brake') && !auto ? '#ff6060' : '#a82020' } }, o))); if (P.chase) cars.push(road.mesh(LIGHTS, P.z, P.x, Object.assign({ colors: { l1: tt * 6 % 2 < 1 ? '#ff2a2a' : '#5a1010', l2: tt * 6 % 2 < 1 ? '#1a1a5a' : '#3a6aff' } }, o))); }
     road.draw(r, { z: camZ, x: P.x, h, turn: P.turn || 0, cars });
@@ -30050,6 +30057,7 @@ const ROAD = (() => {
       else if (!P.rash) { txt(E.t('road.time'), W0 / 2, 4, '#ffe890', { align: 'center' }); txt(String(Math.ceil(P.clock)), W0 / 2, 6 + lh, P.clock < 10 && Math.floor(t * 4) % 2 ? '#ff6060' : '#ffffff', { align: 'center', scale: 2 }); }
       txt(E.t('road.score', { n: Math.round(P.score) }), 6, 6, '#ffffff'); txt(E.t('road.stage.' + STAGES[L.i].id), 6, 6 + lh, '#a8d8ff');
       txt(E.t('road.kmh', { n: Math.round(P.speed * KMH) }), right, 6, '#ffffff', { align: 'right' });
+      if (P.drift) { const y = 10 + lh * 3; txt(E.t('road.drift'), W0 / 2, y, P.charge > .6 ? '#ffe040' : '#ffffff', { align: 'center' }); px.rect(g, W0 / 2 - 30, y + lh + 2, Math.round(60 * Math.min(1, P.charge / 2)), 3, P.charge > .6 ? '#ffe040' : '#a0a0b0'); }
       if (P.striker) txt(E.t('road.striker.fire', { key: game.input.label('nitro') }), right, 6 + lh, '#c8c8e0', { align: 'right' });
       if (!P.chase && !P.rash && !P.duel && !P.striker) txt(E.t('road.rewinds', { n: P.rewinds, key: game.input.label('rewind') }), right, 6 + lh, P.rewinding ? '#80c8ff' : '#c8c8e0', { align: 'right' });
       if (P.rash) { txt(E.t('road.rash.place', { n: P.place, of: P.rivals.length + 1 }), right, 6 + lh, P.place <= 3 ? '#80ffa0' : '#ffb0b0', { align: 'right' }); const w = 60, x = right - w, y = 8 + lh * 2; px.rect(g, x - 1, y - 1, w + 2, 6, '#100818'); px.rect(g, x, y, Math.round(w * P.hp / 6), 4, P.hp <= 2 ? '#ff4040' : '#ffd040'); txt(E.t('road.rash.punch', { key: game.input.label('nitro') }), right, y + 8, '#c8c8e0', { align: 'right' }); }
@@ -30080,6 +30088,7 @@ const ROAD = (() => {
       ride = 'car'; start('car'); let n = 0; for (; n < 260 && mode === 'drive'; n++) game.advance(1);
       out.coast = { goal: !!(P.over && P.over.won), route: P.route.map(i => STAGES[i].id), clock: Math.round(P.clock), score: Math.round(P.score), seconds: n };
       ride = 'car'; start('car'); game.advance(5); const z0 = P.z; P.rewinds = 1; auto = false; game.input.hold('rewind'); game.advance(1); game.input.hold('rewind', false); auto = true; out.rewind = { back: Math.round(z0 - P.z), left: P.rewinds };
+      ride = 'car'; start('car'); auto = false; const I = game.input; I.hold('gas'); game.advance(2.2); I.hold('brake'); I.hold('right'); game.advance(.9); const ch = P.charge; I.hold('brake', false); I.hold('right', false); game.advance(.05); out.drift = { charge: +ch.toFixed(2), boost: +P.boost.toFixed(2) }; I.hold('gas', false); auto = true;   // (a drift on the beach's first straight, let go into a boost)
       ride = 'bike'; start('bike'); for (n = 0; n < 80 && P.route.length < 2 && mode === 'drive'; n++) game.advance(1); out.bike = { forked: P.route.length > 1, seconds: n };
       start('rash'); for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1); out.rash = { finished: !!P.over && P.z >= P.L.end - SEG * 3, place: P.place, downs: P.downs, seconds: n };
       if (game.players.length < 2) game.addPlayer({ keys: 'right' }); start('duel'); for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1);
@@ -30092,12 +30101,13 @@ const ROAD = (() => {
 
   return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['brake', 'rewind', 'nitro'], camera: { zoom: false },
     exit() { game.splitScreen(0); game.allowJoin(false); },
-    enter(d) { mode = 'menu'; P = null; DUO = null; auto = false; menu.i = 0; game.allowJoin({ max: 2 }); game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); if (d && d.part) { if (d.part === 'duel') duel(); else if (d.part === 'chase' || d.part === 'rash' || d.part === 'striker') start(d.part); else { ride = d.part === 'bike' ? 'bike' : 'car'; start(ride); } } },
+    enter(d) { mode = 'menu'; P = null; DUO = null; auto = false; menu.i = 0; game.allowJoin({ max: 2 }); game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); game.screen.setOptions({ res: d && d.part === 'hd' ? [960, 540] : 'ps1' });   // (#road/hd: the coast run at today's resolution, Horizon Chase's and Slipstream's)
+      if (d && d.part) { if (d.part === 'duel') duel(); else if (d.part === 'chase' || d.part === 'rash' || d.part === 'striker') start(d.part); else { ride = d.part === 'bike' ? 'bike' : 'car'; start(ride); } } },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'radio' || mode === 'results' || mode === 'join') { toMenu(); return true; } return false; },
     update, draw, bot,
     /** a run driven by the autopilot (a demo; the bot's): 'car', 'bike', 'rash' or 'chase' */
     demo(what) { if (what === 'chase' || what === 'rash' || what === 'duel' || what === 'striker') start(what); else { ride = what === 'bike' ? 'bike' : 'car'; start(ride); } auto = true; },
-    state: () => P && { mode, striker: P.striker && { alt: Math.round(P.alt), shield: P.shield, kills: P.kills, foes: P.foes.length }, rash: P.rash, place: P.place, hp: P.hp, downs: P.downs, chase: P.chase, bike: P.bike, z: Math.round(P.z), x: +P.x.toFixed(3), speed: Math.round(P.speed), clock: +P.clock.toFixed(2), stage: STAGES[P.L.i].id, route: P.route.slice(), crash: P.crash > 0, rewinds: P.rewinds, rewinding: P.rewinding, target: P.target && { z: Math.round(P.target.z), damage: Math.round(P.target.damage) }, score: Math.round(P.score) },
+    state: () => P && { mode, drift: P.drift || 0, charge: +(P.charge || 0).toFixed(2), boost: +(P.boost || 0).toFixed(2), striker: P.striker && { alt: Math.round(P.alt), shield: P.shield, kills: P.kills, foes: P.foes.length }, rash: P.rash, place: P.place, hp: P.hp, downs: P.downs, chase: P.chase, bike: P.bike, z: Math.round(P.z), x: +P.x.toFixed(3), speed: Math.round(P.speed), clock: +P.clock.toFixed(2), stage: STAGES[P.L.i].id, route: P.route.slice(), crash: P.crash > 0, rewinds: P.rewinds, rewinding: P.rewinding, target: P.target && { z: Math.round(P.target.z), damage: Math.round(P.target.damage) }, score: Math.round(P.score) },
     /** the proof: a coast run, the gas held, a weave left and right through the first bends, a brake */
     run: (n = 600) => proof('road', n, (i, k) => {
       if (i === 2) { ride = 'car'; start('car'); }
@@ -30333,6 +30343,8 @@ const ZERO = (() => {
       G = { gp: true, pts: CAST.map(() => 0) };
       for (const tr of ['city', 'sky']) { go(tr); let n = 0, stuck = 0; for (; n < 220 && !race.over; n++) { game.advance(1); for (const R of race.racers) stuck = Math.max(stuck, R._stuck || 0); } out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +stuck.toFixed(2), energy: race.racers.map(R => Math.round(R.energy)) }; if (race.over) finish(); }
       out.points = G.pts.slice(); auto = false;
+      toMenu(); idle = 30; game.advance(1 / 60); out.attract = attract && mode === 'race'; toMenu();   // (left alone on the title: it races by itself)
+      game.go('zero', { part: 'gba' }, { fade: 0 }); game.advance(1 / 60); out.gba = [game.W, game.H]; game.go('zero', null, { fade: 0 }); game.advance(1 / 60); auto = false;
       while (game.players.length < 4) game.addPlayer({ keys: game.players.length === 1 ? 'right' : undefined });
       G = { vs: true, pts: CAST.map(() => 0) }; go('city', true); for (const P of game.players) P.hold('gas'); game.advance(8); for (const P of game.players) P.hold('gas', false);
       out.vs = { viewports: game.viewports.length, prog: players.map(R => Math.round(R.prog)) };
@@ -30344,10 +30356,10 @@ const ZERO = (() => {
   return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['boost'], camera: { zoom: false },
     enter(d) {
       mode = 'menu'; race = null; menu.i = 0; auto = false; attract = false; idle = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; game.allowJoin({ max: 4 }); A.music('title');
-      game.screen.setOptions({ res: d && d.part === 'gba' ? 'gba' : 'ps1' });   // (#zero/gba: the Game Boy Advance's 240 x 160, F-Zero: Maximum Velocity's)
+      const gba = !!d && d.part === 'gba'; game.screen.setOptions({ res: gba ? 'gba' : 'ps1', expand: !gba });   // (#zero/gba: the Game Boy Advance's 240 x 160 exactly, letterboxed: F-Zero: Maximum Velocity's)
       if (d && d.part) { if (d.part === 'vs') versus(); else { G = { gp: d.part === 'gp' || d.part === 'gba', pts: CAST.map(() => 0) }; go(d.part === 'sky' ? 'sky' : 'city'); } }
     },
-    exit() { game.splitScreen(0); game.allowJoin(false); attract = false; auto = false; idle = 0; },   // (an attract race left by the pause menu's quit: none of it carried back in)
+    exit() { game.splitScreen(0); game.allowJoin(false); attract = false; auto = false; idle = 0; game.screen.setOptions({ res: 'ps1', expand: true }); },   // (an attract race left by the pause menu's quit: none of it carried back in)
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
     update, draw, bot, hud: r => { if (players.length > 1 && mode === 'results') board(r); },
     /** a race driven by the autopilot (a demo; the bot's): 'city' or 'sky' */

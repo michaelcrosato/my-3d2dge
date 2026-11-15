@@ -1,4 +1,4 @@
-# my-3D2dge handoff package (v0.100.0)
+# my-3D2dge handoff package (v0.101.0)
 
 Everything a coding agent needs to build, run, test and check a game on my-3D2dge, in one folder of text files: the 2D
 engine, the 3D engine with the libraries it loads, their manuals, a complete game in every genre (2D and 3D), two

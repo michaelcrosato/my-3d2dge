@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.101.0 (2026-11-15)
+
+Victory Heat Rally's drift and Horizon Chase's resolution in ROAD, the GBA modes letterboxed exactly, a page of which kit plays which Mode 7 game, and Codex's review of v0.100.0.
+
+- **Engine**: ROAD: a drift (Victory Heat Rally): in the car, brake while steering hard at speed and it slides through the bend instead of braking, the bend pulling it outward less, a boost charging (DRIFT and its bar under the timer, tyre smoke); let go after a long one and it fires. `#road/hd`: the coast run at 960 x 540 (Horizon Chase Turbo, Slipstream: the style at today's resolution).
+- **Engine**: KART and ZERO: `#kart/gba` and `#zero/gba` are 240 x 160 exactly, letterboxed (`expand` off; before, a wide window showed more than a GBA's screen), and the full screen comes back on leaving the kit.
+- **Engine**: fixed, from Codex's review of v0.100.0: two cars over the duel's line in one step: the winner is the one that crossed earlier in the step, worked out from where each was and where it is (a traffic bump slowing one had skewed it); STRIKER's foes aim with the closing speed (theirs and yours), so a bolt fired from another lane or height arrives where you were (it had fallen short).
+- **Tools**: the kits test drives ROAD's car into a drift and a boost, and checks ZERO's title racing by itself and `#zero/gba` at 240 x 160.
+- **Docs**: `docs/MODE7.md`: every game on the owner's list, by the feature it needs, with its kit and mode, its deep link and the check that plays it (and what of a game is not there); linked from the README; the Labs page's ROAD card and links.
+
 ## 0.100.0 (2026-11-15)
 
 The rest of the owner's Mode 7 list made playable: HyperZone and Super Star Wars (BLASTER's ZONE), Night Striker (ROAD's STRIKER), Mario Kart: Super Circuit's small screen (`#kart/gba`); fixes from Codex's review of v0.99.0.
