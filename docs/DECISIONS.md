@@ -1606,6 +1606,8 @@ An entry:
 
 ## D88 · 2026-11-14 · The ROAD kit is gone; the road module stays
 
+**Superseded by D91** (2026-11-15): the owner asked for road kits done properly; the ROAD kit is back, rebuilt.
+
 - **Principle:** process (the owner's review of the kits: the To check cards, `docs/HANDOFF-REVIEW.md` part 1)
 - **Call:** the ROAD slice (OutRun: `src/starter/66-road.js` and its lines) and its kit (`dist/kits/my-3d2dge-road.html`)
   are deleted, with its Starter kits tile and its To check card on the Labs page, its route, kits-test's bot and the phone
@@ -1635,3 +1637,32 @@ An entry:
   two calls can't draw (a corridor whose walls cut each other), then a perspective view.
 - **Answered:** no: made without a response, to review (flagged in the pull request)
 - **Landed in:** v0.95.0
+
+## D90 · 2026-11-15 · A fork is the road module's own: `split` and `branch`
+
+- **Principle:** process (a Temporary lab's question, `src/labs.json`); 8 (what a prototype drew for itself moves into
+  the engine)
+- **Call:** the Fork Lab asked whether a pseudo-3D road's fork (one road easing into two, the side the car is on
+  choosing the way) is `E.Road`'s own or roads a game draws itself. Answered: the road module's own, in a smaller shape
+  than the lab's (whose branches each had their own bends): `road.add(n, { split: gap })` eases one road into two,
+  `{ branch: d }` draws the way not taken bending away, and `road.centers(z)` says where each road's middle is; at the
+  fork's end the game builds the next stretch on the road the car took (the ROAD kit's six stages). The lab goes.
+- **Why:** the owner's ask (2026-11-14) named OutRun and Chase H.Q., whose roads fork; a fork drawn by every game would
+  be the lab's 200 lines again. The shared-bends split and the branch that leaves the view look like OutRun's and cost a
+  few lines of the module. What would change it: forks whose two roads must bend and climb apart in sight for long
+  (then the lab's way: each branch's own segments).
+- **Answered:** no: made without a response, to review (flagged in the pull request)
+- **Landed in:** v0.97.0
+
+## D91 · 2026-11-15 · The ROAD kit is back, rebuilt
+
+- **Principle:** process (the owner's review of the kits)
+- **Call:** D88 removed the ROAD kit on the owner's word (it wasn't good enough). The owner then asked for kits for
+  the Mode 7 and pseudo-3D games done properly (2026-11-14: Pilotwings, F-Zero, Space Harrier, OutRun, Mario Kart; Hang-On,
+  Chase H.Q. and Power Drift among the rest), so ROAD returns as a new slice on the same module: a coast run of six
+  stages picked at forks (D90), a convertible or a bike that leans, both low-poly models (the mesh module), traffic
+  models, a crash that spins the car out instead of stopping it, a rewind (the rewind module, Slipstream's), and a
+  Chase H.Q. pursuit. Nothing of the old slice but its three songs.
+- **Why:** D88's own "what would change it": a road racer worth copying, built again on the module.
+- **Answered:** yes, the ask
+- **Landed in:** v0.97.0

@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module MODE7 v0.95.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.97.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -23,7 +23,9 @@ billboards (rigs drawn at the size their distance gives, sprites, models, your o
   there); m7.draw(r, cam) draws sky, floor, fog and them, far to near, as an overlay (in a split screen, in r.viewport:
   give each player's cam).
 - m7.pick(sx, sy) -> { target, k } nearest under a screen point in the view last drawn (a target's box: a sprite's or
-  model's drawn size, add's w x h units over its foot; a quad blocks what is behind it), or null: a light gun's shot.
+  model's drawn size, add's w x h units over its foot; a quad blocks what is behind it), or null; m7.pick(sx, sy, [{ x,
+  y, z, w, h, target }]) tests those boxes through the camera begun, nothing drawn: a light gun's shot that replays
+  (m7.begin({ W: game.W, H: game.H }, cam) in update first).
 - m7.project(x, y, z) -> [sx, sy, k] on the screen, or null behind the camera (or past a globe's edge); m7.toFloor(sx,
   sy) -> [x, y], or null above the horizon (both for the camera last drawn: HUD markers, a tap on the track).
   m7.horizon: its screen row (unrolled).
@@ -166,8 +168,11 @@ class Mode7 {
       g.globalAlpha = a; E.px.reset(g); this._seen.push({ target, k, poly: q });
     });
   }
-  /** what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null */
-  pick(sx, sy) {
+  /** what was drawn under a screen point (sx, sy) in the view last drawn, nearest first: { target, k }, or null; with a
+   *  list ([{ x, y, z, w, h, target }]: boxes w x h world units over those feet), those boxes through the camera begun,
+   *  nothing drawn (gameplay that replays: m7.begin(rect, cam) in update first) */
+  pick(sx, sy, list) {
+    if (list) { let best = null; for (const q of list) { const p = this.project(q.x, q.y, q.z || 0); if (!p) continue; const w = (q.w || 16) * p[2], h = (q.h || 16) * p[2]; if (sx >= p[0] - w / 2 && sx < p[0] + w / 2 && sy >= p[1] - h && sy < p[1] && (!best || p[2] > best.k)) best = { target: q.target === undefined ? null : q.target, k: p[2] }; } return best; }
     const T = this._pt; let x = sx, y = sy;
     if (T) { const du = sx - T.rx, dv = sy - T.ry; x = T.cx + du * T.cr - dv * T.sr; y = T.cy + du * T.sr + dv * T.cr; }   // (into the unrolled picture)
     const inPoly = (P, px, py) => { let inside = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > py) !== (P[j][1] > py) && px < (P[j][0] - P[i][0]) * (py - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) inside = !inside; return inside; };
