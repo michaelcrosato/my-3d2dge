@@ -23,8 +23,8 @@ const ZERO = (() => {
     { name: 'zero.name.halo', body: '#f0e050', trim: '#c83aa8' }, { name: 'zero.name.drift', body: '#c83ae8', trim: '#3ae0ff' }, { name: 'zero.name.ash', body: '#8a8a9a', trim: '#e83a3a' }];
   /* ---- NEON CITY: a line round a 2048-unit floor, the walls and the floor's tags from each cell's distance to it ---- */
   const T = 16, N = 128, HALF = 52;
-  const CITY = new E.Path([[400, 1700], [400, 900], [520, 500], [900, 360], [1400, 380], [1650, 560], [1640, 900], [1350, 1050], [1300, 1300], [1600, 1450], [1700, 1750], [1450, 1880], [900, 1860], [560, 1840]], { closed: true, smooth: 'catmull' });
-  const CL = CITY.length, PIT = [CL * .02, CL * .14], DASH = [CL * .3, CL * .55, CL * .8];
+  const CITY = new E.Path([[400, 1450], [400, 900], [520, 500], [900, 360], [1400, 380], [1650, 560], [1640, 900], [1350, 1050], [1300, 1300], [1600, 1450], [1700, 1750], [1450, 1880], [900, 1860], [560, 1840], [410, 1720], [400, 1580]], { closed: true, smooth: 'catmull' });   // (the line partway up the straight, so the grid behind it stands on the straight too)
+  const CL = CITY.length, PIT = [CL * .02, CL * .11], DASH = [CL * .3, CL * .55, CL * .8];
   let city = null;
   function buildCity() {
     const cells = [], floor = [];
@@ -234,11 +234,11 @@ const ZERO = (() => {
 
   return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['boost'], camera: { zoom: false },
     enter(d) {
-      mode = 'menu'; race = null; menu.i = 0; auto = false; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; game.allowJoin({ max: 4 }); A.music('title');
+      mode = 'menu'; race = null; menu.i = 0; auto = false; attract = false; idle = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; game.allowJoin({ max: 4 }); A.music('title');
       game.screen.setOptions({ res: d && d.part === 'gba' ? 'gba' : 'ps1' });   // (#zero/gba: the Game Boy Advance's 240 x 160, F-Zero: Maximum Velocity's)
       if (d && d.part) { if (d.part === 'vs') versus(); else { G = { gp: d.part === 'gp' || d.part === 'gba', pts: CAST.map(() => 0) }; go(d.part === 'sky' ? 'sky' : 'city'); } }
     },
-    exit() { game.splitScreen(0); game.allowJoin(false); },
+    exit() { game.splitScreen(0); game.allowJoin(false); attract = false; auto = false; idle = 0; },   // (an attract race left by the pause menu's quit: none of it carried back in)
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
     update, draw, bot, hud: r => { if (players.length > 1 && mode === 'results') board(r); },
     /** a race driven by the autopilot (a demo; the bot's): 'city' or 'sky' */

@@ -20,7 +20,8 @@
   "blaster.best": "BEST {n}",
   "action.fire": "Fire",
   "action.missile": "Missile",
-  "action.roll": "Roll"
+  "action.roll": "Roll",
+  "blaster.stage.zone": "STAGE 4: THE ZONE"
  },
  "notes": {
   "blaster.title": "The shooter's title, on its menu: one who blasts.",
@@ -35,6 +36,7 @@
   "blaster.won": "All three stages cleared.",
   "action.fire": "A control's name on the controls screen: fire the gun.",
   "action.missile": "A control's name, and its touch button: fire missiles at the locked targets.",
-  "action.roll": "A control's name on the controls screen, and in capitals on its touch button: a barrel roll."
+  "action.roll": "A control's name on the controls screen, and in capitals on its touch button: a barrel roll.",
+  "blaster.stage.zone": "Stage 4's name: a craft along a winding course over a grid of light. Also a menu entry that plays it alone."
  }
 }

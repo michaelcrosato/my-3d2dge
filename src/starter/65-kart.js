@@ -5,13 +5,13 @@
  * walls round the edge, item boxes in rows across the track: a BOOST, a SHELL that flies ahead and spins out whoever it
  * hits, or a PEEL dropped behind. Hop into a bend and hold the drift: sparks blue, then orange; let go for a boost.
  * MODES: RACE (you against five), VS (two players in a split screen, against four: player 2 joins with 2 on the
- * keyboard or Start on a pad). Then the results. Deep links: #kart/race, #kart/vs.
+ * keyboard or Start on a pad). Deep links: #kart/race, #kart/vs; #kart/gba the race at the GBA's 240 x 160.
  * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift hop and drift, E / J the item. A pad: the
  * stick, A gas, X brake, R hop and drift, L the item. TOUCH: the stick steers (pulled down it brakes), DRIFT and ITEM;
  * it accelerates by itself.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floor, the sky and the karts far to near; E.Car and E.Race (the
- * drive module) the karts, the laps, the drivers and the items; this file the track, the look of the karts (HD rigs in
- * karts drawn from whatever side the camera sees), the HUD's map and the menus.
+ * drive module) the karts, the laps, the drivers and the items; this file the track, the karts' look (HD rigs in
+ * karts), the HUD's map and the menus.
  * ===================================================================================== */
 const KART = (() => {
   const A = game.audio, T = 16, N = 64, SIZE = N * T, HALF = 44;   // the floor: 64 x 64 cells of 16 units; the road's half width
@@ -206,6 +206,7 @@ const KART = (() => {
     enter(d) {
       mode = 'menu'; race = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false;
       game.allowJoin({ max: 2 }); A.music('title');
+      game.screen.setOptions({ res: d && d.part === 'gba' ? 'gba' : 'ps1' });   // (Super Circuit's screen)
       if (d && d.part) d.part === 'vs' ? versus() : start(false);
     },
     exit() { game.splitScreen(0); game.allowJoin(false); },
