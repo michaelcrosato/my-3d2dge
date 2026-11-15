@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge Vehicle Lab v0.98.0 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
+  my-3D2dge Vehicle Lab v0.98.1 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
   vehicles drive: Rapier's ray-cast vehicle controller (a chassis on four sprung wheels), or a ball Rapier rolls, steered by
   the drive module's arcade handling (what world.vehicle is)? Tab switches between them on the same track. Served, not
   double-clicked (it loads three.js and Rapier from /vendor/).
@@ -28,12 +28,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.98.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.98.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen" role="img" aria-label="Vehicle Lab"></canvas></div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.98.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.98.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -120,7 +120,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.98.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.98.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -11048,7 +11048,7 @@ root.My3D2dge = E;
 <script type="module">
 /* ---- inlined from engine/my-3d2dge-3d.js ---- */
 /*!
-my-3D2dge 3D v0.98.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.98.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -11269,7 +11269,7 @@ sun, haze } is a dome; fog: { color, near, far }. Keep height() fast: it runs pe
 world.vehicle({ kind: 'kart' | 'car' | 'hover', x, y, z, angle, rig (its driver, seated), color, and the drive module's
 E.Car options over the kind's (top, accel, brake, turn, grip, drift, hop...), surfaces, ground: (x, y) => tag }): a ball
 Rapier rolls (walls, bumps, ramps, jumps) steered by E.Car's arcade handling; an actor. Each step v.update(dt, null,
-{ steer, gas, brake, drift }) (or an input), then world.step; it reads speed, slide, angle, drifting, charge (a kart's
+{ steer, gas, brake, drift, hold }) (or an input), then world.step; it reads speed, slide, angle, drifting, charge (a kart's
 drift boost), boostT, onGround, surface ('road', 'boost', a track's off, the level's ground: grass, sand... slow it),
 bumped; v.boost(sec, power), v.spinOut(sec). E.Race (the drive module) races vehicles as it races E.Cars.
 world.track({ path: new E.Path(points [x, y, z], { closed: true, smooth: 'catmull' }), width: 96, bank: .25 (radians at
@@ -13038,13 +13038,13 @@ class Vehicle extends Actor {
   boost(sec = .8, power = .4) { this._boostK = this.boostT > 0 ? Math.max(this._boostK, power) : power; this.boostT = Math.max(this.boostT, sec); return this; }
   /** a spin-out (a shot, a hazard): seconds without control, most of its speed lost */
   spinOut(sec = 1) { if (this.spinT > 0) return this; this.spinT = sec; this.vx *= .3; this.vy *= .3; this.drifting = 0; this.charge = 0; return this; }
-  /** one step's driving (before world.step): an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor) }
-   *  or an input (its move()'s x steers; gas, brake, drift: actions). E.Race calls it as it does an E.Car's (map: not
-   *  read). Sets the velocity world.step gives Rapier */
+  /** one step's driving (before world.step): an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor),
+   *  hold (the brake stops it, never backs it up: E.Race's countdown) } or an input (its move()'s x steers; gas, brake,
+   *  drift: actions). E.Race calls it as it does an E.Car's (map: not read). Sets the velocity world.step gives Rapier */
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
-    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0;
-    const drift = inp ? c.down('drift') : !!c.drift, hop = inp ? c.pressed('drift') : drift && !this._held; this._held = drift;
+    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
+    const dr = inp && (!c.map || c.map.drift), drift = inp ? !!dr && c.down('drift') : !!c.drift, hop = inp ? !!dr && c.pressed('drift') : drift && !this._held; this._held = drift;   // (an input with no drift action: none, and no warning)
     const S = o.surfaces[this.surface] || {}, air = !this.onGround;
     if (S.boost && !air) this.boost(S.boost);
     if (this.spinT > 0) { this.spinT -= dt; this.angle += 11 * dt; steer = 0; gas = 0; brake = .5; }
@@ -13065,7 +13065,7 @@ class Vehicle extends Actor {
     const top = o.top * (S.top || 1) * (c.top || 1) * (this.boostT > 0 ? 1 + this._boostK : 1);
     if (gas > 0 && v < top) v = Math.min(top, v + o.accel * gas * (this.boostT > 0 ? 2.5 : 1) * dt);
     else if (v > top && !air) v = Math.max(top, v - o.accel * 1.6 * dt);
-    if (brake > 0) v = v > 1 ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);
+    if (brake > 0) v = v > 1 || hold ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);   // (held: it stops, never backs up)
     if (!gas && !brake) v *= Math.exp(-o.drag * dt);
     if (!air || o.float) s *= Math.exp(-(this.drifting ? o.drift : o.grip) * (S.grip || 1) * dt);
     this.vx = fx * v - fy * s; this.vy = fy * v + fx * s; this._want = Math.hypot(this.vx, this.vy);

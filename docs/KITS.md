@@ -88,7 +88,7 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   films each kit beside a build from before.
 - A core addition that not every game calls goes in a section of its own (a `/* ====` banner) with a line in `DIET`; a
   part that only some kits reach goes in one too, even inside another (21g, the solid shapes, out of 21e's shapes).
-- **Budgets** (`doctrine-check` counts them): a 2D kit 200,000 cl100k tokens, seven of their own (`KIT2D`: RPG, SHOOTER,
+- **Budgets** (`doctrine-check` counts them): a 2D kit 216,000 cl100k tokens (D83), seven of their own (`KIT2D`: RPG, SHOOTER,
   ADVENTURE, SIM, RTS and BRAWLER, D69; ZERO, D92); each 3D kit its own (D51, D61, D64, D70); the API card 21,000 (D59), the index
   60,000 (D57), the 3D engine's manual 8,000 (D60), a module's manual 1,500 (or its line), the agent header 10,000.
 - **What every 2D kit carries for its title:** the shell's title draws six HD heroes on a platform map's ledge before a

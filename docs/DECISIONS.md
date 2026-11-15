@@ -1671,9 +1671,9 @@ An entry:
 
 - **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D69 (a 2D kit at most 216,000
   cl100k tokens since D83, but for the kits that keep budgets of their own)
-- **Call:** the ZERO kit (v0.98.0) is 218,538 tokens, over the 2D budget, so it joins `KIT2D` with 222,000. It is the
-  KART kit's engine and modules (215,000 tokens, its own budget nearly full) plus the mesh module (its machines are
-  `E.Mesh` models, banked into the bends) and a slice of its own. The diet already leaves out all the core that
+- **Call:** the ZERO kit (v0.98.0) is 218,538 tokens (220,889 at v0.98.1, with its fixes), over the 2D budget, so it
+  joins `KIT2D` with 222,000. It is the KART kit's engine and modules (about 216,000 tokens: the 2D budget nearly full)
+  plus the mesh module (its machines are `E.Mesh` models, banked into the bends) and a slice of its own. The diet already leaves out all the core that
   F-Zero never calls; what is left is the race, Mode 7, the models and the split screen it plays.
 - **Why:** F-Zero's machines as low-poly models are what the owner asked to see done properly (2026-11-14); drawn as
   billboards (the kart's way) they would read as karts. Revert it to cut the kit back: draw the machines with

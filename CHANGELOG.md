@@ -5,6 +5,22 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.98.1 (2026-11-15)
+
+Fixes to the Mode 7 kits: the six findings Codex left on #217 and #218 once they had merged, and those of a review of v0.98.0, each reproduced before it was fixed.
+
+- **Rendering**: mode7: a model or a quad whose foot is past a globe's edge still shows what stands above it, drawn before the floor that hides the rest (SKY's beacons and castle no longer pop in at the horizon).
+- **Rendering**: mode7: `m7.pick(sx, sy, boxes)` honours a rolled camera, as the pick of the frame drawn does (a light gun under After Burner's bank).
+- **Rendering**: mode7: everything sorts by one depth, its depth from the camera (models, quads and billboards had sorted by two, so a spark on a model could hide behind it); a quad whose middle is behind the camera is still drawn, cut at the near plane; a floor quad is cut by its near edge and fogged by its middle (not its far edge), and `m7.pick` finds what stands on it first.
+- **Engine**: road: a split after a split goes on from its gap: the ROAD kit's forks no longer put the car on the grass past them, and the two roads no longer ease back into one ahead of the fork.
+- **Engine**: drive: `race.grid(n)` gives each place the line's z when the race has heights, so `race.add` puts it on the right pass; with heights, items (shots, hazards, boxes) touch only a car on their own pass; a race made with `items: null` draws its HUD; an input with no `drift` action is not asked for one (no console warning each race).
+- **Engine**: the 3D engine's vehicles take the countdown's `hold` too: the 3D racing kit's grid waits at the line (v0.98.0 said so; now it is true).
+- **Engine**: BLASTER: Safari's rocks alternate sides and every third hides a bat (`s / 260` was never whole: all eleven were slimes on one bank); a bandit that flies off lets go of its missile lock.
+- **Engine**: ROAD: on a phone the last rewind's button stays under the finger while it runs (it vanished, letting the rewind go at once).
+- **Engine**: ZERO: the players start at the back of the grid; BOOST from the second lap (it waited for the third); the Grand Prix ends after the ribbon (RACE ON starts another); VS waits for player 1 to start it, up to four joined; on a phone a machine stuck against a wall is set back on the line; each split-screen viewport shows its own player's BOOST key; no pillars stand in the road where the ribbon passes under itself.
+- **Tools**: contract checks for each engine fix (a split after a split, the rolled pick against the drawn one, a tall model past a globe's edge, a quad with its middle behind the camera).
+- **Docs**: `AI_GUIDE.md`: `car.boost(seconds, power)`, a raised track's height from `groundAt`, seven 2D kits with budgets of their own; `docs/KITS.md`: the 2D budget 216,000; README: the 2D kits 183k to 262k tokens; D92: ZERO's size at v0.98.1.
+
 ## 0.98.0 (2026-11-15)
 
 Anti-gravity racing in Mode 7: the ZERO kit (F-Zero, F-Zero X, Power Drift; Street Racer's four players), and the races and Mode 7 views it needed (D92: its budget of its own).

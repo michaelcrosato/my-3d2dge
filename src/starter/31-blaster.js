@@ -165,7 +165,7 @@ const BLASTER = (() => {
             f.x += (ax - f.x) * e; f.y += (ay - f.y) * e; f.z += (j.z + 60 + Math.sin(f.t * .9) * 70 - f.z) * e; f.yaw += E.angDiff(f.yaw, j.yaw) * e;
             if (Math.floor(f.t / 1.8) !== Math.floor((f.t - dt) / 1.8)) for (const s of [-1, 1]) R.hot.push({ x: f.x + rt[0] * s * 40, y: f.y + rt[1] * s * 40, z: f.z, vx: -fw[0] * 300, vy: -fw[1] * 300, vz: 0, t: 0, home: true }); }
         }
-        R.foes = R.foes.filter(f => f === R.boss || (f.hp > 0 && f.t < 14));
+        R.foes = R.foes.filter(f => f === R.boss || (f.hp > 0 && f.t < 14)); R.locks = R.locks.filter(f => R.foes.includes(f));   // (a bandit flown off lets go of its lock)
         if (R.boss && R.boss.hp <= 0 && !R.boss.dead) { R.boss.dead = true; for (let i = 0; i < 6; i++) boom(R.boss.x + (i - 3) * 20, R.boss.y, R.boss.z, 2); clear(); }
       },
       hit(s) {
@@ -185,8 +185,8 @@ const BLASTER = (() => {
     safari: {
       start() {
         R.s = 0; R.cur = [game.W / 2, game.H / 2]; R.rocks = []; R.ptr = null;
-        for (let s = 300; s < RAIL.length - 500; s += 260) { const p = RAIL.at(s), side = (s / 260) % 2 ? 1 : -1, nx = -Math.sin(p.angle), ny = Math.cos(p.angle), off = side * (110 + (s * 7) % 80);
-          const rock = { x: p.x + nx * off, y: p.y + ny * off }; R.rocks.push(rock); R.foes.push({ kind: (s / 260) % 3 === 2 ? 'bat' : 'slime', at: s - 420, x: rock.x + Math.cos(p.angle) * 50, y: rock.y + Math.sin(p.angle) * 50, z: 0, hp: 1, out: 0, rig: null, rock }); }
+        for (let s = 300, n = 0; s < RAIL.length - 500; s += 260, n++) { const p = RAIL.at(s), side = n % 2 ? 1 : -1, nx = -Math.sin(p.angle), ny = Math.cos(p.angle), off = side * (110 + (s * 7) % 80);
+          const rock = { x: p.x + nx * off, y: p.y + ny * off }; R.rocks.push(rock); R.foes.push({ kind: n % 3 === 2 ? 'bat' : 'slime', at: s - 420, x: rock.x + Math.cos(p.angle) * 50, y: rock.y + Math.sin(p.angle) * 50, z: 0, hp: 1, out: 0, rig: null, rock }); }
       },
       cam() { const p = RAIL.at(R.s), look = R.boss ? Math.atan2(R.boss.y - p.y, R.boss.x - p.x) : p.angle; return { x: p.x, y: p.y, h: 26, angle: look + (R.cur[0] / game.W - .5) * .25, pitch: 3 + (R.cur[1] / game.H - .5) * 8, fov: game.H > game.W ? 80 : 70 }; },
       update(dt, k) {

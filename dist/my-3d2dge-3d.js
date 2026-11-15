@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.98.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.98.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -220,7 +220,7 @@ sun, haze } is a dome; fog: { color, near, far }. Keep height() fast: it runs pe
 world.vehicle({ kind: 'kart' | 'car' | 'hover', x, y, z, angle, rig (its driver, seated), color, and the drive module's
 E.Car options over the kind's (top, accel, brake, turn, grip, drift, hop...), surfaces, ground: (x, y) => tag }): a ball
 Rapier rolls (walls, bumps, ramps, jumps) steered by E.Car's arcade handling; an actor. Each step v.update(dt, null,
-{ steer, gas, brake, drift }) (or an input), then world.step; it reads speed, slide, angle, drifting, charge (a kart's
+{ steer, gas, brake, drift, hold }) (or an input), then world.step; it reads speed, slide, angle, drifting, charge (a kart's
 drift boost), boostT, onGround, surface ('road', 'boost', a track's off, the level's ground: grass, sand... slow it),
 bumped; v.boost(sec, power), v.spinOut(sec). E.Race (the drive module) races vehicles as it races E.Cars.
 world.track({ path: new E.Path(points [x, y, z], { closed: true, smooth: 'catmull' }), width: 96, bank: .25 (radians at
@@ -1989,13 +1989,13 @@ class Vehicle extends Actor {
   boost(sec = .8, power = .4) { this._boostK = this.boostT > 0 ? Math.max(this._boostK, power) : power; this.boostT = Math.max(this.boostT, sec); return this; }
   /** a spin-out (a shot, a hazard): seconds without control, most of its speed lost */
   spinOut(sec = 1) { if (this.spinT > 0) return this; this.spinT = sec; this.vx *= .3; this.vy *= .3; this.drifting = 0; this.charge = 0; return this; }
-  /** one step's driving (before world.step): an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor) }
-   *  or an input (its move()'s x steers; gas, brake, drift: actions). E.Race calls it as it does an E.Car's (map: not
-   *  read). Sets the velocity world.step gives Rapier */
+  /** one step's driving (before world.step): an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor),
+   *  hold (the brake stops it, never backs it up: E.Race's countdown) } or an input (its move()'s x steers; gas, brake,
+   *  drift: actions). E.Race calls it as it does an E.Car's (map: not read). Sets the velocity world.step gives Rapier */
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
-    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0;
-    const drift = inp ? c.down('drift') : !!c.drift, hop = inp ? c.pressed('drift') : drift && !this._held; this._held = drift;
+    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
+    const dr = inp && (!c.map || c.map.drift), drift = inp ? !!dr && c.down('drift') : !!c.drift, hop = inp ? !!dr && c.pressed('drift') : drift && !this._held; this._held = drift;   // (an input with no drift action: none, and no warning)
     const S = o.surfaces[this.surface] || {}, air = !this.onGround;
     if (S.boost && !air) this.boost(S.boost);
     if (this.spinT > 0) { this.spinT -= dt; this.angle += 11 * dt; steer = 0; gas = 0; brake = .5; }
@@ -2016,7 +2016,7 @@ class Vehicle extends Actor {
     const top = o.top * (S.top || 1) * (c.top || 1) * (this.boostT > 0 ? 1 + this._boostK : 1);
     if (gas > 0 && v < top) v = Math.min(top, v + o.accel * gas * (this.boostT > 0 ? 2.5 : 1) * dt);
     else if (v > top && !air) v = Math.max(top, v - o.accel * 1.6 * dt);
-    if (brake > 0) v = v > 1 ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);
+    if (brake > 0) v = v > 1 || hold ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);   // (held: it stops, never backs up)
     if (!gas && !brake) v *= Math.exp(-o.drag * dt);
     if (!air || o.float) s *= Math.exp(-(this.drifting ? o.drift : o.grip) * (S.grip || 1) * dt);
     this.vx = fx * v - fy * s; this.vy = fy * v + fx * s; this._want = Math.hypot(this.vx, this.vy);
