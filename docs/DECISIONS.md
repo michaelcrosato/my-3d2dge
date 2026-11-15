@@ -1619,3 +1619,19 @@ An entry:
   on the module.
 - **Answered:** yes, the ask; keeping the module a reversible call, flagged in its pull request
 - **Landed in:** v0.94.0
+
+## D89 · 2026-11-15 · The Gallery Lab's `quad` and `pick` graduate into the mode7 module
+
+- **Principle:** process (a Temporary lab's question, `src/labs.json`); 8 (quality under the hood: what a prototype
+  reached past the API for moves into the engine)
+- **Call:** the Gallery Lab asked whether a light-gun gallery or a first-person corridor needs only two more calls on the
+  mode7 module, `m7.quad` (a flat polygon in the world, sorted with the billboards) and `m7.pick` (what was drawn under a
+  screen point, nearest first), or a perspective `E.View` for the whole 2D renderer. Answered: the two calls, in the
+  module (v0.95.0), with `m7.mesh` beside them; `m7.add` takes a target's box, as the lab's `bill` did. The lab stays
+  until the BLASTER kit's first-person gallery takes its place (then it goes, as D44 says a settled prototype does).
+- **Why:** the owner's ask for kits of Mode 7 and pseudo-3D games (2026-11-14: Space Harrier, After Burner, Yoshi's
+  Safari among them) needs both: an aiming cursor's target and the walls it can't shoot through. The lab's answer fits
+  in about forty lines of the module and changes no page that doesn't call them. What would change it: a gallery the
+  two calls can't draw (a corridor whose walls cut each other), then a perspective view.
+- **Answered:** no: made without a response, to review (flagged in the pull request)
+- **Landed in:** v0.95.0

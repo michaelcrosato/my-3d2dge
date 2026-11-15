@@ -122,6 +122,7 @@ for (const [ed, file] of EDITIONS) {
   arcades(E, ed);   // (and the arcade module)
   rooms(E, ed);   // (and the rooms module)
   views(E, ed);   // (and the mode7 and road modules)
+  meshes(E, ed);   // (the mesh module)
   drive(E, ed);   // (and the drive module: its races on the full engine, which has E.Path)
   dialogs(E, ed);
   if (ed === 'full') strategies(E, ed);   // (the gestures, the free camera and the strategy module are the full engine's)
@@ -842,6 +843,26 @@ function rooms(E, ed) {
   } finally { Object.assign(E.store, was); }
 }
 
+// the mesh module: faces turned away are culled, mirrored parts keep their sides out, the turns (yaw, pitch, roll) put a
+// point where the engine's angles say, named colors fill per draw, far faces paint first
+function meshes(E, ed) {
+  if (!E.Mesh) return check(`${ed}: mesh: E.Mesh is there`, false, 'missing');
+  const box = new E.Mesh([['box', [0, 0, 5], [5, 5, 5], 'body']]), drawn = [], g = { fillStyle: '', fillRect() { drawn.push(this.fillStyle); }, set _c(v) {}, get _c() { return null; } };
+  const from = (ex, ey, ez) => { const l = Math.hypot(ex, ey, ez), fx = -ex / l, fy = -ey / l, fz = -ez / l, rx = -fy, ry = fx, rl = Math.hypot(rx, ry) || 1, R = [rx / rl, ry / rl, 0], U = [fy * R[2] - fz * R[1], fz * R[0] - fx * R[2], fx * R[1] - fy * R[0]];
+    return (x, y, z) => { const dx = x - ex, dy = y - ey, dz = z - ez, d = dx * fx + dy * fy + dz * fz; if (d < 1) return null; return [100 + (dx * R[0] + dy * R[1] + dz * R[2]) * 200 / d, 100 - (dx * U[0] + dy * U[1] + dz * U[2]) * 200 / d, 200 / d]; }; };
+  const n1 = box.draw(g, from(60, 0, 5), { colors: { body: '#808080' } }), n3 = box.draw(g, from(40, 40, 40), { colors: { body: '#808080' } }), nb = box.draw(g, from(-60, 0, 5), { colors: { body: '#808080' } });
+  check(`${ed}: mesh: a box seen face on shows one face, from a corner three, from behind one (the rest turned away)`, n1 === 1 && n3 === 3 && nb === 1, JSON.stringify([n1, n3, nb]));
+  const wing = new E.Mesh([['box', [0, 6, 1], [4, 3, 1], '#a0a0a0', { mirror: true }]]), n2 = wing.draw(g, from(1, 0, 60), {});
+  check(`${ed}: mesh: a mirrored part is a copy on the other side, its faces still out (seen from above: both tops and both inner sides)`, wing.faces.length === 12 && n2 === 4 && wing.faces.some(f => f.p.every(v => v[1] < 0)), JSON.stringify([wing.faces.length, n2]));
+  const m = new E.Mesh([['tube', [0, 0, 0], 1, 1, '#fff', { n: 6, end: 0 }]]), at = (o, p) => m.at(p[0], p[1], p[2], o).map(v => Math.round(v * 1e6) / 1e6);
+  check(`${ed}: mesh: at: yaw turns forward (PI / 2: south), pitch lifts the nose, roll drops the right side; scale and the place add`,
+    JSON.stringify(at({ yaw: Math.PI / 2 }, [10, 0, 0])) === '[0,10,0]' && JSON.stringify(at({ pitch: Math.PI / 2 }, [10, 0, 0])) === '[0,0,10]' && JSON.stringify(at({ roll: Math.PI / 2 }, [0, 10, 0])) === '[0,0,-10]' && JSON.stringify(at({ x: 5, y: 6, z: 7, scale: 2 }, [1, 1, 1])) === '[7,8,9]' && m.faces.length === 7,
+    JSON.stringify([at({ yaw: Math.PI / 2 }, [10, 0, 0]), at({ pitch: Math.PI / 2 }, [10, 0, 0]), at({ roll: Math.PI / 2 }, [0, 10, 0]), m.faces.length]));
+  drawn.length = 0; const two = new E.Mesh([['box', [-20, 0, 2], [2, 2, 2], 'far'], ['box', [0, 0, 2], [2, 2, 2], 'near']]); two.draw(g, from(60, 0, 2), { colors: { far: '#ff0000', near: '#00ff00' }, flat: true });
+  const firstNear = drawn.findIndex(c => c === '#00ff00'), lastFar = drawn.lastIndexOf('#ff0000');
+  check(`${ed}: mesh: named colors fill per draw, and far faces paint before near ones`, firstNear > -1 && lastFar > -1 && lastFar < firstNear && !drawn.includes('#ff00ff'), JSON.stringify({ firstNear, lastFar, n: drawn.length }));
+}
+
 // the mode7 and road modules (M6a): a floor point projected and back at any heading and pitch, nearer is lower and
 // larger, the horizon, the chase camera, a rig's view from the camera's side; the road's lap, wrap, eased curves and
 // hills, what it hits, the player's place ahead
@@ -873,6 +894,32 @@ function views(E, ed) {
       put({ params: { a: 1 }, mats: { wood: 'oak' } }); put({ params: { a: 2 }, mats: { wood: 'oak' } }); put({ params: { a: 1 }, mats: { wood: 'pine' } }); put({ params: { a: 1 }, mats: { wood: 'oak' } });
     } finally { E.shapeSprite = was; }
     check(`${ed}: views: mode7: m7.shape passes its params and mats to the shape, one sprite each`, made.length === 3 && made[0] === JSON.stringify(['barrel', { a: 1 }, { wood: 'oak' }]) && made[1].includes('"a":2') && made[2].includes('pine'), made.join(' | '));
+  }
+  // roll, a flat top-down floor, a globe and texels (the Mode 7 kits: SKY, BLASTER, ZERO)
+  let worstR = 0;
+  for (const roll of [-40, -7, 15, 60]) {
+    m7.cam = { x: 100, y: 200, h: 40, angle: .6, pitch: 12, fov: 70, roll }; m7.begin({ W: 320, H: 180 });
+    for (const [d, l] of [[30, 0], [80, -20], [300, 60]]) { const x = 100 + Math.cos(.6) * d - Math.sin(.6) * l, y = 200 + Math.sin(.6) * d + Math.cos(.6) * l, p = m7.project(x, y), q = p && m7.toFloor(p[0], p[1]); worstR = Math.max(worstR, q ? Math.hypot(q[0] - x, q[1] - y) : 1e9); }
+  }
+  m7.cam = { x: 0, y: 0, h: 40, angle: 0, pitch: 12, fov: 70, roll: 20 }; m7.begin({ W: 320, H: 180 });
+  const rA = m7.project(100 * Math.cos(12 * Math.PI / 180), 0, 40 - 100 * Math.sin(12 * Math.PI / 180)), rB = m7.project(100, 30), rC = m7.project(100, -30);
+  check(`${ed}: views: mode7: roll: a floor point projected and back at four rolls; the point the camera looks at stays centred; + banks right (the right side of the view rises)`, worstR < 1e-6 && Math.abs(rA[0] - 160) < 1e-9 && rB[1] < rC[1], JSON.stringify({ worstR, rA, rB, rC }));
+  m7.cam = { x: 500, y: 500, h: 200, angle: -Math.PI / 2, pitch: 90, fov: 70 }; m7.begin({ W: 320, H: 180 });
+  const fO = m7.project(500, 500), fE = m7.project(600, 500), fN = m7.project(500, 400);
+  m7.cam.angle = -Math.PI / 2 + Math.PI / 2; m7.begin({ W: 320, H: 180 }); const fE2 = m7.project(600, 500);
+  check(`${ed}: views: mode7: pitch 90 looks straight down: the floor flat (the same scale every way, nothing nearer) and turned by the heading`, Math.abs(Math.hypot(fE[0] - fO[0], fE[1] - fO[1]) - Math.hypot(fN[0] - fO[0], fN[1] - fO[1])) < 1e-6 && Math.abs(fE[2] - fN[2]) < 1e-9 && fN[1] < fO[1] && Math.abs(fE2[0] - fO[0]) < 1e-6 && fE2[1] < fO[1], JSON.stringify({ fO, fE, fN, fE2 }));
+  const gm = new E.Mode7({ floor: () => [0, 0, 0], size: [4096, 4096], texel: 8, wrap: true, curve: 4000 }), flat = new E.Mode7({ floor: () => [0, 0, 0], size: [64, 64] });
+  const gcam = { x: 2000, y: 2000, h: 120, angle: -Math.PI / 2, pitch: 15, fov: 70 }; gm.cam = gcam; gm.begin({ W: 320, H: 180 }); flat.cam = gcam; flat.begin({ W: 320, H: 180 });
+  let worstG = 0; for (const [dx, dy] of [[0, -300], [120, -500], [-200, -900]]) { const p = gm.project(2000 + dx, 2000 + dy), q = p && gm.toFloor(p[0], p[1]); worstG = Math.max(worstG, q ? Math.hypot(q[0] - 2000 - dx, q[1] - 2000 - dy) : 1e9); }
+  const bent = gm.project(2000, 1400), straight = flat.project(2000, 1400), limb = Math.acos(4000 / 4120) * 4000;
+  check(`${ed}: views: mode7: curve: a globe's floor point projected and back; far floor bends down below the flat horizon; past its edge nothing shows; it repeats round (texel 8 bakes the floor an eighth the size)`,
+    worstG < .01 && bent[1] > straight[1] && gm.project(2000, 2000 - limb - 40) === null && !!gm.project(2000, 2000 - limb + 40) && !!gm.project(2000 + 4096, 2000 - 300) && Math.abs(gm.project(2000 + 4096, 2000 - 300)[0] - gm.project(2000, 2000 - 300)[0]) < 1e-6 && gm._texture().width === 512, JSON.stringify({ worstG, bent, straight }));
+  if (ed === 'full') {   // what was drawn under a point (a light gun's shot), and a wall that blocks it; a rolled view's too
+    const shot = roll => { const pg = new E.Game({ headless: true, draw: true, res: [320, 180] }), pm = new E.Mode7({ floor: () => [40, 90, 40], size: [256, 256], sky: ['#000', '#fff'] }); let out = null;
+      pg.start({ update() {}, draw(r) { pm.add(128, 100, 0, () => {}, { target: 'deer', w: 30, h: 20 }); pm.quad([[90, 160, 0], [110, 160, 0], [110, 160, 30], [90, 160, 30]], '#844'); pm.draw(r, { x: 128, y: 230, h: 20, angle: -Math.PI / 2, pitch: 6, fov: 70, roll }); } }); pg.advance(.05);
+      const d = pm.project(128, 100, 10), w = pm.project(100, 160, 15); out = [d && pm.pick(d[0], d[1]), w && pm.pick(w[0], w[1]), pm.pick(2, 2)]; return out; };
+    const s0 = shot(0), s1 = shot(30);
+    check(`${ed}: views: mode7: pick finds a target's box under a point, a quad in front blocks (target null), the sky nothing; rolled the same`, [s0, s1].every(s => s[0] && s[0].target === 'deer' && s[1] && s[1].target === null && s[2] === null), JSON.stringify([s0, s1]));
   }
   // the road
   const road = new E.Road({ segment: 200 }); road.add(30).add(60, { curve: 4, hill: 3000 }).add(30, { tunnel: true });

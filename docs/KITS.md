@@ -45,6 +45,7 @@ in the core.
 | fighters and matches | module `fight` | fighting, brawlers' bosses |
 | side-view traversal; worlds of rooms | the core's Platformer, module `rooms` | platformers, Metroidvanias, cinematic platformers |
 | Mode 7, the road | modules `mode7`, `road` | racing, rail shooters, world maps, flying |
+| low-poly models drawn through any camera | module `mesh` | racing's cars, flight's craft, rail shooters' ships |
 | vehicles and races | module `drive`; the 3D engine's `world.vehicle` | racing in 2D and 3D, top-down driving |
 | dialogue, flags, quests; items, inventories, stats, shops, encounters | modules `story`, `rpg` | JRPGs, adventures, point-and-click, visual novels, horror, sims |
 | save slots, dialog markup, big ground maps | core | every long game |
