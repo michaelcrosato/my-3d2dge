@@ -81,6 +81,14 @@
           "links": [["VS (two players)", "#kart/vs"]]
         },
         {
+          "page": "dist/kits/my-3d2dge-sky.html",
+          "at": "#sky",
+          "title": "Sky: does it feel like Pilotwings and Final Fantasy's airship?",
+          "what": "Three events from the SKY menu. LIGHT PLANE: the arrows are the stick (down climbs, up dives, left and right bank), Z more throttle, X less; fly through the ten rings, then land on the runway, lined up, slow and level. SKYDIVE: steer through the three hoops as you fall, Space opens the chute in the green band, then land on the bullseye (X brakes for a soft landing). VOYAGE: an airship over a world that curves away below you; follow the compass, come down low by each beacon and press Space to land, then fly home. Added with v0.95.0.",
+          "look": "Does the plane feel light and floaty, banking with the horizon tilting as it turns? Is the landing hard enough to be a skill but not a wall? Does the free fall rush up at you, and the canopy glide? Does the voyage's world feel round, the horizon bending as you climb? On your phone: the stick flies, GAS and SLOW the throttle, ACT the chute.",
+          "links": [["Skydive", "#sky/dive"], ["Voyage", "#sky/voyage"]]
+        },
+        {
           "page": "dist/kits/my-3d2dge-rpg.html",
           "at": "#rpg",
           "title": "RPG: does it feel like Dragon Quest and Final Fantasy?",
@@ -311,6 +319,12 @@
           "title": "Kart",
           "what": "Mode 7 karts (Super Mario Kart, F-Zero): a circuit in a meadow, six karts with HD drivers, three laps, kerbs, sand, boost pads, item boxes (a boost, a shell, a peel), a drift that charges a boost; VS for two in a split screen.",
           "links": [["Race", "#kart/race"], ["VS", "#kart/vs"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-sky.html",
+          "title": "Sky",
+          "what": "Mode 7 flight (Pilotwings, Final Fantasy VI's airship): a light plane through ten rings and onto a runway, a skydive through hoops onto a target, an airship over a world that curves away below it; the camera pitched and rolled with the plane, the craft low-poly models.",
+          "links": [["Plane", "#sky/plane"], ["Skydive", "#sky/dive"], ["Voyage", "#sky/voyage"]]
         },
         {
           "page": "dist/kits/my-3d2dge-rpg.html",

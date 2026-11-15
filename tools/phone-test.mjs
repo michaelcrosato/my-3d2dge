@@ -22,6 +22,8 @@
 //      the stick and a tap on LP throw a fireball
 //  12. metroidvania: three thumb-sized buttons (JUMP, FIRE, MAP; DASH once found); the stick walks the hero and aims
 //  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers
+//  13b. sky: GAS and SLOW thumb-sized in the plane (ACT only where it acts: the chute, a landing); the stick banks the
+//      plane and it turns; GAS opens the throttle
 //  15. rpg's journey: its windows' rows a thumb's height; a tap on New game starts it; the stick walks the party; MENU
 //      opens the menu, a tap on a row opens it, BACK closes it
 //  16. tactics: the command list's rows a thumb's height; a tap on a unit selects it (its card); MOVE, then a tap on a
@@ -67,6 +69,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 const only = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const want = k => !only.length || only.includes(k);
 const UP = { width: 390, height: 844 }, SIDE = { width: 844, height: 390 };
+const E_turn = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));   // (the signed turn from heading a to b)
 const problems = [], t0 = Date.now();
 const check = (name, ok, detail) => { console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ': ' + detail : ''}`); if (!ok) problems.push(name + (detail ? ': ' + detail : '')); };
 
@@ -105,7 +108,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
+for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'sky', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -516,6 +519,25 @@ if (want('kart')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `kart-${label.replace(/ /g, '-')}.png`) });
     check(`kart ${label}: DRIFT and ITEM, each a thumb's size`, acts === 'drift,item' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`kart ${label}: it accelerates by itself; the stick held right turns it right`, s0.auto && s0.speed > 30 && s1.angle > s0.angle + .3 && !errors.length, `speed ${Math.round(s0.speed)}, turned ${(s1.angle - s0.angle).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 13b. sky: its buttons, the stick banking the plane, GAS */
+if (want('sky')) {
+  console.log('sky: GAS and SLOW, thumb-sized; the stick banks the plane and it turns; GAS opens the throttle');
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, cdp, errors } = await open('sky', vp, 'sky/plane'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1200);
+    const st = () => ev(page, () => window.__game.scenes.sky.state());
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+    const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
+    const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
+    await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+    const gas = btns.find(b => b.act === 'gas'); if (gas) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: gas.x, y: gas.y }] }); await wait(1200); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); }
+    const s2 = await st();
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `sky-${label.replace(/ /g, '-')}.png`) });
+    check(`sky ${label}: GAS and SLOW, each a thumb's size`, acts === 'gas,slow' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
+    check(`sky ${label}: the stick held right banks the plane right and turns it; GAS opens the throttle`, s1.roll > .3 && E_turn(s0.yaw, s1.yaw) > .1 && s2.thr > s1.thr + .2 && !errors.length, `roll ${s1.roll}, turned ${E_turn(s0.yaw, s1.yaw).toFixed(2)}, throttle ${s1.thr} -> ${s2.thr}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
