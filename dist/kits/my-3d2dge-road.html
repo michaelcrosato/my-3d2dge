@@ -1277,7 +1277,7 @@ const ROAD = (() => {
     }
     if (P.over) { P.over.t += dt; P.speed = Math.max(0, P.speed - 3000 * dt); P.z += P.speed * dt; if (P.over.t > 2.5 && mode === 'drive') end(); return; }
     if (P.striker) strike(P, dt, k); else drive(P, dt, k);
-    if (!P.chase && !P.rash && !P.striker) rw.keep(dt, () => ({ L: P.L, json: JSON.stringify({ z: P.z, x: P.x, speed: P.speed, steer: P.steer, lean: P.lean, clock: P.clock, crash: P.crash, spin: P.spin, hop: P.hop, score: P.score, route: P.route }), cars: P.L.traffic.map(c => ({ z: c.z, lane: c.lane })) }));
+    if (!P.chase && !P.rash && !P.striker) rw.keep(dt, () => ({ L: P.L, json: JSON.stringify({ z: P.z, x: P.x, speed: P.speed, steer: P.steer, lean: P.lean, clock: P.clock, crash: P.crash, spin: P.spin, hop: P.hop, score: P.score, route: P.route, drift: P.drift || 0, charge: P.charge || 0, boost: P.boost || 0 }), cars: P.L.traffic.map(c => ({ z: c.z, lane: c.lane })) }));
   }
   /** a step of the drive: the gas, the brake and the steering; the bends pull outward, the grass slows; scenery hit fast
    *  spins the car out; traffic bumps it; the clock; the forks; the chase */
