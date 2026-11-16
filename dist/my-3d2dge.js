@@ -14219,7 +14219,7 @@ class Road {
     const W = this.o.width, fog = this.o.fog;
     return { z, x, w: model.bounds * (o.scale || 1) * 2, draw: g => {
       const a = g.globalAlpha; g.globalAlpha = 1;   // (the road fogs a thing by its transparency: a model's faces mix toward the fog instead)
-      const C = this._cam, N = this.length, near = (X, Y, Z) => { let d = ((X - C.z) % N + N) % N; if (d > N / 2) d -= N; return d < 400 ? null : this.project(X, Y / W, Z); };   // (a corner at or behind the camera: its face left out; distances round the lap, as the camera's)
+      const C = this._cam, N = this.length, d0 = ((z - C.z) % N + N) % N, near = (X, Y, Z) => { const d = d0 + X - z; return d < 400 ? null : this.project(X, Y / W, Z); };   // (a corner at or behind the camera: its face left out; each corner by its car's own place round the lap, however far ahead)
       model.draw(g, near, Object.assign({}, o, { x: z, y: x * W, z: o.y || 0, mix: a < 1 && fog ? [fog.color, (1 - a) * .9] : o.mix }));
       g.globalAlpha = a; E.px.reset(g);
     } };
