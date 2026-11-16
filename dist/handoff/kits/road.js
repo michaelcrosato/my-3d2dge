@@ -359,7 +359,7 @@ const ROAD = (() => {
   function grid(P, q) {
     const s = clamp(Math.round((q - 20) / .8), 0, 7), at = j => ({ z: SEG * 4 + (7 - j) * 700, x: [-2 / 3, 0, 2 / 3][j % 3] }); let j = 0;
     for (const v of P.rivals) { if (j === s) j++; Object.assign(v, at(j++), { speed: 0 }); v.goal = v.x; }
-    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lean: 0, crash: 0, spin: 0, hop: 0, bump: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 });   // (a standing start: a spin carried over the line is over) P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');
+    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lean: 0, crash: 0, spin: 0, hop: 0, bump: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 }); P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');   // (a standing start: a spin carried over the line is over)
   }
   /** a car of the pack and a player's touch: pushed apart; the one behind loses its speed */
   function bump(P, v, gap) { const sd = P.x < v.x ? -1 : 1; P.x += sd * .12; v.x -= sd * .12; v.goal = v.x; if (gap > 0) P.speed = Math.min(P.speed, v.speed) * .85; else v.speed *= .85; P.bump = .5; A.sfx('bump'); game.shake(2); }
@@ -411,7 +411,8 @@ const ROAD = (() => {
         if (v.fall > 0) { v.fall -= dt; v.speed = Math.max(0, v.speed - 4200 * dt); v.z += v.speed * dt; if (v.fall <= 0) { v.hp = 3; v.speed = 2400; } continue; }   // (down: it tumbles to a stop, then gets back on)
         const gap = v.z - P.z, want = TOP * v.pace * (gap > 8000 ? .92 : gap < -8000 ? 1.08 : 1) * (P.circuit ? 1 - Math.abs(road.curveAt(v.z)) * .02 : 1), c = road.centers(v.z)[0];   // (a car eases off in a bend)
         v.speed += clamp(want - v.speed, -1600 * dt, 1500 * dt); v.z += v.speed * dt;
-        const block = (P.circuit ? (DUO || [P]).map(Q => ({ z: Q.z, lane: Q.x - c })) : L.traffic).find(o => o.z > v.z && o.z - v.z < 2600 && Math.abs(c + o.lane - v.x) < .45);   // (on the circuit: a player ahead in its line) if (block) v.goal = c + (o => o > 0 ? -2 / 3 : o < 0 ? 2 / 3 : (v.k & 1 ? 2 / 3 : -2 / 3))(block.lane);
+        const ahead = P.circuit ? (DUO || [P]).map(Q => ({ z: Q.z, lane: Q.x - c })) : L.traffic, blocked = x => ahead.some(o => o.z > v.z && o.z - v.z < 2600 && Math.abs(c + o.lane - x) < .45);
+        if (blocked(v.goal)) { const free = [-2 / 3, 0, 2 / 3].map(l => c + l).filter(x => !blocked(x)).sort((a, b) => Math.abs(a - v.x) - Math.abs(b - v.x))[0]; if (free !== undefined) v.goal = free; }   // (the lane it's bound for blocked ahead, by traffic or, on the circuit, a player: the nearest lane clear)
         v.x += clamp(v.goal - v.x, -1, 1) * dt * 1.4;
         for (const o of L.traffic) if (Math.abs(o.z - v.z) < 900 && Math.abs(c + o.lane - v.x) < .35) { v.speed *= .6; v.x += v.x > c + o.lane ? .2 : -.2; }
         if (P.circuit) { if (Math.abs(gap) < 1100 && Math.abs(v.x - P.x) < .4 && P.bump <= 0 && P.crash <= 0) bump(P, v, gap); }

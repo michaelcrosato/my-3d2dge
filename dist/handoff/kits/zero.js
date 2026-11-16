@@ -176,7 +176,8 @@ scenes.over = {
  * KEYS: left / right steer, up / Z gas, down / X brake, Space / C boost. A pad: the stick, A gas, X brake, B boost.
  * TOUCH: the stick steers, it accelerates by itself; BOOST.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floors, and the ribbon as m7.quad strips over them; E.Car and
- * E.Race (the drive module) the machines, the laps and the drivers (heights: true, as the ribbon crosses itself); E.Mesh
+ * E.Race (the drive module) the machines, the laps and the drivers (heights: true, as the ribbon crosses itself; a
+ * machine's body falls on its own, so off the kicker's crest it flies a moment, Power Drift's jump); E.Mesh
  * (the mesh module) the machines; this file the tracks, the energy, the ribbon's walls and the HUD.
  * ===================================================================================== */
 const ZERO = (() => {
@@ -218,7 +219,8 @@ const ZERO = (() => {
     return { map, m7, towers };
   }
   /* ---- SKY RIBBON: a figure of eight in the air (the line's points [x, y, z]), its segments, pillars and shadow ---- */
-  const HW = 64, RIB = new E.Path(Array.from({ length: 24 }, (_, i) => { const a = i / 24 * Math.PI * 2; return [2048 + 1500 * Math.sin(a), 2048 + 1050 * Math.sin(a) * Math.cos(a), 230 + 170 * Math.cos(a) + 30 * Math.sin(a * 3)]; }), { closed: true, smooth: 'catmull' });
+  const rib = a => [2048 + 1500 * Math.sin(a), 2048 + 1050 * Math.sin(a) * Math.cos(a), 230 + 170 * Math.cos(a) + 30 * Math.sin(a * 3)], ST = Math.PI / 12;   // (the figure of eight's point at angle a)
+  const HW = 64, RIB = new E.Path([0, 2 / 3, 1, 4 / 3, ...Array.from({ length: 22 }, (_, i) => i + 2)].map(k => { const q = rib(k * ST); if (k === 1) q[2] += 20; if (k === 4 / 3) q[2] += 16; return q; }), { closed: true, smooth: 'catmull' });   // (the line through 24 points round, two more either side of the kicker: a ramp on the straight past the overpass, a shelf to land on after its crest, Power Drift's jump)
   const RL = RIB.length, STEP = 64;
   let sky = null;
   function buildSky() {
@@ -252,9 +254,18 @@ const ZERO = (() => {
     s = ((s % RL) + RL) % RL; const S = sky.segs, k = Math.min(S.length - 1, Math.floor(s / STEP)), a = S[k], b = S[(k + 1) % S.length], t = (s - a.s) / ((k + 1 < S.length ? b.s : RL) - a.s), dz = a.dz + (b.dz - a.dz) * t;
     return { z: RIB.at(s).z - dz * u / HW, bank: a.bank + (b.bank - a.bank) * t };
   }
-  function ride(R) {   // (held to it: down a slope it never leaves the ground; at the middle's height, so its place on the line is exact, drawn lifted by the bank)
+  function ride(R, dt) {   // (held to it: at the middle's height, so its place on the line is exact, drawn lifted by the bank)
     const c = R.car, s = RIB.nearest(c.x, c.y, c.z), p = RIB.at(s), f = surf(s, (c.x - p.x) * -Math.sin(p.angle) + (c.y - p.y) * Math.cos(p.angle));
     R.pit = s > RPIT[0] && s < RPIT[1]; R.slope = (RIB.at(s + 20).z - p.z) / 20; R.bank = f.bank; R.lift = f.z - p.z; c.z = p.z; c.vz = 0; c.onGround = true;
+    // its body (drawn) rides the line's height as it changes step by step (on the line: the bank and a push sideways no part of it),
+    // and falls at G: where the line's climb eases off faster (off the kicker's crest: Power Drift's jump) it flies on, its
+    // shadow on the track, and lands back; a real jump (over 3 units high) costs a little speed
+    const G = 130, up = dt && R.pz !== undefined ? (p.z - R.pz) / dt : 0; R.pz = p.z;
+    if (!dt || R.bz === undefined) { R.bz = p.z; R.bv = up; R.air = 0; R.peak = 0; } else {
+      R.bv -= G * dt; R.bz += R.bv * dt; R.peak = Math.max(R.peak, R.bz - p.z);
+      if (R.bz <= p.z) { if (R.peak > 3) { c.vx *= .95; c.vy *= .95; R.jumps = (R.jumps || 0) + 1; if (players.includes(R)) A.sfx('land', { vol: .5 }); } R.bz = p.z; R.bv = up; R.air = 0; R.peak = 0; } else R.air += dt;
+    }
+    R.lift += R.bz - p.z;
   }
 
 
@@ -297,7 +308,7 @@ const ZERO = (() => {
     const was = race.t; race.update(dt, track === 'city' ? city.map : RIBMAP);
     if (was < 0 && Math.floor(was) !== Math.floor(race.t)) A.sfx(race.t >= 0 ? 'confirm' : 'select');
     for (const R of race.racers) {
-      const c = R.car; if (track === 'sky') ride(R);
+      const c = R.car; if (track === 'sky') ride(R, dt);
       if (c.hitWall && race.go && track === 'sky') {   // the ribbon's barrier (it runs along the line) turns it along itself, F-Zero's glance: a graze keeps most of its speed, a hit head-on little; grinding on, a little less each step (the city's walls of cells bounce it, as the kart's do)
         const p = RIB.at(RIB.nearest(c.x, c.y, c.z)), a = Math.abs(E.angDiff(c.angle, p.angle)) < Math.PI / 2 ? p.angle : p.angle + Math.PI, off = E.angDiff(c.angle, a);
         const v = Math.max(c.speed, R.v0 * (R.calm > .4 ? .9 - .5 * Math.abs(Math.sin(off)) : .985)); c.angle += off * .35; c.vx = Math.cos(a) * v; c.vy = Math.sin(a) * v;
@@ -344,6 +355,7 @@ const ZERO = (() => {
     const i = r.viewport ? r.viewport.i : 0, me = players[i], cam = cams[i], V = view();
     if (track === 'city') towersOf(cam); else ribbonFor(cam);
     const fx = Math.cos(cam.angle), fy = Math.sin(cam.angle);
+    for (const R of race.racers) if (R.bz - R.car.z > 1.5 && (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 10) V.add(R.car.x, R.car.y, R.car.z + (R.lift || 0) - (R.bz - R.car.z) + .5, (g, sx, sy, k) => { const a = g.globalAlpha; g.globalAlpha = .35; px.ell(g, sx, sy, 9 * k, 4 * k, '#000000'); g.globalAlpha = a; });   // (in the air: its shadow on the track)
     for (const R of race.racers) if (R === me || (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 26) V.mesh(MACHINE, R.car.x, R.car.y, R.car.z + (track === 'sky' ? R.lift || 0 : 0) + 3 + Math.sin(t * 9 + R.ci) * .6, { scale: .8, yaw: R.car.angle, roll: clamp(R.car.slide * .012, -.5, .5) + (track === 'sky' ? R.bank || 0 : 0), colors: { body: R.cast.body, trim: R.cast.trim, glow: R.car.boostT > 0 ? '#ffe060' : '#ff6a2a' } });   // (it leans with its slide; one beside the camera, nearer than its near plane can draw, is left out)
     V.draw(r, cam);
     if (me) race.hud(r, me, { color: players.length > 1 ? ['#a0d8ff', '#ffd080', '#a0ffa0', '#ffa0e0'][i] : '#ffffff', right: r.viewport && r.viewport.y > 0 ? null : cornerX() });
@@ -394,7 +406,7 @@ const ZERO = (() => {
     try {
       game.go('zero', null, { fade: 0 }); game.advance(1 / 120); auto = true; const out = {};
       G = { gp: true, pts: CAST.map(() => 0) };
-      for (const tr of ['city', 'sky']) { go(tr); let n = 0; for (; n < 220 && !race.over; n++) game.advance(1); out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +Math.max(...race.racers.map(R => R.stuckMax)).toFixed(2), energy: race.racers.map(R => Math.round(R.energy)) }; if (race.over) finish(); }   // (stuck: the longest any stood still)
+      for (const tr of ['city', 'sky']) { go(tr); let n = 0; for (; n < 220 && !race.over; n++) game.advance(1); out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +Math.max(...race.racers.map(R => R.stuckMax)).toFixed(2), energy: race.racers.map(R => Math.round(R.energy)), jumps: race.racers.reduce((a, R) => a + (R.jumps || 0), 0) }; if (race.over) finish(); }   // (stuck: the longest any stood still)   // (jumps: off the ribbon's kicker, over 0.3 s in the air)
       out.points = G.pts.slice(); auto = false;
       toMenu(); idle = 30; game.advance(1 / 60); out.attract = attract && mode === 'race';   // (left alone on the title: it races by itself)
       const I = game.input, dev = I.lastDevice; for (const e of ['down', 'up']) I.feed(e, game.W / 2, game.H * .3, { touch: true }); game.advance(1 / 60);
