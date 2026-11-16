@@ -1825,3 +1825,28 @@ An entry:
   games use for a map or a menu is not felt.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.107.0
+
+## D104 · 2026-11-16 · Emberdeep's d-pad leaves movement; ○ backs out a layer, □ is the second action
+
+- **Principle:** the controls standard (D100): the pad in the PlayStation layout, the keyboard native, no dense screens
+- **Call:** in play the left stick alone moves; the d-pad holds the map (↑, and the touchpad), the loot labels (←),
+  opens a portal (↓, R3 kept) and uses (→, L3 kept), and saved move bindings drop their old d-pad codes. In panels ○
+  backs out one layer before it closes, □ does the second action (drop, sell, salvage, take back a star), L1 R1 turn
+  tabs and L2 R2 the bag, skills and passives. Backspace moves from `cancel` to that second action (Esc alone backs
+  out); C also opens the bag and Alt also holds the labels; the camera, mute and hide-HUD keys became `INPUT` actions;
+  Settings, Controls is a page a device.
+- **Why:** a hack-and-slash on a pad moves on the stick and keeps the d-pad for its quick actions; a back that closes
+  the whole panel from a sub-step, and a second action only reachable by a key, are the stand-ins the standard rules out.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0
+
+## D105 · 2026-11-16 · Input and a free camera run on the player's own time
+
+- **Principle:** the controls standard (D100): the pad's cursor and the camera are the player's, at any game speed
+- **Call:** each step's input (its clock, double taps, long presses, swipes, the pad's cursor) and a free camera's keys,
+  stick and edge pan advance by the step unscaled, not by `timeScale`: a sim stopped at timeScale 0 still has a cursor
+  and a camera, and slow motion no longer stretches a double tap's window or a fighter's input history (`input.history`
+  keeps a second of the player's time). Game time, `game.real` and every scene's `dt` are as before.
+- **Why:** at timeScale 0 the pad's cursor and the camera stood still, so a stopped park could not be built on a pad.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0

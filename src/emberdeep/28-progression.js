@@ -823,7 +823,7 @@ function PRG_treeUpdate(dt) {
   // zoom: + and - (Q E, PageUp PageDown), the right stick, a pinch; the centre: R (R3, Home, 0)
   if (inp.pressed('zoomIn')) PRG_zoomBy(1.25, V.ox, V.oy); else if (inp.pressed('zoomOut')) PRG_zoomBy(.8, V.ox, V.oy);
   if (inp.padAim && Math.abs(inp.padAim[1]) > .2) PRG_zoomBy(1 - inp.padAim[1] * dt * 2.5, V.ox, V.oy);
-  const pz = inp.zoom(); if (pz !== 1) PRG_zoomBy(pz, V.ox, V.oy);
+  const pz = inp.zoom(), zq = pz !== 1 && inp.zoomPoint(), sc = game.screen; if (pz !== 1) PRG_zoomBy(pz, zq ? zq[0] - (sc.ix || 0) : V.ox, zq ? zq[1] - (sc.iy || 0) : V.oy);   // (a pinch about its fingers' middle)
   if (inp.pressed('centre')) { V.go = { x: 0, y: 0 }; V.zt = 1; V.anchor = { sx: V.ox, sy: V.oy, tx: 0, ty: 0 }; }
   // gyro: a DualSense's tilt pans a big map (Settings, Controls, Gyro aim)
   if (DS) { const gy = DS.gyroAim(dt); if (gy[0] || gy[1]) { V.cx += gy[0] / V.z; V.cy += gy[1] / V.z; V.anchor = null; V.go = null; } }
