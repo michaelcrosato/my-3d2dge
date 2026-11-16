@@ -815,6 +815,10 @@ class Input {
     this._pinching = false; this._zoomAcc = 1; this._zoomNow = 1; this._zoomOn = false; this._wheelOn = false; this._fingers = new Map();
     /** pinches: true reads a pinch (zoom()) even where the scene doesn't zoom the camera: a game with a zoom of its own */
     this.pinches = false;
+    /** padCursor: true gives the gamepad a cursor (a game the mouse plays: point-and-click, strategy): while the pad is the
+     *  device in use, the left stick moves pointer(), ✕ clicks there (clicked()), the engine draws it; a scene's cursor: true
+     *  sets it. setPointer(x, y) puts it somewhere, cursorSnap(points, radius) eases it onto things */
+    this.padCursor = false; this._padPt = null; this._snaps = null;
     // the pointer's gestures (box, longPress, doubleTap, pan): the press followed (_g), what this step reads, what the next will
     this._g = null; this._gBox = null; this._gLong = null; this._gTap2 = null; this._gPan = null; this._lastTap = null; this._zoomPt = null; this._fedAt = null;
     this._boxAt = null; this._longAt = null; this._tap2At = null; this._panAt = null; this._swipeAt = null; this._gSwipe = null;
@@ -999,7 +1003,9 @@ class Input {
   /**
    * On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide
    * them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack:
-   * 'B' }, force }). The other half of the screen is a move stick (past halfway it presses up, down, left and right too,
+   * 'B' }, force, layout, slide }). layout: 'row' (the default), 'diamond' (up to four, as a pad's face: the actions in
+   * the order bottom, right, left, top), 'grid' (two columns), 'arc' (the first big in the corner, the rest round it);
+   * slide: true lets a finger slide from button to button (a fighter's punch to kick) instead of holding the first. The other half of the screen is a move stick (past halfway it presses up, down, left and right too,
    * as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a
    * pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
    */
@@ -1046,15 +1052,27 @@ class Input {
     if (!show) { if (this.stickOn) this._stickEnd({ pointerId: this.stickId }); return null; }
     const host = this.screen.canvas.parentElement || document.body, box = document.createElement('div'), side = left ? 'left' : 'right';
     box.dataset.sys = 'touch';
-    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (left ? ';flex-direction:row-reverse' : '');
+    if (!document.getElementById('e3-touch-css')) { const st = document.createElement('style'); st.id = 'e3-touch-css'; st.textContent = '[data-sys=touch] button.on{background:rgba(255,255,255,.34)!important;border-color:#fff!important;transform:scale(.93)}[data-sys=touch] button{transition:transform .06s}'; document.head.appendChild(st); }   // (a press shows under the finger)
+    const lay = actions.length > 4 && o.layout === 'diamond' ? 'grid' : o.layout || 'row', at = {};   // (each button's middle and size, for a layout of its own)
+    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (lay === 'row' ? ';display:flex;gap:10px' + (left ? ';flex-direction:row-reverse' : '') : '');
+    if (lay !== 'row') {
+      const g = 8, n = actions.length;
+      if (lay === 'diamond') { const pos = [[1, 2], [2, 1], [0, 1], [1, 0]]; actions.forEach((a, i) => { at[a] = [pos[i][0] * (size * .82), pos[i][1] * (size * .82), size]; }); }   // (bottom, right, left, top)
+      else if (lay === 'grid') actions.forEach((a, i) => { at[a] = [(i % 2) * (size + g), Math.floor(i / 2) * (size + g), size]; });
+      else { const big = Math.round(size * 1.3), R = big / 2 + size / 2 + g; at[actions[0]] = [0, 0, big]; actions.slice(1).forEach((a, k) => { const t = Math.PI * (1 + .5 * (n > 2 ? k / (n - 2) : .5)); at[a] = [R * Math.cos(t), R * Math.sin(t), size]; }); }   // arc: round the big one, from its left to above it
+      const xs = actions.map(a => at[a][0] - at[a][2] / 2), ys = actions.map(a => at[a][1] - at[a][2] / 2), x0 = Math.min(...xs), y0 = Math.min(...ys);
+      const W = Math.max(...actions.map(a => at[a][0] + at[a][2] / 2)) - x0, H = Math.max(...actions.map(a => at[a][1] + at[a][2] / 2)) - y0;
+      box.style.width = Math.ceil(W) + 'px'; box.style.height = Math.ceil(H) + 'px';
+      for (const a of actions) { const [x, y, z] = at[a], l = x - z / 2 - x0; at[a] = [left ? W - l - z : l, y - z / 2 - y0, z]; }   // (the left hand: mirrored)
+    }
     this._touchBtns = {};
     for (const a of actions) {
-      const b = this._touchBtns[a] = document.createElement('button'); b.dataset.act = a; b.setAttribute('aria-label', a);
-      b.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(size / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;padding:0';
+      const b = this._touchBtns[a] = document.createElement('button'), z = at[a] ? at[a][2] : size; b.dataset.act = a; b.setAttribute('aria-label', a);
+      b.style.cssText = 'width:' + z + 'px;height:' + z + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(z / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;padding:0' + (at[a] ? ';position:absolute;left:' + Math.round(at[a][0]) + 'px;top:' + Math.round(at[a][1]) + 'px' : '');
       this._touchLook(b, a); box.appendChild(b);
     }
     if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
-    host.appendChild(box); this.bindButtons(box); this._touchEl = box;
+    host.appendChild(box); if (o.slide) this._slide(box); else this.bindButtons(box); this._touchEl = box;
     if (!this._cornerMenu) {   // START: the corner's menu button is it; without the corner, a button of its own in the same place
       const st = this._startEl = document.createElement('div'), b = document.createElement('button'); st.dataset.sys = 'touch';
       st.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1);
@@ -1126,6 +1144,7 @@ class Input {
     this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._zoneOf.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
+    if (this._slideFingers) { for (const b of this._slideFingers.values()) b.classList.remove('on'); this._slideFingers.clear(); }
   }
   /** the last second of input, oldest first: [{ t (input.clock), dir (numpad 1-9 for a fighter facing right: 5 neutral),
    *  pressed: the actions pressed then, directions aside }], one entry each time the direction changes or a button is
@@ -1163,8 +1182,36 @@ class Input {
   /** the camera zoom the player asked for since the last step, as a factor (1.1: 10% closer, .9: farther; 1: none): the
    *  wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy) */
   zoom() { return this._zoomNow; }
-  /** the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas */
-  pointer() { return this._fedAt || (this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null); }
+  /** the pointer in screen pixels [x, y] (the HUD's space): the mouse's, or the pad's cursor while it is in use
+   *  (padCursor); null before the mouse has moved over the canvas */
+  pointer() { return this._fedAt || (this.padCursor && this.lastDevice === 'gamepad' && this._padPt ? this._padPt.slice() : null) || (this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null); }
+  /** put the pad's cursor at [x, y] in screen pixels (a game's cycling through hotspots) */
+  setPointer(x, y) { this._padPt = [x, y]; this.mouse.t = this.clock; }
+  /** points the pad's cursor eases onto when the stick lets go near one ([[x, y]] or { x, y }, screen pixels; null: none),
+   *  within radius pixels */
+  cursorSnap(points, radius = 14) { this._snaps = points ? { points, radius } : null; }
+  /** the move keys or stick as a prompt names them, on the device used last (or the one named): 'WASD', '↑↓←→', 'L stick',
+   *  the touch screen's 'Stick' */
+  moveLabel(device = this.lastDevice) {
+    if (device === 'gamepad') return ENG('pad.lstick');
+    if (device === 'touch') return E.lang.upper(ENG('touch.stick'));
+    const k = ['up', 'left', 'down', 'right'].map(a => (this.map[a] || []).filter(c => !padCode(c) && !c.startsWith('Act:')));
+    return k.every((c, i) => c.includes('Key' + 'WASD'[i])) ? 'WASD' : '↑↓←→';
+  }
+  // the pad's cursor, each step: the left stick moves it (slow near the middle of its travel, fast at the rim), it eases
+  // onto a snap point when let go near one, ✕ clicks where it is; the mouse's place is where the pad takes over
+  _cursorStep(dt) {
+    const S = this.screen, W = S.W || 320, H = S.H || 240;
+    if (this.lastDevice !== 'gamepad' || !this._padPt) { const m = this.mouse.active && this.screenPoint(this.mouse.cx, this.mouse.cy); this._padPt = m ? m.slice() : this._padPt || [W / 2, H / 2]; if (this.lastDevice !== 'gamepad') return; }
+    const P = this._padPt, mv = this.padMove, l = Math.hypot(mv[0], mv[1]);
+    if (l > 0) { const sp = W * (.18 + 1.1 * l * l) * dt / l; P[0] += mv[0] * sp; P[1] += mv[1] * sp; this.mouse.t = this.clock; }
+    else if (this._snaps) {
+      let best = null, bd = this._snaps.radius; for (const q of this._snaps.points) { const x = Array.isArray(q) ? q[0] : q.x, y = Array.isArray(q) ? q[1] : q.y, d = Math.hypot(x - P[0], y - P[1]); if (d < bd) { bd = d; best = [x, y]; } }
+      if (best && bd > .5) { const k = Math.min(1, dt * 12); P[0] += (best[0] - P[0]) * k; P[1] += (best[1] - P[1]) * k; this.mouse.t = this.clock; }
+    }
+    P[0] = clamp(P[0], 0, W - 1); P[1] = clamp(P[1], 0, H - 1);
+    if (this._freshCodes.has('Pad0')) this._click = [P[0], P[1]];   // ✕: a click where the cursor is
+  }
   /** the pointer's gestures, read each step in screen pixels (the HUD's space), from a mouse or one finger:
    *  box() -> { x0, y0, x1, y1, from, to, done } while a box is drawn (a mouse's left button dragged; on a touch screen a long
    *  press, then a drag), done the step it is let go; else null */
@@ -1202,7 +1249,7 @@ class Input {
   // (a finger, a middle or right button); lifted unmoved it is a tap, and a second within .35 s a double tap
   _gesture(type, x, y, o = {}) {
     const g = this._g;
-    if (type === 'down') { this._g = { id: o.id, x0: x, y0: y, x, y, t: this.clock, touch: !!o.touch, button: o.button || 0, mode: null, long: false, moved: false }; return; }
+    if (type === 'down') { this._g = { id: o.id, x0: x, y0: y, x, y, t: this.clock, touch: !!o.touch, button: o.button || 0, mode: null, long: false, moved: false, stick: this.stickOn && o.id !== undefined && o.id === this.stickId }; return; }
     if (!g) return;
     if (type === 'move') {
       const px = g.x, py = g.y; g.x = x; g.y = y;
@@ -1212,7 +1259,7 @@ class Input {
       return;
     }
     this._g = null;   // up
-    if (g.touch && g.mode === 'pan' && this.clock - g.t <= .35) {   // a flick: quick, far enough, mostly along one axis (swipe())
+    if (g.touch && !g.stick && g.mode === 'pan' && this.clock - g.t <= .35) {   // a flick: quick, far enough, mostly along one axis (swipe()); never the stick's finger
       const dx = x - g.x0, dy = y - g.y0, ax = Math.abs(dx), ay = Math.abs(dy), S = this.screen, min = Math.max(18, Math.min(S.W || 320, S.H || 240) * .08);
       if (Math.max(ax, ay) >= min && Math.max(ax, ay) >= 1.5 * Math.min(ax, ay)) this._gSwipe = { dir: ax > ay ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'), x: g.x0, y: g.y0 };
     }
@@ -1259,6 +1306,7 @@ class Input {
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
+    if (this.padCursor) this._cursorStep(dt);
     // a tap is held for the one step after it (its release comes the step after that)
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
@@ -1280,6 +1328,20 @@ class Input {
     if (c.chord || (!c.out && p.buttons[9] && p.buttons[9].pressed)) { c.chord = true; this._opt = true; return false; }   // (Options held back too, until it is let go)
     if (!c.out && this.clock - c.t >= .25) c.out = true;
     return c.out;
+  }
+  // touch buttons a finger slides across (touchButtons' slide): the button under each finger is pressed, the one it left
+  // let go when no other finger holds it
+  _slide(box) {
+    const fingers = this._slideFingers = new Map(), signal = this._signal;
+    const under = e => { const el = document.elementFromPoint(e.clientX, e.clientY), b = el && el.closest && el.closest('[data-act]'); return b && box.contains(b) && b.style.display !== 'none' ? b : null; };
+    const to = (id, b) => {
+      const was = fingers.get(id); if (was === b) return;
+      if (was) { fingers.delete(id); if (![...fingers.values()].includes(was)) { this.release('Act:' + was.dataset.act); was.classList.remove('on'); } }
+      if (b) { fingers.set(id, b); this.press('Act:' + b.dataset.act); b.classList.add('on'); }
+    };
+    box.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); try { box.setPointerCapture(e.pointerId); } catch (err) { /* gone */ } to(e.pointerId, under(e)); }, { signal });
+    box.addEventListener('pointermove', e => { if (box.hasPointerCapture && box.hasPointerCapture(e.pointerId)) to(e.pointerId, under(e)); }, { signal });
+    for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) box.addEventListener(t, e => to(e.pointerId, null), { signal });
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {
@@ -1901,7 +1963,7 @@ Object.assign(ENGINE_LINES, {
   'engine.calibrate.how': 'Tap on each click you hear, in time with it, not before ({taps} of 8). The higher click starts each bar.',
   'engine.calibrate.done': 'Your sound comes {ms} ms after the beat. Keep it, or tap on to measure again.', 'engine.calibrate.tap': 'Tap',
   'engine.note.fullscreen_blocked': 'Full screen not allowed here', 'engine.note.pad_lost': 'Controller disconnected', 'engine.note.pad_lost_text': 'Press a button on a controller to use it, or play on.',
-  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
+  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.stick': 'Stick', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
   // save slots (game.saves)
   'engine.saves.auto': 'Autosave', 'engine.saves.slot': 'Slot {n}', 'engine.saves.empty': 'Empty', 'engine.saves.damaged': 'Damaged: it cannot be read',
   'engine.saves.newer': 'From a newer version of the game', 'engine.saves.level': 'Level {level}', 'engine.saves.save': 'Save', 'engine.saves.load': 'Load',
@@ -2753,7 +2815,7 @@ E.PLAYER_COLORS = ['#4a8aff', '#ff4a4a', '#4ad860', '#ffd040'];
 /* a scene's fields the engine reads (view, views, input, res, expand, touch, camera): one of the wrong type, a method
    named camera() or views: 'side', is left alone and warns once, by name (it would have shadowed the game's own) */
 const SCENE_FIELDS = { view: v => typeof v === 'string' || (!!v && typeof v === 'object'), views: Array.isArray, input: v => typeof v === 'string' || (!!v && typeof v === 'object'),
-  res: v => typeof v === 'string' || (Array.isArray(v) && v.length === 2), expand: v => typeof v === 'boolean' || (!!v && typeof v === 'object'), touch: Array.isArray, camera: v => v === false || (!!v && typeof v === 'object' && !Array.isArray(v)) };
+  res: v => typeof v === 'string' || (Array.isArray(v) && v.length === 2), expand: v => typeof v === 'boolean' || (!!v && typeof v === 'object'), touch: v => Array.isArray(v) || (!!v && typeof v === 'object' && Array.isArray(v.buttons)), cursor: v => typeof v === 'boolean', camera: v => v === false || (!!v && typeof v === 'object' && !Array.isArray(v)) };
 const sceneField = (name, s) => k => {
   const v = s[k]; if (v === undefined || v === null) return false;
   if (SCENE_FIELDS[k](v)) return true;
@@ -3058,8 +3120,10 @@ class Game {
     return true;
   }
   /** where the corner's buttons (menu and full screen, top right; the touch START) cover the screen, in screen pixels
-   *  { x0, y0, x1, y1 } (r.W and r.H's space), or null while none show: keep a HUD clear of it */
-  cornerArea() {
+   *  { x0, y0, x1, y1 } (r.W and r.H's space), or null while none show: keep a HUD clear of it. o: { pinned: true } only
+   *  where the menu button stays in play (a touch screen), so a HUD doesn't jump as the mouse nears the top */
+  cornerArea(o) {
+    if (o && o.pinned && !(this.input._touched || (window.matchMedia && matchMedia('(pointer: coarse)').matches))) return null;
     const c = this._corner && this._corner.style.display !== 'none' ? this._corner : this.input._startEl; if (!c || !c.isConnected || !this.screen.canvas) return null;
     const q = c.getBoundingClientRect(); if (!q.width) return null;
     const a = this.input.screenPoint(q.left, q.top), b = this.input.screenPoint(q.right, q.bottom);
@@ -3115,7 +3179,8 @@ class Game {
     if (o.damage !== undefined) P.text(x + (Math.random() - .5) * 10, y, z + (o.textZ === undefined ? 22 : o.textZ), o.damage, o.textColor || '#fff2c4', { bounce: o.bounce !== false, scale: o.textScale || 1 });
     if (o.sound !== false) this.audio.sfx(o.sound || (p > 1.3 ? 'kick' : 'hit'));
     if (p >= 2) this.flash('#ffffff', .06);
-    if (this.input.lastDevice === 'gamepad' && o.rumble !== false) this.input.rumble(.2 + .2 * Math.min(2, p), .06 + .03 * p);
+    const R = o.rumble && typeof o.rumble === 'object' ? o.rumble : this.input;   // (o.rumble: the input whose pad shakes, a player's; false: none)
+    if (o.rumble !== false && R.lastDevice === 'gamepad' && R.rumble) R.rumble(.2 + .2 * Math.min(2, p), .06 + .03 * p);
   }
   /** flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning. Shorter when
    *  reduceMotion, dimmer by the player's settings.flashes */
@@ -3166,8 +3231,9 @@ class Game {
    * A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera }
    * (all optional). start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only
    * by advance().
-   * - view, views, input, res, expand, touch: a scene's, applied when it starts: input ('PLATFORMER'), res ('snes'),
-   *   expand (true), touch (['jump', 'attack']); res and expand stay until another scene sets them
+   * - view, views, input, res, expand, touch, cursor: a scene's, applied when it starts: input ('PLATFORMER'), res
+   *   ('snes'), expand (true), touch (['jump', 'attack'], or { buttons, layout: 'diamond', slide: true }: touchButtons'
+   *   options), cursor (true: the pad's cursor, input.padCursor); res and expand stay until another scene sets them
    * - back: a scene's back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a
    *   sub-menu closed)
    * - camera: a scene's { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the
@@ -3364,7 +3430,8 @@ class Game {
     if (ok('views')) this.views = s.views;
     if (ok('input')) this.input.use(s.input);
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
-    if (ok('touch')) this.input.touchButtons(s.touch);
+    if (ok('touch')) this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch);
+    if (ok('cursor')) this.input.padCursor = s.cursor;
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
     this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
@@ -3455,6 +3522,7 @@ class Game {
     if (this._split && HOOKS.frame) HOOKS.frame(this, shx, shy);   // a split screen: the scene drawn in each viewport (section 10j)
     else { this.lights._clear(); this.r._begin(c.x + shx, c.y + shy); if (sc && sc.draw) sc.draw(this.r); }
     if (this.shownNote && this.real < this.shownNote.end) { const n = this.shownNote; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
+    const IC = this.input; if (IC.padCursor && IC.lastDevice === 'gamepad' && IC._padPt) { const [cx, cy] = IC._padPt.map(Math.round); this.r.overlay(g => { const A = [[0, 0], [0, 11], [3, 8], [5, 12], [7, 11], [5, 7], [9, 7]].map(([x, y]) => [cx + x, cy + y]); px.poly(g, A.map(([x, y], i) => [x + (i ? (x > cx ? 1 : -1) : -1), y + (i ? 1 : -1)]), '#0b0814'); px.poly(g, A, '#ffffff'); }); }   // the pad's cursor (padCursor)
     if (this.settings.showFps) { const st = this.stats, t = this.fps + ' FPS  ' + this.hz + ' HZ' + (this.drawEvery > 1 ? ' (EVERY ' + this.drawEvery + ')' : '') + '  ' + (st.updateMs + st.renderMs).toFixed(1) + ' MS';   // Settings, Display
       this.r.overlay(g => { const w = E.font.width(t, { font: 'tiny' }) + 6; g.fillStyle = '#000000b0'; g.fillRect(Math.round(this.r.W / 2 - w / 2), 0, w, 9); g._c = null; E.font.text(g, t, this.r.W / 2, 2, '#9cff9c', { align: 'center', outline: false, font: 'tiny' }); }); }
     this._cornerSync();
