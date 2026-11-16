@@ -1881,7 +1881,7 @@ const SHOOT = (() => {
     }
     if (S.cur === 'shotgun' && S.pumpT < vm.pump && S.pumpT < .2) vm.brass.push({ p: null, v: [14, 36, 40], t: 0, s: 2, shell: true }); vm.pump = S.pumpT;
     if (S.landT && S.landT !== vm.land) { vm.land = S.landT; vm.dip.v -= Math.min(60, S.landV * .16); }
-    spring(vm.kick, 0, 300, 26, dt); spring(vm.kp, 0, 240, 22, dt); spring(vm.kr, 0, 220, 20, dt);   // (two thirds back by the next shot: at 13 a second the gun chatters) spring(vm.dip, 0, 150, 13, dt);
+    spring(vm.kick, 0, 300, 26, dt); spring(vm.kp, 0, 240, 22, dt); spring(vm.kr, 0, 220, 20, dt); spring(vm.dip, 0, 150, 13, dt);   // (two thirds back by the next shot: at 13 a second the gun chatters; the dip a landing gave, sprung back)
     const ap = (v, to, r2) => v + (to - v) * Math.min(1, dt * r2), trav = ['mantle', 'vault', 'climb', 'ladder'].includes(S.move);
     vm.spr = ap(vm.spr, S.sprint && S.move === 'stand' && !S.act ? 1 : 0, 9); vm.cr = ap(vm.cr, S.move === 'crouch' ? 1 : 0, 9); vm.sl = ap(vm.sl, S.move === 'slide' ? 1 : 0, 11); spring(vm.travS, trav ? 1 : 0, 300, 34.6, dt); vm.trav = clamp(vm.travS.x, 0, 1);
     // the walk's bob (a figure of eight), stronger at a sprint, small down the sights; breathing when still
