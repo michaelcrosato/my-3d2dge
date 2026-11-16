@@ -275,9 +275,6 @@ const SIM = (() => {
     const I = game.input, tap = I.clicked(), p = I.pointer(), rdt = speed ? dt / speed : 1 / 120;   // (rdt: the player's time this step, at any speed, stopped too: zoom and gyro go by it)
     padExtras(rdt); hintLeft -= rdt;
     if (!auto) {
-      // with time stopped the engine's steps are 0 s long and its pad cursor stands still: the stick moves it here by the
-      // player's time, at the engine's pace (slow near the middle of its travel, fast at the rim), so a stopped park is built
-      if (!speed && I.padCursor && I.lastDevice === 'gamepad') { const m = I.padMove, l = Math.hypot(m[0], m[1]), q = I.pointer(); if (l > 0 && q) { const k = game.W * (.18 + 1.1 * l * l) * rdt / l; I.setPointer(clamp(q[0] + m[0] * k, 0, game.W - 1), clamp(q[1] + m[1] * k, 0, game.H - 1)); } }
       let used = false;
       for (const b of boxes.time) if (hitBox(b, tap)) { setSpeed(b.k); used = true; }
       for (const b of boxes.tools) if (hitBox(b, tap)) { useTool(b.t); used = true; }
