@@ -23,7 +23,8 @@
 //  12. metroidvania: three thumb-sized buttons (JUMP, FIRE, MAP; DASH once found); the stick walks the hero and aims
 //  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers; pinned against a wall by the gas, the
 //      stick held down brakes and backs it off
-//  13c. blaster: the jet's MISSILE and ROLL thumb-sized; the stick banks it; in the valley a tap shoots where it lands
+//  13c. blaster: the jet's MISSILE and ROLL thumb-sized; the stick banks it; in the valley a tap shoots where it lands,
+//      and a tap squarely on a foe as the frame drew it (across the screen from the cursor) shoots it down
 //  13d. road: BRAKE and REWIND thumb-sized; it accelerates by itself; the stick steers; the striker and the cotton show FIRE alone (the witch moved by the stick)
 //  13f. special: JUMP thumb-sized on the planet, a tap on it jumps; in the fort FIRE thumb-sized, the stick turns the
 //      soldier (and the world under him); in the arena the kart drives by itself and the stick pulled down backs it up
@@ -583,9 +584,9 @@ if (want('sky')) {
   }
 }
 
-/* 13c. blaster: the jet's buttons and the stick; a tap's shot in the valley */
+/* 13c. blaster: the jet's buttons and the stick; a tap's shot in the valley; a tap on a foe as drawn shoots it down */
 if (want('blaster')) {
-  console.log('blaster: MISSILE and ROLL, thumb-sized; the stick banks the jet; a tap in the valley shoots where it lands');
+  console.log('blaster: MISSILE and ROLL, thumb-sized; the stick banks the jet; a tap in the valley shoots where it lands; a tap on a foe as drawn shoots it down');
   for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
     const { page, ctx, cdp, errors } = await open('blaster', vp, 'blaster/burner'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(2600);
     const st = () => ev(page, () => window.__game.scenes.blaster.state());
@@ -598,6 +599,17 @@ if (want('blaster')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `blaster-${label.replace(/ /g, '-')}.png`) });
     check(`blaster ${label}: MISSILE and ROLL, each a thumb's size`, acts === 'missile,roll' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`blaster ${label}: the stick held right banks the jet; a tap in the valley moves the cursor there and shoots, once`, s1.hero[3] > .3 && v1.hero[1] !== v0.hero[1] && v1.fired === v0.fired + 1 && !errors.length, `roll ${s1.hero[3]}, cursor ${v0.hero[1]} -> ${v1.hero[1]}, shots fired ${v0.fired} -> ${v1.fired}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    // a tap squarely on a foe as the frame drew it (its box's middle, sights(): of those a tap can reach, not about to
+    // reach the player, the one farthest across from the cursor), the cursor first sent to the far side of the screen
+    // from it by a tap there (the camera turns with the cursor: one turned to the tap before the shot is picked would
+    // miss it by more than its width): it falls, the score up
+    const sighted = () => ev(page, () => { const B = window.__game.scenes.blaster, c = B.state().hero[1]; return B.sights().filter(o => o.w >= 12 && o.d > 200).sort((a, b) => Math.abs(b.x - c) - Math.abs(a.x - c))[0]; });
+    await page.waitForFunction(() => window.__game.scenes.blaster.sights().some(o => o.w >= 12 && o.d > 200), null, { timeout: 10000 }).catch(() => {});
+    const far = await sighted(), gw = await ev(page, () => window.__game.game.W);
+    if (far) { const [x, y] = await toCss(page, far.x < gw / 2 ? gw - 10 : 10, far.y); await page.touchscreen.tap(x, y); await wait(300); }
+    const aim = await sighted(), v2 = await st(); if (aim) { const [x, y] = await toCss(page, aim.x, aim.y); await page.touchscreen.tap(x, y); } await wait(400); const v3 = await st();
+    const fell = !!aim && !(await ev(page, i => window.__game.scenes.blaster.sights().some(o => o.i === i), aim.i)), turn = aim ? Math.abs(aim.x - v2.hero[1]) / gw * .25 : 0;   // turn: how far a camera turned to the tap would swing (radians), against 25 / d, the foe's half width: more, and a pick through it misses
+    check(`blaster ${label}: a tap squarely on a foe as drawn, across the screen from the cursor, shoots it down`, fell && turn > 25 / aim.d && v3.score > v2.score && v3.fired === v2.fired + 1 && !errors.length, `${aim ? `a ${aim.kind} ${Math.round(aim.d)} away, ${Math.round(aim.w)} px wide, tapped at ${Math.round(aim.x)}, ${Math.round(aim.y)} (${Math.round(aim.x - v2.hero[1])} px across from the cursor, a turn of ${turn.toFixed(3)} rad against the ${(25 / aim.d).toFixed(3)} that would miss it): ${fell ? 'gone' : 'still there'}` : 'no foe on the screen to tap'}, score ${v2.score} -> ${v3.score}, shots fired ${v2.fired} -> ${v3.fired}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
