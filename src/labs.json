@@ -9,6 +9,20 @@
       "empty": "Nothing waits for you.",
       "entries": [
         {
+          "page": "emberdeep",
+          "title": "The controls standard on a TV",
+          "what": "Sit at the sofa with a DualSense (or any controller) and play Emberdeep, then two or three kits from the home page (a racer, a shooter, the RPG, point-and-click with its new cursor). Then the same with a keyboard and mouse. Open Settings and Controls in each. Added with v0.107.0 (docs/CONTROLS.md).",
+          "look": "Do the prompts show ✕ ○ □ △ on the pad and your keys and mouse buttons on the keyboard, switching as you switch? Does Settings, Controls, Controller, Button symbols switch them to A B X Y? Can you read every menu from the sofa, and turn its tabs with L1 and R1? Do the keys feel like the genre on a PC, and does the mouse aim, click and move the focus where it should? With a DualSense allowed in 52in1, do the light bar and the triggers mean something?",
+          "links": []
+        },
+        {
+          "page": "dist/my-3d2dge.html",
+          "title": "The controls standard on a phone",
+          "what": "Open the home page on your phone and play a few kits upright, then on their side: a brawler or Emberdeep, the shooter, a racer, the RPG. Added with v0.107.0 (docs/CONTROLS.md).",
+          "look": "Does a swipe put away a dialogue, a notice and a menu? Do the buttons sit under your thumb (a pad-like diamond where there are four), appear only when they have something to do, and take several fingers at once? Do the assists help without playing for you: the basic attack in Emberdeep, the shooter firing, the racers holding the throttle? Does Settings, Controls, Touch, Touch assists turn them off?",
+          "links": []
+        },
+        {
           "page": "dist/kits/my-3d2dge-roguelike.html",
           "at": "#roguelike",
           "title": "Roguelike on your phone",
