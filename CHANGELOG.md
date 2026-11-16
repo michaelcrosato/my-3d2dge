@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.104.1 (2026-11-16)
+
+Token budgets made soft, the owner's call (D98).
+
+- **Tools**: the doctrine check counts every manual and kit against its budget as before, but one past its budget is a note, no longer a failure: budgets don't hold back the work now; trimming comes later.
+- **Docs**: D98; `docs/KITS.md`, `engine/modules/README.md`, `CLAUDE.md`, `AI_GUIDE.md`, `README.md` and `DOCTRINE.md` call the budgets soft.
+
 ## 0.104.0 (2026-11-16)
 
 Power Drift's jumps, the last of the owner's three stretch goals played whole; code that trailing comments had swallowed runs again, and a check keeps it so.
