@@ -1185,7 +1185,7 @@ class Input {
   look() { return this._look || null; }
   /** [x, y] (screen pixels) in the step after a second finger tapped while another stayed down (the stick, a drag): a
    *  puzzle's turn under one thumb while the other steers; else null */
-  secondTap() { return this._tap2At || null; }
+  secondTap() { return this._secTapAt || null; }
   /** true while the player plays by touch (lastDevice 'touch') and Settings, Touch assists is on (the default): the
    *  time for a game's touch assists (an attack or a shot by itself, the throttle held, aim nudged onto a target).
    *  Never true on a gamepad, keyboard or mouse, so an assist gated on it leaves their play as it is */
@@ -1341,7 +1341,7 @@ class Input {
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
-    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._tap2At = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._tap2nd = null;
+    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._tap2nd = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
     const la = this._lookAcc; this._look = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
