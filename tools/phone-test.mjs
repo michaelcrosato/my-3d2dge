@@ -24,7 +24,7 @@
 //  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers; pinned against a wall by the gas, the
 //      stick held down brakes and backs it off
 //  13c. blaster: the jet's MISSILE and ROLL thumb-sized; the stick banks it; in the valley a tap shoots where it lands
-//  13d. road: BRAKE and REWIND thumb-sized; it accelerates by itself; the stick steers; the striker shows FIRE alone
+//  13d. road: BRAKE and REWIND thumb-sized; it accelerates by itself; the stick steers; the striker and the cotton show FIRE alone (the witch moved by the stick)
 //  13f. special: JUMP thumb-sized on the planet, a tap on it jumps; in the fort FIRE thumb-sized, the stick turns the
 //      soldier (and the world under him); in the arena the kart drives by itself and the stick pulled down backs it up
 //  13e. zero: BOOST thumb-sized; it accelerates by itself; the stick steers
@@ -604,7 +604,7 @@ if (want('blaster')) {
 
 /* 13d. road: its buttons, the gas by itself, the stick steering */
 if (want('road')) {
-  console.log('road: BRAKE and REWIND, thumb-sized; it accelerates by itself; the stick steers');
+  console.log('road: BRAKE and REWIND, thumb-sized; it accelerates by itself; the stick steers; the striker and the cotton FIRE alone');
   for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
     const { page, ctx, cdp, errors } = await open('road', vp, 'road/car'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1500);
     const st = () => ev(page, () => window.__game.scenes.road.state());
@@ -621,6 +621,15 @@ if (want('road')) {
     const { page, ctx, errors } = await open('road', SIDE, 'road/striker'); await page.touchscreen.tap(SIDE.width / 2, SIDE.height * .3); await wait(1500);
     const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => b.dataset.act + ':' + b.textContent.trim()).sort().join());
     check('road striker: FIRE alone (it flies at its own speed: no BRAKE)', btns === 'nitro:FIRE' && !errors.length, `buttons ${btns}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+  {   // the cotton: the witch flies at her own speed too, FIRE alone beside the stick; the stick held right moves her right
+    const { page, ctx, cdp, errors } = await open('road', UP, 'road/cotton'); await page.touchscreen.tap(UP.width / 2, UP.height * .3); await wait(1500);
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => b.dataset.act + ':' + b.textContent.trim()).sort().join());
+    const st = () => ev(page, () => window.__game.scenes.road.state()), s0 = await st(), sx = UP.width * .2, sy = UP.height * .75;
+    await drag(cdp, line([sx, sy], [sx + 50, sy], 20), 30); const s1 = await st();
+    await page.screenshot({ path: resolve('check-output/phone', 'road-cotton.png') });
+    check('road cotton: FIRE alone; the stick held right moves the witch right', btns === 'nitro:FIRE' && !!s0.cotton && s1.x > s0.x + .2 && !errors.length, `buttons ${btns}, x ${s0.x} -> ${s1.x}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
