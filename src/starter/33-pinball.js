@@ -393,7 +393,7 @@ const PINBALL = (() => {
   return { view: 'pinball', views: ['pinball'], res: 'ps1', pausable: true, escape: 'back', touch: [], camera: { zoom: false }, input: KEYS,
     enter: start, update, draw, bot: botRun,
     exit() { game.input.touchEnabled = true; game.input.zones = null; game.cam.offset = [0, 0]; A.music(null); if (ds) ds.clear(); dsKey = ''; },
-    back() { if (mode === 'play' && !demo) return false; game.go('title'); return true; },
+    back() { if (!demo && (mode === 'play' || mode === 'bonus' || mode === 'entry')) return false; game.go('title'); return true; },   // (a game going on: Esc pauses; from the title, the game over and the demo it steps back)
     /** for tests: the table's world, its parts, the balls, the state of play, the arcade frame, where a table point is */
     state: () => ({ world, F, balls, drops, lanes, st, mode, cab, demo, at: (x, y, z = 0) => { const q = game.view.p(x, y, z); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; }, plunge: lanePlunge }),
     /** the proof: a game started, the ball fired, the flippers on a fixed beat; the world's hash, the score, the ball */

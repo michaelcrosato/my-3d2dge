@@ -239,7 +239,7 @@ function endDemo() { if (!ED.demoEnding) { ED.demoEnding = true; game.go('title'
 /* ---------- TOWN ---------- */
 const talk = new E.Dialog(game, { bg: ['#2a2040', '#141024'], border: '#c8b8e8' });
 const townScene = {
-  exit() { talk.close(); },
+  exit() { talk.close(); TOWN_HOLD.use = null; },
   enter(o = {}) {
     ED.mode = 'town'; ED.depth = 0; UI.closeAll(); BUS.clear('level');
     const L0 = (TOWN.build || TOWN.fallback)();
@@ -254,6 +254,7 @@ const townScene = {
     if (o.arrive === 'intro') { showCard('Emberhold', 'THE LAST LIT TOWN', null, 4); game.after(4.5, () => notify('THE WAYSTONE IN THE SQUARE LEADS DOWN: WALK UP TO IT AND USE IT ({key:interact})', '#bff6ff', 5)); }
   },
   update(dt) {
+    if (TOWN_HOLD.use && (UI.top() || talk.open)) TOWN_HOLD.use = null;   // (a panel or a talk opened mid-hold: the hold is over, no shop later; before the returns below)
     if (talk.open && game.input.pressed('pause') && !UI.modal) UI.open('pause');
     if (talk.open && UI.modal) { updateUI(dt); if (!DEV.paused) townLife(dt); return; }
     if (talkStep(dt)) { UI.prompt = UI.promptVerb = UI.promptFn = null; if (UI.modal) updateUI(dt); townLife(dt); return; }   // (worldStep, which clears the prompt, does not run: clear it here, or it draws under the box)
@@ -271,7 +272,6 @@ const townScene = {
     const use = townUse(L0, h);
     if (use) { UI.prompt = use.label; UI.promptVerb = use.verb; UI.promptFn = use.fn; }
     const T = TOWN_HOLD;   // a controller at a shopkeeper: a tap of interact opens the shop, a hold talks (the mouse clicks them to talk)
-    if (T.use && (UI.top() || talk.open)) T.use = null;   // (a panel or a talk opened mid-hold: the hold is over, no shop later)
     if (T.use && (T.use.label !== (use && use.label) || !inp.down('interact'))) { if (T.use.label === (use && use.label)) T.use.fn(); T.use = null; }
     else if (T.use && (T.t += dt) > .35) { T.use.hold(); T.use = null; }
     else if (use && use.hold && inp.lastDevice === 'gamepad' && inp.pressed('interact')) { inp.consume('interact'); T.use = use; T.t = 0; }
