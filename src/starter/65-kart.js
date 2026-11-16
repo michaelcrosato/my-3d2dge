@@ -5,16 +5,19 @@
  * hits, or a PEEL dropped behind. Hop into a bend and hold the drift: sparks blue, then orange; let go for a boost.
  * MODES: RACE (you against five), VS (two players in a split screen, against four: player 2 joins with 2 on the
  * keyboard or Start on a pad). Deep links: #kart/race, #kart/vs, #kart/gba (240 x 160).
- * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift hop and drift, E / J the item. A pad: the
- * stick, A gas, X brake, R hop and drift, L the item. TOUCH: the stick steers (down brakes), DRIFT, ITEM; gas by itself.
+ * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift hop and drift, E / J the item (two on one
+ * keyboard: W / up gas, S / down brake, F / . hop, G / slash the item). A pad: the stick, A gas, X brake, R hop and drift,
+ * L the item. TOUCH: the stick steers (down brakes and backs up), DRIFT, ITEM; gas by itself. Past the line the CPU
+ * drives your kart.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floor, the sky and the karts far to near; E.Car and E.Race (the
  * drive module) the karts, the laps, the drivers and the items; this file the track, the karts' look (HD rigs in
  * karts), the HUD's map and the menus.
  * ===================================================================================== */
 const KART = (() => {
   const A = game.audio, T = 16, N = 64, SIZE = N * T, HALF = 44;   // the floor: 64 x 64 cells of 16 units; the road's half width
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2'], drift: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5', 'Pad7'], item: ['KeyE', 'KeyJ', 'Pad4', 'Pad6'] });
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2', 'Act:down'], drift: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5', 'Pad7'], item: ['KeyE', 'KeyJ', 'Pad4', 'Pad6'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
+  KEYS.halves = { left: { gas: ['KeyW'], brake: ['KeyS', 'Act:down'] }, right: { gas: ['ArrowUp'], brake: ['ArrowDown'] } };   // (two on one keyboard: W and up the gas; the touch stick's down brakes)
   /* ---- THE TRACK: its line (the racing line, the start at its first point, heading north), then every cell from its
    * distance to the line: road, kerb, grass, sand, wall ---- */
   const LINE = new E.Path([[160, 600], [160, 380], [175, 220], [230, 140], [360, 120], [520, 125], [680, 140], [760, 240], [720, 370], [580, 420], [480, 510], [530, 630], [680, 690], [820, 650], [890, 770], [830, 880], [640, 890], [420, 890], [240, 880], [165, 800]], { closed: true, smooth: 'catmull' });
@@ -74,11 +77,13 @@ const KART = (() => {
   let mode = 'menu', vs = false, race = null, players = [], cams = [], over = 0, t = 0;
   const menu = new E.Menu(game, [E.t('kart.menu.race'), E.t('kart.menu.vs'), E.t('kart.menu.back')], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
   const after = new E.Menu(game, [E.t('kart.menu.again'), E.t('kart.menu.menu')], { onPick: i => i === 0 ? start(vs) : toMenu() });
-  function toMenu() { mode = 'menu'; race = null; game.splitScreen(0); A.music('title'); }
+  function toMenu() { mode = 'menu'; race = null; game.splitScreen(0); game.allowJoin({ max: 2 }); A.music('title'); }
   function versus() { if (game.players.length >= 2) start(true); else { mode = 'join'; A.sfx('select'); } }
   /** a race: six karts on the grid (the players' at the back, as Super Mario Kart starts you), items in rows */
   function start(two) {
     vs = two; mode = 'race'; over = 0; t = 0;
+    if (!two) while (game.players.length > 1) game.removePlayer(game.players.length);   // (alone: the whole keyboard again)
+    game.allowJoin(false);   // (no one joins mid-race; the menu lets them in)
     race = new E.Race({ path: LINE, laps: 3, width: HALF, checkpoints: 10 });
     const grid = race.grid(6), order = two ? [2, 3, 4, 5, 0, 1] : [1, 2, 3, 4, 5, 0];
     players = [];
@@ -100,12 +105,13 @@ const KART = (() => {
     if (mode === 'menu') { menu.update(dt); return; }
     if (mode === 'join') { if (game.players.length >= 2) start(true); else if (I.pressed('cancel')) mode = 'menu'; return; }
     t += dt;
-    const was = race.t; for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch';   // (a phone: the gas by itself)
+    const was = race.t; for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch' && !R.input.down('brake');   // (a phone: the gas by itself, but not while the stick held down brakes)
     race.update(dt, map);
     if (was < 0 && Math.floor(was) !== Math.floor(race.t)) A.sfx(race.t >= 0 ? 'confirm' : 'select');
     for (const R of players) {
       if (R.input && R.input.pressed('item') && race.go) { const had = R.item; race.use(R); if (had) A.sfx(had === 'shot' ? 'shoot' : had === 'boost' ? 'powerup' : 'whoosh'); }
-      if (R.car.bumped) A.sfx('bump', { vol: .4 });
+      if (R.finished) { if (!R.ai) R.ai = { skill: .9, rubber: 0, grip: 520, lane: 0 }; R.item = null; }   // (past the line the CPU drives it, as in Super Mario Kart, and fires nothing)
+      if (R.car.bumped && !R.finished) A.sfx('bump', { vol: .4 });
       if (R.lap !== R._lap) { if (R._lap !== undefined && !R.finished) A.sfx('oneup'); if (R.finished && !R._fin) { A.sfx('secret'); R._fin = true; } R._lap = R.lap; }
     }
     // each camera behind its kart, turning after it (a drift swings the kart, not the view)
@@ -174,29 +180,32 @@ const KART = (() => {
   // the results: every kart's place and time, and what next (over the whole screen, a split screen's too: hud)
   function board(r) {
     if (mode !== 'results') return;
-    const W = r.W, H = r.H;
+    const W = r.W, H = r.H, w = 170, h = 16 + race.racers.length * 11, x = Math.round((W - w) / 2), y = Math.round(H / 2 - h / 2 - 20), clock = s => Math.floor(s / 60) + "'" + String(Math.floor(s % 60)).padStart(2, '0') + '"' + String(Math.floor(s * 100 % 100)).padStart(2, '0');   // (a time as the HUD shows it)
     r.overlay(g => {
-      const w = 170, h = 16 + race.racers.length * 11, x = Math.round((W - w) / 2), y = Math.round(H / 2 - h / 2 - 20);
       E.ui.box(g, x, y, w, h, { bg: '#141a3a', border: '#e8e4ff' });
-      race.racers.slice().sort((a, b) => a.place - b.place).forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? Math.floor(R.time / 60) + "'" + (R.time % 60).toFixed(2).padStart(5, '0') : '--'; E.font.text(g, E.t('kart.results.row', { place: R.place, name: R.name }), x + 8, yy, players.includes(R) ? '#ffe04a' : '#ffffff', { outline: false }); E.font.text(g, fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
+      race.racers.slice().sort((a, b) => a.place - b.place).forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? clock(R.time) : '--'; E.font.text(g, E.t('kart.results.row', { place: R.place, name: R.name }), x + 8, yy, players.includes(R) ? '#ffe04a' : '#ffffff', { outline: false }); E.font.text(g, fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
     });
-    after.y = Math.round(H / 2) + 52; after.draw(r);
+    after.y = Math.min(y + h + 6, H - 34); after.draw(r);   // (under the board, on the screen: a GBA's 160 rows too)
   }
 
-  /** the bot (tools/kits-test.mjs): a race with every kart driven by its driver (yours too) to the end; then a race for
-   *  two in a split screen, both players holding the gas a while */
+  /** the bot (tools/kits-test.mjs): a race with every kart driven by its driver (yours too) to the end, counting the
+   *  times one is stuck (under 12 a second for 1.2 s racing: its driver backs away from the wall); then a race for two
+   *  on one keyboard in a split screen, W and up held a while; then one alone again, up held */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
       game.go('kart', null, { fade: 0 }); game.advance(1 / 120); start(false);
       players[0].ai = { skill: .9, rubber: .25, grip: 520, lane: 0 }; players[0].input = null;
-      let n = 0, stuck = 0; for (; n < 240 && !race.over; n++) { game.advance(1); for (const R of race.racers) stuck = Math.max(stuck, R._stuck); }
-      const one = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, best: Math.min(...race.racers.map(R => R.best || 99)).toFixed(1) };
+      let n = 0, stuck = 0; const slow = race.racers.map(() => 0);
+      for (; n < 240 * 120 && !race.over; n++) { game.advance(); race.racers.forEach((R, i) => { slow[i] = race.go && !R.finished && R.car.speed < 12 ? slow[i] + 1 / 120 : 0; if (slow[i] > 1.2) { stuck++; slow[i] = 0; } }); }
+      const one = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: Math.round(n / 120), best: Math.min(...race.racers.map(R => R.best || 99)).toFixed(1) };
       if (game.players.length < 2) game.addPlayer({ keys: 'right' });
-      start(true); const P = game.players; P[0].hold('gas'); P[1].hold('gas'); game.advance(9); P[0].hold('gas', false); P[1].hold('gas', false);
+      start(true); const P = game.players; P[0].press('KeyW'); P[1].press('ArrowUp'); game.advance(9); P[0].release('KeyW'); P[1].release('ArrowUp');
       const two = { viewports: game.viewports.length, prog: players.map(R => Math.round(R.prog)), names: players.map(R => R.name) };
-      toMenu(); game.removePlayer(2);
-      return Object.assign(one, { split: two, stuck: +stuck.toFixed(2), errors: game.errors.length });
+      toMenu(); start(false); game.input.press('ArrowUp'); game.advance(5); game.input.release('ArrowUp');
+      const solo = { players: game.players.length, speed: Math.round(players[0].car.speed) };
+      toMenu();
+      return Object.assign(one, { split: two, solo, stuck, errors: game.errors.length });
     } finally { Math.random = was; }
   }
 

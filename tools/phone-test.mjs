@@ -21,13 +21,16 @@
 //  11. fighting: a tap on a portrait picks a fighter; four thumb-sized buttons; the stick walks it; a quarter circle on
 //      the stick and a tap on LP throw a fireball
 //  12. metroidvania: three thumb-sized buttons (JUMP, FIRE, MAP; DASH once found); the stick walks the hero and aims
-//  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers
+//  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers; pinned against a wall by the gas, the
+//      stick held down brakes and backs it off
 //  13c. blaster: the jet's MISSILE and ROLL thumb-sized; the stick banks it; in the valley a tap shoots where it lands
-//  13d. road: BRAKE and REWIND thumb-sized; it accelerates by itself; the stick steers
-//  13f. special: JUMP thumb-sized on the planet; in the fort the stick turns the soldier (and the world under him)
+//  13d. road: BRAKE and REWIND thumb-sized; it accelerates by itself; the stick steers; the striker shows FIRE alone
+//  13f. special: JUMP thumb-sized on the planet, a tap on it jumps; in the fort FIRE thumb-sized, the stick turns the
+//      soldier (and the world under him); in the arena the kart drives by itself and the stick pulled down backs it up
 //  13e. zero: BOOST thumb-sized; it accelerates by itself; the stick steers
 //  13b. sky: GAS and SLOW thumb-sized in the plane (ACT only where it acts: the chute, a landing); the stick banks the
-//      plane and it turns; GAS opens the throttle
+//      plane and it turns; GAS opens the throttle; the dive's ACT and SLOW (no GAS): ACT tapped above the chute's band
+//      opens nothing, in it the chute; the voyage's GAS, SLOW and ACT (its landings)
 //  15. rpg's journey: its windows' rows a thumb's height; a tap on New game starts it; the stick walks the party; MENU
 //      opens the menu, a tap on a row opens it, BACK closes it
 //  16. tactics: the command list's rows a thumb's height; a tap on a unit selects it (its card); MOVE, then a tap on a
@@ -510,9 +513,9 @@ if (want('metroidvania')) {
   }
 }
 
-/* 13. kart: its buttons, the gas by itself, the stick steering */
+/* 13. kart: its buttons, the gas by itself, the stick steering, and held down backing off a wall */
 if (want('kart')) {
-  console.log('kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers');
+  console.log('kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers; held down, it backs off a wall');
   for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
     const { page, ctx, cdp, errors } = await open('kart', vp, 'kart/race'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(3600);   // (past the countdown)
     const st = () => ev(page, () => window.__game.scenes.kart.state().you);
@@ -521,19 +524,26 @@ if (want('kart')) {
     const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
     await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `kart-${label.replace(/ /g, '-')}.png`) });
+    // facing the west wall beside the start straight: the gas by itself drives it in and pins it there; the stick held down
+    // (a thumb's 1.5 s) brakes, and backs it off the wall as the down key does
+    await ev(page, () => { const R = window.__game.scenes.kart.race().racers.find(R => R.input); Object.assign(R.car, { x: 100, y: 500, angle: Math.PI, vx: 0, vy: 0 }); }); await wait(1500); const s2 = await st();
+    let s3 = null; await drag(cdp, line([sx, sy], [sx, sy + 50], 10), 30, async i => { if (i === 9) { await wait(1500); s3 = await st(); } });
     check(`kart ${label}: DRIFT and ITEM, each a thumb's size`, acts === 'drift,item' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`kart ${label}: it accelerates by itself; the stick held right turns it right`, s0.auto && s0.speed > 30 && s1.angle > s0.angle + .3 && !errors.length, `speed ${Math.round(s0.speed)}, turned ${(s1.angle - s0.angle).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    check(`kart ${label}: pinned against a wall by the gas by itself, the stick held down backs it off`, s2.x < 80 && Math.abs(s2.speed) < 12 && s3 && s3.speed < -30 && s3.x > s2.x + 20 && !errors.length, `pinned at x ${Math.round(s2.x)}, speed ${Math.round(s2.speed)}; stick down: speed ${s3 && Math.round(s3.speed)}, x ${s3 && Math.round(s3.x)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
 
-/* 13b. sky: its buttons, the stick banking the plane, GAS */
+/* 13b. sky: its buttons, the stick banking the plane, GAS; the dive's ACT, the chute; the voyage's buttons */
 if (want('sky')) {
-  console.log('sky: GAS and SLOW, thumb-sized; the stick banks the plane and it turns; GAS opens the throttle');
+  console.log('sky: GAS and SLOW, thumb-sized; the stick banks the plane and it turns; GAS opens the throttle; the dive\'s ACT opens the chute in its band, not above it; the voyage has GAS, SLOW and ACT');
+  const shown = page => ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+  const tap = async (cdp, b) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x, y: b.y }] }); await wait(150); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(150); };
   for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
     const { page, ctx, cdp, errors } = await open('sky', vp, 'sky/plane'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1200);
     const st = () => ev(page, () => window.__game.scenes.sky.state());
-    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+    const btns = await shown(page);
     const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
     const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
     await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
@@ -542,6 +552,18 @@ if (want('sky')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `sky-${label.replace(/ /g, '-')}.png`) });
     check(`sky ${label}: GAS and SLOW, each a thumb's size`, acts === 'gas,slow' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`sky ${label}: the stick held right banks the plane right and turns it; GAS opens the throttle`, s1.roll > .3 && E_turn(s0.yaw, s1.yaw) > .1 && s2.thr > s1.thr + .2 && !errors.length, `roll ${s1.roll}, turned ${E_turn(s0.yaw, s1.yaw).toFixed(2)}, throttle ${s1.thr} -> ${s2.thr}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    // the dive: ACT tapped high above the band (nothing), then the fall run on at once to the band (z 1050) and ACT again
+    await ev(page, () => window.__game.game.go('sky', { part: 'dive' }, { fade: 0 })); await wait(600);
+    const dv = await shown(page), dacts = dv.map(b => b.act).sort().join(), dsmall = Math.min(...dv.map(b => Math.min(b.w, b.h))), act = dv.find(b => b.act === 'act');
+    if (act) await tap(cdp, act); const d0 = await st();
+    await ev(page, () => { const g = window.__game.game, sky = window.__game.scenes.sky; for (let i = 0; i < 400 && sky.state().z > 1050; i++) g.advance(1 / 20); });
+    if (act) await tap(cdp, act); const d1 = await st();
+    await page.screenshot({ path: resolve('check-output/phone', `sky-dive-${label.replace(/ /g, '-')}.png`) });
+    check(`sky ${label}: the dive's ACT and SLOW (no GAS), each a thumb's size`, dacts === 'act,slow' && dsmall >= 44, `buttons ${dacts}, smallest ${Math.round(dsmall)} CSS px`);
+    check(`sky ${label}: ACT tapped above the chute's band opens nothing; tapped in it, the chute`, d0.ev === 'dive' && d0.z > 1150 && d0.chute === null && d1.chute > 600 && d1.chute < 1150 && !errors.length, `at ${d0.z}: ${d0.chute === null ? 'nothing' : 'opened at ' + d0.chute}; at the band: ${d1.chute === null ? 'nothing' : 'opened at ' + d1.chute}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ev(page, () => window.__game.game.go('sky', { part: 'voyage' }, { fade: 0 })); await wait(600);
+    const vy = await shown(page), vacts = vy.map(b => b.act).sort().join(), vsmall = Math.min(...vy.map(b => Math.min(b.w, b.h)));
+    check(`sky ${label}: the voyage's GAS, SLOW and ACT, each a thumb's size`, vacts === 'act,gas,slow' && vsmall >= 44 && !errors.length, `buttons ${vacts}, smallest ${Math.round(vsmall)} CSS px${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
@@ -560,7 +582,7 @@ if (want('blaster')) {
     await page.touchscreen.tap(vp.width * .6, vp.height * .45); await wait(400); const v1 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `blaster-${label.replace(/ /g, '-')}.png`) });
     check(`blaster ${label}: MISSILE and ROLL, each a thumb's size`, acts === 'missile,roll' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
-    check(`blaster ${label}: the stick held right banks the jet; a tap in the valley moves the cursor there and shoots`, s1.hero[3] > .3 && v1.hero[1] !== v0.hero[1] && v1.shots >= 0 && !errors.length, `roll ${s1.hero[3]}, cursor ${v0.hero[1]} -> ${v1.hero[1]}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    check(`blaster ${label}: the stick held right banks the jet; a tap in the valley moves the cursor there and shoots, once`, s1.hero[3] > .3 && v1.hero[1] !== v0.hero[1] && v1.fired === v0.fired + 1 && !errors.length, `roll ${s1.hero[3]}, cursor ${v0.hero[1]} -> ${v1.hero[1]}, shots fired ${v0.fired} -> ${v1.fired}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
@@ -580,6 +602,12 @@ if (want('road')) {
     check(`road ${label}: it accelerates by itself; the stick held right moves it right`, s0.speed > 30 && s1.x > s0.x + .2 && !errors.length, `speed ${s0.speed}, x ${s0.x} -> ${s1.x}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
+  {   // the striker flies at its own speed: no BRAKE beside its FIRE
+    const { page, ctx, errors } = await open('road', SIDE, 'road/striker'); await page.touchscreen.tap(SIDE.width / 2, SIDE.height * .3); await wait(1500);
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => b.dataset.act + ':' + b.textContent.trim()).sort().join());
+    check('road striker: FIRE alone (it flies at its own speed: no BRAKE)', btns === 'nitro:FIRE' && !errors.length, `buttons ${btns}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
 }
 
 /* 13e. zero: its button, the gas by itself, the stick steering */
@@ -595,24 +623,50 @@ if (want('zero')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `zero-${label.replace(/ /g, '-')}.png`) });
     check(`zero ${label}: BOOST, a thumb's size`, acts === 'boost' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`zero ${label}: it accelerates by itself; the stick held right turns it right`, s0.auto && s0.speed > 30 && E_turn(s0.angle, s1.angle) > .3 && !errors.length, `speed ${s0.speed}, turned ${E_turn(s0.angle, s1.angle).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    // its menu left alone 26 seconds races by itself; a tap (a phone presses no key) brings the menu back (state(): null there)
+    const demo = await ev(page, () => { const g = window.__game.game; g.go('zero', null, { fade: 0 }); g.advance(26); const s = window.__game.scenes.zero.state(); return s && s.mode; });
+    await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(400); const back = await ev(page, () => window.__game.scenes.zero.state());
+    check(`zero ${label}: left alone it races by itself, and a tap brings the menu back`, demo === 'race' && back === null && !errors.length, `before the tap ${demo}, after it ${back ? back.mode : 'the menu'}`);
     await ctx.close();
   }
 }
 
-/* 13f. special: its button, and the stick turning the fort */
+/* 13f. special: the planet's JUMP, the fort's FIRE and its stick turning the fort, the arena's stick backing the kart up */
 if (want('special')) {
-  console.log('special: JUMP, thumb-sized; the stick turns the soldier in the fort');
+  console.log('special: JUMP, thumb-sized, jumps on the planet; FIRE, thumb-sized, and the stick turns the soldier in the fort; the stick pulled down backs the kart up in the arena');
+  const buttons = page => ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2, text: b.textContent.trim() }; }));
   for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
-    const { page, ctx, cdp, errors } = await open('special', vp, 'special/turn'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(600);
-    const st = () => ev(page, () => window.__game.scenes.special.state());
-    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, text: b.textContent }; }));
-    const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
-    const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
-    await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
-    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `special-${label.replace(/ /g, '-')}.png`) });
-    check(`special ${label}: FIRE, a thumb's size`, acts === 'fire' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
-    check(`special ${label}: the stick held right turns the soldier right`, s0.part === 'turn' && E_turn(s0.a, s1.a) > .3 && !errors.length, `turned ${E_turn(s0.a, s1.a).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
-    await ctx.close();
+    const shot = (page, part) => { mkdirSync(resolve('check-output/phone'), { recursive: true }); return page.screenshot({ path: resolve('check-output/phone', `special-${part}-${label.replace(/ /g, '-')}.png`) }); };
+    {   // the planet: one button, JUMP (its fire action, named for what it does here); a tap on it lifts the runner off the globe
+      const { page, ctx, errors } = await open('special', vp, 'special/planet'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(400);
+      const btns = await buttons(page), b = btns.find(q => q.act === 'fire'), small = Math.min(...btns.map(q => Math.min(q.w, q.h)));
+      let z = 0; if (b) { await page.touchscreen.tap(b.x, b.y); for (let k = 0; k < 8; k++) { await wait(50); z = Math.max(z, (await ev(page, () => window.__game.scenes.special.state())).z); } }
+      await shot(page, 'planet');
+      check(`special ${label}: on the planet JUMP, a thumb's size; a tap on it jumps`, btns.length === 1 && !!b && b.text === 'JUMP' && small >= 44 && z > 0 && !errors.length, `buttons ${btns.map(q => q.text).join()}, smallest ${Math.round(small)} CSS px, the runner up ${z}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close();
+    }
+    {   // the fort: FIRE; the stick held right turns the soldier
+      const { page, ctx, cdp, errors } = await open('special', vp, 'special/turn'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(600);
+      const st = () => ev(page, () => window.__game.scenes.special.state());
+      const btns = await buttons(page), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
+      const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
+      await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+      await shot(page, 'turn');
+      check(`special ${label}: in the fort FIRE, a thumb's size`, btns.length === 1 && btns[0].act === 'fire' && btns[0].text === 'FIRE' && small >= 44, `buttons ${btns.map(q => q.text).join()}, smallest ${Math.round(small)} CSS px`);
+      check(`special ${label}: the stick held right turns the soldier right`, s0.part === 'turn' && E_turn(s0.a, s1.a) > .3 && !errors.length, `turned ${E_turn(s0.a, s1.a).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close();
+    }
+    {   // the arena: the kart drives by itself; the stick pulled down (and held) brakes it and backs it up (in the open, down
+      // its lane: timed so a kart that can't would not yet have reached the wall ahead, whose bounce backs a kart up too)
+      const { page, ctx, cdp, errors } = await open('special', vp, 'special/arena'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1000);
+      const st = () => ev(page, () => window.__game.scenes.special.state()), s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
+      const touch = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: y === undefined ? [] : [{ x: sx, y, id: 1 }] });
+      await touch('touchStart', sy); for (let k = 1; k <= 10; k++) { await touch('touchMove', sy + k * 6); await wait(20); }
+      let back = 0, s1 = s0; for (let k = 0; k < 12; k++) { await wait(100); s1 = await st(); back = Math.min(back, s1.speed); }
+      await shot(page, 'arena'); await touch('touchEnd');
+      check(`special ${label}: in the arena the kart drives by itself; the stick pulled down backs it up`, s0.part === 'arena' && s0.speed > 30 && back < -20 && s1.you[0] < 560 && !errors.length, `speed ${s0.speed}, then ${back} with the stick down, at ${s1.you}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close();
+    }
   }
 }
 

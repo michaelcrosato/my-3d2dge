@@ -1693,3 +1693,42 @@ An entry:
   the battle's karts with hand-made motion and drop `drive` from its `@modules`, or move a stage to a kit of its own.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.99.0
+
+## D94 · 2026-11-15 · KART keeps a budget of its own: 218,000 tokens
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D69 (a 2D kit at most 216,000
+  cl100k tokens, but for the kits that keep budgets of their own)
+- **Call:** the KART kit stood at 215,996 tokens at v0.101.0, its header trimmed twice to fit `#kart/gba`; the mode7
+  module's fix to a globe's floor took it to 216,001, and the fixes an audit of the Mode 7 kits found in it (a kart
+  stuck against a wall on a phone, a finished kart grinding the wall, the keyboard after a two-player race) need more.
+  It joins `KIT2D` with 218,000.
+- **Why:** a kit that can't take a fix without cutting its own manual is a kit whose bugs stay; the 2,000 tokens are
+  for its fixes, not for new modes.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.102.0
+
+## D95 · 2026-11-16 · BLASTER keeps a budget of its own: 221,000 tokens
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D69 (a 2D kit at most 216,000
+  cl100k tokens, but for the kits that keep budgets of their own)
+- **Call:** BLASTER stood at about 215,000 tokens with four stages and the audit's fixes. Super Star Wars' speeders
+  roam a Mode 7 plane freely, which none of its stages did (ZONE is a rail, BURNER a jet high over the sea), so it
+  gains a fifth, SPEEDER: free over the dunes, crawlers found by a radar. That takes it to 217,979. It joins `KIT2D`
+  with 221,000.
+- **Why:** the owner asked for the Mode 7 games to be played properly, each by a stage or a mode of its own where the
+  others can't stand in; a fifth stage in the kit that already has its floor, models and HUD costs less than a kit of
+  its own, and is easier for a builder to find.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.102.0
+
+## D96 · 2026-11-16 · SPECIAL's budget raised to 229,000 tokens
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D93 (SPECIAL's own budget, 225,000)
+- **Call:** Super Castlevania IV's turning room was on the owner's list (its rotation, with Contra III's) and SPECIAL's
+  TURN plays only Contra III's half of it: a fort seen from above. ROOM, a fifth stage, plays the other: a side-on room
+  drawn as a Mode 7 floor, seen straight down and turned a quarter at a time, the hero's fall turned with it. That takes
+  SPECIAL to about 226,000; its budget goes to 229,000.
+- **Why:** the stage reuses the fort's camera and the kit's hero, so it costs a few thousand tokens where a kit of its
+  own would cost two hundred thousand; a builder looking for the rotating room finds it beside the turning fort.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.103.0

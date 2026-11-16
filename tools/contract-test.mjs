@@ -929,11 +929,16 @@ function views(E, ed) {
       return [roll, bad, hits]; };
     const ag = [0, 30, 90, -40].map(agree);
     check(`${ed}: views: mode7: pick(sx, sy, boxes) in update agrees with the pick of the frame drawn, the camera rolled or not`, ag.every(([, bad, hits]) => bad <= 2 && hits > 20), JSON.stringify(ag));
-    const tower = new E.Mesh([['box', [0, 0, 30], [24, 24, 60], '#c0a080']]), tg = new E.Game({ headless: true, draw: true, res: [320, 240] }), tm = new E.Mode7({ floor: () => [40, 90, 40], size: [4096, 4096], wrap: true, curve: 2200, sky: ['#000', '#fff'] }), tfill = E.px.poly; let polys = 0;   // (SKY's beacons over a globe's edge: the floor and the sky draw no polygons, so each is one of its faces)
+    const tower = new E.Mesh([['box', [0, 0, 30], [24, 24, 60], '#c0a080']]), tg = new E.Game({ headless: true, draw: true, res: [320, 240] }), tm = new E.Mode7({ floor: () => [40, 90, 40], size: [4096, 4096], wrap: true, curve: 2200, sky: ['#000', '#fff'], fog: { color: '#a0c0e0', near: 100, far: 3000 } }), tfill = E.px.poly; let polys = 0, floorAlpha = null; const tdf = tm.drawFloor; tm.drawFloor = function (g, vp) { floorAlpha = g.globalAlpha; return tdf.call(this, g, vp); };   // (SKY's beacons over a globe's edge: the floor and the sky draw no polygons, so each is one of its faces)
     E.px.poly = (g, pts, c) => { polys++; return tfill(g, pts, c); };
     try { tg.start({ update() {}, draw(r) { polys = 0; tm.mesh(tower, 2000, 850, 0); tm.draw(r, { x: 2000, y: 2000, h: 250, angle: -Math.PI / 2, pitch: 17.9, fov: 64 }); } }); tg.advance(.02); } finally { E.px.poly = tfill; }
     tm.begin({ W: 320, H: 240 }, { x: 2000, y: 2000, h: 250, angle: -Math.PI / 2, pitch: 17.9, fov: 64 }); const foot = tm.project(2000, 850, 0), top = tm.project(2000, 850, 60);
-    check(`${ed}: views: mode7: curve: a tall model whose foot is past a globe's edge still shows what stands above it`, foot === null && !!top && polys > 0, JSON.stringify({ foot, top: !!top, polys }));
+    check(`${ed}: views: mode7: curve: a tall model whose foot is past a globe's edge still shows what stands above it, and the floor drawn after it whole (not at its fog)`, foot === null && !!top && polys > 0 && floorAlpha === 1, JSON.stringify({ foot, top: !!top, polys, floorAlpha }));
+    const lr = [], lg = new E.Game({ headless: true, draw: true, res: [320, 180] }), lm = new E.Mode7({ floor: () => [200, 180, 120], size: [256, 256], far: 300, sky: ['#123456', '#abcdef'] }), lrect = E.px.rect;   // (a camera low over a floor whose far edge falls short of the horizon: BLASTER's dunes)
+    E.px.rect = (g, x, y, w, h, c) => { if (c === '#abcdef') lr.push(w >= 320 && h >= 180); return lrect(g, x, y, w, h, c); };
+    try { for (const roll of [0, 10]) { let n = lr.length; lg.start({ update() {}, draw(r) { lm.draw(r, { x: 128, y: 128, h: 40, angle: 0, pitch: 7, fov: 70, roll }); } }); lg.advance(.05); lr.push(lr.slice(n).some(Boolean) ? 'whole' : 'none'); } } finally { E.px.rect = lrect; }
+    const lw = lr.filter(v => typeof v === 'string');
+    check(`${ed}: views: mode7: under the floor, the sky's lowest color: the rows between a short far edge and the horizon have no stale or empty band, the camera rolled or not`, lw.length === 2 && lw.every(v => v === 'whole'), lw.join());
     const nq = [], ng = new E.Game({ headless: true, draw: true, res: [320, 180] }), nm = new E.Mode7({ floor: () => [40, 90, 40], size: [256, 256] }), nfill = E.px.poly;   // (a camera riding a track: the stretch under it)
     E.px.poly = (g, pts, c) => { nq.push(c); return nfill(g, pts, c); };
     try { ng.start({ update() {}, draw(r) { nq.length = 0; nm.quad([[118, 330, 0], [138, 330, 0], [138, 200, 0], [118, 200, 0]], '#abcdef'); nm.draw(r, { x: 128, y: 230, h: 20, angle: -Math.PI / 2, pitch: 6, fov: 70 }); } }); ng.advance(.05); } finally { E.px.poly = nfill; }
@@ -948,10 +953,10 @@ function views(E, ed) {
   }
   // the road
   const road = new E.Road({ segment: 200 }); road.add(30).add(60, { curve: 4, hill: 3000 }).add(30, { tunnel: true });
-  road.place(1000, -1.5, { w: 400, draw() {} }); road.place(1000, 1.5, { w: 400, draw() {} });
+  road.place(1000, -1.5, { w: 400, draw() {} }); road.place(1000, 1.5, { w: 400, draw() {} }); road.place(2000, 0, { w: 4800, pass: true, draw() {} });   // (a gate over the road: ROAD's arches)
   const L = 200, jumps = []; for (let k = 1; k < road.segs.length; k++) jumps.push(Math.abs(road.yAt(k * L - 1e-6) - road.yAt(k * L)));
   check(`${ed}: views: road: its lap; distance wraps; a curve eases in to its strength and out; a hill climbs smoothly to its height`, road.length === 120 * L && road.seg(-1) === road.segs[119] && road.seg(road.length + 5) === road.segs[0] && road.curveAt(30 * L) === 0 && road.curveAt(60 * L) === 4 && road.curveAt(89 * L) < 1 && Math.abs(road.segs[89].y1 - 3000) < 1e-9 && Math.max(...jumps) < 1e-3, [road.curveAt(30 * L), road.curveAt(60 * L), road.curveAt(89 * L).toFixed(2), Math.max(...jumps).toFixed(5)].join());
-  check(`${ed}: views: road: a body touches the scenery beside it, not across the road; nothing is projected before a draw`, road.hits(1100, -1.4, .1).length === 1 && road.hits(1100, 0, .1).length === 0 && road.hits(3000, -1.4, .1).length === 0 && road.project(1000, 0) === null && road.ahead(1000) === 1000 * road.depth && road.segs[95].tunnel);
+  check(`${ed}: views: road: a body touches the scenery beside it, not across the road, nor a gate over it (pass); nothing is projected before a draw`, road.hits(1100, -1.4, .1).length === 1 && road.hits(1100, 0, .1).length === 0 && road.hits(2100, 0, .1).length === 0 && road.hits(2100, 1.1, .1).length === 0 && road.hits(3000, -1.4, .1).length === 0 && road.project(1000, 0) === null && road.ahead(1000) === 1000 * road.depth && road.segs[95].tunnel);
   // forks (the ROAD kit): a split eases one road into two, a branch bends away; a model on the road
   const fk = new E.Road({ segment: 200 }); fk.add(20).add(40, { split: 2 }).add(30, { branch: 4 });
   const c0 = fk.centers(10 * 200), c1 = fk.centers(21 * 200), c2 = fk.centers(59 * 200), b0 = fk.centers(60 * 200), b1 = fk.centers(89 * 200);

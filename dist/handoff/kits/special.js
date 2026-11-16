@@ -172,14 +172,18 @@ scenes.over = {
  * every side; run over every blue sphere (it turns red behind you), never touch a red one (jump it), turn a quarter at a
  * crossing. TUBE: a half-pipe that twists and climbs into space; run up its walls for the rings, past the bombs, enough
  * of them by each of its three gates. ARENA: four karts, three balloons each, shells that bounce off the walls; the last
- * with a balloon wins (two to four players in a split screen). TURN: a fort seen from straight above that turns as you
- * do (Contra III); clear its three nests.
- * Deep links: #special/planet, #special/tube, #special/arena, #special/turn.
+ * with a balloon wins (two to four players in a split screen, joined in the menu: 2 on the keys, Start on a pad; a stage
+ * of one sends them off). TURN: a fort seen from straight above that turns as you do (Contra III); clear its three nests.
+ * ROOM: a room seen side on that turns a quarter at a time (Super Castlevania IV's), gravity always down the screen, so
+ * a floor becomes a wall; take its three gems, then out by its door before the time runs out.
+ * Deep links: #special/planet, #special/tube, #special/arena, #special/turn, #special/room.
  * KEYS: left / right turn or steer (TURN: up / down walk), up / Z gas (ARENA), Space / X jump or fire. A pad: the
- * stick, A gas, B jump or fire. TOUCH: the stick; JUMP or FIRE (ARENA: it drives by itself).
+ * stick, A gas, B jump or fire. TOUCH: the stick; JUMP or FIRE (ARENA: it drives by itself, the stick pulled down backs
+ * it up).
  * HOW IT WORKS: E.Mode7 (the mode7 module): the planet a floor with curve (a globe) and wrap; the tube m7.quad strips
  * along an E.Path, the camera rolled with the runner so the pipe's floor stays down; the arena a floor of cells and its
- * walls as quads, the karts E.Car (the drive module); the fort the camera at pitch 90 (straight down), turned with you.
+ * walls as quads, the karts E.Car (the drive module); the fort the camera at pitch 90 (straight down), turned with you;
+ * the room the same camera over a side view, turned by itself, the hero's fall turned with it.
  * ===================================================================================== */
 const SPECIAL = (() => {
   const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0', 'Pad7'], brake: ['ArrowDown', 'KeyS', 'Pad2', 'Pad6'], fire: ['Space', 'KeyX', 'KeyC', 'Pad1', 'Pad5'] });
@@ -189,12 +193,17 @@ const SPECIAL = (() => {
     { wave: 'square', vol: .05, notes: 'E5 . G5 . A5 . G5 E5 | D5 . E5 . G5 . . . | E5 . G5 . A5 . C6 A5 | G5 . E5 . D5 . . . | C5 . E5 . G5 . E5 C5 | D5 . G5 . B5 . . . | A5 . G5 . E5 . D5 . | E5 . . . . . . .' },
     { wave: 'triangle', vol: .09, notes: 'C3 C3 G3 C3 A2 A2 E3 A2 | F2 F2 C3 F2 G2 G2 D3 G2 | C3 C3 G3 C3 A2 A2 E3 A2 | F2 F2 C3 F2 G2 G2 G2 . ' },
     { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s h h .' }] };
-  const PARTS = ['planet', 'tube', 'arena', 'turn'];
+  const PARTS = ['planet', 'tube', 'arena', 'turn', 'room'];
   let mode = 'menu', part = null, S = null, t = 0, auto = false, result = null;
-  const menu = new E.Menu(game, [...PARTS.map(p => E.t('special.menu.' + p)), E.t('special.menu.back')], { onPick: i => i === 4 ? game.go('title') : start(PARTS[i]) });
+  const menu = new E.Menu(game, [...PARTS.map(p => E.t('special.menu.' + p)), E.t('special.menu.back')], { onPick: i => i === PARTS.length ? game.go('title') : start(PARTS[i]) });
   const after = new E.Menu(game, [E.t('special.again'), E.t('special.menu.menu')], { onPick: i => i === 0 ? start(part) : toMenu() });
-  function toMenu() { mode = 'menu'; part = null; S = null; game.splitScreen(0); A.music('title'); }
-  function start(p) { part = p; mode = 'play'; result = null; t = 0; S = STAGE[p].start(); A.music(SONG); game.input.consumeAll(); }
+  // players join in the menu only (2 on the keyboard, Start on a pad); a stage of one sends the others off, so player 1
+  // has the whole keyboard again (the arrows, Space), and no one joining mid-stage takes half of it
+  function toMenu() { mode = 'menu'; part = null; S = null; auto = false; game.splitScreen(0); game.allowJoin({ max: 4 }); A.music('title'); }
+  function start(p) {
+    game.allowJoin(false); if (p !== 'arena') while (game.players.length > 1) game.removePlayer(game.players.length);
+    part = p; mode = 'play'; result = null; t = 0; S = STAGE[p].start(); A.music(SONG); game.input.consumeAll();
+  }
   function end(won, line) { if (mode !== 'play') return; mode = 'over'; result = { won, line }; after.i = 0; A.sfx(won ? 'secret' : 'hurt'); }
   const shade = (g, x, y, r, c, hi) => { px.disc(g, x, y, r, c); if (r > 2) px.disc(g, x - r * .35, y - r * .35, Math.max(1, r * .35), hi); };   // (a ball lit from the top left)
   const steerOf = I => { const m = I.move()[0]; return Math.abs(m) > .2 ? m : 0; };
@@ -254,13 +263,13 @@ const SPECIAL = (() => {
       V.draw(r, cam);
       r.overlay(g => { shade(g, 14, 14, 6, '#2a6aff', '#a8d0ff'); E.font.text(g, E.t('special.planet.left', { n: S.blues }), 24, 9, '#ffffff', { shadow: '#000', outline: false }); });
     },
-    state: S => ({ blues: S.blues, total: S.total, cells: S.cells, x: Math.round(S.x), y: Math.round(S.y), dir: S.dir })
+    state: S => ({ blues: S.blues, total: S.total, cells: S.cells, x: Math.round(S.x), y: Math.round(S.y), z: Math.round(S.z), dir: S.dir })
   };
 
   /* ---- TUBE: Sonic 2's half-pipe. A path in space; the runner an angle round the pipe's floor ---- */
   const PR = 56, SEG = 36, TH = 10, TUBE_PATH = new E.Path(Array.from({ length: 20 }, (_, i) => { const a = i / 20 * Math.PI * 2; return [2048 + 1300 * Math.cos(a) + 220 * Math.sin(3 * a), 2048 + 900 * Math.sin(a) + 160 * Math.cos(2 * a), 260 + 140 * Math.sin(2 * a)]; }), { closed: true, smooth: 'catmull' });
   const TL = TUBE_PATH.length, GATES = [TL / 3, TL * 2 / 3, TL], QUOTA = [18, 40, 62];
-  const space = new E.Mode7({ floor: (x, y) => { const h = ((Math.floor(x / 16) * 73856093) ^ (Math.floor(y / 16) * 19349663)) >>> 0; return h % 97 === 0 ? [220, 220, 255] : [12, 8, 34]; }, size: [4096, 4096], wrap: true, texel: 4, sky: ['#04020e', '#2a1a5a'], far: 2600 });
+  const space = new E.Mode7({ floor: (x, y) => { const h = ((Math.floor(x / 16) * 73856093) ^ (Math.floor(y / 16) * 19349663)) >>> 0; return h % 97 === 0 ? [220, 220, 255] : [12, 8, 34]; }, size: [4096, 4096], wrap: true, texel: 4, outside: '#0c0822', sky: ['#04020e', '#2a1a5a'], far: 2600 });   // (outside: past far, space too)
   // a point on the pipe at distance s along it, theta round it (0 its floor, + to the right), lifted l toward its middle
   const onPipe = (s, th, l = 0) => { const p = TUBE_PATH.at(s), rx = -Math.sin(p.angle), ry = Math.cos(p.angle), R = PR - l; return [p.x + rx * R * Math.sin(th), p.y + ry * R * Math.sin(th), p.z + PR - R * Math.cos(th)]; };
   const TUBE = {
@@ -295,8 +304,10 @@ const SPECIAL = (() => {
       HERO.update(dt, { x: 0, y: 0, z: S.l, vx: 0, vy: -S.speed, facing: -Math.PI / 2, air: S.l > 2 });
     },
     draw(S, r) {
-      const V = space, c = onPipe(S.s - 90, S.th, PR * .62), p0 = TUBE_PATH.at(S.s - 90), cam = { x: c[0], y: c[1], h: c[2], angle: p0.angle, pitch: 3, fov: 74, roll: S.th * 180 / Math.PI };
-      cam.angle += E.angDiff(cam.angle, Math.atan2(TUBE_PATH.at(S.s).y - c[1], TUBE_PATH.at(S.s).x - c[0]));   // (looking at where the runner is)
+      // the camera behind the runner on the same line out from the pipe's middle, banked so that line is straight down: a
+      // runner up the right wall (+) has it banked left (- roll), the wall under its feet
+      const V = space, c = onPipe(S.s - 90, S.th, PR * .62), p0 = TUBE_PATH.at(S.s - 90), cam = { x: c[0], y: c[1], h: c[2], angle: p0.angle, pitch: 3, fov: 74, roll: -S.th * 180 / Math.PI }, aim = onPipe(S.s, S.th, PR * .62);
+      cam.angle += E.angDiff(cam.angle, Math.atan2(aim[1] - c[1], aim[0] - c[0]));   // (looking along the pipe to the point over the runner)
       const k0 = Math.floor((S.s - 90) / SEG);
       for (let k = k0; k < k0 + 46; k++) {   // the pipe a strip at a time, a checker of two blues that runs past
         const a = k * SEG, b = a + SEG;
@@ -304,14 +315,14 @@ const SPECIAL = (() => {
           const t0 = -1.5 + 3 * i / TH, t1 = -1.5 + 3 * (i + 1) / TH, edge = i === 0 || i === TH - 1;
           V.quad([onPipe(a, t0), onPipe(a, t1), onPipe(b, t1), onPipe(b, t0)], edge ? (k & 1 ? '#e8e8ff' : '#ff6a3a') : (k + i) & 1 ? '#2a3ab8' : '#4a6ae8');
         }
-        if (k % 30 === 0 && k > 0) { const gi = Math.round(k * SEG / (TL / 3)) - 1; if (Math.abs(k * SEG - GATES[gi]) < SEG) for (let i = 0; i < TH; i++) V.quad([onPipe(a, -1.5 + 3 * i / TH, .4), onPipe(a, -1.5 + 3 * (i + 1) / TH, .4), onPipe(a + 6, -1.5 + 3 * (i + 1) / TH, .4), onPipe(a + 6, -1.5 + 3 * i / TH, .4)], i & 1 ? '#ffe040' : '#202020'); }
       }
+      for (const G of GATES) if (G > S.s - 90 && G < (k0 + 46) * SEG) for (let i = 0; i < TH; i++) V.quad([onPipe(G, -1.5 + 3 * i / TH, .4), onPipe(G, -1.5 + 3 * (i + 1) / TH, .4), onPipe(G + 12, -1.5 + 3 * (i + 1) / TH, .4), onPipe(G + 12, -1.5 + 3 * i / TH, .4)], i & 1 ? '#ffe040' : '#202020');   // (each gate a band across the pipe at its own distance)
       for (const o of S.things) if (!o.got && o.s > S.s - 60 && o.s < S.s + 1100) {
         const q = onPipe(o.s, o.th, 8);
         V.add(q[0], q[1], q[2], (g, sx, sy, k) => { const rr = Math.max(1, 6 * k); if (o.ring) { px.disc(g, sx, sy - rr, rr, '#ffd040'); px.disc(g, sx, sy - rr, rr * .55, '#2a3ab8'); } else { shade(g, sx, sy - rr, rr, '#181820', '#6a6a7a'); px.rect(g, sx, sy - rr * 2.3, 1, Math.max(1, rr * .5), '#ff8a20'); } });
       }
       const h = onPipe(S.s, S.th, S.l);
-      V.add(h[0], h[1], h[2], (g, sx, sy, k) => { if (S.flash > 0 && Math.floor(S.flash * 20) % 2) return; g.save(); g.translate(Math.round(sx), Math.round(sy)); g.rotate(S.th); HERO.draw(g, 0, 0, V.view(k)); g.restore(); });   // (stood up the wall it runs on)
+      V.add(h[0], h[1], h[2], (g, sx, sy, k) => { if (S.flash > 0 && Math.floor(S.flash * 20) % 2) return; g.save(); g.translate(Math.round(sx), Math.round(sy)); g.rotate(-S.th); HERO.draw(g, 0, 0, V.view(k)); g.restore(); });   // (stood up off the wall it runs on: the bank turns it upright)
       V.draw(r, cam);
       r.overlay(g => {
         E.font.text(g, E.t('special.tube.rings', { n: S.rings }), 8, 8, '#ffd040', { shadow: '#000', outline: false });
@@ -336,7 +347,7 @@ const SPECIAL = (() => {
   const KCOL = ['#e83a3a', '#3a8ae8', '#3ac84a', '#e8c03a'];
   const ARENA = {
     start() {
-      const n = Math.min(4, game.players.length), spots = [[5, 5, Math.PI / 4], [34, 34, -Math.PI * 3 / 4], [34, 5, Math.PI * 3 / 4], [5, 34, -Math.PI / 4]];
+      const n = Math.min(4, game.players.length), spots = [[5, 5, 0], [34, 34, Math.PI], [34, 5, Math.PI / 2], [5, 34, -Math.PI / 2]];   // (each a corner, facing down the open lane along the wall, not at a pillar)
       const karts = spots.map(([i, j, a], k) => ({ k, car: new E.Car({ x: (i + .5) * AT, y: (j + .5) * AT, angle: a, kart: true, top: 170, accel: 170, turn: 2.6, r: 7 }), balloons: 3, cool: 1, slow: 0, rev: 0, input: k < n && !auto ? game.players[k] : null, hit: 0 }));
       game.splitScreen(n > 1 && !auto ? n : 0, { layout: n === 2 ? 'rows' : 'grid' });
       return { karts, shells: [], time: 120, cams: karts.map(K => ({ x: K.car.x, y: K.car.y, h: 22, angle: K.car.angle, pitch: 10, fov: 70 })), humans: auto ? 0 : n };
@@ -353,8 +364,8 @@ const SPECIAL = (() => {
       for (const K of S.karts) {
         K.cool -= dt; K.hit = Math.max(0, K.hit - dt); K.rev -= dt;
         if (K.balloons <= 0) { K.car.update(dt, ARENA_MAP, { gas: 0, brake: 1, hold: true }); continue; }
-        if (K.input) K.car.o.auto = K.input.lastDevice === 'touch';
-        const ctl = K.input || this.drive(S, K), fire = K.input ? K.input.pressed('fire') : ctl.fire;
+        const tm = K.input && K.input.lastDevice === 'touch' && K.input.move();   // (on touch it drives by itself: the stick steers, and pulled down it brakes and backs up)
+        const ctl = tm ? { steer: tm[0], gas: tm[1] > .5 ? 0 : 1, brake: tm[1] > .5 ? 1 : 0 } : K.input || this.drive(S, K), fire = K.input ? K.input.pressed('fire') : ctl.fire;
         K.car.update(dt, ARENA_MAP, ctl);
         if (fire && K.cool <= 0 && S.shells.filter(o => o.by === K).length < 2) {   // (two shells out at most)
           K.cool = K.input ? .8 : 2.6 + K.k * .3;   // (the CPU fires less often than you can)
@@ -368,29 +379,31 @@ const SPECIAL = (() => {
       }
       S.shells = S.shells.filter(s => s.t < 6);
       const left = S.karts.filter(K => K.balloons > 0); S.time -= dt;
-      if (S.time <= 0) { const most = Math.max(...S.karts.map(K => K.balloons)), top = S.karts.filter(K => K.balloons === most); end(top.length === 1 && (!!top[0].input || !S.humans && top[0].k === 0), top.length === 1 ? E.t('special.arena.won', { n: top[0].k + 1 }) : E.t('special.arena.draw')); return; }   // (two minutes: the most balloons wins)
-      if (left.length <= 1 || S.humans && S.karts.slice(0, S.humans).every(K => K.balloons <= 0)) { const w = left[0]; end(!!w && (w.input || (!S.humans && w.k === 0)), w ? E.t('special.arena.won', { n: w.k + 1 }) : E.t('special.arena.draw')); return; }
+      // the end: one kart left with balloons, two minutes up, or every player out; the most balloons left wins (a tie: a draw)
+      if (S.time <= 0 || left.length <= 1 || S.humans && S.karts.slice(0, S.humans).every(K => K.balloons <= 0)) { const most = Math.max(0, ...left.map(K => K.balloons)), top = left.filter(K => K.balloons === most), w = top.length === 1 ? top[0] : null; end(!!w && (!!w.input || !S.humans && w.k === 0), w ? E.t('special.arena.won', { n: w.k + 1 }) : E.t('special.arena.draw')); return; }
       S.karts.forEach((K, i) => { const c = S.cams[i], k = 1 - Math.exp(-dt * 6); c.angle += E.angDiff(c.angle, K.car.angle) * k; arena.chase({ x: K.car.x, y: K.car.y, angle: c.angle }, { back: 48, h: 26 }); Object.assign(c, arena.cam, { pitch: 12, fov: 70 }); });
     },
-    // a kart: a box of five quads round its heading, its driver's head, its balloons over it
-    kart(V, K, cam) {
+    // a kart: a box of five quads round its heading, its driver's head, its balloons over it (not on your own, own: they'd
+    // sit on the horizon in front of you, over a rival ahead; the HUD shows them)
+    kart(V, K, cam, own) {
       const c = K.car, a = c.angle, ca = Math.cos(a), sa = Math.sin(a), pt = (u, v, z) => [c.x + ca * u - sa * v, c.y + sa * u + ca * v, z], col = KCOL[K.k], z = 2 + (K.hit > 0 && Math.floor(K.hit * 16) % 2 ? 2 : 0);
       const P = [pt(9, -6, z), pt(9, 6, z), pt(-8, 6, z), pt(-8, -6, z)], T = P.map(p => [p[0], p[1], z + 6]);
       for (let i = 0; i < 4; i++) { const a0 = P[i], a1 = P[(i + 1) % 4], nx = a1[1] - a0[1], ny = a0[0] - a1[0]; if (nx * ((a0[0] + a1[0]) / 2 - cam.x) + ny * ((a0[1] + a1[1]) / 2 - cam.y) < 0) V.quad([a0, a1, T[(i + 1) % 4], T[i]], i === 0 ? '#202028' : col); }   // (only the sides turned to the camera)
       V.quad(T, col);
       V.add(c.x, c.y, z + 9, (g, sx, sy, k) => shade(g, sx, sy - 3 * k, Math.max(1, 3 * k), '#f0c8a0', '#fff0e0'));
-      for (let b = 0; b < K.balloons; b++) V.add(c.x - ca * 6 + (b - 1) * -sa * 5, c.y - sa * 6 + (b - 1) * ca * 5, z + 20 + (b & 1) * 3, (g, sx, sy, k) => { const rr = Math.max(1, 4 * k); px.rect(g, sx, sy, 1, Math.max(1, 6 * k), '#ffffff'); shade(g, sx, sy - rr, rr, col, '#ffffff'); });
+      if (!own) for (let b = 0; b < K.balloons; b++) V.add(c.x - ca * 6 + (b - 1) * -sa * 5, c.y - sa * 6 + (b - 1) * ca * 5, z + 20 + (b & 1) * 3, (g, sx, sy, k) => { const rr = Math.max(1, 4 * k); px.rect(g, sx, sy, 1, Math.max(1, 6 * k), '#ffffff'); shade(g, sx, sy - rr, rr, col, '#ffffff'); });
     },
     draw(S, r) {
       const i = r.viewport ? r.viewport.i : 0, cam = S.cams[i] || S.cams[0], V = arena, fx = Math.cos(cam.angle), fy = Math.sin(cam.angle);
       for (const w of WALLS) { const mx = (w[0][0] + w[1][0]) / 2, my = (w[0][1] + w[1][1]) / 2; if ((mx - cam.x) * fx + (my - cam.y) * fy > -8) V.quad(w, '#6a4a8a'); }
-      for (const K of S.karts) if ((K.car.x - cam.x) * fx + (K.car.y - cam.y) * fy > 14) this.kart(V, K, cam);
+      for (const K of S.karts) if ((K.car.x - cam.x) * fx + (K.car.y - cam.y) * fy > 14) this.kart(V, K, cam, K.k === i);
       for (const s of S.shells) V.add(s.x, s.y, 3, (g, sx, sy, k) => shade(g, sx, sy - 3 * k, Math.max(1, 3 * k), '#2ac83a', '#c8ffc8'));
       V.draw(r, cam);
       const K = S.karts[i];
-      r.overlay(g => { const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }; for (let b = 0; b < 3; b++) shade(g, vp.x + 10 + b * 11, vp.y + 12, 4, b < K.balloons ? KCOL[K.k] : '#404048', '#ffffff'); E.font.text(g, E.t('special.arena.you', { n: K.k + 1 }), vp.x + 44, vp.y + 7, KCOL[K.k], { shadow: '#000', outline: false }); if (vp.x === 0 && vp.y === 0) E.font.text(g, Math.ceil(Math.max(0, S.time)) + '', r.W / 2, 6, S.time < 10 ? '#ff6a4a' : '#ffffff', { align: 'center', shadow: '#000', outline: false }); });
+      r.overlay(g => { const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }; for (let b = 0; b < 3; b++) shade(g, vp.x + 10 + b * 11, vp.y + 12, 4, b < K.balloons ? KCOL[K.k] : '#404048', '#ffffff'); E.font.text(g, E.t('special.arena.you', { n: K.k + 1 }), vp.x + 44, vp.y + 7, KCOL[K.k], { shadow: '#000', outline: false }); if (!r.viewport) this.clock(g, S, r.W); });   // (split, the clock is the hud's: over the whole screen)
     },
-    state: S => ({ balloons: S.karts.map(K => K.balloons), shells: S.shells.length, you: [Math.round(S.karts[0].car.x), Math.round(S.karts[0].car.y)] })
+    clock: (g, S, W, y = 6) => E.font.text(g, Math.ceil(Math.max(0, S.time)) + '', W / 2, y, S.time < 10 ? '#ff6a4a' : '#ffffff', { align: 'center', shadow: '#000', outline: false }),
+    state: S => ({ balloons: S.karts.map(K => K.balloons), shells: S.shells.length, you: [Math.round(S.karts[0].car.x), Math.round(S.karts[0].car.y)], speed: Math.round(S.karts[0].car.speed) })
   };
 
   /* ---- TURN: Contra III's top-down stage. The camera straight down, turned with you; three nests to clear ---- */
@@ -448,11 +461,57 @@ const SPECIAL = (() => {
     },
     state: S => ({ x: Math.round(S.x), y: Math.round(S.y), a: +S.a.toFixed(3), lives: S.lives, nests: S.nests.map(n => n.hp), kills: S.kills, foes: S.foes.map(f => [Math.round(f.x), Math.round(f.y)]), shots: S.shots.length })
   };
-  const STAGE = { planet: PLANET, tube: TUBE, arena: ARENA, turn: TURN };
+  /* ---- ROOM: Super Castlevania IV's turning room: a side view drawn as a Mode 7 floor, seen straight down and turned a
+   * quarter at a time; the hero falls down the screen whichever way the room stands ---- */
+  const RN = 20, RT = 24, ROOM_ROWS = ['####################', '#..................#', '#.o.....#.......o..#', '#.####..#....#####.#', '#.......#..........#', '#.......#..........#',
+    '#...........###....#', '#..##.......#......#', '#..#........#......#', '#..#....####.......#', '#.......#..#.......#', '#.......####....#..#', '#.o.#...........#..#', '#...#...........##.#',
+    '#...###............#', '#............#.....#', '#........#####.....#', '#..................#', '#..............D...#', '####################'];   // (the door on the floor line: stood in, it's reached)
+  const rsolid = (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT); return i < 0 || j < 0 || i >= RN || j >= RN || ROOM_ROWS[j][i] === '#'; };
+  const rcells = ch => { const out = []; ROOM_ROWS.forEach((row, j) => [...row].forEach((c, i) => { if (c === ch) out.push({ x: (i + .5) * RT, y: (j + .5) * RT }); })); return out; };
+  const room = new E.Mode7({ floor: (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT), u = x % RT, v = y % RT; if (rsolid(x, y)) return (v < 2 || (u + (j & 1) * 12) % RT < 2) ? [60, 44, 40] : [120 + (i * 7 + j * 3) % 20, 84, 70]; return (i + j) & 1 ? [34, 28, 52] : [40, 32, 60]; }, size: [RN * RT, RN * RT], texel: 2, outside: '#100c18', sky: ['#100c18', '#100c18'], far: 4000 });
+  const RVIEW = new Map(), rview = k => { const q = Math.max(1 / 8, Math.round(k * 8) / 8); let v = RVIEW.get(q); if (!v) RVIEW.set(q, v = new E.View('room', 'Room', 0, 0, q, 1)); return v; };   // (the hero seen side on, whatever the camera)
+  const ROOM = {
+    start() { return { x: 3.5 * RT, y: 17.5 * RT, vx: 0, vy: 0, rot: 0, t: 0, time: 90, dir: 1, ground: false, gems: rcells('o'), got: 0, door: rcells('D')[0], stuck: 0 }; },
+    // the room's turn: 4 s still, then a quarter in 2.5 s; the camera's heading, and down and right on the screen in the room
+    axes(S) { const a = -Math.PI / 2 + S.rot; return { a, down: [-Math.cos(a), -Math.sin(a)], right: [-Math.sin(a), Math.cos(a)] }; },
+    update(S, dt, I) {
+      S.t += dt; S.time -= dt; const ph = S.t % 6.5; S.rot = (Math.floor(S.t / 6.5) + E.ease.inOutQuad(clamp((ph - 4) / 2.5, 0, 1))) * Math.PI / 2;
+      const { down, right } = this.axes(S); let [mx] = I.move(), jump = I.pressed('fire');
+      if (auto) {   // to the nearest gem (the door once all three are in): across toward it, a jump when it's above or when stuck
+        const g = S.gems.length ? S.gems.slice().sort((a, b) => Math.hypot(a.x - S.x, a.y - S.y) - Math.hypot(b.x - S.x, b.y - S.y))[0] : S.door, dx = g.x - S.x, dy = g.y - S.y, dr = dx * right[0] + dy * right[1], du = -(dx * down[0] + dy * down[1]);
+        mx = Math.abs(dr) > 6 ? clamp(dr / 20, -1, 1) : 0; jump = S.ground && (du > 18 && Math.abs(dr) < 90 || S.stuck > .4);
+      }
+      const vr = S.vx * right[0] + S.vy * right[1], dv = (mx * 110 - vr) * Math.min(1, dt * 10); S.vx += right[0] * dv; S.vy += right[1] * dv; if (Math.abs(mx) > .2) S.dir = Math.sign(mx);
+      S.vx += down[0] * 560 * dt; S.vy += down[1] * 560 * dt;
+      if (jump && S.ground) { const vd = S.vx * down[0] + S.vy * down[1]; S.vx -= down[0] * (vd + 250); S.vy -= down[1] * (vd + 250); S.ground = false; A.sfx('jump', { vol: .5 }); }
+      const was = [S.x, S.y], hit = (x, y) => [-7, 7].some(ox => [-7, 7].some(oy => rsolid(x + ox, y + oy)));
+      for (let k = 0; k < 2; k++) {   // each axis on its own, a half step at a time: blocked, it moves up to the wall a unit at a time and its speed that way is gone
+        const nx = S.x + S.vx * dt / 2; if (hit(nx, S.y)) { const sg = Math.sign(S.vx); for (let i = 0; i < 8 && !hit(S.x + sg, S.y); i++) S.x += sg; S.vx = 0; } else S.x = nx;
+        const ny = S.y + S.vy * dt / 2; if (hit(S.x, ny)) { const sg = Math.sign(S.vy); for (let i = 0; i < 8 && !hit(S.x, S.y + sg); i++) S.y += sg; S.vy = 0; } else S.y = ny;
+      }
+      S.ground = hit(S.x + down[0] * 1.5, S.y + down[1] * 1.5); S.stuck = Math.abs(mx) > .5 && Math.hypot(S.x - was[0], S.y - was[1]) < 20 * dt ? S.stuck + dt : 0;   // (on the ground: a wall just under him, down the screen)
+      const fx = S.x + down[0] * 7, fy = S.y + down[1] * 7, touch = (q, r) => { const u = clamp(-((q.x - fx) * down[0] + (q.y - fy) * down[1]) / 38, 0, 1); return Math.hypot(q.x - (fx - down[0] * 38 * u), q.y - (fy - down[1] * 38 * u)) < r; };   // (his body as drawn: from his feet up 38)
+      for (const g of S.gems) if (touch(g, 12)) { g.got = true; S.got++; A.sfx('coin'); }
+      S.gems = S.gems.filter(g => !g.got);
+      HERO.update(dt, { x: 0, y: 0, z: 0, vx: S.ground ? Math.abs(vr) : 0, vy: 0, facing: S.dir > 0 ? 0 : Math.PI, air: !S.ground });
+      if (!S.gems.length && touch(S.door, 14)) end(true, E.t('special.room.out'));
+      else if (S.time <= 0) end(false, E.t('special.room.late'));
+    },
+    draw(S, r) {
+      const V = room, { a } = this.axes(S), cam = { x: RN * RT / 2, y: RN * RT / 2, h: 552 / Math.min(1, r.W / r.H), angle: a, pitch: 90, fov: 64 };   // (high enough that the whole room, corners and all, stays on the screen's narrower side as it turns)
+      for (const g of S.gems) V.add(g.x, g.y, 0, (gg, sx, sy, k) => { const s = (5 + Math.sin(t * 6) * 1) * k; px.disc(gg, sx, sy, s * 1.4, '#3a1a5a'); px.disc(gg, sx, sy, s, '#ff60d0'); px.disc(gg, sx - s * .3, sy - s * .3, s * .35, '#ffe0f8'); });
+      V.add(S.door.x, S.door.y, 0, (g, sx, sy, k) => { const w = 9 * k, h = 11 * k; px.rect(g, sx - w, sy - h, w * 2, h * 2, S.gems.length ? '#4a3020' : (Math.floor(t * 4) % 2 ? '#ffe040' : '#ffb020')); px.rect(g, sx - w * .6, sy - h * .7, w * 1.2, h * 1.7, S.gems.length ? '#2a1a10' : '#fff4c0'); });
+      V.add(S.x, S.y, 0, (g, sx, sy, k) => HERO.draw(g, Math.round(sx), Math.round(sy + 7 * k), rview(k * 1.2)));   // (upright on the screen, its feet at its box's foot: the room turns, not him)
+      V.draw(r, cam);
+      r.overlay(g => { E.font.text(g, E.t('special.room.gems', { n: S.got }), 8, 8, '#ff90e0', { shadow: '#000', outline: false }); E.font.text(g, Math.ceil(Math.max(0, S.time)) + '', r.W / 2, 8, S.time < 15 ? '#ff6a4a' : '#ffffff', { align: 'center', shadow: '#000', outline: false }); });
+    },
+    state: S => ({ x: Math.round(S.x), y: Math.round(S.y), rot: +S.rot.toFixed(3), got: S.got, ground: S.ground, time: Math.round(S.time) })
+  };
+  const STAGE = { planet: PLANET, tube: TUBE, arena: ARENA, turn: TURN, room: ROOM };
 
   function update(dt) {
     const I = game.input; t += dt;
-    I.touchSet('fire', mode === 'play' ? E.t(part === 'planet' || part === 'tube' ? 'special.jump' : 'special.fire') : null, mode === 'play');
+    I.touchSet('fire', mode === 'play' ? E.t(part === 'planet' || part === 'tube' || part === 'room' ? 'special.jump' : 'special.fire') : null, mode === 'play');
     if (mode === 'menu') { menu.update(dt); pickOnStart(menu); return; }
     if (mode === 'over') { after.update(dt); pickOnStart(after); return; }
     STAGE[part].update(S, dt, I);
@@ -465,14 +524,23 @@ const SPECIAL = (() => {
       menu.y = Math.round(H / 2) - 18; menu.draw(r); return;
     }
     STAGE[part].draw(S, r);
-    if (mode === 'over' && (!r.viewport || r.viewport.i === 0)) r.overlay(g => {
+    if (mode === 'over' && !r.viewport) over(r);   // (split, the hud draws it once over the whole screen: a viewport would cut it)
+  }
+  // the end: its line in a box, AGAIN and MENU under it, centred on the whole screen
+  function over(r) {
+    const W = r.W, H = r.H;
+    r.overlay(g => {
       const w = 220, h = 40, x = Math.round((W - w) / 2), y = Math.round(H / 2 - 50); E.ui.box(g, x, y, w, h, { bg: '#10142a', border: result.won ? '#ffe040' : '#e84a4a' });
       E.font.text(g, result.line, W / 2, y + 15, result.won ? '#ffe040' : '#ffffff', { align: 'center', outline: false });
     });
-    if (mode === 'over') { after.y = Math.round(H / 2) + 4; after.draw(r); }
+    after.y = Math.round(H / 2) + 4; after.draw(r);
   }
+  // a split screen's (the arena's, two to four players): drawn once over the viewports, the clock where they meet (clear
+  // of each one's balloons), then the end
+  function hud(r) { if (part !== 'arena' || !S) return; if (mode === 'over') over(r); else r.overlay(g => ARENA.clock(g, S, r.W, Math.round(r.H / 2) - 4)); }
 
-  // the bot: each stage by its autopilot, for a while or to its end
+  // the bot: each stage by its autopilot, for a while or to its end; then player 2 on the keyboard's right half, the arena
+  // split in two, and a stage of one after it: player 1 alone, the arrows steering again
   function bot() {
     const was = Math.random; Math.random = E.rng(5);
     try {
@@ -481,19 +549,21 @@ const SPECIAL = (() => {
         start(p); let n = 0; for (; n < 150 && mode === 'play'; n++) game.advance(1);
         out[p] = Object.assign({ seconds: n, over: mode === 'over', won: !!(result && result.won) }, STAGE[p].state(S));
       }
-      auto = false; toMenu(); return Object.assign(out, { errors: game.errors.length });
+      auto = false; toMenu(); game.addPlayer({ keys: 'right' }); start('arena'); game.advance(1); out.split = game.viewports.length;
+      toMenu(); start('tube'); game.input.press('ArrowLeft'); game.advance(.5); game.input.release('ArrowLeft'); out.solo = { players: game.players.length, th: +S.th.toFixed(2) };
+      toMenu(); return Object.assign(out, { errors: game.errors.length });
     } finally { Math.random = was; auto = false; }
   }
 
   return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['fire'], camera: { zoom: false },
     enter(d) {
-      mode = 'menu'; part = null; S = null; menu.i = 0; auto = false; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; game.allowJoin({ max: 4 }); A.music('title');
+      menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; toMenu();
       if (d && d.part && STAGE[d.part]) start(d.part);
     },
     exit() { game.splitScreen(0); game.allowJoin(false); },
     back() { if (mode === 'menu') { game.go('title'); return true; } toMenu(); return true; },
-    update, draw, bot,
-    /** a stage played by its autopilot (a demo; the bot's): 'planet', 'tube', 'arena' or 'turn' */
+    update, draw, hud, bot,
+    /** a stage played by its autopilot (a demo; the bot's): 'planet', 'tube', 'arena', 'turn' or 'room' */
     demo(p) { auto = true; start(STAGE[p] ? p : 'planet'); },
     state: () => S && Object.assign({ mode, part }, STAGE[part].state(S)),
     /** the proof: the planet, a turn queued at the second crossing, a jump; then the fort, turning and firing */
