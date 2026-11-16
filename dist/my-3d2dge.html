@@ -2878,7 +2878,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "sky.menu.belt": "An event: fly a jet pack strapped to your back.",
     "sky.event.belt": "The rocket belt event's name, in the corner while flying.",
     "sky.goal.belt": "Shown as the rocket belt event starts: fly through the low rings, then land on the landing pad.",
-    "sky.belt.pad": "The rocket belt: the last ring is next; after it, land softly on the square pad.",
+    "sky.belt.pad": "The rocket belt, after the last ring: now land softly on the square pad.",
     "sky.hud.fuel": "The rocket belt's fuel, beside its gauge.",
     "kart.title": "The kart racer's title, on its menu.",
     "kart.menu.race": "A mode: you against five CPU drivers.",
@@ -22883,7 +22883,8 @@ const BLASTER = (() => {
       start() { R.j = { x: 4096, y: 4096, z: 420, yaw: -Math.PI / 2, roll: 0, pitch: 0, spin: 0, speed: 560, missiles: 60 }; R.locks = []; },
       cam() {   // (the stage opens overhead, Thunder Blade's way, the camera swinging down behind the jet after 5 s)
         const j = R.j, back = 90 * (game.H > game.W ? 1.4 : 1), n = { x: j.x - Math.cos(j.yaw) * back, y: j.y - Math.sin(j.yaw) * back, h: j.z + 34 - j.pitch * 40, angle: j.yaw, pitch: 12 - j.pitch * 25, fov: game.H > game.W ? 84 : 68, roll: j.roll * 34 + (j.spin > 0 ? (1 - j.spin / .9) * 360 : 0) }, u = E.ease.inOutQuad(clamp((R.t - 5) / 2.5, 0, 1));
-        return u >= 1 ? n : Object.assign(n, { x: j.x + (n.x - j.x) * u, y: j.y + (n.y - j.y) * u, h: n.h + (j.z + 420 - n.h) * (1 - u), pitch: n.pitch + (90 - n.pitch) * (1 - u), roll: n.roll * u });
+        if (u >= 1) return n; const h = n.h + (j.z + 420 - n.h) * (1 - u), dn = Math.atan2(h - j.z, Math.max(1, back * u)) * 180 / Math.PI;   // (dn: the angle down to the jet: the pitch kept within 20 degrees of it, the jet on the screen as the camera swings)
+        return Object.assign(n, { x: j.x + (n.x - j.x) * u, y: j.y + (n.y - j.y) * u, h, pitch: Math.max(n.pitch + (90 - n.pitch) * (1 - u), dn - 20), roll: n.roll * u });
       },
       update(dt, k) {
         const j = R.j;
@@ -29304,7 +29305,7 @@ const SKY = (() => {
   const TX = 4, ISLE = 4096, M = 2048, hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
   /* ---- THE ISLAND: a canvas a texel to 4 units, painted once (sea, reef, beaches, fields, woods, a peak, a lake, a
    * town, the runway north-south and the dive's target) ---- */
-  const RUNWAY = { x: 1920, y0: 2400, y1: 3120, w: 40, aim: 3020 }, TARGET = [2600, 2700];
+  const RUNWAY = { x: 1920, y0: 2400, y1: 3120, w: 40, aim: 3020 }, TARGET = [2600, 2700], PAD = [2120, 2600];   // (PAD: the rocket belt's)
   let isle = null;
   function paintIsle() {
     const N = ISLE / TX, cv = E.mkCanvas(N, N), g = cv.getContext('2d'), img = g.createImageData(N, N), d = img.data;
@@ -29375,9 +29376,9 @@ const SKY = (() => {
   const CASTLE = new E.Mesh([['box', [0, 0, 12], [30, 20, 12], '#cac2b2'], ['box', [24, 18, 22], [6, 6, 22], '#b8b0a0', { mirror: true }], ['box', [-24, 18, 22], [6, 6, 22], '#b8b0a0', { mirror: true }],
     ['box', [24, 18, 48], [7, 7, 4], '#3a5aa8', { top: [.12, .12], mirror: true }], ['box', [-24, 18, 48], [7, 7, 4], '#3a5aa8', { top: [.12, .12], mirror: true }], ['box', [0, 0, 32], [10, 10, 8], '#d6cebe'], ['box', [0, 0, 45], [11, 11, 5], '#3a5aa8', { top: [.1, .1] }]]);
   const R7 = E.rng(11), TREES = [], CLOUDS = [];
-  for (let i = 0; i < 70; i++) {   // (off the runway and off the dive's target: one there still takes its draws, so the rest stand where they did)
+  for (let i = 0; i < 70; i++) {   // (off the runway, the dive's target and the belt's pad: one there still takes its draws, so the rest stand where they did)
     const a = R7() * TAU, r = 300 + R7() * 900, x = M + Math.cos(a) * r, y = M + Math.sin(a) * r;
-    if (Math.abs(x - RUNWAY.x) > 140 || y < 2300 || y > 3200) { const tr = [x, y, R7() < .5 ? 'tree' : 'pine', .8 + R7() * .5]; if (Math.hypot(x - TARGET[0], y - TARGET[1]) > 150) TREES.push(tr); }
+    if (Math.abs(x - RUNWAY.x) > 140 || y < 2300 || y > 3200) { const tr = [x, y, R7() < .5 ? 'tree' : 'pine', .8 + R7() * .5]; if (Math.hypot(x - TARGET[0], y - TARGET[1]) > 150 && Math.hypot(x - PAD[0], y - PAD[1]) > 70) TREES.push(tr); }
   }
   for (let i = 0; i < 26; i++) CLOUDS.push([R7() * ISLE, R7() * ISLE, 420 + R7() * 500, 50 + R7() * 50]);
   const WCLOUDS = Array.from({ length: 40 }, () => [R7() * 8192, R7() * 8192, 300 + R7() * 300, 60 + R7() * 50]);
@@ -29386,7 +29387,7 @@ const SKY = (() => {
   /* ---- THE EVENTS ---- */
   const COURSE = [[2048, 3400, 280], [2360, 2840, 330], [2720, 2280, 380], [2600, 1660, 400], [2080, 1300, 360], [1520, 1520, 320], [1260, 2120, 260], [1180, 2860, 210], [1500, 4000, 150], [1920, 3780, 80, -Math.PI / 2]];
   const HOOPS = [[2390, 3150, 2000], [2450, 3040, 1600], [2510, 2930, 1200]];
-  const BELT = [[2048, 3560, 60], [2160, 3380, 110], [2300, 3240, 70], [2250, 3020, 140], [2140, 2840, 90]], PAD = [2120, 2640], BELT0 = [2048, 3760];   // the rocket belt's rings, its pad, its start
+  const BELT = [[2048, 3380, 60], [2160, 3220, 110], [2300, 3080, 70], [2250, 2880, 140], [2140, 2740, 90]], BELT0 = [2048, 3540];   // (the start on the island's grass, south)   // the rocket belt's rings, its pad, its start
   const yawOf = (L, i, from) => L[i][3] !== undefined ? L[i][3] : Math.atan2(L[i][1] - (i ? L[i - 1][1] : from[1]), L[i][0] - (i ? L[i - 1][0] : from[0]));
   const SONG = { bpm: 116, steps: 4, tracks: [
     { wave: 'square', vol: .05, notes: 'E5 . G5 . A5 . . G5 | E5 . D5 . C5 . . . | D5 . E5 . G5 . A5 . | B5 . . A5 G5 . . . | C6 . B5 . A5 . G5 . | A5 . G5 . E5 . D5 . | E5 . G5 . A5 . D5 . | C5 . . . . . . .' },
@@ -29453,11 +29454,11 @@ const SKY = (() => {
    *  (once up), the landing judged by the pad and how hard */
   function belt(P, dt, k) {
     if (P.down) { P.v *= .9; return; }
-    const lift = P.fuel <= 0 ? -1.3 : k.gas ? 1 : k.brake ? -1 : -.3; P.thrust = lift > -.5 ? 1 : 0;
-    P.fuel = Math.max(0, P.fuel - (1 + (k.gas ? 2 : 0)) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
-    P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += (-clamp(k.y, -1, 1) * 120 - P.v) * Math.min(1, dt * 1.1); P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;
+    const idle = P.z <= 0 && !k.gas, lift = P.fuel <= 0 ? -1.3 : k.gas ? 1 : k.brake ? -1 : -.3; P.thrust = !idle && lift > -.5 ? 1 : 0;   // (on the ground it stands, its jets off, till GAS)
+    if (!idle) P.fuel = Math.max(0, P.fuel - (1 + (k.gas ? 2 : 0)) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
+    P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += ((P.z > 0 ? -clamp(k.y, -1, 1) * 120 : 0) - P.v) * Math.min(1, dt * (P.z > 0 ? 1.1 : 6));   // (the lean flies it only off the ground) P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;
     P.x += Math.cos(P.yaw) * P.v * dt; P.y += Math.sin(P.yaw) * P.v * dt; P.z = Math.max(0, P.z + P.vz * dt); if (P.z > 15) P.up = true;
-    if (P.up && P.z <= 0) { P.down = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); P.soft = P.vz > -32; say(E.t(P.dist < 15 ? 'sky.bull' : P.dist < 90 ? 'sky.landed' : 'sky.miss')); A.sfx(P.soft ? 'land' : 'hurt'); if (!P.soft) game.shake(4); }
+    if (P.z <= 0 && (P.up || P.fuel <= 0)) { P.down = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); P.soft = P.vz > -32; say(E.t(P.dist < 15 ? 'sky.bull' : P.dist < 90 ? 'sky.landed' : 'sky.miss')); A.sfx(P.soft ? 'land' : 'hurt'); if (!P.soft) game.shake(4); }
   }
   /** the airship: it turns, rises and sinks with the stick, faster or slower with the throttle; by a beacon not yet lit,
    *  low enough, the act lands it beside it */
@@ -29912,12 +29913,14 @@ scenes.kart = KART;
  * The pseudo-3D road. COAST RUN: a convertible (or a motorbike that leans into the bends) from the beach to a goal,
  * three stages a run picked at the forks (keep left or right where the road splits: six stages in a pyramid), a clock
  * the checkpoints refill, traffic to weave through, a radio of three songs; hit the scenery fast and the car spins
- * out; hold R to rewind (three a run). CIRCUIT (Pole Position, Top Gear): three laps of a closed desert track against
- * seven cars, you at the back of the grid, lap times and places; finish in the top three. RASH (Road Rash): a bike race down the canyon against seven riders who fight:
+ * out; hold R to rewind (three a run). CIRCUIT (Pole Position, Top Gear): a qualifying lap alone against the clock (its
+ * time your slot on the grid), then three laps of a closed desert track against seven cars, lap times and places;
+ * finish in the top three. RASH (Road Rash): a bike race down the canyon against seven riders who fight:
  * PUNCH the one beside you, knock three blows into him and he goes down; three blows into you and you do; place in the
  * top three. DUEL (Top Gear, Lotus): two players race the circuit and its pack, the screen split in two; the first over
- * the line after three laps wins. CHASE: a police car after a getaway car through the night traffic: catch it before the clock runs out
- * and ram it until it stops; NITRO three times. STRIKER (Night Striker): an armoured car that flies over the night
+ * the line after three laps wins (from the back of the grid: no qualifying). CHASE: a police car after a getaway car
+ * through the night traffic: catch it before the clock runs out and ram it until it stops; where the road forks, take the
+ * side the radio names (the other lets it pull far ahead); NITRO three times. STRIKER (Night Striker): an armoured car that flies over the night
  * road: up and down rise and fall, left and right cross it, FIRE at the drones and the cars that come at you; reach the
  * end with your shield.
  * Deep links: #road/car, #road/bike, #road/circuit, #road/rash, #road/duel, #road/chase, #road/striker; #road/hd the coast run at
@@ -29986,7 +29989,7 @@ const ROAD = (() => {
     if (from) road.add(30, { branch: from });
     for (const [n, curve = 0, hill = 0, tun] of (chase === 2 ? st.parts.concat(st.parts) : rash ? st.parts.concat(st.parts) : st.parts)) road.add(n, { curve, hill, tunnel: !!tun });
     const end = road.length; if (!last) road.add(70, { split: GAP }); road.add(160, last ? {} : { split: GAP });   // (past the end: more of the same, never reached)
-    scenery(road, st); road.place(end - SEG * 2, 0, ARCH(E.t(last ? (chase ? 'road.arch.end' : rash ? 'road.arch.finish' : 'road.arch.goal') : 'road.arch.check'), last ? '#d02a2a' : '#2a8a3a'), 1);
+    scenery(road, st); if (chase !== 1) road.place(end - SEG * 2, 0, ARCH(E.t(last ? (chase ? 'road.arch.end' : rash ? 'road.arch.finish' : 'road.arch.goal') : 'road.arch.check'), last ? '#d02a2a' : '#2a8a3a'), 1);
     const traffic = [], R = E.rng(31 + i);
     for (let z = SEG * 40; z < end; z += SEG * (14 + Math.floor(R() * 16))) traffic.push({ z, lane: [-2 / 3, 0, 2 / 3][Math.floor(R() * 3)], speed: 1700 + R() * 1200, model: [SEDAN, VAN, TRUCK][Math.floor(R() * 3)], col: ['#e8e8e8', '#3a6ac8', '#e8a020', '#2a8a4a', '#8a3ac8'][Math.floor(R() * 5)] });
     return { i, road, end, goal: end - SEG * 2, last, traffic, fork: last ? 0 : end + 70 * SEG };
@@ -30032,7 +30035,7 @@ const ROAD = (() => {
       game.splitScreen(2, { layout: 'rows' }); return;
     }
     DUO = null; game.splitScreen(0); if (!keep) players(true);
-    if (what === 'circuit') {   // Pole Position's, Top Gear's: three laps against seven cars, you at the back of the grid
+    if (what === 'circuit') {   // Pole Position's, Top Gear's: three laps against seven cars (alone, a qualifying lap first sets your grid slot; the duel starts at the back)
       ride = 'car'; start('rash', keep); Object.assign(P, { rash: false, bike: false, circuit: true, L: lapRoad(1), route: [1], lap: 1, laps: 3, lapT: 0, bestLap: 0 });
       P.rivals.forEach(v => Object.assign(v, { pace: .83 + v.k * .016, col: RIVALS[v.k][1], suit: RIVALS[v.k][0] })); A.music(SONGS[0]);
       if (!keep) { P.qual = { t: 0 }; P.z = P.L.line - SEG; say(E.t('road.qual'), 2.5); }   // (alone: Pole Position's qualifying lap first, from the line, the pack off the track)
@@ -30052,8 +30055,8 @@ const ROAD = (() => {
   function fork() {
     const L = P.L, cs = L.road.centers(P.z), side = P.x < 0 ? 0 : 1, kid = KIDS(L.i) && KIDS(L.i)[side], off = cs[side];
     if (P.chase) {   // Chase H.Q.'s fork: the rest of the chase on the road taken; the wrong one and the getaway car pulls away
-      const T = P.target; P.L = leg(4, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), 2); P.z -= L.fork; P.x -= off; T.z -= L.fork; T.x = 0; P.forks = (P.forks || 0) + 1;
-      if (side !== T.side && T.damage < 100) { T.z = Math.max(T.z, P.z) + 9000; say(E.t('road.chase.wrong'), 2.5); A.sfx('hurt'); } T.side = 0; return;
+      const T = P.target; P.L = leg(4, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), 2); P.z -= L.fork; P.x -= off; T.z -= L.fork; P.forks = (P.forks || 0) + 1;   // (the car on the road taken keeps its lane; the new leg is centred on that road)
+      if (side !== T.side && T.damage < 100) { T.z = Math.max(T.z, P.z) + 9000; T.x = 0; say(E.t('road.chase.wrong'), 2.5); A.sfx('hurt'); } T.side = 0; return;
     }
     const N = leg(kid, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), false);
     P.L = N; P.z -= L.fork; P.x -= off; P.route.push(kid); P.clock += 30; P.score += 2000;
@@ -30099,7 +30102,7 @@ const ROAD = (() => {
   function grid(P, q) {
     const s = clamp(Math.round((q - 20) / .8), 0, 7), at = j => ({ z: SEG * 4 + (7 - j) * 700, x: [-2 / 3, 0, 2 / 3][j % 3] }); let j = 0;
     for (const v of P.rivals) { if (j === s) j++; Object.assign(v, at(j++), { speed: 0 }); v.goal = v.x; }
-    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 }); P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');
+    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lean: 0, crash: 0, spin: 0, hop: 0, bump: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 });   // (a standing start: a spin carried over the line is over) P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');
   }
   /** a car of the pack and a player's touch: pushed apart; the one behind loses its speed */
   function bump(P, v, gap) { const sd = P.x < v.x ? -1 : 1; P.x += sd * .12; v.x -= sd * .12; v.goal = v.x; if (gap > 0) P.speed = Math.min(P.speed, v.speed) * .85; else v.speed *= .85; P.bump = .5; A.sfx('bump'); game.shake(2); }
@@ -30291,8 +30294,8 @@ const ROAD = (() => {
 
   /** the bot (tools/kits-test.mjs): a coast run by the autopilot from the beach to the goal (left at the first fork,
    *  right at the next), a rewind held past its oldest moment (one of the three), a drift, the bike's first stage, the
-   *  circuit's three laps against the pack, the rash, the duel (on the circuit) on one keyboard (each half's gas), a solo mode after it (player 1 alone again), the striker, the chase
-   *  to the arrest, and #road/hd's size */
+   *  circuit's qualifying lap and three laps against the pack, the rash, the duel (on the circuit) on one keyboard (each half's gas), a solo mode after it (player 1 alone again), the striker, the chase
+   *  through its fork to the arrest, and #road/hd's size */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
@@ -30902,7 +30905,7 @@ const SPECIAL = (() => {
    * quarter at a time; the hero falls down the screen whichever way the room stands ---- */
   const RN = 20, RT = 24, ROOM_ROWS = ['####################', '#..................#', '#.o.....#.......o..#', '#.####..#....#####.#', '#.......#..........#', '#.......#..........#',
     '#...........###....#', '#..##.......#......#', '#..#........#......#', '#..#....####.......#', '#.......#..#.......#', '#.......####....#..#', '#...#...........#..#', '#...#...........##.#',
-    '#...###............#', '#............#.....#', '#..o.....#####.....#', '#..............D...#', '#..................#', '####################'];
+    '#...###............#', '#............#.....#', '#..o.....#####.....#', '#..................#', '#..............D...#', '####################'];   // (the door on the floor line: stood in, it's reached)
   const rsolid = (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT); return i < 0 || j < 0 || i >= RN || j >= RN || ROOM_ROWS[j][i] === '#'; };
   const rcells = ch => { const out = []; ROOM_ROWS.forEach((row, j) => [...row].forEach((c, i) => { if (c === ch) out.push({ x: (i + .5) * RT, y: (j + .5) * RT }); })); return out; };
   const room = new E.Mode7({ floor: (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT), u = x % RT, v = y % RT; if (rsolid(x, y)) return (v < 2 || (u + (j & 1) * 12) % RT < 2) ? [60, 44, 40] : [120 + (i * 7 + j * 3) % 20, 84, 70]; return (i + j) & 1 ? [34, 28, 52] : [40, 32, 60]; }, size: [RN * RT, RN * RT], texel: 2, outside: '#100c18', sky: ['#100c18', '#100c18'], far: 4000 });
@@ -30921,23 +30924,24 @@ const SPECIAL = (() => {
       const vr = S.vx * right[0] + S.vy * right[1], dv = (mx * 110 - vr) * Math.min(1, dt * 10); S.vx += right[0] * dv; S.vy += right[1] * dv; if (Math.abs(mx) > .2) S.dir = Math.sign(mx);
       S.vx += down[0] * 560 * dt; S.vy += down[1] * 560 * dt;
       if (jump && S.ground) { const vd = S.vx * down[0] + S.vy * down[1]; S.vx -= down[0] * (vd + 250); S.vy -= down[1] * (vd + 250); S.ground = false; A.sfx('jump', { vol: .5 }); }
-      const was = [S.x, S.y]; let bx = 0, by = 0;
-      for (let k = 0; k < 2; k++) {   // each axis on its own, a half step at a time: blocked, its speed gone and which way noted
-        const nx = S.x + S.vx * dt / 2; if ([-7, 7].some(ox => [-7, 7].some(oy => rsolid(nx + ox, S.y + oy)))) { bx = Math.sign(S.vx); S.vx = 0; } else S.x = nx;
-        const ny = S.y + S.vy * dt / 2; if ([-7, 7].some(ox => [-7, 7].some(oy => rsolid(S.x + ox, ny + oy)))) { by = Math.sign(S.vy); S.vy = 0; } else S.y = ny;
+      const was = [S.x, S.y], hit = (x, y) => [-7, 7].some(ox => [-7, 7].some(oy => rsolid(x + ox, y + oy)));
+      for (let k = 0; k < 2; k++) {   // each axis on its own, a half step at a time: blocked, it moves up to the wall a unit at a time and its speed that way is gone
+        const nx = S.x + S.vx * dt / 2; if (hit(nx, S.y)) { const sg = Math.sign(S.vx); for (let i = 0; i < 8 && !hit(S.x + sg, S.y); i++) S.x += sg; S.vx = 0; } else S.x = nx;
+        const ny = S.y + S.vy * dt / 2; if (hit(S.x, ny)) { const sg = Math.sign(S.vy); for (let i = 0; i < 8 && !hit(S.x, S.y + sg); i++) S.y += sg; S.vy = 0; } else S.y = ny;
       }
-      S.ground = bx * down[0] + by * down[1] > .3; S.stuck = Math.abs(mx) > .5 && Math.hypot(S.x - was[0], S.y - was[1]) < 20 * dt ? S.stuck + dt : 0;
-      for (const g of S.gems) if (Math.hypot(g.x - S.x, g.y - S.y) < 14) { g.got = true; S.got++; A.sfx('coin'); }
+      S.ground = hit(S.x + down[0] * 1.5, S.y + down[1] * 1.5); S.stuck = Math.abs(mx) > .5 && Math.hypot(S.x - was[0], S.y - was[1]) < 20 * dt ? S.stuck + dt : 0;   // (on the ground: a wall just under him, down the screen)
+      const fx = S.x + down[0] * 7, fy = S.y + down[1] * 7, touch = (q, r) => { const u = clamp(-((q.x - fx) * down[0] + (q.y - fy) * down[1]) / 38, 0, 1); return Math.hypot(q.x - (fx - down[0] * 38 * u), q.y - (fy - down[1] * 38 * u)) < r; };   // (his body as drawn: from his feet up 38)
+      for (const g of S.gems) if (touch(g, 12)) { g.got = true; S.got++; A.sfx('coin'); }
       S.gems = S.gems.filter(g => !g.got);
       HERO.update(dt, { x: 0, y: 0, z: 0, vx: S.ground ? Math.abs(vr) : 0, vy: 0, facing: S.dir > 0 ? 0 : Math.PI, air: !S.ground });
-      if (!S.gems.length && Math.hypot(S.door.x - S.x, S.door.y - S.y) < 16) end(true, E.t('special.room.out'));
+      if (!S.gems.length && touch(S.door, 14)) end(true, E.t('special.room.out'));
       else if (S.time <= 0) end(false, E.t('special.room.late'));
     },
     draw(S, r) {
-      const V = room, { a } = this.axes(S), tall = r.H > r.W, cam = { x: RN * RT / 2, y: RN * RT / 2, h: tall ? 520 : 420, angle: a, pitch: 90, fov: 64 };
+      const V = room, { a } = this.axes(S), cam = { x: RN * RT / 2, y: RN * RT / 2, h: 552 / Math.min(1, r.W / r.H), angle: a, pitch: 90, fov: 64 };   // (high enough that the whole room, corners and all, stays on the screen's narrower side as it turns)
       for (const g of S.gems) V.add(g.x, g.y, 0, (gg, sx, sy, k) => { const s = (5 + Math.sin(t * 6) * 1) * k; px.disc(gg, sx, sy, s * 1.4, '#3a1a5a'); px.disc(gg, sx, sy, s, '#ff60d0'); px.disc(gg, sx - s * .3, sy - s * .3, s * .35, '#ffe0f8'); });
       V.add(S.door.x, S.door.y, 0, (g, sx, sy, k) => { const w = 9 * k, h = 11 * k; px.rect(g, sx - w, sy - h, w * 2, h * 2, S.gems.length ? '#4a3020' : (Math.floor(t * 4) % 2 ? '#ffe040' : '#ffb020')); px.rect(g, sx - w * .6, sy - h * .7, w * 1.2, h * 1.7, S.gems.length ? '#2a1a10' : '#fff4c0'); });
-      V.add(S.x, S.y, 0, (g, sx, sy, k) => HERO.draw(g, Math.round(sx), Math.round(sy + 7 * k), rview(k * 1.7)));   // (upright on the screen, its feet at its box's foot: the room turns, not him)
+      V.add(S.x, S.y, 0, (g, sx, sy, k) => HERO.draw(g, Math.round(sx), Math.round(sy + 7 * k), rview(k * 1.2)));   // (upright on the screen, its feet at its box's foot: the room turns, not him)
       V.draw(r, cam);
       r.overlay(g => { E.font.text(g, E.t('special.room.gems', { n: S.got }), 8, 8, '#ff90e0', { shadow: '#000', outline: false }); E.font.text(g, Math.ceil(Math.max(0, S.time)) + '', r.W / 2, 8, S.time < 15 ? '#ff6a4a' : '#ffffff', { align: 'center', shadow: '#000', outline: false }); });
     },

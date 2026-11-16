@@ -191,7 +191,8 @@ const BLASTER = (() => {
       start() { R.j = { x: 4096, y: 4096, z: 420, yaw: -Math.PI / 2, roll: 0, pitch: 0, spin: 0, speed: 560, missiles: 60 }; R.locks = []; },
       cam() {   // (the stage opens overhead, Thunder Blade's way, the camera swinging down behind the jet after 5 s)
         const j = R.j, back = 90 * (game.H > game.W ? 1.4 : 1), n = { x: j.x - Math.cos(j.yaw) * back, y: j.y - Math.sin(j.yaw) * back, h: j.z + 34 - j.pitch * 40, angle: j.yaw, pitch: 12 - j.pitch * 25, fov: game.H > game.W ? 84 : 68, roll: j.roll * 34 + (j.spin > 0 ? (1 - j.spin / .9) * 360 : 0) }, u = E.ease.inOutQuad(clamp((R.t - 5) / 2.5, 0, 1));
-        return u >= 1 ? n : Object.assign(n, { x: j.x + (n.x - j.x) * u, y: j.y + (n.y - j.y) * u, h: n.h + (j.z + 420 - n.h) * (1 - u), pitch: n.pitch + (90 - n.pitch) * (1 - u), roll: n.roll * u });
+        if (u >= 1) return n; const h = n.h + (j.z + 420 - n.h) * (1 - u), dn = Math.atan2(h - j.z, Math.max(1, back * u)) * 180 / Math.PI;   // (dn: the angle down to the jet: the pitch kept within 20 degrees of it, the jet on the screen as the camera swings)
+        return Object.assign(n, { x: j.x + (n.x - j.x) * u, y: j.y + (n.y - j.y) * u, h, pitch: Math.max(n.pitch + (90 - n.pitch) * (1 - u), dn - 20), roll: n.roll * u });
       },
       update(dt, k) {
         const j = R.j;

@@ -298,7 +298,7 @@ const SPECIAL = (() => {
    * quarter at a time; the hero falls down the screen whichever way the room stands ---- */
   const RN = 20, RT = 24, ROOM_ROWS = ['####################', '#..................#', '#.o.....#.......o..#', '#.####..#....#####.#', '#.......#..........#', '#.......#..........#',
     '#...........###....#', '#..##.......#......#', '#..#........#......#', '#..#....####.......#', '#.......#..#.......#', '#.......####....#..#', '#...#...........#..#', '#...#...........##.#',
-    '#...###............#', '#............#.....#', '#..o.....#####.....#', '#..............D...#', '#..................#', '####################'];
+    '#...###............#', '#............#.....#', '#..o.....#####.....#', '#..................#', '#..............D...#', '####################'];   // (the door on the floor line: stood in, it's reached)
   const rsolid = (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT); return i < 0 || j < 0 || i >= RN || j >= RN || ROOM_ROWS[j][i] === '#'; };
   const rcells = ch => { const out = []; ROOM_ROWS.forEach((row, j) => [...row].forEach((c, i) => { if (c === ch) out.push({ x: (i + .5) * RT, y: (j + .5) * RT }); })); return out; };
   const room = new E.Mode7({ floor: (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT), u = x % RT, v = y % RT; if (rsolid(x, y)) return (v < 2 || (u + (j & 1) * 12) % RT < 2) ? [60, 44, 40] : [120 + (i * 7 + j * 3) % 20, 84, 70]; return (i + j) & 1 ? [34, 28, 52] : [40, 32, 60]; }, size: [RN * RT, RN * RT], texel: 2, outside: '#100c18', sky: ['#100c18', '#100c18'], far: 4000 });
@@ -317,23 +317,24 @@ const SPECIAL = (() => {
       const vr = S.vx * right[0] + S.vy * right[1], dv = (mx * 110 - vr) * Math.min(1, dt * 10); S.vx += right[0] * dv; S.vy += right[1] * dv; if (Math.abs(mx) > .2) S.dir = Math.sign(mx);
       S.vx += down[0] * 560 * dt; S.vy += down[1] * 560 * dt;
       if (jump && S.ground) { const vd = S.vx * down[0] + S.vy * down[1]; S.vx -= down[0] * (vd + 250); S.vy -= down[1] * (vd + 250); S.ground = false; A.sfx('jump', { vol: .5 }); }
-      const was = [S.x, S.y]; let bx = 0, by = 0;
-      for (let k = 0; k < 2; k++) {   // each axis on its own, a half step at a time: blocked, its speed gone and which way noted
-        const nx = S.x + S.vx * dt / 2; if ([-7, 7].some(ox => [-7, 7].some(oy => rsolid(nx + ox, S.y + oy)))) { bx = Math.sign(S.vx); S.vx = 0; } else S.x = nx;
-        const ny = S.y + S.vy * dt / 2; if ([-7, 7].some(ox => [-7, 7].some(oy => rsolid(S.x + ox, ny + oy)))) { by = Math.sign(S.vy); S.vy = 0; } else S.y = ny;
+      const was = [S.x, S.y], hit = (x, y) => [-7, 7].some(ox => [-7, 7].some(oy => rsolid(x + ox, y + oy)));
+      for (let k = 0; k < 2; k++) {   // each axis on its own, a half step at a time: blocked, it moves up to the wall a unit at a time and its speed that way is gone
+        const nx = S.x + S.vx * dt / 2; if (hit(nx, S.y)) { const sg = Math.sign(S.vx); for (let i = 0; i < 8 && !hit(S.x + sg, S.y); i++) S.x += sg; S.vx = 0; } else S.x = nx;
+        const ny = S.y + S.vy * dt / 2; if (hit(S.x, ny)) { const sg = Math.sign(S.vy); for (let i = 0; i < 8 && !hit(S.x, S.y + sg); i++) S.y += sg; S.vy = 0; } else S.y = ny;
       }
-      S.ground = bx * down[0] + by * down[1] > .3; S.stuck = Math.abs(mx) > .5 && Math.hypot(S.x - was[0], S.y - was[1]) < 20 * dt ? S.stuck + dt : 0;
-      for (const g of S.gems) if (Math.hypot(g.x - S.x, g.y - S.y) < 14) { g.got = true; S.got++; A.sfx('coin'); }
+      S.ground = hit(S.x + down[0] * 1.5, S.y + down[1] * 1.5); S.stuck = Math.abs(mx) > .5 && Math.hypot(S.x - was[0], S.y - was[1]) < 20 * dt ? S.stuck + dt : 0;   // (on the ground: a wall just under him, down the screen)
+      const fx = S.x + down[0] * 7, fy = S.y + down[1] * 7, touch = (q, r) => { const u = clamp(-((q.x - fx) * down[0] + (q.y - fy) * down[1]) / 38, 0, 1); return Math.hypot(q.x - (fx - down[0] * 38 * u), q.y - (fy - down[1] * 38 * u)) < r; };   // (his body as drawn: from his feet up 38)
+      for (const g of S.gems) if (touch(g, 12)) { g.got = true; S.got++; A.sfx('coin'); }
       S.gems = S.gems.filter(g => !g.got);
       HERO.update(dt, { x: 0, y: 0, z: 0, vx: S.ground ? Math.abs(vr) : 0, vy: 0, facing: S.dir > 0 ? 0 : Math.PI, air: !S.ground });
-      if (!S.gems.length && Math.hypot(S.door.x - S.x, S.door.y - S.y) < 16) end(true, E.t('special.room.out'));
+      if (!S.gems.length && touch(S.door, 14)) end(true, E.t('special.room.out'));
       else if (S.time <= 0) end(false, E.t('special.room.late'));
     },
     draw(S, r) {
-      const V = room, { a } = this.axes(S), tall = r.H > r.W, cam = { x: RN * RT / 2, y: RN * RT / 2, h: tall ? 520 : 420, angle: a, pitch: 90, fov: 64 };
+      const V = room, { a } = this.axes(S), cam = { x: RN * RT / 2, y: RN * RT / 2, h: 552 / Math.min(1, r.W / r.H), angle: a, pitch: 90, fov: 64 };   // (high enough that the whole room, corners and all, stays on the screen's narrower side as it turns)
       for (const g of S.gems) V.add(g.x, g.y, 0, (gg, sx, sy, k) => { const s = (5 + Math.sin(t * 6) * 1) * k; px.disc(gg, sx, sy, s * 1.4, '#3a1a5a'); px.disc(gg, sx, sy, s, '#ff60d0'); px.disc(gg, sx - s * .3, sy - s * .3, s * .35, '#ffe0f8'); });
       V.add(S.door.x, S.door.y, 0, (g, sx, sy, k) => { const w = 9 * k, h = 11 * k; px.rect(g, sx - w, sy - h, w * 2, h * 2, S.gems.length ? '#4a3020' : (Math.floor(t * 4) % 2 ? '#ffe040' : '#ffb020')); px.rect(g, sx - w * .6, sy - h * .7, w * 1.2, h * 1.7, S.gems.length ? '#2a1a10' : '#fff4c0'); });
-      V.add(S.x, S.y, 0, (g, sx, sy, k) => HERO.draw(g, Math.round(sx), Math.round(sy + 7 * k), rview(k * 1.7)));   // (upright on the screen, its feet at its box's foot: the room turns, not him)
+      V.add(S.x, S.y, 0, (g, sx, sy, k) => HERO.draw(g, Math.round(sx), Math.round(sy + 7 * k), rview(k * 1.2)));   // (upright on the screen, its feet at its box's foot: the room turns, not him)
       V.draw(r, cam);
       r.overlay(g => { E.font.text(g, E.t('special.room.gems', { n: S.got }), 8, 8, '#ff90e0', { shadow: '#000', outline: false }); E.font.text(g, Math.ceil(Math.max(0, S.time)) + '', r.W / 2, 8, S.time < 15 ? '#ff6a4a' : '#ffffff', { align: 'center', shadow: '#000', outline: false }); });
     },

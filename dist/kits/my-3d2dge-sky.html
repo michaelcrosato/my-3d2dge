@@ -705,7 +705,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "sky.menu.belt": "An event: fly a jet pack strapped to your back.",
     "sky.event.belt": "The rocket belt event's name, in the corner while flying.",
     "sky.goal.belt": "Shown as the rocket belt event starts: fly through the low rings, then land on the landing pad.",
-    "sky.belt.pad": "The rocket belt: the last ring is next; after it, land softly on the square pad.",
+    "sky.belt.pad": "The rocket belt, after the last ring: now land softly on the square pad.",
     "sky.hud.fuel": "The rocket belt's fuel, beside its gauge."
   },
   "names": ["my-3D2dge"],
@@ -1111,7 +1111,7 @@ const SKY = (() => {
   const TX = 4, ISLE = 4096, M = 2048, hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
   /* ---- THE ISLAND: a canvas a texel to 4 units, painted once (sea, reef, beaches, fields, woods, a peak, a lake, a
    * town, the runway north-south and the dive's target) ---- */
-  const RUNWAY = { x: 1920, y0: 2400, y1: 3120, w: 40, aim: 3020 }, TARGET = [2600, 2700];
+  const RUNWAY = { x: 1920, y0: 2400, y1: 3120, w: 40, aim: 3020 }, TARGET = [2600, 2700], PAD = [2120, 2600];   // (PAD: the rocket belt's)
   let isle = null;
   function paintIsle() {
     const N = ISLE / TX, cv = E.mkCanvas(N, N), g = cv.getContext('2d'), img = g.createImageData(N, N), d = img.data;
@@ -1182,9 +1182,9 @@ const SKY = (() => {
   const CASTLE = new E.Mesh([['box', [0, 0, 12], [30, 20, 12], '#cac2b2'], ['box', [24, 18, 22], [6, 6, 22], '#b8b0a0', { mirror: true }], ['box', [-24, 18, 22], [6, 6, 22], '#b8b0a0', { mirror: true }],
     ['box', [24, 18, 48], [7, 7, 4], '#3a5aa8', { top: [.12, .12], mirror: true }], ['box', [-24, 18, 48], [7, 7, 4], '#3a5aa8', { top: [.12, .12], mirror: true }], ['box', [0, 0, 32], [10, 10, 8], '#d6cebe'], ['box', [0, 0, 45], [11, 11, 5], '#3a5aa8', { top: [.1, .1] }]]);
   const R7 = E.rng(11), TREES = [], CLOUDS = [];
-  for (let i = 0; i < 70; i++) {   // (off the runway and off the dive's target: one there still takes its draws, so the rest stand where they did)
+  for (let i = 0; i < 70; i++) {   // (off the runway, the dive's target and the belt's pad: one there still takes its draws, so the rest stand where they did)
     const a = R7() * TAU, r = 300 + R7() * 900, x = M + Math.cos(a) * r, y = M + Math.sin(a) * r;
-    if (Math.abs(x - RUNWAY.x) > 140 || y < 2300 || y > 3200) { const tr = [x, y, R7() < .5 ? 'tree' : 'pine', .8 + R7() * .5]; if (Math.hypot(x - TARGET[0], y - TARGET[1]) > 150) TREES.push(tr); }
+    if (Math.abs(x - RUNWAY.x) > 140 || y < 2300 || y > 3200) { const tr = [x, y, R7() < .5 ? 'tree' : 'pine', .8 + R7() * .5]; if (Math.hypot(x - TARGET[0], y - TARGET[1]) > 150 && Math.hypot(x - PAD[0], y - PAD[1]) > 70) TREES.push(tr); }
   }
   for (let i = 0; i < 26; i++) CLOUDS.push([R7() * ISLE, R7() * ISLE, 420 + R7() * 500, 50 + R7() * 50]);
   const WCLOUDS = Array.from({ length: 40 }, () => [R7() * 8192, R7() * 8192, 300 + R7() * 300, 60 + R7() * 50]);
@@ -1193,7 +1193,7 @@ const SKY = (() => {
   /* ---- THE EVENTS ---- */
   const COURSE = [[2048, 3400, 280], [2360, 2840, 330], [2720, 2280, 380], [2600, 1660, 400], [2080, 1300, 360], [1520, 1520, 320], [1260, 2120, 260], [1180, 2860, 210], [1500, 4000, 150], [1920, 3780, 80, -Math.PI / 2]];
   const HOOPS = [[2390, 3150, 2000], [2450, 3040, 1600], [2510, 2930, 1200]];
-  const BELT = [[2048, 3560, 60], [2160, 3380, 110], [2300, 3240, 70], [2250, 3020, 140], [2140, 2840, 90]], PAD = [2120, 2640], BELT0 = [2048, 3760];   // the rocket belt's rings, its pad, its start
+  const BELT = [[2048, 3380, 60], [2160, 3220, 110], [2300, 3080, 70], [2250, 2880, 140], [2140, 2740, 90]], BELT0 = [2048, 3540];   // (the start on the island's grass, south)   // the rocket belt's rings, its pad, its start
   const yawOf = (L, i, from) => L[i][3] !== undefined ? L[i][3] : Math.atan2(L[i][1] - (i ? L[i - 1][1] : from[1]), L[i][0] - (i ? L[i - 1][0] : from[0]));
   const SONG = { bpm: 116, steps: 4, tracks: [
     { wave: 'square', vol: .05, notes: 'E5 . G5 . A5 . . G5 | E5 . D5 . C5 . . . | D5 . E5 . G5 . A5 . | B5 . . A5 G5 . . . | C6 . B5 . A5 . G5 . | A5 . G5 . E5 . D5 . | E5 . G5 . A5 . D5 . | C5 . . . . . . .' },
@@ -1260,11 +1260,11 @@ const SKY = (() => {
    *  (once up), the landing judged by the pad and how hard */
   function belt(P, dt, k) {
     if (P.down) { P.v *= .9; return; }
-    const lift = P.fuel <= 0 ? -1.3 : k.gas ? 1 : k.brake ? -1 : -.3; P.thrust = lift > -.5 ? 1 : 0;
-    P.fuel = Math.max(0, P.fuel - (1 + (k.gas ? 2 : 0)) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
-    P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += (-clamp(k.y, -1, 1) * 120 - P.v) * Math.min(1, dt * 1.1); P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;
+    const idle = P.z <= 0 && !k.gas, lift = P.fuel <= 0 ? -1.3 : k.gas ? 1 : k.brake ? -1 : -.3; P.thrust = !idle && lift > -.5 ? 1 : 0;   // (on the ground it stands, its jets off, till GAS)
+    if (!idle) P.fuel = Math.max(0, P.fuel - (1 + (k.gas ? 2 : 0)) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
+    P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += ((P.z > 0 ? -clamp(k.y, -1, 1) * 120 : 0) - P.v) * Math.min(1, dt * (P.z > 0 ? 1.1 : 6));   // (the lean flies it only off the ground) P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;
     P.x += Math.cos(P.yaw) * P.v * dt; P.y += Math.sin(P.yaw) * P.v * dt; P.z = Math.max(0, P.z + P.vz * dt); if (P.z > 15) P.up = true;
-    if (P.up && P.z <= 0) { P.down = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); P.soft = P.vz > -32; say(E.t(P.dist < 15 ? 'sky.bull' : P.dist < 90 ? 'sky.landed' : 'sky.miss')); A.sfx(P.soft ? 'land' : 'hurt'); if (!P.soft) game.shake(4); }
+    if (P.z <= 0 && (P.up || P.fuel <= 0)) { P.down = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); P.soft = P.vz > -32; say(E.t(P.dist < 15 ? 'sky.bull' : P.dist < 90 ? 'sky.landed' : 'sky.miss')); A.sfx(P.soft ? 'land' : 'hurt'); if (!P.soft) game.shake(4); }
   }
   /** the airship: it turns, rises and sinks with the stick, faster or slower with the throttle; by a beacon not yet lit,
    *  low enough, the act lands it beside it */

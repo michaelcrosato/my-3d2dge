@@ -170,12 +170,14 @@ scenes.over = {
  * The pseudo-3D road. COAST RUN: a convertible (or a motorbike that leans into the bends) from the beach to a goal,
  * three stages a run picked at the forks (keep left or right where the road splits: six stages in a pyramid), a clock
  * the checkpoints refill, traffic to weave through, a radio of three songs; hit the scenery fast and the car spins
- * out; hold R to rewind (three a run). CIRCUIT (Pole Position, Top Gear): three laps of a closed desert track against
- * seven cars, you at the back of the grid, lap times and places; finish in the top three. RASH (Road Rash): a bike race down the canyon against seven riders who fight:
+ * out; hold R to rewind (three a run). CIRCUIT (Pole Position, Top Gear): a qualifying lap alone against the clock (its
+ * time your slot on the grid), then three laps of a closed desert track against seven cars, lap times and places;
+ * finish in the top three. RASH (Road Rash): a bike race down the canyon against seven riders who fight:
  * PUNCH the one beside you, knock three blows into him and he goes down; three blows into you and you do; place in the
  * top three. DUEL (Top Gear, Lotus): two players race the circuit and its pack, the screen split in two; the first over
- * the line after three laps wins. CHASE: a police car after a getaway car through the night traffic: catch it before the clock runs out
- * and ram it until it stops; NITRO three times. STRIKER (Night Striker): an armoured car that flies over the night
+ * the line after three laps wins (from the back of the grid: no qualifying). CHASE: a police car after a getaway car
+ * through the night traffic: catch it before the clock runs out and ram it until it stops; where the road forks, take the
+ * side the radio names (the other lets it pull far ahead); NITRO three times. STRIKER (Night Striker): an armoured car that flies over the night
  * road: up and down rise and fall, left and right cross it, FIRE at the drones and the cars that come at you; reach the
  * end with your shield.
  * Deep links: #road/car, #road/bike, #road/circuit, #road/rash, #road/duel, #road/chase, #road/striker; #road/hd the coast run at
@@ -244,7 +246,7 @@ const ROAD = (() => {
     if (from) road.add(30, { branch: from });
     for (const [n, curve = 0, hill = 0, tun] of (chase === 2 ? st.parts.concat(st.parts) : rash ? st.parts.concat(st.parts) : st.parts)) road.add(n, { curve, hill, tunnel: !!tun });
     const end = road.length; if (!last) road.add(70, { split: GAP }); road.add(160, last ? {} : { split: GAP });   // (past the end: more of the same, never reached)
-    scenery(road, st); road.place(end - SEG * 2, 0, ARCH(E.t(last ? (chase ? 'road.arch.end' : rash ? 'road.arch.finish' : 'road.arch.goal') : 'road.arch.check'), last ? '#d02a2a' : '#2a8a3a'), 1);
+    scenery(road, st); if (chase !== 1) road.place(end - SEG * 2, 0, ARCH(E.t(last ? (chase ? 'road.arch.end' : rash ? 'road.arch.finish' : 'road.arch.goal') : 'road.arch.check'), last ? '#d02a2a' : '#2a8a3a'), 1);
     const traffic = [], R = E.rng(31 + i);
     for (let z = SEG * 40; z < end; z += SEG * (14 + Math.floor(R() * 16))) traffic.push({ z, lane: [-2 / 3, 0, 2 / 3][Math.floor(R() * 3)], speed: 1700 + R() * 1200, model: [SEDAN, VAN, TRUCK][Math.floor(R() * 3)], col: ['#e8e8e8', '#3a6ac8', '#e8a020', '#2a8a4a', '#8a3ac8'][Math.floor(R() * 5)] });
     return { i, road, end, goal: end - SEG * 2, last, traffic, fork: last ? 0 : end + 70 * SEG };
@@ -290,7 +292,7 @@ const ROAD = (() => {
       game.splitScreen(2, { layout: 'rows' }); return;
     }
     DUO = null; game.splitScreen(0); if (!keep) players(true);
-    if (what === 'circuit') {   // Pole Position's, Top Gear's: three laps against seven cars, you at the back of the grid
+    if (what === 'circuit') {   // Pole Position's, Top Gear's: three laps against seven cars (alone, a qualifying lap first sets your grid slot; the duel starts at the back)
       ride = 'car'; start('rash', keep); Object.assign(P, { rash: false, bike: false, circuit: true, L: lapRoad(1), route: [1], lap: 1, laps: 3, lapT: 0, bestLap: 0 });
       P.rivals.forEach(v => Object.assign(v, { pace: .83 + v.k * .016, col: RIVALS[v.k][1], suit: RIVALS[v.k][0] })); A.music(SONGS[0]);
       if (!keep) { P.qual = { t: 0 }; P.z = P.L.line - SEG; say(E.t('road.qual'), 2.5); }   // (alone: Pole Position's qualifying lap first, from the line, the pack off the track)
@@ -310,8 +312,8 @@ const ROAD = (() => {
   function fork() {
     const L = P.L, cs = L.road.centers(P.z), side = P.x < 0 ? 0 : 1, kid = KIDS(L.i) && KIDS(L.i)[side], off = cs[side];
     if (P.chase) {   // Chase H.Q.'s fork: the rest of the chase on the road taken; the wrong one and the getaway car pulls away
-      const T = P.target; P.L = leg(4, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), 2); P.z -= L.fork; P.x -= off; T.z -= L.fork; T.x = 0; P.forks = (P.forks || 0) + 1;
-      if (side !== T.side && T.damage < 100) { T.z = Math.max(T.z, P.z) + 9000; say(E.t('road.chase.wrong'), 2.5); A.sfx('hurt'); } T.side = 0; return;
+      const T = P.target; P.L = leg(4, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), 2); P.z -= L.fork; P.x -= off; T.z -= L.fork; P.forks = (P.forks || 0) + 1;   // (the car on the road taken keeps its lane; the new leg is centred on that road)
+      if (side !== T.side && T.damage < 100) { T.z = Math.max(T.z, P.z) + 9000; T.x = 0; say(E.t('road.chase.wrong'), 2.5); A.sfx('hurt'); } T.side = 0; return;
     }
     const N = leg(kid, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), false);
     P.L = N; P.z -= L.fork; P.x -= off; P.route.push(kid); P.clock += 30; P.score += 2000;
@@ -357,7 +359,7 @@ const ROAD = (() => {
   function grid(P, q) {
     const s = clamp(Math.round((q - 20) / .8), 0, 7), at = j => ({ z: SEG * 4 + (7 - j) * 700, x: [-2 / 3, 0, 2 / 3][j % 3] }); let j = 0;
     for (const v of P.rivals) { if (j === s) j++; Object.assign(v, at(j++), { speed: 0 }); v.goal = v.x; }
-    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 }); P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');
+    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lean: 0, crash: 0, spin: 0, hop: 0, bump: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 });   // (a standing start: a spin carried over the line is over) P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');
   }
   /** a car of the pack and a player's touch: pushed apart; the one behind loses its speed */
   function bump(P, v, gap) { const sd = P.x < v.x ? -1 : 1; P.x += sd * .12; v.x -= sd * .12; v.goal = v.x; if (gap > 0) P.speed = Math.min(P.speed, v.speed) * .85; else v.speed *= .85; P.bump = .5; A.sfx('bump'); game.shake(2); }
@@ -549,8 +551,8 @@ const ROAD = (() => {
 
   /** the bot (tools/kits-test.mjs): a coast run by the autopilot from the beach to the goal (left at the first fork,
    *  right at the next), a rewind held past its oldest moment (one of the three), a drift, the bike's first stage, the
-   *  circuit's three laps against the pack, the rash, the duel (on the circuit) on one keyboard (each half's gas), a solo mode after it (player 1 alone again), the striker, the chase
-   *  to the arrest, and #road/hd's size */
+   *  circuit's qualifying lap and three laps against the pack, the rash, the duel (on the circuit) on one keyboard (each half's gas), a solo mode after it (player 1 alone again), the striker, the chase
+   *  through its fork to the arrest, and #road/hd's size */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
