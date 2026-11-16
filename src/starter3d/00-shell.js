@@ -51,7 +51,7 @@ function cameraKey(world) {
   const c = world.camera, m = CAMS[(CAMS.indexOf(c.mode) + 1) % CAMS.length]; c.set(m); game.note(m === 'view' ? viewName() : E.t('starter3d.camera.' + m));
 }
 addEventListener('keydown', e => {
-  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || game.paused) return;
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || game.paused || Object.values(game.input.map).some(cs => cs.includes(e.code))) return;   // (a key the scene's own controls use is theirs)
   if (e.code === 'KeyM') { A.mute(); return; }
   if (active && ['fixed', 'zones'].includes(active.camera.mode)) return;   // (a slice that runs its own camera, or fixed cameras by room: its keys are its own)
   if (e.code === 'KeyV') { game.nextView(); if (active) active.camera.set('view'); game.note(viewName()); }

@@ -10146,7 +10146,8 @@ class Shell {
    * - bars, counts: bars: [{ label, value, max, kind: 'bar' | 'pips', color }] (health, stamina, a meter); counts: [[label,
    *   value]]
    * - prompt: { key: 'E' (or act: 'interact': its key on the player's device), label, hint, progress: 0..1 }
-   * - keys, buttons: keys: [['WASD', 'Move'], ...] (hidden on touch screens); buttons: [[label, fn or action]] (top right:
+   * - keys, buttons: keys: [['WASD', 'Move'], [{ act: 'jump' }, 'Jump'], ...] (an act: its key or button on the device in
+   *   use, as a chip; hidden on touch screens); buttons: [[label, fn or action]] (top right:
    *   pause and map where there is no Escape key)
    * - minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick(x, y)
    *   (the world point clicked), fog (an E.Fog: unseen cells black, seen ones dim), camera: true (the ground the screen shows) }
@@ -10183,7 +10184,8 @@ class Shell {
     this._piece('hb', play && s.buttons && s.buttons.map(b => b[0]), labels => labels.map((l, i) => { const b = this._el('button', '', l); b.onclick = () => { const f = this._btns[i] && this._btns[i][1]; if (typeof f === 'function') f(); else if (f) { this._game.input.tap(f); this._held.add(f); } }; return b; }));
     this._piece('tip', play && s.tip, t => typeof t === 'string' ? [this._el('b', '', t)] : [this._el('b', '', t.title), t.text && this._el('p', 'esh-m', t.text)]);
     this._piece('place', play && s.place, p => [p]);
-    this._piece('keys', play && s.keys, ks => ks.map(([k, w]) => { const e = this._el('span'); e.append(this._el('kbd', '', k), w); return e; }));
+    const keyOf = k => k && typeof k === 'object' && k.act ? [this._game.input.label(k.act), this._game.input.lastDevice === 'gamepad'] : [k, false];   // ({ act: 'jump' }: the player's own key or button for it)
+    this._piece('keys', play && s.keys && s.keys.map(([k, w]) => [...keyOf(k), w]), ks => ks.map(([k, pad, w]) => { const e = this._el('span'); e.append(this._chip(k, pad), ' ' + w); return e; }));
     const m = play && s.minimap; E3.mini.hidden = !m; if (m) this._miniLast = m;
     if (m && (this._game.real - (this._miniT || -1) > .1)) { this._miniT = this._game.real; this._map(E3.mini, m, false); }
     return this;
@@ -10358,7 +10360,7 @@ class Shell {
     if (name === 'controls') this._controls(add, top);
     const desc = (name === 'settings' || name === 'controls' || (v(s.rows) || []).length) && this._el('p', 'esh-desc');   // (the focused row's help, under the list)
     add(desc);
-    if (s.keys) { const g = this._el('div', 'esh-grid'); for (const [k, w] of v(s.keys)) g.append(this._el('kbd', '', k), this._el('span', '', w)); add(g); }
+    if (s.keys) { const g = this._el('div', 'esh-grid'), I = this._game.input; for (const [k, w] of v(s.keys)) { const act = k && typeof k === 'object' && k.act; g.append(this._chip(act ? I.label(act) : k, !!act && I.lastDevice === 'gamepad'), this._el('span', '', w)); } add(g); }   // ({ act }: the player's own key or button)
     for (const [h, t] of v(s.sections) || []) add(this._el('div', 'esh-k esh-sec', h), this._el('p', 'esh-m', t));
     if (s.stats) { const g = this._el('div', 'esh-stats'); for (const [val, lab] of v(s.stats)) { const c = this._el('div'); c.append(this._el('b', '', val), this._el('small', '', lab)); g.appendChild(c); } add(g); }
     if (s.medals) { const g = this._el('div'); for (const [lab, got] of v(s.medals)) g.appendChild(this._el('span', 'esh-med' + (got ? '' : ' off'), (got ? '✓ ' : '') + lab)); add(g); }
