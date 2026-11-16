@@ -87,8 +87,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that

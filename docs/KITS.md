@@ -55,6 +55,7 @@ in the core.
 | walkable areas, hotspots, verbs | module `click` | point-and-click, visual novels |
 | 2D rigid bodies; destructible terrain | modules `physics`, `terrain` | pinball, Breakout, artillery, Lemmings, Asteroids |
 | a music clock, layers; a songbook; charts and judgments; scored songs (my-game-audio) | core audio, modules `songs`, `rhythm`, `mga` | rhythm, stealth and chases, every genre's music |
+| the controls standard: prompts by device, swipes, touch layouts and assists, the pad's cursor; a DualSense's light bar, adaptive triggers, gyro, touchpad, speaker and mic | core input and Shell, module `dualsense` | every genre (`docs/CONTROLS.md`) |
 | lock-on, camera zones, tank controls; vehicles, tracks, flight | the 3D engine | 3D action, horror, racing, flight, rails, first-person dungeons |
 
 ## Modules
