@@ -7,7 +7,7 @@
   "sports.menu.back": "BACK",
   "sports.menu.rematch": "REMATCH",
   "sports.menu.menu": "MENU",
-  "sports.join": "VERSUS: PRESS 2 ON THE KEYBOARD, OR START ON A PAD, TO JOIN",
+  "sports.join": "TO JOIN: {key} ON THE KEYBOARD, {pad} ON A PAD",
   "sports.join.ready": "P{player} {team}  READY",
   "sports.join.waiting": "P{player} {team}  ...",
   "sports.join.play": "PLAY",
@@ -41,9 +41,12 @@
   "sports.results.draw": "A DRAW",
   "sports.results.score": "{team1} {score1} - {score2} {team2}",
   "sports.results.goal": "{time}  {player} ({team})",
+  "sports.touch.tackle": "TACKLE",
+  "sports.touch.switch": "SWITCH",
   "action.pass": "Pass",
   "action.shoot": "Shoot",
-  "action.lob": "Lob"
+  "action.lob": "Lob",
+  "action.switch": "Switch player"
  },
  "notes": {
   "sports.title": "The football game's title: the cup played in the cage (a walled pitch).",
@@ -53,11 +56,11 @@
   "sports.menu.back": "Back to the title screen (a menu entry).",
   "sports.menu.rematch": "After the match: play it again.",
   "sports.menu.menu": "After the match: back to the menu.",
-  "sports.join": "2 is the key on a keyboard, START the button on a gamepad: keep them as they are.",
+  "sports.join": "On the versus join screen: how players 2 to 4 join. {key} is the keyboard's key (2), {pad} a gamepad's button (OPTIONS, or MENU on an Xbox pad).",
   "sports.join.ready": "A row of the join screen: player {player} (P1 to P4) plays for {team} and has joined. Two spaces before READY.",
   "sports.join.waiting": "A row of the join screen: player {player} (P1 to P4), for {team}, has not joined yet (the dots: waiting).",
-  "sports.join.play": "After a key or button's name: press it to start the match.",
-  "sports.join.back": "After a key or button's name: press it to go back.",
+  "sports.join.play": "A menu entry on the join screen: start the match.",
+  "sports.join.back": "A menu entry on the join screen: back to the menu.",
   "sports.team.gulls": "A team's name (seagulls), plural: THE GULLS.",
   "sports.team.rust": "A team's name, used like a plural: THE RUST.",
   "sports.radio": "The match commentator's name: the cage's radio station.",
@@ -79,9 +82,12 @@
   "sports.results.win": "At the final whistle: {team} won (the team's name is plural).",
   "sports.results.score": "The final score: {team1} {score1}, {team2} {score2}.",
   "sports.results.goal": "A goal in the results: {time} when (minutes:seconds), {player} who scored, {team} for which team. Two spaces after the time.",
+  "sports.touch.tackle": "A touch button's caption (a phone): the pass button without the ball slides in to tackle. Capitals, short.",
+  "sports.touch.switch": "A touch button's caption: the shoot button without the ball switches to the teammate nearer the ball. Capitals, short.",
   "action.pass": "Pass the ball (or slide in to tackle): an action's name on the controls screen and its touch button.",
   "action.shoot": "Shoot (hold to fill the meter): an action's name on the controls screen and its touch button.",
-  "action.lob": "Lob the ball over a defender: an action's name on the controls screen and its touch button."
+  "action.lob": "Lob the ball over a defender: an action's name on the controls screen and its touch button.",
+  "action.switch": "Switch to the teammate nearer the ball: an action's name on the controls screen."
  },
  "max": {
   "sports.team.gulls": 8,
