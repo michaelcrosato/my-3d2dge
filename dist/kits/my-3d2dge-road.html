@@ -451,6 +451,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "road.pit.slow": "PIT LANE: SLOW DOWN",
     "road.pit.sign": "PIT",
     "road.pit.lane": "PIT LANE",
+    "road.duel.tag": "P{n}: {line}",
     "engine.key.space": "Space",
     "engine.key.shift_left": "Shift",
     "engine.key.shift_right": "R Shift",
@@ -771,7 +772,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "road.pit.full": "The car's tank is full again: back to the race.",
     "road.pit.slow": "The car is in the pit lane but too fast to refuel: slow down.",
     "road.pit.sign": "Written on the signs beside the pit lane (short: the sign is small).",
-    "road.pit.lane": "Written across the arch over the road where the pit lane begins."
+    "road.pit.lane": "Written across the arch over the road where the pit lane begins.",
+    "road.duel.tag": "In the two-player duel, a banner about one car's fuel names its player: {n} the player, {line} the message (e.g. FULL TANK)."
   },
   "names": ["my-3D2dge"],
   "brief": "The my-3D2dge starter: a title menu of small games, one per genre, each a complete slice to copy and change. Its menus and notices are short, arcade-like, mostly in capitals; keep them short, since they sit on a 320 x 240 screen. The player is unnamed and unseen in the menus; address them with the familiar \"you\" where a line needs one.\n\nLines with ids starting engine. are the engine's own words: its pause menu, settings, controls screen, save slots, notices and key names, shown on every game made with it. Keep them short: they sit on buttons and in narrow rows."
@@ -1468,12 +1470,13 @@ const ROAD = (() => {
     }
     P.x = clamp(P.x, -6, 6); P.z += P.speed * dt; P.score += P.speed * dt * .01; P.turn = (P.turn || 0) + road.curveAt(P.z) * P.speed * dt * .006;
     if (P.fuel !== undefined && !P.qual && !P.over) {   // Top Gear's fuel: burnt with the distance (more at speed); in the pit lane under its speed, it fills (a stop counted once a lap)
-      P.fuel = Math.max(0, P.fuel - P.speed * dt * (.6 + .4 * P.speed / TOP) / FUEL);
-      if (pitAt(L, P.z) && P.x > PIT_X && P.speed < PITV && P.fuel < 100) {
+      const inPit = pitAt(L, P.z) && P.x > PIT_X && P.speed < PITV, who = s => DUO ? E.t('road.duel.tag', { n: P.n + 1, line: s }) : s;   // (in the duel a banner names its player: both halves show it)
+      if (!inPit) P.fuel = Math.max(0, P.fuel - P.speed * dt * (.6 + .4 * P.speed / TOP) / FUEL);   // (none burnt standing in the pit lane: full, it stays full and says so once)
+      if (inPit && P.fuel < 100) {
         const v = Math.floor((P.z - L.pit[0]) / road.length); if (P.pitV !== v) { P.pitV = v; P.pits++; A.sfx('powerup', { vol: .4 }); }
-        P.fuel = Math.min(100, P.fuel + FILL * dt); P.filling = true; if (P.fuel >= 100) { say(E.t('road.pit.full'), 1.5); A.sfx('oneup'); }
+        P.fuel = Math.min(100, P.fuel + FILL * dt); P.filling = true; if (P.fuel >= 100) { say(who(E.t('road.pit.full')), 1.5); A.sfx('oneup'); }
       } else P.filling = false;
-      if (P.fuel <= 0 && !P.dry) { P.dry = true; say(E.t('road.fuel.out'), 2.5); A.sfx('die'); } else if (P.fuel > 0) P.dry = false;
+      if (P.fuel <= 0 && !P.dry) { P.dry = true; say(who(E.t('road.fuel.out')), 2.5); A.sfx('die'); } else if (P.fuel > 0) P.dry = false;
     }
     for (const c of L.traffic) {   // the traffic keeps its lane (a lane of the road it is on); the car meets it
       if (!still) c.z += c.speed * dt;
@@ -1591,10 +1594,10 @@ const ROAD = (() => {
         P.foes.push(f);
       }
     }
-    if (C.wave >= WAVES.length && P.z >= KING_AT && !C.boss) { C.boss = { d: 30000, z: P.z + 30000, x: c, alt: 700, hp: 60, max: 60, t: 0, flash: 0, die: 0, fan: 3 }; say(E.t('road.cotton.boss'), 2.5); A.music('boss'); }
+    if (C.wave >= WAVES.length && P.z >= KING_AT && !C.boss) { C.boss = { d: 30000, z: P.z + 30000, x: c, alt: 1500, hp: 60, max: 60, t: 0, flash: 0, die: 0, fan: 3 }; say(E.t('road.cotton.boss'), 2.5); A.music('boss'); }
     const B = C.boss;
     if (B) {   // the Pumpkin King: in from far ahead, it hangs before her, swaying and bobbing; fans of seeds; shot down, it bursts
-      B.t += dt; B.flash = Math.max(0, B.flash - dt); B.d += (7000 - B.d) * Math.min(1, dt * .7); B.z = P.z + B.d; B.x = c + Math.sin(B.t * .7) * 1.05; B.alt = 700 + Math.sin(B.t * 1.1) * 330;
+      B.t += dt; B.flash = Math.max(0, B.flash - dt); B.d += (7000 - B.d) * Math.min(1, dt * .7); B.z = P.z + B.d; B.x = c + Math.sin(B.t * .7) * 1.05; B.alt = 1500 + Math.sin(B.t * 1.1) * 300;   // (high enough that its whole body clears the road and the crests)
       if (B.hp > 0 && B.d < 12000 && (B.fan -= dt) <= 0) { B.fan = 1.7; const T = (B.d) / (7000 + P.speed); for (let i = -2; i <= 2; i++) P.bolts.push({ z: B.z, x: B.x, alt: B.alt, vx: (P.x + i * .38 - B.x) / T, va: (P.alt + 140 - B.alt) / T }); A.sfx('shoot', { vol: .3 }); }
       if (B.hp <= 0) { if (Math.floor(B.die * 8) !== Math.floor((B.die + dt) * 8)) C.fx.push({ z: B.z, x: B.x + (Math.random() - .5) * 1.2, alt: B.alt + (Math.random() - .5) * 900, t: 0, col: Math.random() < .5 ? '#ffd040' : '#f08a20', big: true }); B.die += dt;
         if (B.die > 2.2 && !P.over) { P.over = { won: true, t: 0 }; P.score += P.shield * 3000; say(E.t('road.cotton.won'), 3); A.music('victory'); } }
@@ -1675,7 +1678,8 @@ const ROAD = (() => {
     let h = P.striker ? 1000 + P.alt * .35 : P.bike ? 760 : 1000, camZ = P.z - road.ahead(h, r) - 1700, camY = 0, camX = P.x;
     if (C) {   // COTTON's camera: close behind her at her height (over the hill under it; higher on a screen stood upright, to keep her low on it), across with her by half, never so little she leaves the screen's middle 60%: she moves about the screen
       const a = Math.min(1, W0 / H / (4 / 3)), back = clamp(1650 * Math.sqrt(a), 900, 2400), lim = .6 * back / (W * road.depth); camZ = P.z - back;
-      camY = Math.max(road.yAt(P.z) + P.alt * .2 + 950 * (1.4 - a * .4), road.yAt(camZ) + 260); h = camY - road.yAt(camZ); camX = P.x - clamp(P.x * .45, -lim, lim);
+      const wide = Math.max(1, W0 / H / (4 / 3)), lift = P.alt * .2 + 950 * (1.4 - a * .4);   // (wider than 4:3 the view is shorter: the camera nearer her height, so she stays on the screen)
+      camY = Math.max(road.yAt(P.z) + P.alt + (lift - P.alt) / wide, road.yAt(camZ) + 260); h = camY - road.yAt(camZ); camX = P.x - clamp(P.x * .45, -lim, lim);
     }
     if (C) {   // COTTON's foes, stars and seeds at their heights, each model drawn in its own small view from the camera (level: not bent by the hill under it); her shadow
       const look = (z, y) => clamp(Math.round(Math.atan2(camY - road.yAt(z) - y, Math.max(1, z - camZ)) * 180 / Math.PI), 0, 38);

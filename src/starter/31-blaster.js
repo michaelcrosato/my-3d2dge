@@ -372,10 +372,10 @@ const BLASTER = (() => {
       start() { Object.assign(R, { F: 0, hx: 0, dy: 40, hz: 260, bank: 0, tilt: -.1, spin: 0, guns: new Set() }); },
       swing: () => E.ease.inOutQuad(clamp((R.t - 12) / 2.5, 0, 1)),
       cam() {   // (over the helicopter, then swung down behind it: the pitch kept within 20 degrees of it, on the screen throughout)
-        const tall = game.H > game.W, u = this.swing(), y = R.F + R.dy, n = { x: R.hx * .6, y: y + (tall ? 200 : 150), h: R.hz + (tall ? 70 : 58), angle: -Math.PI / 2, pitch: (tall ? 6 : 10) + R.hz * .01, fov: tall ? 80 : 66, roll: Math.abs(R.bank) > .04 ? R.bank * -12 : 0 };
+        const tall = game.H > game.W, u = this.swing(), y = R.F + R.dy, n = { x: R.hx * (tall ? .85 : .6), y: y + (tall ? 200 : 150), h: R.hz + (tall ? 70 : 58), angle: -Math.PI / 2, pitch: (tall ? 6 : 10) + R.hz * .01, fov: tall ? 80 : 66, roll: Math.abs(R.bank) > .04 ? R.bank * -12 : 0 };
         for (const q of boxes(n.y - 260, n.y + 40)) if (q.z0 > 0 && R.hz < q.z0) n.h = Math.min(n.h, q.z0 - 8 + Math.max(0, n.y - q.y1 - 40) * .6);   // (the helicopter under a skybridge: the camera under it too, as it nears it)
         if (u >= 1) return n; const cy = R.F - 40 + (n.y - R.F + 40) * u, h = R.hz + 330 + (n.h - R.hz - 330) * u, dn = Math.atan2(h - R.hz, cy - y) * 180 / Math.PI;
-        return Object.assign(n, { x: R.hx * .5 + (n.x - R.hx * .5) * u, y: cy, h, pitch: Math.min(90, Math.max(90 + (n.pitch - 90) * u, dn - 20)), roll: n.roll * u });
+        const ox = R.hx * (tall ? .85 : .5); return Object.assign(n, { x: ox + (n.x - ox) * u, y: cy, h, pitch: Math.min(90, Math.max(90 + (n.pitch - 90) * u, dn - 20)), roll: n.roll * u });
       },
       update(dt, k) {
         const u = this.swing(), top = u <= 0, T = R.t, lim = top ? 300 : u < 1 ? 300 - 200 * u : 200;   // (across: the street grid overhead, drawn in to the avenue as the camera swings down)
@@ -383,7 +383,10 @@ const BLASTER = (() => {
         R.bank += (clamp(k.x, -1, 1) * .35 - R.bank) * Math.min(1, dt * 6); R.tilt += (-.1 + (top ? k.y * .15 : -k.y * .12) - R.tilt) * Math.min(1, dt * 5);
         R.hx = clamp(R.hx + k.x * 300 * dt, -300, 300); R.hx += (clamp(R.hx, -lim, lim) - R.hx) * Math.min(1, dt * 4);
         if (top) R.dy = clamp(R.dy + k.y * 260 * dt, -150, 110);   // overhead: up and down the screen; the swing: down to the avenue; behind: up and down
-        else if (u < 1) { R.dy -= R.dy * Math.min(1, dt * 3); R.hz += (120 - R.hz) * Math.min(1, dt * 1.6); }
+        else if (u < 1) {   // (the swing: down to the avenue, but over a roof until it's over the avenue itself)
+          const yy = R.F + R.dy, roof = Math.abs(R.hx) > 110 ? Math.max(0, ...boxes(yy - 40, yy + 40).filter(q => !q.z0 && R.hx > q.x0 - 24 && R.hx < q.x1 + 24).map(q => q.z1 + 24)) : 0;
+          R.dy -= R.dy * Math.min(1, dt * 3); R.hz += (Math.max(120, roof) - R.hz) * Math.min(1, dt * 1.6);
+        }
         else R.hz = clamp(R.hz - k.y * 260 * dt, 40, 420);
         const me = this.me();
         if (k.fire && R.cool <= 0) {   // overhead the gun fires down ahead (a shot meets what it passes over); behind, ahead, leaning to the foe nearest its line
@@ -418,7 +421,8 @@ const BLASTER = (() => {
           if (Math.floor(B.t / .3) !== Math.floor((B.t - dt) / .3)) boom(B.x, B.y, B.z + 20, 1.2); if (B.z <= 0) boom(B.x, B.y, 10, 3);
         }
         if (!top) for (const q of boxes(me.y - 14, me.y + 14)) if (me.x > q.x0 - 14 && me.x < q.x1 + 14 && me.z > q.z0 - 10 && me.z < q.z1 + 12) {   // a building flown into: it hurts, and knocks the helicopter out the nearest way (across, over, under)
-          const out = [[q.x0 - 15 - me.x, 0], [q.x1 + 15 - me.x, 0], [0, q.z1 + 13 - me.z], [0, q.z0 > 0 ? q.z0 - 11 - me.z : 1e9]].sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]))[0];
+          const free = o => Math.abs(me.x + o[0]) <= lim && !boxes(me.y - 14, me.y + 14).some(b => b !== q && me.x + o[0] > b.x0 - 14 && me.x + o[0] < b.x1 + 14 && me.z + o[1] > b.z0 - 10 && me.z + o[1] < b.z1 + 12);   // (a way out within reach and into no other building)
+          const out = [[q.x0 - 15 - me.x, 0], [q.x1 + 15 - me.x, 0], [0, q.z1 + 13 - me.z], [0, q.z0 > 0 ? q.z0 - 11 - me.z : 1e9]].filter(free).sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]))[0] || [0, q.z1 + 13 - me.z];
           R.hx += out[0]; R.hz += out[1]; game.shake(4); hurt(); break;
         }
         R.foes = R.foes.filter(f => f === R.boss || (f.hp > 0 && f.y < R.F + 600 && f.t < 30));   // (gone past the screen's foot, overhead too)
@@ -446,7 +450,7 @@ const BLASTER = (() => {
       gather(V) {
         const me = this.me(), u = this.swing(), y0 = me.y + (u < .5 ? 700 : 300), y1 = me.y - (u < .5 ? 800 : 3200), c = this.cam(), cp = Math.cos(c.pitch * Math.PI / 180), sp = Math.sin(c.pitch * Math.PI / 180);
         for (let b = Math.floor(y1 / 512); b <= Math.floor(y0 / 512); b++) for (const q of block(b)) {   // the city: each box, its windows near
-          if (q.y0 > y0 || q.y1 < y1 || !q.near && u >= .5 && me.y - q.y1 > 1200) continue;   // (past the side street, far up the avenue: behind the near ones)
+          if (q.y0 > y0 || q.y1 < y1 || !q.near && u >= .5 && me.z < 150 && me.y - q.y1 > 1200) continue;   // (past the side street, far up the avenue: behind the near ones, but in view over the roofs)
           if (q.tree) { V.mesh(TREE, q.x0, q.y0, 0, { scale: 1.6, colors: { leaf: q.col } }); continue; }
           let d = q.y1 - q.y0; if (cp > .2) { const end = c.y - (14 + (q.z1 + 10 - c.h) * sp) / cp; if (q.y1 > end) d = Math.floor((end - q.y0) / 16) * 16; }   // (one the camera is passing: cut short in front of it, a face reaching behind it being left out whole)
           if (d < 16) continue;

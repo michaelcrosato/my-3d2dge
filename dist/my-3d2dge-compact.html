@@ -1808,6 +1808,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "road.pit.slow": "PIT LANE: SLOW DOWN",
     "road.pit.sign": "PIT",
     "road.pit.lane": "PIT LANE",
+    "road.duel.tag": "P{n}: {line}",
     "zero.title": "ZERO",
     "zero.menu.gp": "GRAND PRIX",
     "zero.menu.city": "NEON CITY",
@@ -3027,6 +3028,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "road.pit.slow": "The car is in the pit lane but too fast to refuel: slow down.",
     "road.pit.sign": "Written on the signs beside the pit lane (short: the sign is small).",
     "road.pit.lane": "Written across the arch over the road where the pit lane begins.",
+    "road.duel.tag": "In the two-player duel, a banner about one car's fuel names its player: {n} the player, {line} the message (e.g. FULL TANK).",
     "zero.title": "The anti-gravity racer's title, on its menu.",
     "zero.menu.gp": "A mode: both tracks in a row, points for each place.",
     "zero.menu.city": "A track: a circuit through a city at night (a single race).",
@@ -8172,10 +8174,10 @@ const BLASTER = (() => {
       start() { Object.assign(R, { F: 0, hx: 0, dy: 40, hz: 260, bank: 0, tilt: -.1, spin: 0, guns: new Set() }); },
       swing: () => E.ease.inOutQuad(clamp((R.t - 12) / 2.5, 0, 1)),
       cam() {   // (over the helicopter, then swung down behind it: the pitch kept within 20 degrees of it, on the screen throughout)
-        const tall = game.H > game.W, u = this.swing(), y = R.F + R.dy, n = { x: R.hx * .6, y: y + (tall ? 200 : 150), h: R.hz + (tall ? 70 : 58), angle: -Math.PI / 2, pitch: (tall ? 6 : 10) + R.hz * .01, fov: tall ? 80 : 66, roll: Math.abs(R.bank) > .04 ? R.bank * -12 : 0 };
+        const tall = game.H > game.W, u = this.swing(), y = R.F + R.dy, n = { x: R.hx * (tall ? .85 : .6), y: y + (tall ? 200 : 150), h: R.hz + (tall ? 70 : 58), angle: -Math.PI / 2, pitch: (tall ? 6 : 10) + R.hz * .01, fov: tall ? 80 : 66, roll: Math.abs(R.bank) > .04 ? R.bank * -12 : 0 };
         for (const q of boxes(n.y - 260, n.y + 40)) if (q.z0 > 0 && R.hz < q.z0) n.h = Math.min(n.h, q.z0 - 8 + Math.max(0, n.y - q.y1 - 40) * .6);   // (the helicopter under a skybridge: the camera under it too, as it nears it)
         if (u >= 1) return n; const cy = R.F - 40 + (n.y - R.F + 40) * u, h = R.hz + 330 + (n.h - R.hz - 330) * u, dn = Math.atan2(h - R.hz, cy - y) * 180 / Math.PI;
-        return Object.assign(n, { x: R.hx * .5 + (n.x - R.hx * .5) * u, y: cy, h, pitch: Math.min(90, Math.max(90 + (n.pitch - 90) * u, dn - 20)), roll: n.roll * u });
+        const ox = R.hx * (tall ? .85 : .5); return Object.assign(n, { x: ox + (n.x - ox) * u, y: cy, h, pitch: Math.min(90, Math.max(90 + (n.pitch - 90) * u, dn - 20)), roll: n.roll * u });
       },
       update(dt, k) {
         const u = this.swing(), top = u <= 0, T = R.t, lim = top ? 300 : u < 1 ? 300 - 200 * u : 200;   // (across: the street grid overhead, drawn in to the avenue as the camera swings down)
@@ -8183,7 +8185,10 @@ const BLASTER = (() => {
         R.bank += (clamp(k.x, -1, 1) * .35 - R.bank) * Math.min(1, dt * 6); R.tilt += (-.1 + (top ? k.y * .15 : -k.y * .12) - R.tilt) * Math.min(1, dt * 5);
         R.hx = clamp(R.hx + k.x * 300 * dt, -300, 300); R.hx += (clamp(R.hx, -lim, lim) - R.hx) * Math.min(1, dt * 4);
         if (top) R.dy = clamp(R.dy + k.y * 260 * dt, -150, 110);   // overhead: up and down the screen; the swing: down to the avenue; behind: up and down
-        else if (u < 1) { R.dy -= R.dy * Math.min(1, dt * 3); R.hz += (120 - R.hz) * Math.min(1, dt * 1.6); }
+        else if (u < 1) {   // (the swing: down to the avenue, but over a roof until it's over the avenue itself)
+          const yy = R.F + R.dy, roof = Math.abs(R.hx) > 110 ? Math.max(0, ...boxes(yy - 40, yy + 40).filter(q => !q.z0 && R.hx > q.x0 - 24 && R.hx < q.x1 + 24).map(q => q.z1 + 24)) : 0;
+          R.dy -= R.dy * Math.min(1, dt * 3); R.hz += (Math.max(120, roof) - R.hz) * Math.min(1, dt * 1.6);
+        }
         else R.hz = clamp(R.hz - k.y * 260 * dt, 40, 420);
         const me = this.me();
         if (k.fire && R.cool <= 0) {   // overhead the gun fires down ahead (a shot meets what it passes over); behind, ahead, leaning to the foe nearest its line
@@ -8218,7 +8223,8 @@ const BLASTER = (() => {
           if (Math.floor(B.t / .3) !== Math.floor((B.t - dt) / .3)) boom(B.x, B.y, B.z + 20, 1.2); if (B.z <= 0) boom(B.x, B.y, 10, 3);
         }
         if (!top) for (const q of boxes(me.y - 14, me.y + 14)) if (me.x > q.x0 - 14 && me.x < q.x1 + 14 && me.z > q.z0 - 10 && me.z < q.z1 + 12) {   // a building flown into: it hurts, and knocks the helicopter out the nearest way (across, over, under)
-          const out = [[q.x0 - 15 - me.x, 0], [q.x1 + 15 - me.x, 0], [0, q.z1 + 13 - me.z], [0, q.z0 > 0 ? q.z0 - 11 - me.z : 1e9]].sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]))[0];
+          const free = o => Math.abs(me.x + o[0]) <= lim && !boxes(me.y - 14, me.y + 14).some(b => b !== q && me.x + o[0] > b.x0 - 14 && me.x + o[0] < b.x1 + 14 && me.z + o[1] > b.z0 - 10 && me.z + o[1] < b.z1 + 12);   // (a way out within reach and into no other building)
+          const out = [[q.x0 - 15 - me.x, 0], [q.x1 + 15 - me.x, 0], [0, q.z1 + 13 - me.z], [0, q.z0 > 0 ? q.z0 - 11 - me.z : 1e9]].filter(free).sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]))[0] || [0, q.z1 + 13 - me.z];
           R.hx += out[0]; R.hz += out[1]; game.shake(4); hurt(); break;
         }
         R.foes = R.foes.filter(f => f === R.boss || (f.hp > 0 && f.y < R.F + 600 && f.t < 30));   // (gone past the screen's foot, overhead too)
@@ -8246,7 +8252,7 @@ const BLASTER = (() => {
       gather(V) {
         const me = this.me(), u = this.swing(), y0 = me.y + (u < .5 ? 700 : 300), y1 = me.y - (u < .5 ? 800 : 3200), c = this.cam(), cp = Math.cos(c.pitch * Math.PI / 180), sp = Math.sin(c.pitch * Math.PI / 180);
         for (let b = Math.floor(y1 / 512); b <= Math.floor(y0 / 512); b++) for (const q of block(b)) {   // the city: each box, its windows near
-          if (q.y0 > y0 || q.y1 < y1 || !q.near && u >= .5 && me.y - q.y1 > 1200) continue;   // (past the side street, far up the avenue: behind the near ones)
+          if (q.y0 > y0 || q.y1 < y1 || !q.near && u >= .5 && me.z < 150 && me.y - q.y1 > 1200) continue;   // (past the side street, far up the avenue: behind the near ones, but in view over the roofs)
           if (q.tree) { V.mesh(TREE, q.x0, q.y0, 0, { scale: 1.6, colors: { leaf: q.col } }); continue; }
           let d = q.y1 - q.y0; if (cp > .2) { const end = c.y - (14 + (q.z1 + 10 - c.h) * sp) / cp; if (q.y1 > end) d = Math.floor((end - q.y0) / 16) * 16; }   // (one the camera is passing: cut short in front of it, a face reaching behind it being left out whole)
           if (d < 16) continue;
@@ -14826,7 +14832,7 @@ const SKY = (() => {
     P.yaw += Math.sin(P.roll) * 1.1 * dt;
     P.speed = clamp(P.speed + (((P.brake ? 46 : 64) - P.speed) * (P.brake ? .8 : .3) - Math.sin(P.pitch) * 60) * dt, 20, 150);
     P.lift = lift(P.x, P.y, P.z);
-    P.vz = P.speed * Math.sin(P.pitch) - (6 + .0012 * (P.speed - 64) ** 2) / Math.cos(P.roll) - (P.brake ? 10 : 0) - (P.stall ? 12 : 0) + P.lift;
+    P.vz = P.speed * Math.sin(P.pitch) - (6 + .0012 * (P.speed - 64) ** 2) / Math.cos(P.roll) - (P.brake ? 6 : 0) - (P.stall ? 12 : 0) + P.lift;   // (the brake's sink: braked and level it still lands soft, as the HUD's flare hint says)
     const h = P.speed * Math.cos(P.pitch); P.x += Math.cos(P.yaw) * h * dt; P.y += Math.sin(P.yaw) * h * dt; P.z += P.vz * dt;
     if (P.z > 0) return;
     P.z = 0; P.down = true; P.dist = Math.hypot(P.x - TARGET[0], P.y - TARGET[1]); P.soft = P.vz > -16 && Math.abs(P.roll) < .35 && P.speed < 80;
@@ -14850,7 +14856,7 @@ const SKY = (() => {
     if (P.z > 0) { P.ground = false; return; }
     P.vz = Math.max(0, P.vz); if (P.ground || !P.up) return;   // (standing, or not yet off the pad)
     P.ground = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); A.sfx('land');
-    if (P.kills === TURRETS.length && P.dist < 30) { P.landed = P.down = true; say(E.t(P.dist < 10 ? 'sky.bull' : 'sky.landed')); A.sfx('confirm'); }
+    if (P.kills === TURRETS.length && Math.max(Math.abs(P.x - PAD[0]), Math.abs(P.y - PAD[1])) < 30) { P.landed = P.down = true; say(E.t(P.dist < 10 ? 'sky.bull' : 'sky.landed')); A.sfx('confirm'); }   // (on the square pad as drawn, its corners too)
   }
   // a missile from the helicopter's nose: straight ahead and a little down, its speed added
   function missile(P) { const c = Math.cos(P.yaw), s = Math.sin(P.yaw), h = MS * Math.cos(DIP) + P.v; return { x: P.x + c * 12, y: P.y + s * 12, z: P.z + 5, vx: c * h, vy: s * h, vz: -MS * Math.sin(DIP), t: 0 }; }
@@ -15727,12 +15733,13 @@ const ROAD = (() => {
     }
     P.x = clamp(P.x, -6, 6); P.z += P.speed * dt; P.score += P.speed * dt * .01; P.turn = (P.turn || 0) + road.curveAt(P.z) * P.speed * dt * .006;
     if (P.fuel !== undefined && !P.qual && !P.over) {   // Top Gear's fuel: burnt with the distance (more at speed); in the pit lane under its speed, it fills (a stop counted once a lap)
-      P.fuel = Math.max(0, P.fuel - P.speed * dt * (.6 + .4 * P.speed / TOP) / FUEL);
-      if (pitAt(L, P.z) && P.x > PIT_X && P.speed < PITV && P.fuel < 100) {
+      const inPit = pitAt(L, P.z) && P.x > PIT_X && P.speed < PITV, who = s => DUO ? E.t('road.duel.tag', { n: P.n + 1, line: s }) : s;   // (in the duel a banner names its player: both halves show it)
+      if (!inPit) P.fuel = Math.max(0, P.fuel - P.speed * dt * (.6 + .4 * P.speed / TOP) / FUEL);   // (none burnt standing in the pit lane: full, it stays full and says so once)
+      if (inPit && P.fuel < 100) {
         const v = Math.floor((P.z - L.pit[0]) / road.length); if (P.pitV !== v) { P.pitV = v; P.pits++; A.sfx('powerup', { vol: .4 }); }
-        P.fuel = Math.min(100, P.fuel + FILL * dt); P.filling = true; if (P.fuel >= 100) { say(E.t('road.pit.full'), 1.5); A.sfx('oneup'); }
+        P.fuel = Math.min(100, P.fuel + FILL * dt); P.filling = true; if (P.fuel >= 100) { say(who(E.t('road.pit.full')), 1.5); A.sfx('oneup'); }
       } else P.filling = false;
-      if (P.fuel <= 0 && !P.dry) { P.dry = true; say(E.t('road.fuel.out'), 2.5); A.sfx('die'); } else if (P.fuel > 0) P.dry = false;
+      if (P.fuel <= 0 && !P.dry) { P.dry = true; say(who(E.t('road.fuel.out')), 2.5); A.sfx('die'); } else if (P.fuel > 0) P.dry = false;
     }
     for (const c of L.traffic) {   // the traffic keeps its lane (a lane of the road it is on); the car meets it
       if (!still) c.z += c.speed * dt;
@@ -15850,10 +15857,10 @@ const ROAD = (() => {
         P.foes.push(f);
       }
     }
-    if (C.wave >= WAVES.length && P.z >= KING_AT && !C.boss) { C.boss = { d: 30000, z: P.z + 30000, x: c, alt: 700, hp: 60, max: 60, t: 0, flash: 0, die: 0, fan: 3 }; say(E.t('road.cotton.boss'), 2.5); A.music('boss'); }
+    if (C.wave >= WAVES.length && P.z >= KING_AT && !C.boss) { C.boss = { d: 30000, z: P.z + 30000, x: c, alt: 1500, hp: 60, max: 60, t: 0, flash: 0, die: 0, fan: 3 }; say(E.t('road.cotton.boss'), 2.5); A.music('boss'); }
     const B = C.boss;
     if (B) {   // the Pumpkin King: in from far ahead, it hangs before her, swaying and bobbing; fans of seeds; shot down, it bursts
-      B.t += dt; B.flash = Math.max(0, B.flash - dt); B.d += (7000 - B.d) * Math.min(1, dt * .7); B.z = P.z + B.d; B.x = c + Math.sin(B.t * .7) * 1.05; B.alt = 700 + Math.sin(B.t * 1.1) * 330;
+      B.t += dt; B.flash = Math.max(0, B.flash - dt); B.d += (7000 - B.d) * Math.min(1, dt * .7); B.z = P.z + B.d; B.x = c + Math.sin(B.t * .7) * 1.05; B.alt = 1500 + Math.sin(B.t * 1.1) * 300;   // (high enough that its whole body clears the road and the crests)
       if (B.hp > 0 && B.d < 12000 && (B.fan -= dt) <= 0) { B.fan = 1.7; const T = (B.d) / (7000 + P.speed); for (let i = -2; i <= 2; i++) P.bolts.push({ z: B.z, x: B.x, alt: B.alt, vx: (P.x + i * .38 - B.x) / T, va: (P.alt + 140 - B.alt) / T }); A.sfx('shoot', { vol: .3 }); }
       if (B.hp <= 0) { if (Math.floor(B.die * 8) !== Math.floor((B.die + dt) * 8)) C.fx.push({ z: B.z, x: B.x + (Math.random() - .5) * 1.2, alt: B.alt + (Math.random() - .5) * 900, t: 0, col: Math.random() < .5 ? '#ffd040' : '#f08a20', big: true }); B.die += dt;
         if (B.die > 2.2 && !P.over) { P.over = { won: true, t: 0 }; P.score += P.shield * 3000; say(E.t('road.cotton.won'), 3); A.music('victory'); } }
@@ -15934,7 +15941,8 @@ const ROAD = (() => {
     let h = P.striker ? 1000 + P.alt * .35 : P.bike ? 760 : 1000, camZ = P.z - road.ahead(h, r) - 1700, camY = 0, camX = P.x;
     if (C) {   // COTTON's camera: close behind her at her height (over the hill under it; higher on a screen stood upright, to keep her low on it), across with her by half, never so little she leaves the screen's middle 60%: she moves about the screen
       const a = Math.min(1, W0 / H / (4 / 3)), back = clamp(1650 * Math.sqrt(a), 900, 2400), lim = .6 * back / (W * road.depth); camZ = P.z - back;
-      camY = Math.max(road.yAt(P.z) + P.alt * .2 + 950 * (1.4 - a * .4), road.yAt(camZ) + 260); h = camY - road.yAt(camZ); camX = P.x - clamp(P.x * .45, -lim, lim);
+      const wide = Math.max(1, W0 / H / (4 / 3)), lift = P.alt * .2 + 950 * (1.4 - a * .4);   // (wider than 4:3 the view is shorter: the camera nearer her height, so she stays on the screen)
+      camY = Math.max(road.yAt(P.z) + P.alt + (lift - P.alt) / wide, road.yAt(camZ) + 260); h = camY - road.yAt(camZ); camX = P.x - clamp(P.x * .45, -lim, lim);
     }
     if (C) {   // COTTON's foes, stars and seeds at their heights, each model drawn in its own small view from the camera (level: not bent by the hill under it); her shadow
       const look = (z, y) => clamp(Math.round(Math.atan2(camY - road.yAt(z) - y, Math.max(1, z - camZ)) * 180 / Math.PI), 0, 38);

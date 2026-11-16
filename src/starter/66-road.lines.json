@@ -86,7 +86,8 @@
   "road.pit.full": "FULL TANK",
   "road.pit.slow": "PIT LANE: SLOW DOWN",
   "road.pit.sign": "PIT",
-  "road.pit.lane": "PIT LANE"
+  "road.pit.lane": "PIT LANE",
+  "road.duel.tag": "P{n}: {line}"
  },
  "notes": {
   "road.title": "The driving game's title, on its menu: a run along a coast road.",
@@ -165,6 +166,7 @@
   "road.pit.full": "The car's tank is full again: back to the race.",
   "road.pit.slow": "The car is in the pit lane but too fast to refuel: slow down.",
   "road.pit.sign": "Written on the signs beside the pit lane (short: the sign is small).",
-  "road.pit.lane": "Written across the arch over the road where the pit lane begins."
+  "road.pit.lane": "Written across the arch over the road where the pit lane begins.",
+  "road.duel.tag": "In the two-player duel, a banner about one car's fuel names its player: {n} the player, {line} the message (e.g. FULL TANK)."
  }
 }

@@ -389,7 +389,7 @@ const SKY = (() => {
     P.yaw += Math.sin(P.roll) * 1.1 * dt;
     P.speed = clamp(P.speed + (((P.brake ? 46 : 64) - P.speed) * (P.brake ? .8 : .3) - Math.sin(P.pitch) * 60) * dt, 20, 150);
     P.lift = lift(P.x, P.y, P.z);
-    P.vz = P.speed * Math.sin(P.pitch) - (6 + .0012 * (P.speed - 64) ** 2) / Math.cos(P.roll) - (P.brake ? 10 : 0) - (P.stall ? 12 : 0) + P.lift;
+    P.vz = P.speed * Math.sin(P.pitch) - (6 + .0012 * (P.speed - 64) ** 2) / Math.cos(P.roll) - (P.brake ? 6 : 0) - (P.stall ? 12 : 0) + P.lift;   // (the brake's sink: braked and level it still lands soft, as the HUD's flare hint says)
     const h = P.speed * Math.cos(P.pitch); P.x += Math.cos(P.yaw) * h * dt; P.y += Math.sin(P.yaw) * h * dt; P.z += P.vz * dt;
     if (P.z > 0) return;
     P.z = 0; P.down = true; P.dist = Math.hypot(P.x - TARGET[0], P.y - TARGET[1]); P.soft = P.vz > -16 && Math.abs(P.roll) < .35 && P.speed < 80;
@@ -413,7 +413,7 @@ const SKY = (() => {
     if (P.z > 0) { P.ground = false; return; }
     P.vz = Math.max(0, P.vz); if (P.ground || !P.up) return;   // (standing, or not yet off the pad)
     P.ground = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); A.sfx('land');
-    if (P.kills === TURRETS.length && P.dist < 30) { P.landed = P.down = true; say(E.t(P.dist < 10 ? 'sky.bull' : 'sky.landed')); A.sfx('confirm'); }
+    if (P.kills === TURRETS.length && Math.max(Math.abs(P.x - PAD[0]), Math.abs(P.y - PAD[1])) < 30) { P.landed = P.down = true; say(E.t(P.dist < 10 ? 'sky.bull' : 'sky.landed')); A.sfx('confirm'); }   // (on the square pad as drawn, its corners too)
   }
   // a missile from the helicopter's nose: straight ahead and a little down, its speed added
   function missile(P) { const c = Math.cos(P.yaw), s = Math.sin(P.yaw), h = MS * Math.cos(DIP) + P.v; return { x: P.x + c * 12, y: P.y + s * 12, z: P.z + 5, vx: c * h, vy: s * h, vz: -MS * Math.sin(DIP), t: 0 }; }
