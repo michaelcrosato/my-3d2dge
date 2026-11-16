@@ -3579,7 +3579,7 @@ class Game {
     if (ok('input')) this.input.use(s.input);
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (ok('touch')) { this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch); this.input._touchScene = true; }
-    else if (!s.pausable && this.input._touchArgs && (this.input._touchScene || (old && old.touch != null))) this.input._touchOff();   // (a scene that named touch buttons takes them away as it ends, even ones its enter set again)   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
+    else if (!s.pausable && this.input._touchArgs && (this.input._touchScene || (old && SCENE_FIELDS.touch(old.touch)))) this.input._touchOff();   // (a title or a game over that names no buttons: those a scene named go, even ones its enter set again; buttons the game set itself from a scene that names none stay)
     if (ok('cursor')) { this.input.padCursor = s.cursor; this._sceneCursor = true; } else if (this._sceneCursor) { this.input.padCursor = false; this._sceneCursor = false; }   // (a scene's cursor ends with it)
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
