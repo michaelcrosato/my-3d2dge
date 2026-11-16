@@ -139,9 +139,11 @@ Input (game.input): down(a) held, pressed(a) this step only, released(a), repeat
   DEFAULT: attack (J, X, click), dash (Space, Shift, K), skill (L, E, right click), jump (Z)
   PLATFORMER: jump (Space, Z, K), attack (X, J, click), dash (Shift, C, L), skill (E, V)
   SHMUP: fire (Space, Z, J, click), bomb (X, K, right click)
-  label('jump') -> its key or button on the device in use, for prompts: 'Space', 'A', '✕'
+  label('jump') -> its key or button on the device in use, for prompts: 'Space', '✕' (PlayStation's by default; 'A' with
+  glyphs 'xbox'); every prompt comes from it (docs/CONTROLS.md: a pad on a TV first, the genre's keys, touch an add-on:
+  gate a touch assist on input.assist, swipe a box away with input.swipe(true), E.assist.aim and nearest for aim)
 Standard, with no code: game.settings (saved per game: volume music effects sound motion shake flashes scale deadzone
-  glyphs; set(key, v) checks, saves, applies; yours (or a standard one's default: { key: 'glyphs', value: 'playstation' }):
+  glyphs; set(key, v) checks, saves, applies; yours (or a standard one's default: { key: 'glyphs', value: 'xbox' }):
   new E.Game({ menu: { settings: [{ key: 'hints', value: true }] } })),
   game.fullscreen (a phone's first tap, a top-right button; toggle() from a key or click), and a pausable scene pausing
   when the page is hidden or the controller unplugs (pause(reason), resume(), pauseReason). Don't build your own. Leave
