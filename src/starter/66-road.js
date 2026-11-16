@@ -8,7 +8,7 @@
  * finish in the top three. The race burns fuel (Top Gear's: more at speed; the gauge bottom left), a tank for about two
  * laps: stop once in the pit lane (the blue strip along the right edge of the straight before the line) and, slowly
  * (under 100 km/h), it fills; run dry and the car crawls to the pits. RASH (Road Rash): a bike race down the canyon against seven riders who fight:
- * PUNCH the one beside you, knock three blows into him and he goes down; three blows into you and you do; place in the
+ * PUNCH the one beside you, knock three blows into him and he goes down; six into you and you do; place in the
  * top three. DUEL (Top Gear, Lotus): two players race the circuit and its pack, the screen split in two, each a tank to
  * pit for; the first over the line after three laps wins (from the back of the grid: no qualifying). CHASE: a police car after a getaway car
  * through the night traffic: catch it before the clock runs out and ram it until it stops; where the road forks, take the
@@ -188,11 +188,11 @@ const ROAD = (() => {
   function toMenu() { mode = 'menu'; P = null; DUO = null; game.splitScreen(0); players(false); A.music('title'); }
   function duel() { if (game.players.length >= 2) start('duel'); else { mode = 'join'; players(false); A.sfx('select'); } }   // (Top Gear's and Lotus's two players: the second joins first)
   function radio(r) { ride = r; mode = 'radio'; players(true); A.music(SONGS[song]); game.input.consumeAll(); }
-  /** a run: the car (or bike) at the start of the beach, the clock at 60 (the chase: the city at night, a getaway car
-   *  ahead); keep: the duel's own call, its two players kept */
+  /** a run: the car (or bike) at the start of the beach, the clock at 44 (the chase: the city at night, a getaway car
+   *  ahead, the clock at 55); keep: the duel's own call, its two players kept */
   function start(what, keep) {
     if (what === 'duel') {   // two cars on the circuit with its pack, a screen each (no clock, no rewind)
-      start('circuit', true); const L = P.L; DUO = [P, Object.assign({}, P, { x: .66, route: [3] })]; P.x = -.66; DUO.forEach((Q, i) => Object.assign(Q, { duel: true, n: i, L, clock: 999, rewinds: 0 }));
+      start('circuit', true); const L = P.L; DUO = [P, Object.assign({}, P, { x: .66, route: [3] })]; P.x = 0; DUO.forEach((Q, i) => Object.assign(Q, { duel: true, n: i, L, clock: 999, rewinds: 0 }));   // (player 1 in the middle lane, player 2 the right: the pack's next car in each one's lane 1400 and 2100 ahead, past a bump's reach of 1100, its first car (700 ahead) a lane aside or two; the two .66 apart, past their own .45)
       game.splitScreen(2, { layout: 'rows' }); return;
     }
     DUO = null; game.splitScreen(0); if (!keep) players(true);
@@ -223,8 +223,7 @@ const ROAD = (() => {
       if (side !== T.side && T.damage < 100) { T.z = Math.max(T.z, P.z) + 9000; T.x = 0; say(E.t('road.chase.wrong'), 2.5); A.sfx('hurt'); } T.side = 0; return;
     }
     const N = leg(kid, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), false);
-    P.L = N; P.z -= L.fork; P.x -= off; P.route.push(kid); P.clock += 30; P.score += 2000;
-    A.sfx('oneup'); say(E.t('road.stage.' + STAGES[kid].id), 2.5);
+    P.L = N; P.z -= L.fork; P.x -= off; P.route.push(kid); say(E.t('road.stage.' + STAGES[kid].id), 2.5);   // (its time was paid at the checkpoint's arch: drive)
   }
   const tcx = (road, T) => { const c = road.centers(T.z); return c[Math.min(c.length - 1, T.side || 0)]; };   // the middle of the road the getaway car is on (at the fork: its side)
   const ROAD_P = () => P;   // (the player the autopilot drives when none is named)
@@ -258,10 +257,10 @@ const ROAD = (() => {
     }
     if (P.over) { P.over.t += dt; P.speed = Math.max(0, P.speed - 3000 * dt); P.z += P.speed * dt; if (P.cotton) { for (const e of P.cotton.fx) e.t += dt; P.cotton.fx = P.cotton.fx.filter(e => e.t < .6); } if (P.over.t > 2.5 && mode === 'drive') end(); return; }   // (the cotton's last bursts fade)
     if (P.striker) strike(P, dt, k); else drive(P, dt, k);
-    if (!P.chase && !P.rash && !P.striker && !P.circuit) rw.keep(dt, () => ({ L: P.L, json: JSON.stringify({ z: P.z, x: P.x, speed: P.speed, steer: P.steer, lean: P.lean, clock: P.clock, crash: P.crash, spin: P.spin, hop: P.hop, score: P.score, route: P.route, drift: P.drift || 0, charge: P.charge || 0, boost: P.boost || 0 }), cars: P.L.traffic.map(c => ({ z: c.z, lane: c.lane })) }));
+    if (!P.chase && !P.rash && !P.striker && !P.circuit) rw.keep(dt, () => ({ L: P.L, json: JSON.stringify({ z: P.z, x: P.x, speed: P.speed, steer: P.steer, lean: P.lean, clock: P.clock, crash: P.crash, spin: P.spin, hop: P.hop, score: P.score, route: P.route, paid: P.paid || 0, drift: P.drift || 0, charge: P.charge || 0, boost: P.boost || 0 }), cars: P.L.traffic.map(c => ({ z: c.z, lane: c.lane })) }));
   }
   /** a step of the drive: the gas, the brake and the steering; the bends pull outward, the grass slows; scenery hit fast
-   *  spins the car out; traffic bumps it; the clock; the forks; the chase */
+   *  spins the car out; traffic bumps it; the clock and the checkpoints that refill it; the forks; the chase */
   /** the grid after the qualifying lap (q seconds): the quicker, the nearer the front (8 slots, the pack in the rest) */
   function grid(P, q) {
     const s = clamp(Math.round((q - 20) / .8), 0, 7), at = j => ({ z: SEG * 4 + (7 - j) * 700, x: [-2 / 3, 0, 2 / 3][j % 3] }); let j = 0;
@@ -345,6 +344,7 @@ const ROAD = (() => {
       if (n > P.lap) { P.bestLap = P.bestLap ? Math.min(P.bestLap, P.lapT) : P.lapT; P.lapT = 0; P.lap = n; say(E.t(n === P.laps ? 'road.lap.final' : 'road.lap', { n }), 1.5); A.sfx('oneup'); }
       if (!P.over && P.z >= L.goal) P.bestLap = P.bestLap ? Math.min(P.bestLap, P.lapT) : P.lapT;
     }
+    if (!P.over && !L.last && !P.chase && P.paid !== P.route.length && P.z >= L.end - SEG * 2) { P.paid = P.route.length; P.clock += 30; P.score += 2000; A.sfx('oneup'); }   // a checkpoint (the arch before the fork): its time as it is passed, once a leg (P.paid: the legs paid, kept with the rewind), before the clock's end is checked
     if (!P.over && P.clock <= 0) { P.clock = 0; P.over = { won: false, t: 0 }; say(E.t(P.chase ? 'road.escaped' : 'road.timeup'), 3); A.sfx('die'); }
     if (!P.over && P.duel && P.z >= L.goal) { P.over = { won: true, t: 0 }; say(E.t('road.duel.won', { n: P.n + 1 }), 3); A.music('victory'); }
     if (!P.over && (P.rash || P.circuit && !P.duel) && P.z >= L.goal) { const won = P.place <= 3; P.over = { won, t: 0 }; P.score += won ? (4 - P.place) * 3000 : 0; say(E.t(won ? 'road.rash.won' : 'road.rash.lost', { n: P.place }), 3); A.music(won ? 'victory' : 'gameover'); }
@@ -375,7 +375,7 @@ const ROAD = (() => {
     P.shots = P.shots.filter(s => !s.dead && s.z < P.z + 40000);
     for (const f of P.foes) if (f.hp > 0) {
       f.z += f.speed * dt; f.sway += dt; if (f.form) swoop(P, f, dt); else if (f.air) f.x += Math.sin(f.sway * 1.3) * dt * .5;
-      if (f.hop) f.alt = Math.abs(Math.sin(f.sway * 3.2 + f.hop)) * 260;   // (a pumpkin hopping on the road)
+      if (f.hop !== undefined) f.alt = Math.abs(Math.sin(f.sway * 3.2 + f.hop)) * 260;   // (a pumpkin hopping on the road: its hop a phase, a wave's first 0, so set, not true)
       if ((f.shot -= dt) <= 0 && f.z - P.z > 5000 && f.z - P.z < 20000) { f.shot = 2.6 + Math.random() * 2; const e = (Math.random() - .5) * .5, T = (f.z - P.z) / (7000 + P.speed); P.bolts.push({ z: f.z, x: f.x, alt: f.alt + 30, vx: (P.x + e - f.x) / T, va: (P.alt + (C ? 140 : 0) + e * 300 - f.alt) / T }); }   // (aimed where you are, roughly: keep moving)   // (it closes at its speed and yours)
       if (Math.abs(f.z - P.z) < 700 && Math.abs(f.x - P.x) < (C ? .22 : .3) && Math.abs(f.alt - P.alt - (C ? 140 : 0)) < (C ? 260 : 140) && P.hurt <= 0) { f.hp = 0; hit(P); }   // (rammed; the witch's middle 140 over her seat)
     }
@@ -441,9 +441,10 @@ const ROAD = (() => {
   }
   function hit(P) { P.shield--; P.hurt = 1.2; A.sfx('hurt'); game.shake(5); if (P.shield <= 0 && !P.over) { P.over = { won: false, t: 0 }; say(E.t(P.cotton ? 'road.cotton.down' : 'road.striker.down'), 3); A.sfx('die'); } }
   function end() { mode = 'results'; after.i = 0; P.best = best('road:' + (P.chase ? 'chase' : P.duel ? 'duel' : P.circuit ? 'circuit' : P.rash ? 'rash' : P.cotton ? 'cotton' : P.striker ? 'striker' : 'coast'), Math.round(P.score)); }   // (each mode its own record: their scores aren't alike)
-  /** the autopilot (the bot, and a demo): the lane clear of traffic, the gas, a brake into the hardest bends, left at
-   *  the first fork and right at the next; in the chase, at the getaway car with the nitro; on the circuit, one pit
-   *  stop when the fuel won't last (P.pitGo: its call, kept until out of the lane) */
+  /** the autopilot (the bot, and a demo): the lane clear of traffic, the gas, a brake into the hardest bends, right at
+   *  the first fork and left at the next (the coast run: the beach, the forest, the city); in the chase, at the getaway
+   *  car with the nitro; on the circuit, one pit stop when the fuel won't last (P.pitGo: its call, kept until out of
+   *  the lane) */
   function pilot(P = ROAD_P()) {
     if (P.cotton) {   // COTTON: the nearest foe ahead (the boss without one) lined up, her stars thrown when in line; bolts and puffs about to meet her: of the spots nearby, the one clearest of them all as each arrives (where each will be then), the nearest the foe among the safe
       const B = P.cotton.boss, c = P.L.road.centers(P.z)[0], f = P.foes.filter(o => o.z > P.z + 2500).sort((a, b) => a.z - b.z)[0] || (B && B.hp > 0 && B.d < 14000 && B), me = P.alt + 140;
@@ -574,8 +575,8 @@ const ROAD = (() => {
   }
   let demoLeg = null;
 
-  /** the bot (tools/kits-test.mjs): a coast run by the autopilot from the beach to the goal (left at the first fork,
-   *  right at the next), a rewind held past its oldest moment (one of the three), a drift, the bike's first stage, the
+  /** the bot (tools/kits-test.mjs): a coast run by the autopilot from the beach to the goal (right at the first fork,
+   *  left at the next: the beach, the forest, the city), a rewind held past its oldest moment (one of the three), a drift, the bike's first stage, the
    *  circuit's qualifying lap and three laps against the pack (a pit stop for fuel on the way), the rash, the duel (on the circuit) on one keyboard (each half's gas), a solo mode after it (player 1 alone again), the striker, the chase
    *  through its fork to the arrest, the cotton through its waves to the boss's fall, and #road/hd's size */
   function bot(s = 1) {
