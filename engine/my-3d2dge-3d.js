@@ -189,7 +189,8 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   game.yaw (game.rotateView(45)): the starter's shell binds V and [ ] to them, the engine no key; game.zoom (the wheel,
   a pinch, Settings, where the scene's camera.zoom allows); proj 'persp' | 'ortho'; dist; walls in
   front cut low), 'chase' (behind the target; it swings round behind as the target moves; a click captures the mouse to
-  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own,
+  turn it; the right stick and a finger on a touch screen's free half turn it too: camera.padLook, camera.touchLook
+  false leave them to the game), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own,
   roll as pen.at's), 'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z]
   (fixed) | follow: true (turning after the target) | rail: [[x, y, z], [x, y, z]] (sliding level with it), fov (framed
   for 4:3: a taller screen widens it) }]: the target's zone is the camera, cut once it is camera.margin (8) units in
@@ -336,6 +337,7 @@ function mouseLook(gc) {
     const c = cam(); if (!c || e.pointerType !== 'mouse' || !c.mouseLook || !(c.capture || ['chase', 'first', 'fly'].includes(c.mode)) || document.pointerLockElement) return;
     if (PAGE.game.paused || (S && (S.recording || S.replaying))) return;
     try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* refused: [ and ] still turn it */ }
+    const I = PAGE.game.input; I.release('Mouse' + e.button); I.consumeAll();   // (the click that takes the mouse is no swing or shot)
   });
   document.addEventListener('pointerlockchange', () => { for (const w of PAGE.worlds) w.camera.locked = document.pointerLockElement === gc; });
   document.addEventListener('mousemove', e => {
@@ -1706,6 +1708,20 @@ class Camera3D {
     // [ and ] (game.rotateView) turn the chase, first and fly cameras too
     const gy = g.yaw || 0; if (this._gyaw !== null && gy !== this._gyaw) { const d = ((gy - this._gyaw + 540) % 360) - 180; this.yaw += d * DEG; this.fly.yaw += d * DEG; this._held = 1.5; } this._gyaw = gy;
     this._held = Math.max(0, this._held - dt);
+    // the right stick turns the chase, first and fly cameras as the captured mouse does (a pad's look: about 2.6 radians a
+    // second at full tilt, up and down as the player set them), and so does a finger dragging on a touch screen's free
+    // half; padLook: false or touchLook: false leaves a kit the stick or the finger (a twin-stick aim)
+    const I = g.input, look = ['chase', 'first', 'fly'].includes(this.mode) && !this.capture && !(this.lockOn && this.lockFrom === t) && dt > 0;
+    if (look) {
+      const a = this.padLook !== false && I.padAim, f = this.touchLook !== false && I.lastDevice === 'touch' && I.look && I.look();
+      const dx = (a ? a[0] * 2.6 * dt : 0) + (f ? f[0] * .012 : 0), dy = (a ? a[1] * 2 * dt : 0) + (f ? f[1] * .012 : 0);
+      if (dx || dy) {
+        this.yaw += dx; this._held = 1.5;
+        if (this.mode === 'chase') this.chase.pitch = clamp(this.chase.pitch - dy, -1.3, .15);
+        else if (this.mode === 'first') this.first.pitch = clamp(this.first.pitch - dy, -1.2, 1.1);
+        else this.fly.pitch = clamp(this.fly.pitch - dy, -1.5, 1.5);
+      }
+    }
     // the lock lets go of a target that died, left the world or got too far away
     const L = this.lockOn, F = this.lockFrom; if (L && (L.alive === false || !this.world.actors.includes(L) || !F || Math.hypot(L.x - F.x, L.y - F.y) > this.lockRange * 1.25)) this.unlock();
     const m = this.mode, P = this.world.passing;
@@ -2082,7 +2098,8 @@ class Flyer {
   update(dt, c = {}) {
     (this._ip || (this._ip = [0, 0, 0, 0, 0, 0])).splice(0, 6, this.x, this.y, this.z, this.yaw, this.pitch, this.roll);   // (where it was: a frame between steps draws it part way)
     const o = this.o, st = c.steer || [0, 0], sx = clamp(st[0], -1, 1), sy = clamp(st[1], -1, 1) * (o.invert ? -1 : 1);
-    this.speed += ((c.boost ? o.max : c.brake ? o.min : o.speed) - this.speed) * Math.min(1, dt * 3);
+    const bo = +c.boost || 0, br = +c.brake || 0;   // (0..1: a trigger's travel; true is 1)
+    this.speed += ((bo > 0 ? lerp(o.speed, o.max, clamp(bo, 0, 1)) : br > 0 ? lerp(o.speed, o.min, clamp(br, 0, 1)) : o.speed) - this.speed) * Math.min(1, dt * 3);
     if (c.roll && this.rolling <= 0) { this.rolling = .6; this.rollDir = Math.sign(c.roll) || 1; }
     if (this.rolling > 0) this.rolling = Math.max(0, this.rolling - dt);
     this._bank += (sx * o.bank - this._bank) * Math.min(1, dt * 6);

@@ -53,7 +53,7 @@ function cameraKey(world) {
 addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || game.paused || Object.values(game.input.map).some(cs => cs.includes(e.code))) return;   // (a key the scene's own controls use is theirs)
   if (e.code === 'KeyM') { A.mute(); return; }
-  if (active && ['fixed', 'zones'].includes(active.camera.mode)) return;   // (a slice that runs its own camera, or fixed cameras by room: its keys are its own)
+  if (active && ['fixed', 'zones', 'behind'].includes(active.camera.mode)) return;   // (a slice that runs its own camera, fixed cameras by room, or a craft's behind camera: its keys are its own)
   if (e.code === 'KeyV') { game.nextView(); if (active) active.camera.set('view'); game.note(viewName()); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter3d.note.camera_reset')); }
   else if (e.code === 'BracketLeft' || e.code === 'BracketRight') { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter3d.note.turn', { angle: game.yaw })); }

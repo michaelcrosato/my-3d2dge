@@ -861,7 +861,7 @@ class Input {
     on(window, 'blur', () => all(q => q.clear()));
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
-    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { if (this.lastDevice !== 'mouse' && this.lastDevice !== 'keyboard' && Math.hypot(e.clientX - this.mouse.cx, e.clientY - this.mouse.cy) > 3) this.lastDevice = 'mouse'; this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
+    on(el, 'pointermove', e => { if (e.pointerType !== 'mouse') this._lookMove(e); if (e.pointerType === 'mouse') { if (this.lastDevice !== 'mouse' && this.lastDevice !== 'keyboard' && Math.hypot(e.clientX - this.mouse.cx, e.clientY - this.mouse.cy) > 3) this.lastDevice = 'mouse'; this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
     // a mouse button pressed or let go while another is held comes as a pointermove, not a pointerdown or pointerup
     // (Pointer Events' chorded buttons: e.button the one that changed, e.buttons those down now): right held to aim, a
     // left click fires; either let go first, the other stays held and this one lets go. A press counts on the canvas
@@ -1173,6 +1173,9 @@ class Input {
    *  text, E.Menu cancels, game.note and the Shell's toast, card and screens go by themselves; a game's own canvas
    *  menu or banner reads it: if (input.swipe(true)) close() */
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
+  /** how far a finger that is not the stick's dragged this step, in screen pixels [dx, dy], or null: a camera's look on a
+   *  touch screen (the left thumb on the stick, the right one turning the view) */
+  look() { return this._look || null; }
   /** [x, y] (screen pixels) in the step after a second finger tapped while another stayed down (the stick, a drag): a
    *  puzzle's turn under one thumb while the other steers; else null */
   secondTap() { return this._tap2At || null; }
@@ -1334,6 +1337,7 @@ class Input {
     this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._tap2At = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._tap2nd = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
+    const la = this._lookAcc; this._look = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
   }
   // Create (button 8) is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (its
   // bar), so the game sees neither; let go sooner it is a tap; held, a press. Returns whether it is down for the game
@@ -1378,6 +1382,11 @@ class Input {
   _zone(fx, fy) { return (this.zones || []).find(z => fx >= z.x0 && fx < z.x1 && fy >= z.y0 && fy < z.y1) || null; }
   _zoneDown(id, z) { this._zoneOf.set(id, z.act); this.press('Act:' + z.act); }
   _zoneUp(id) { const a = this._zoneOf.get(id); if (a === undefined) return; this._zoneOf.delete(id); if (![...this._zoneOf.values()].includes(a)) this.release('Act:' + a); }
+  // a finger dragging that is not the stick's, a zone's or a pinch's: look() (a 3D camera's look on the free half)
+  _lookMove(e) {
+    const f = this._fingers.get(e.pointerId); if (!f || e.pointerId === this.stickId || this._zoneOf.has(e.pointerId) || this._pinching) return;
+    const a = this._lookAcc || (this._lookAcc = [0, 0]); a[0] += e.clientX - f.x; a[1] += e.clientY - f.y;
+  }
   // two fingers on the canvas: where each was as the second landed (a pinch is measured from there)
   _pinchArm() { this._pinching = false; if (this._fingers.size === 2) for (const f of this._fingers.values()) { f.x0 = f.x; f.y0 = f.y; } }
   _fingerUp(e) {
