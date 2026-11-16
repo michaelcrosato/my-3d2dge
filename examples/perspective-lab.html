@@ -1323,7 +1323,7 @@ class Input {
   // onto a snap point when let go near one, ✕ clicks where it is; the mouse's place is where the pad takes over
   _cursorStep(dt) {
     const S = this.screen, W = S.W || 320, H = S.H || 240;
-    if (this.lastDevice !== 'gamepad' || !this._padPt) { const m = this.mouse.active && this.screenPoint(this.mouse.cx, this.mouse.cy); this._padPt = m ? m.slice() : this._padPt || [W / 2, H / 2]; if (this.lastDevice !== 'gamepad') return; }
+    if (this.lastDevice !== 'gamepad' || !this._padPt) { const m = this.mouse.active && this.screenPoint(this.mouse.cx, this.mouse.cy); this._padPt = m ? m.slice() : this._padPt || [W / 2, H / 2]; if (this.lastDevice !== 'gamepad') { if (this._padDown) this._padCancel(); return; } }   // (another device took over: a ✕ still held clicks nothing later)
     const P = this._padPt, mv = this.padMove, l = Math.hypot(mv[0], mv[1]);
     if (l > 0) { const sp = W * (.18 + 1.1 * l * l) * dt / l; P[0] += mv[0] * sp; P[1] += mv[1] * sp; this.mouse.t = this.clock; }
     else if (this._snaps) {

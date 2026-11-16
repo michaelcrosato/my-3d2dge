@@ -4655,7 +4655,7 @@ class Input {
   // onto a snap point when let go near one, ✕ clicks where it is; the mouse's place is where the pad takes over
   _cursorStep(dt) {
     const S = this.screen, W = S.W || 320, H = S.H || 240;
-    if (this.lastDevice !== 'gamepad' || !this._padPt) { const m = this.mouse.active && this.screenPoint(this.mouse.cx, this.mouse.cy); this._padPt = m ? m.slice() : this._padPt || [W / 2, H / 2]; if (this.lastDevice !== 'gamepad') return; }
+    if (this.lastDevice !== 'gamepad' || !this._padPt) { const m = this.mouse.active && this.screenPoint(this.mouse.cx, this.mouse.cy); this._padPt = m ? m.slice() : this._padPt || [W / 2, H / 2]; if (this.lastDevice !== 'gamepad') { if (this._padDown) this._padCancel(); return; } }   // (another device took over: a ✕ still held clicks nothing later)
     const P = this._padPt, mv = this.padMove, l = Math.hypot(mv[0], mv[1]);
     if (l > 0) { const sp = W * (.18 + 1.1 * l * l) * dt / l; P[0] += mv[0] * sp; P[1] += mv[1] * sp; this.mouse.t = this.clock; }
     else if (this._snaps) {
@@ -25780,7 +25780,7 @@ const PINBALL = (() => {
   return { view: 'pinball', views: ['pinball'], res: 'ps1', pausable: true, escape: 'back', touch: [], camera: { zoom: false }, input: KEYS,
     enter: start, update, draw, bot: botRun,
     exit() { game.input.touchEnabled = true; game.input.zones = null; game.cam.offset = [0, 0]; A.music(null); if (ds) ds.clear(); dsKey = ''; },
-    back() { if (mode === 'play' && !demo) return false; game.go('title'); return true; },
+    back() { if (!demo && (mode === 'play' || mode === 'bonus' || mode === 'entry')) return false; game.go('title'); return true; },   // (a game going on: Esc pauses; from the title, the game over and the demo it steps back)
     /** for tests: the table's world, its parts, the balls, the state of play, the arcade frame, where a table point is */
     state: () => ({ world, F, balls, drops, lanes, st, mode, cab, demo, at: (x, y, z = 0) => { const q = game.view.p(x, y, z); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; }, plunge: lanePlunge }),
     /** the proof: a game started, the ball fired, the flippers on a fixed beat; the world's hash, the score, the ball */
@@ -25807,7 +25807,7 @@ scenes.pinball = PINBALL;
  * along the island; hover moves the menus' focus. PAD: the left stick or d-pad walks and aims, R2 or ✕ held charges
  * and let go fires, □ jumps, △ or R1 the weapon, the right stick looks along the island, Options pauses. DUALSENSE: the
  * light bar is the team whose turn it is, R2 stiffens as the shot charges, gyro aim fine-tunes the aim, a swipe on the
- * touchpad changes the weapon, a grenade's fuse ticks from the controller; any pad rumbles at a blast (by how near) and
+ * touchpad changes the weapon; any pad rumbles at a blast (by how near) and
  * a long fall. TOUCH: the same: a drag back fires, a tap walks; the JUMP and WEAPON buttons (only on a player's turn);
  * with Touch assists on (Settings) a walk a tap asked for hops the step it would stop at. A swipe takes nothing away
  * here, on purpose: every finger is the pull (steer: 'drag'), a flick is a shot, and the banner goes by itself.
@@ -25840,7 +25840,7 @@ const ARTILLERY = (() => {
   // zoom: the wheel is the game's), △ and R1
   const KEYS = Object.assign({}, E.Input.MENU, { walkL: ['ArrowLeft', 'KeyA', 'Pad14', 'PadAxisLeft'], walkR: ['ArrowRight', 'KeyD', 'Pad15', 'PadAxisRight'], aimUp: ['ArrowUp', 'KeyW', 'Pad12', 'PadAxisUp'], aimDown: ['ArrowDown', 'KeyS', 'Pad13', 'PadAxisDown'],
     fire: ['Space', 'Pad7', 'Pad0'], jump: ['Enter', 'NumpadEnter', 'KeyJ', 'Pad2'], weapon: ['KeyQ', 'KeyE', 'WheelDown', 'WheelUp', 'Pad3', 'Pad5'], w1: ['Digit1'], w2: ['Digit2'], w3: ['Digit3'] });
-  let ds = null, padLight = null, padTrig = -1, fuseS = 0;   // the DualSense's extras (the dualsense module), and what they show now
+  let ds = null, padLight = null, padTrig = -1;   // the DualSense's extras (the dualsense module), and what they show now
   const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);   // (haptics on any pad, while it is what the player plays with)
 
   /* ---- 1. THE ISLAND: hills of earth over rock, beaches of sand, a few caves; the grubs spread along it, the teams mixed ---- */
@@ -26362,7 +26362,7 @@ const PUZZLE = (() => {
     if (!groups.length) { pairSpawn(); return; }
     chain++; const n = groups.reduce((s, g) => s + g.length, 0);
     score += 10 * n * Math.max(1, CHAIN[Math.min(chain - 1, CHAIN.length - 1)] + (groups.length > 1 ? 3 * groups.length : 0)); popped += n;
-    popping = { cells: groups.flat(), t: 0 }; (chain > 1 ? sound : A.sfx)(chain > 1 ? 'oneup' : 'coin', { pitch: 1 + chain * .1 }); buzz(chain > 1 ? .6 : .3, chain > 1 ? .2 : .08); cheer(chain > 1 ? 2 : 1);
+    popping = { cells: groups.flat(), t: 0 }; if (chain > 1) sound('oneup', { pitch: 1 + chain * .1 }); else A.sfx('coin', { pitch: 1 + chain * .1 }); buzz(chain > 1 ? .6 : .3, chain > 1 ? .2 : .08); cheer(chain > 1 ? 2 : 1);   // (A.sfx called on A: unbound it threw)
     for (const [x, y] of popping.cells) burst(x, y, PCOL[field[y * W + x] - 1]);
     lines = popped; level = 1 + Math.floor(popped / 40);   // (the results show blobs popped; a level every 40)
   }
@@ -28591,7 +28591,7 @@ scenes.roguelike = ROGUE;
  * Lose: every hero falls.
  * KEYS (its own, KEYS: the moves and the menus' keys, no action it doesn't read): arrows / WASD move the cursor (the
  * camera follows), Enter / Space / Z confirm, Backspace / X back (before acting, back undoes a move; Esc steps out of a
- * move, an aim or a facing first, else pauses), 1-5 pick a command's row, Tab the next hero (by phases: who goes next;
+ * move, an aim or a facing, or undoes a move, first, else pauses), 1-5 pick a command's row, Tab the next hero (by phases: who goes next;
  * else back to the one whose turn it is), Q and E turn the view a quarter, the wheel or - and = zoom, X skips the scene.
  * The MOUSE: the cursor follows the pointer (map.pick, the cell under it in every view and turn), a click confirms on a
  * cell or a command (hover moves the command list's focus), a right click goes back, the screen's edge or a middle drag
@@ -29162,7 +29162,7 @@ const TACTICS = (() => {
     exit() { game.input.touchEnabled = true; game.resetCamera(); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): moving, aiming or facing goes back to the commands (the press is
     // spent: the step's back key does no more); else false, and Esc pauses
-    back() { if (mode === 'move' || mode === 'target' || mode === 'face') { back(); game.input.suppress('cancel'); return true; } return false; },
+    back() { const u = active; if (mode === 'move' || mode === 'target' || mode === 'face' || (mode === 'command' && u && u.moved && !u.acted && !u.path)) { back(); game.input.suppress('cancel'); return true; } return false; },   // (Esc as the hint says: out of a move, an aim or a facing, or the move undone, before it pauses)
     /** for tests: the state, and helpers to find a cell or a row on the screen and to place a unit */
     state: () => ({ mode, order, phase, round, active, cursor, sel, units, cells, over, stats, map, grid, turns, rows: active ? rows(active) : [], ui,
       at: (cx, cy) => { const v = game.view, [x, y] = map.center(cx, cy), q = v.p(x, y, top(cx, cy)); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; },
@@ -29313,13 +29313,17 @@ const RTS = (() => {
   // action a key)
   const KEYS = { ...E.Input.MENU, confirm: E.Input.MENU.confirm.filter(c => c !== 'Space' && c !== 'KeyZ'), cancel: E.Input.MENU.cancel.filter(c => c !== 'KeyX'),
     order: ['Mouse2', 'Pad2'], cmd1: ['KeyZ', 'Pad14'], cmd2: ['KeyX', 'Pad12'], cmd3: ['KeyC', 'Pad15'], base: ['KeyH', 'Pad10'], army: ['KeyR', 'Pad5'], kind: ['Pad4'],
-    alert: ['Space', 'Pad13', 'Pad17'], amove: ['KeyF', 'Pad3'], idle: ['Period', 'Pad8'], zoomIn: ['Pad7'], zoomOut: ['Pad6'] };
+    alert: ['Space', 'Pad13', 'Pad17'], amove: ['KeyF', 'Pad3'], idle: ['Period', 'Pad8'], zoomIn: ['Pad7'], zoomOut: ['Pad6'],
+    // the keys E.Strategy reads by their codes (Shift adds to the selection and queues orders, Ctrl and a digit keep a
+    // group, the digit picks it): bound, so the input holds them, and kept off the Controls screen (their codes are fixed)
+    rtsShift: ['ShiftLeft', 'ShiftRight'], rtsCtrl: ['ControlLeft', 'ControlRight', 'MetaLeft'], ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => ['rtsGroup' + n, ['Digit' + n]])) };
+  const FIXED = Object.fromEntries(Object.keys(KEYS).filter(a => a.startsWith('rts')).map(a => [a, false]));
   const blueOf = kind => rts.of('blue', kind), mine = u => u && u.side === 'blue';
   const buildings = side => rts.units.filter(u => u.side === side && u.building);
 
   /* ---- 2. THE MATCH: a fresh map (buildings block its cells), the strategy module over it, the sides, the clan's AI ---- */
   function start(data) {
-    auto = !!(data && data.auto);
+    auto = !!(data && data.auto); game.input.names = Object.assign({}, game.input.names, FIXED);
     map = new E.TileMap({ rows: ROWS, legend: LEGEND, types: TYPES, floorMat: 'grass', floorMats: FLOORS, ao: 0, outside: false });
     rts = new E.Strategy(game, { map, kinds: KINDS, sides: { blue: { res: { gold: 400 } }, red: { res: { gold: 400 } } }, player: 'blue', on: {
       attack(u, t) {
@@ -29610,7 +29614,7 @@ const RTS = (() => {
   return { view: 'iso', views: ['iso'], res: 'ps1', pausable: true, propSize: 1, touch: [], camera: { zoom: [.6, 1.6], start: 1, tall: 1.25 },
     input: KEYS, cursor: true, escape: 'back',
     enter: start, update, draw, bot,
-    exit() { game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.resetCamera(); if (ui) ui.hud({}); if (ds) ds.clear(); },
+    exit() { const N = Object.assign({}, game.input.names); for (const a in FIXED) delete N[a]; game.input.names = Object.keys(N).length ? N : null; game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.resetCamera(); if (ui) ui.hud({}); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): the plan, an attack-move's aim, then (a phone's) the selection (the
     // press is spent: the step's back key does no more); else false, and Esc pauses
     back() {
