@@ -68,7 +68,12 @@
   "road.lap": "LAP {n}",
   "road.lap.final": "FINAL LAP",
   "road.lap.hud": "LAP {n}/{of}",
-  "road.lap.best": "BEST LAP {t}"
+  "road.lap.best": "BEST LAP {t}",
+  "road.qual": "QUALIFYING LAP",
+  "road.qual.grid": "GRID {n}: {t}",
+  "road.chase.left": "IT WENT LEFT!",
+  "road.chase.right": "IT WENT RIGHT!",
+  "road.chase.wrong": "WRONG WAY: IT'S PULLING AWAY"
  },
  "notes": {
   "road.title": "The driving game's title, on its menu: a run along a coast road.",
@@ -129,6 +134,11 @@
   "road.lap": "A banner as a new lap begins: lap {n}.",
   "road.lap.final": "A banner as the last lap begins.",
   "road.lap.hud": "On the screen while racing laps: on lap {n} of {of}.",
-  "road.lap.best": "The quickest lap so far, {t} in seconds (as 27.31)."
+  "road.lap.best": "The quickest lap so far, {t} in seconds (as 27.31).",
+  "road.qual": "Pole Position's lap alone against the clock before the race: its time sets your place on the starting grid.",
+  "road.qual.grid": "After the qualifying lap: you start the race from grid slot {n} (1 is the front), your lap took {t} seconds.",
+  "road.chase.left": "The chase: the radio says the getaway car took the left road at the fork ahead.",
+  "road.chase.right": "The chase: the radio says the getaway car took the right road at the fork ahead.",
+  "road.chase.wrong": "The chase: you took the other road at the fork; the getaway car is now farther ahead."
  }
 }
