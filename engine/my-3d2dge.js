@@ -778,7 +778,7 @@ class Input {
      *  time (the steps' dt added up) */
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {};
     this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._rk = {}; this._freshCodes = new Set();
-    this._suppressed = new Set();
+    this._suppressed = new Set(); this._nowCodes = new Set();
     /** mouse: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last
      *  moved */
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
@@ -794,7 +794,7 @@ class Input {
     /** deadzone: how far a gamepad stick moves before it counts (0..0.8); padIndex, padId: the gamepad in use (null
      *  and '' without one); lastDevice: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the
      *  right button prompts) */
-    this.deadzone = .18; this.padIndex = null; this.padId = ''; this.lastDevice = 'keyboard';
+    this.deadzone = .18; this.padIndex = null; this.padId = ''; this.lastDevice = screen.canvas && typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches ? 'touch' : 'keyboard';   // (a phone's prompts are its own from the first frame)
     /** pad: the gamepad this input reads: 'any' (the first connected one another player hasn't: player 1's), an index (a
      *  joined player's own), or null (none); keysTo: the other players' inputs the keyboard's codes go to as well (players
      *  sharing it, each with half its keys: game.players) */
@@ -872,7 +872,7 @@ class Input {
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
-        this._fingers.set(e.pointerId, { x: e.clientX, y: e.clientY }); this._pinchArm();
+        this._fingers.set(e.pointerId, { x: e.clientX, y: e.clientY, x00: e.clientX, y00: e.clientY, t: this.clock, other: this._fingers.size > 0 }); this._pinchArm();   // (other: another finger was down: a second finger's tap)
         const rc = this.zones && el.getBoundingClientRect(), z = rc && this._zone((e.clientX - rc.left) / rc.width, (e.clientY - rc.top) / rc.height);
         if (z) this._zoneDown(e.pointerId, z); else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
@@ -961,11 +961,12 @@ class Input {
   }
   /** the key or button to show in a prompt for action a, on the device the player used last (or the one named:
    *  'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', '✕' (or 'A' with
-   *  Xbox symbols). o: { short: true } the form for a small badge ('LMB', 'Spc') */
+   *  Xbox symbols). o: { short: true } the form for a small badge ('LMB', 'Spc'), all: true every one it has there */
   label(a, device = this.lastDevice, o) {
     const m = this.map[a]; if (!m) { this._check(a); return ''; }
     if (device === 'touch') { const t = this._touchSet && this._touchSet[a]; return (t && t.label) || (this._touchLabels && this._touchLabels[a]) || this._actionCaps(a); }   // (the button as it reads now: touchSet's label first)
     const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
+    if (o && o.all) { const cs = device === 'gamepad' ? pads : keys.length ? keys : pads; return cs.map(c => this.codeLabel(c, !!o.short)).join(' / '); }   // (every key or button it has there: 'D-pad ← / □')
     const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
     return c ? this.codeLabel(c, !!(o && o.short)) : '';
   }
@@ -1172,6 +1173,9 @@ class Input {
    *  text, E.Menu cancels, game.note and the Shell's toast, card and screens go by themselves; a game's own canvas
    *  menu or banner reads it: if (input.swipe(true)) close() */
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
+  /** [x, y] (screen pixels) in the step after a second finger tapped while another stayed down (the stick, a drag): a
+   *  puzzle's turn under one thumb while the other steers; else null */
+  secondTap() { return this._tap2At || null; }
   /** true while the player plays by touch (lastDevice 'touch') and Settings, Touch assists is on (the default): the
    *  time for a game's touch assists (an attack or a shot by itself, the throttle held, aim nudged onto a target).
    *  Never true on a gamepad, keyboard or mouse, so an assist gated on it leaves their play as it is */
@@ -1311,11 +1315,12 @@ class Input {
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed()/released()
+    const nc = this._nowCodes; nc.clear(); for (const c of this._freshCodes) nc.add(c);   // (the codes pressed this step: escape: 'back' reads Escape's)
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n; this._freshCodes.clear();
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
-    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._gLong = this._gTap2 = this._gPan = this._gSwipe = null;
+    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._tap2At = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._tap2nd = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
@@ -1364,7 +1369,11 @@ class Input {
   _zoneUp(id) { const a = this._zoneOf.get(id); if (a === undefined) return; this._zoneOf.delete(id); if (![...this._zoneOf.values()].includes(a)) this.release('Act:' + a); }
   // two fingers on the canvas: where each was as the second landed (a pinch is measured from there)
   _pinchArm() { this._pinching = false; if (this._fingers.size === 2) for (const f of this._fingers.values()) { f.x0 = f.x; f.y0 = f.y; } }
-  _fingerUp(e) { if (this._fingers.delete(e.pointerId)) { if (this._fingers.size < 2) this._pinching = false; else this._pinchArm(); } }
+  _fingerUp(e) {
+    const f = this._fingers.get(e.pointerId);
+    if (f && f.other && !this._pinching && e.pointerId !== this.stickId && this.clock - f.t < .3 && Math.hypot(e.clientX - f.x00, e.clientY - f.y00) < 14) this._tap2nd = this.screenPoint(e.clientX, e.clientY);   // a second finger's quick tap (secondTap())
+    if (this._fingers.delete(e.pointerId)) { if (this._fingers.size < 2) this._pinching = false; else this._pinchArm(); }
+  }
   // a pinch: both fingers moving along the line between them, opposite ways (apart or together). A thumb on the stick
   // with another finger resting on the glass, or two moving the same way, is none. It takes over the stick and the tap
   _pinchMove(e) {
@@ -3236,7 +3245,7 @@ class Game {
    *   ('snes'), expand (true), touch (['jump', 'attack'], or { buttons, layout: 'diamond', slide: true }: touchButtons'
    *   options), cursor (true: the pad's cursor, input.padCursor); res and expand stay until another scene sets them
    * - back: a scene's back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a
-   *   sub-menu closed)
+   *   sub-menu closed); escape: 'back' lets Escape ask it first too, before the pause (a PC's Esc closes the open window)
    * - camera: a scene's { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the
    *   wheel, - and =, a pinch, Settings, Camera zoom: theirs, kept, on top of the game's; false or none: they can't; a
    *   function of the game: a range per screen shape, g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at
@@ -3466,7 +3475,7 @@ class Game {
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
     if (this._fade) { const out = this._fade.out; this._fadeStep(dt); if (out) return; }   // the old scene freezes while it fades out
     const s = this.scene;
-    if (s && s.pausable && this.input.pressed('pause')) { this.paused = !this.paused; this.pauseReason = this.paused ? 'player' : null; this.audio.sfx('pause'); }
+    if (s && s.pausable && this.input.pressed('pause') && !(s.escape === 'back' && !this.paused && this.input._nowCodes.has('Escape') && s.back && s.back())) { this.paused = !this.paused; this.pauseReason = this.paused ? 'player' : null; this.audio.sfx('pause'); }   // (escape: 'back': Escape steps back through the scene's back() first, the pause when it has nothing to close)
     if (!this.paused) { this.pauseReason = null; this._goOn = false; }
     this.audio._duck(this.paused);
     // the player's zoom: the wheel, - and = and a pinch ask for it while a scene that allows it plays (input.zoom())
@@ -9854,8 +9863,9 @@ class Menu {
      *  window's colors; onPick: called (i, item) on confirm; onCancel: called on cancel; onMove: called (i, item)
      *  when the cursor moves; sound: false silences it; input: the one input it reads (default: every player's, so
      *  any player moves and picks; the mouse and taps are player 1's); scale: its text and rows that many times (2, 3:
-     *  across a room on a TV); rows: at most that many entries shown, the list scrolling under its cursor (0: all) */
-    Object.assign(this, { x: 'center', y: 'center', title: null, box: true, color: '#ffffff', pick: '#ffd36a', dim: '#6a6488', bg: '#141a3a', border: '#e8e4ff', onPick: null, onCancel: null, onMove: null, sound: true, input: null, scale: 1, rows: 0 }, o);
+     *  across a room on a TV); rows: at most that many entries shown, the list scrolling under its cursor (0: all);
+     *  pointer: false, the mouse and taps leave it alone (a menu read here but drawn by the game somewhere else) */
+    Object.assign(this, { x: 'center', y: 'center', title: null, box: true, color: '#ffffff', pick: '#ffd36a', dim: '#6a6488', bg: '#141a3a', border: '#e8e4ff', onPick: null, onCancel: null, onMove: null, sound: true, input: null, scale: 1, rows: 0, pointer: true }, o);
     this._skip(1);
   }
   _label(it) { return typeof it === 'string' ? it : it.label; }
@@ -9884,8 +9894,8 @@ class Menu {
     const row = p => { if (!b || !p || p[0] < b.x || p[0] >= b.x + b.w) return -1; const r = Math.floor((p[1] - b.y) / b.rowH), k = b.first + r; return r >= 0 && r < b.vis && k < n && !this._off(this.items[k]) ? k : -1; };
     if (any(I => I.repeat('up'))) { this.i = (this.i + n - 1) % n; this._skip(-1); }
     if (any(I => I.repeat('down'))) { this.i = (this.i + 1) % n; this._skip(1); }
-    if (inp.mouse.t !== this._mt) { this._mt = inp.mouse.t; const k = row(inp.pointer()); if (k >= 0) this.i = k; }   // the mouse moved over an entry
-    const tap = row(inp.clicked());   // a click or tap on an entry picks it
+    if (this.pointer !== false && inp.mouse.t !== this._mt) { this._mt = inp.mouse.t; const k = row(inp.pointer()); if (k >= 0) this.i = k; }   // the mouse moved over an entry
+    const tap = this.pointer === false ? -1 : row(inp.clicked());   // a click or tap on an entry picks it (pointer: false, a menu the game draws elsewhere: neither)
     if (tap >= 0) this.i = tap;
     if (this.i !== old) { if (this.sound) this.game.audio.sfx('select'); if (this.onMove) this.onMove(this.i, this.items[this.i]); }
     if ((any(I => I.pressed('confirm')) || tap >= 0) && !this._off(this.items[this.i])) { if (this.sound) this.game.audio.sfx('confirm'); P.forEach(I => I.consumeAll()); if (this.onPick) this.onPick(this.i, this.items[this.i]); return true; }
