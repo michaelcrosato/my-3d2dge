@@ -129,7 +129,7 @@ const builds = [
   // the same list with every page inside it: built last, below)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: { HOME: 'labs', TITLE: 'Labs · my-3D2dge', H1: 'Labs', INTRO: 'Every page of my-3D2dge to play, test or judge, one tap away. Each opens in this tab; your browser\'s back button returns here.' } },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
-  { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {} },
+  { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {}, modules: ['dualsense'] },   // (a DualSense's extras: docs/CONTROLS.md)
   // the files to share with AI models: API card + engine + starter slices
   { template: 'src/starter.template.html', out: 'dist/my-3d2dge.html', vars: Object.assign({ EDITION: 'single-file edition' }, ALL), modules: 'all' },
   { template: 'src/starter.template.html', out: 'dist/my-3d2dge-compact.html', vars: Object.assign({ EDITION: 'compact edition (engine minified)' }, ALL), compact: true, modules: 'all' },

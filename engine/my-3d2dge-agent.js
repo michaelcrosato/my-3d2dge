@@ -836,6 +836,16 @@ class Input {
   buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this._pt[a]; return t !== undefined && !this._used[a] && this.clock - t <= win; }
   consume(a) { this._used[a] = true; }
   consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._swipeAt = null; }
+  // Create is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (neither reaches
+  // the game, Options not until it is let go); let go sooner it is a tap; held, a press
+  _create(down, p) {
+    const c = this._cr;
+    if (!down) { if (c && !c.chord && !c.out) { this.press('Pad8'); this._taps.add('Pad8'); } this._cr = null; return false; }
+    if (!c) { this._cr = { t: this.clock, chord: false, out: false }; return false; }
+    if (c.chord || (!c.out && p.buttons[9] && p.buttons[9].pressed)) { c.chord = true; this._opt = true; return false; }
+    if (!c.out && this.clock - c.t >= .25) c.out = true;
+    return c.out;
+  }
   // a quick one-finger flick on the canvas ({ dir: 'left' | 'right' | 'up' | 'down', x, y } in the step after it, else null; take:
   // true uses it up): swipe away what is temporary (E.Dialog skips, E.Menu cancels on a sideways one)
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
@@ -875,7 +885,7 @@ class Input {
     if (p) {
       const x = p.axes[0] || 0, y = p.axes[1] || 0, l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;
       this.padMove = [x * k, y * k];
-      p.buttons.forEach((b, i) => { const on = b.pressed && i !== 16; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });   // (16, PS or Guide, is the host's: the 52in1 hub)
+      p.buttons.forEach((b, i) => { if (i === 9 && !b.pressed) this._opt = false; const on = i === 8 ? this._create(b.pressed, p) : b.pressed && i !== 16 && !(i === 9 && this._opt); if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });   // (16, PS or Guide, is the host's: the 52in1 hub)
       [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5].forEach((on, i) => { const c = ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'][i]; if (on) this.press(c); else this.release(c); });
     }
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);   // a tap is held for the one step after it (a hold() of the same action stays)
@@ -1122,6 +1132,7 @@ E.lang = {
   /** the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a
    *  function of your own for a game without E.Game's input */
   control(a) { const g = E.current; return (g && g.input && g.input.map && g.input.map[a] && g.input.label(a)) || a; },
+  keys(text) { return String(text).replace(/\{key:(\w+)\}/g, (tag, a) => this.control(a)); },   // text a game draws itself with its {key:action} tags filled
   /** the original line's letter count for text E.t gave in another language (E.Dialog types it over the original's time), or 0 */
   sourceLength(text) { return this._len.get(text) || 0; },
   /** whole letters in s, tags left out (a Chinese, Japanese or Korean character is one) */

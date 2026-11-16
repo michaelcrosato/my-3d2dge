@@ -74,9 +74,9 @@ for (const [ed, file] of EDITIONS) {
   check(`${ed}: a game's own input layout gets the touch START too`, own.start.includes('Act:menu') && own.pause.includes('Act:menu') && !own.jump.includes('Act:menu'), JSON.stringify(own));
   // labels
   const I = game.input;
-  check(`${ed}: input.label: the key, the mouse button, the gamepad button`, I.label('attack', 'keyboard') === 'J' && I.label('attack', 'mouse') === 'Left click' && I.label('attack', 'gamepad') === 'A' && I.label('up', 'keyboard') === 'W', [I.label('attack', 'keyboard'), I.label('attack', 'mouse'), I.label('attack', 'gamepad')].join());
-  S.set('glyphs', 'playstation'); const ps = I.label('attack', 'gamepad'); S.set('glyphs', 'nintendo'); const nin = I.label('attack', 'gamepad'); S.set('glyphs', 'auto'); I.padId = 'DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c)'; const auto = I.label('dash', 'gamepad'); I.padId = '';
-  check(`${ed}: gamepad symbols by family (chosen, or from the controller's name)`, ps === '✕' && nin === 'B' && auto === '○', [ps, nin, auto].join());
+  check(`${ed}: input.label: the key, the mouse button, the gamepad button (PlayStation's by default)`, I.label('attack', 'keyboard') === 'J' && I.label('attack', 'mouse') === 'Left click' && I.label('attack', 'gamepad') === '✕' && I.label('up', 'keyboard') === 'W', [I.label('attack', 'keyboard'), I.label('attack', 'mouse'), I.label('attack', 'gamepad')].join());
+  S.set('glyphs', 'xbox'); const xb = I.label('attack', 'gamepad'), opts = S.spec('glyphs').options.map(o => o[0]).join(); I.glyphs = 'nintendo'; const nin = I.label('attack', 'gamepad'); I.glyphs = 'auto'; I.padId = 'DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c)'; const auto = I.label('dash', 'gamepad'); I.padId = ''; S.set('glyphs', 'playstation');
+  check(`${ed}: gamepad symbols: Settings offers PlayStation and Xbox; a game may still name a family or 'auto' (the controller's name)`, xb === 'A' && opts === 'playstation,xbox' && nin === 'B' && auto === '○' && I.glyphs === 'playstation', [xb, opts, nin, auto].join());
   // boot, headless: the steps at once, in order; a failing one stops the start; a promise is waited for
   const order = [], gb = new E.Game({ headless: true });
   gb.start({ scenes: scenes(), scene: 'title', boot: { steps: [['One', () => order.push(1)], ['Two', g => order.push(g === gb ? 2 : 0)]] } });
@@ -166,11 +166,12 @@ if (!process.argv.includes('--node')) {
       check(`${ed}: the pause screen opens by itself (Resume, Settings, Controls, Full screen, Quit to title), Resume focused; the corner hides`, pz[0] === 'pause' && pz[1] === 'Resume,Settings,Controls,Full screen,Quit to title' && pz[2] === 'Resume' && whilePaused === '', JSON.stringify(pz) + ' corner ' + whilePaused);
       // Settings by the keyboard, a slider turned by the arrows
       await p.keyboard.press('ArrowDown'); await ev(p, () => step()); await p.keyboard.press('Enter'); await ev(p, () => step());
+      await p.keyboard.press('KeyE'); await ev(p, () => step());   // the next tab: Sound (Q and E turn them, as L1 and R1 do)
       const vol0 = await ev(p, () => game.settings.volume);
       await ev(p, () => { const r = [...document.querySelectorAll('.esh-row')].find(r => /^Volume/.test(r.textContent)).querySelector('input'); r.focus(); });
       await p.keyboard.press('ArrowRight'); await ev(p, () => step()); await p.keyboard.press('ArrowRight'); await ev(p, () => step());
-      const st = await ev(p, () => [game.shell.screen, game.settings.volume, game.audio.volume, [...document.querySelectorAll('.esh-k.esh-sec')].map(e => e.textContent).join()]);
-      check(`${ed}: Settings: Display, Sound and Comfort; the arrows turn a slider, applied at once`, st[0] === 'settings' && st[1] > vol0 && st[2] === st[1] && st[3] === 'Display,Sound,Comfort', JSON.stringify([vol0, st]));
+      const st = await ev(p, () => [game.shell.screen, game.settings.volume, game.audio.volume, [...document.querySelectorAll('.esh-tabs button')].map(e => e.textContent).join(), (document.querySelector('.esh-tabs button.on') || {}).textContent, [...document.querySelectorAll('.esh-row')].some(r => /^Full screen/.test(r.textContent)), (document.querySelector('.esh-desc') || {}).textContent]);
+      check(`${ed}: Settings: tabs Display, Sound and Comfort (E turns to Sound: its rows alone, the focused row's help below them); the arrows turn a slider, applied at once`, st[0] === 'settings' && st[1] > vol0 && st[2] === st[1] && st[3] === 'Display,Sound,Comfort' && st[4] === 'Sound' && !st[5], JSON.stringify([vol0, st]));
       await p.keyboard.press('Escape'); await ev(p, () => step());
       // Controls: rebind by pressing the key; a conflict is said and changes nothing; Escape cancels
       await ev(p, () => [...document.querySelectorAll('.esh-sh button')].find(b => b.textContent === 'Controls').click()); await ev(p, () => step());
@@ -312,7 +313,7 @@ if (!process.argv.includes('--node')) {
       await p.keyboard.press('Enter'); await ev(p, () => step(2)); await p.keyboard.press('Escape'); await ev(p, () => step(2));
       check(`${ed}: menu: false leaves the menu out (the canvas pause instead)`, (await ev(p, () => [game.paused, game.shell, !!document.querySelector('.esh')])).join() === 'true,,false');
       // Camera zoom shows only where a scene lets the player zoom; a game's own setting called zoom always shows
-      const rows = () => ev(p, () => { game.shell.show('settings'); step(); return [...document.querySelectorAll('.esh-row > span:first-child')].map(s => s.firstChild.textContent); });
+      const rows = () => ev(p, () => { const out = []; for (const tab of ['Display', 'Sound', 'Comfort', 'Game']) { game.shell.show('settings', { tab }); step(); out.push(...[...document.querySelectorAll('.esh-row > span:first-child')].map(s => s.firstChild.textContent)); } return [...new Set(out)]; });   // (every tab's rows)
       await p.close(); p = await open(); const plain = await rows();
       await p.close(); p = await open("{ menu: { settings: [{ key: 'zoom', label: 'Map zoom', options: ['near', 'far'], value: 'near' }] } }"); const ownZoom = await rows();
       check(`${ed}: Camera zoom is left out of a game with no zoom; a game's own setting called zoom stays on the screen`, !plain.includes('Camera zoom') && plain.includes('Volume') && ownZoom.includes('Map zoom') && !ownZoom.includes('Camera zoom'), `${plain.join(', ')} | ${ownZoom.join(', ')}`);

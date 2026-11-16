@@ -813,6 +813,8 @@ class Input {
      *  not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no
      *  action uses) and a pinch ask for it, read by zoom() */
     this._pinching = false; this._zoomAcc = 1; this._zoomNow = 1; this._zoomOn = false; this._wheelOn = false; this._fingers = new Map();
+    /** pinches: true reads a pinch (zoom()) even where the scene doesn't zoom the camera: a game with a zoom of its own */
+    this.pinches = false;
     // the pointer's gestures (box, longPress, doubleTap, pan): the press followed (_g), what this step reads, what the next will
     this._g = null; this._gBox = null; this._gLong = null; this._gTap2 = null; this._gPan = null; this._lastTap = null; this._zoomPt = null; this._fedAt = null;
     this._boxAt = null; this._longAt = null; this._tap2At = null; this._panAt = null; this._swipeAt = null; this._gSwipe = null;
@@ -935,9 +937,11 @@ class Input {
   resetBindings() { this._setBindings({}); }
   _setBindings(b) { if (this._onBindings) this._onBindings(b); else this.bindings = b; }   // (the game saves them in its settings)
   /** a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad
-   *  button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family) */
-  codeLabel(code) {
+   *  button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family). short: true, the form
+   *  for a small badge ('LMB', 'Spc', '↑' for the d-pad's) */
+  codeLabel(code, short = false) {
     if (!code) return '';
+    if (short) { const t = SHORT_LABELS[code]; if (t) return t; const L = this.codeLabel(code); return /^Pad\d+$/.test(code) && /^D-pad /.test(PAD_GLYPHS.xbox[+code.slice(3)] || '') ? L.slice(-1) : L; }
     const L = this._layout && this._layout.get && this._layout.get(code);
     if (/^Key[A-Z]$/.test(code)) return (L || code.slice(3)).toUpperCase();
     if (/^Digit\d$/.test(code)) return L || code.slice(5);
@@ -952,13 +956,34 @@ class Input {
     return /054c|playstation|dualsense|dualshock|wireless controller/i.test(id) ? 'playstation' : /057e|nintendo|pro controller|joy-con/i.test(id) ? 'nintendo' : 'xbox';
   }
   /** the key or button to show in a prompt for action a, on the device the player used last (or the one named:
-   *  'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕' */
-  label(a, device = this.lastDevice) {
+   *  'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', '✕' (or 'A' with
+   *  Xbox symbols). o: { short: true } the form for a small badge ('LMB', 'Spc') */
+  label(a, device = this.lastDevice, o) {
     const m = this.map[a]; if (!m) { this._check(a); return ''; }
     if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || this._actionCaps(a);
     const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
     const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
-    return c ? this.codeLabel(c) : '';
+    return c ? this.codeLabel(c, !!(o && o.short)) : '';
+  }
+  /** does action a have a key or button on that device ('keyboard': a key or a mouse button; 'mouse': a mouse button or
+   *  the wheel; 'gamepad'; 'touch': a touch button or zone)? A prompt for one that has none can point to the menu instead */
+  bound(a, device = this.lastDevice) {
+    const m = this.map[a]; if (!m) { this._check(a); return false; }
+    if (device === 'touch') return !!(this._touchArgs && this._touchArgs.actions.includes(a)) || !!(this.zones && this.zones.some(z => z.act === a));
+    return m.some(c => device === 'gamepad' ? padCode(c) : device === 'mouse' ? /^(Mouse|Wheel)/.test(c) : !padCode(c) && !c.startsWith('Act:'));
+  }
+  /** a touch screen's flick on an element of the page's own (a dialog, a panel of HTML over the game): fn(dir) with 'left'
+   *  | 'right' | 'up' | 'down', as swipe() reads one on the canvas. Returns a function that stops it */
+  swipeOn(el, fn) {
+    if (!el || !el.addEventListener) return () => {};
+    const ac = typeof AbortController !== 'undefined' ? new AbortController() : null, o = ac ? { signal: ac.signal } : undefined; let at = null;
+    el.addEventListener('pointerdown', e => { at = e.pointerType === 'mouse' ? null : { id: e.pointerId, x: e.clientX, y: e.clientY, t: this.clock }; }, o);
+    el.addEventListener('pointercancel', () => { at = null; }, o);
+    el.addEventListener('pointerup', e => {
+      const f = at; at = null; if (!f || f.id !== e.pointerId) return; const dx = e.clientX - f.x, dy = e.clientY - f.y, ax = Math.abs(dx), ay = Math.abs(dy);
+      if (this.clock - f.t <= .35 && Math.max(ax, ay) >= 50 && Math.max(ax, ay) >= 1.5 * Math.min(ax, ay)) fn(ax > ay ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'));
+    }, o);
+    return () => { if (ac) ac.abort(); };
   }
   /** shake the gamepad: strength 0..1 for seconds (scaled by rumbleScale; nothing where the controller can't). Returns
    *  true when it rumbled */
@@ -1230,7 +1255,7 @@ class Input {
       const ra = this.padAim || [0, 0], rd = [ra[1] < -.5, ra[1] > .5, ra[0] < -.5, ra[0] > .5];
       ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'].forEach((c, i) => rd[i] ? this.press(c) : this.release(c));   // (the right stick past halfway: codes to bind)
       if (this.padAim || Math.hypot(...this.padMove) > 0) { this.aimSource = 'pad'; this.lastDevice = 'gamepad'; }
-      p.buttons.forEach((b, i) => { const on = b.pressed && i !== 16; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });   // (16, the PS or Guide button, is the host's: the 52in1 hub opens its bar on it)
+      p.buttons.forEach((b, i) => { if (i === 9 && !b.pressed) this._opt = false; const on = i === 8 ? this._create(b.pressed, p) : b.pressed && i !== 16 && !(i === 9 && this._opt); if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });   // (16, the PS or Guide button, is the host's: the 52in1 hub opens its bar on it)
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
@@ -1245,6 +1270,16 @@ class Input {
     this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._gLong = this._gTap2 = this._gPan = this._gSwipe = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
+  }
+  // Create (button 8) is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (its
+  // bar), so the game sees neither; let go sooner it is a tap; held, a press. Returns whether it is down for the game
+  _create(down, p) {
+    const c = this._cr;
+    if (!down) { if (c && !c.chord && !c.out) this._tapCode('Pad8'); this._cr = null; return false; }
+    if (!c) { this._cr = { t: this.clock, chord: false, out: false }; return false; }
+    if (c.chord || (!c.out && p.buttons[9] && p.buttons[9].pressed)) { c.chord = true; this._opt = true; return false; }   // (Options held back too, until it is let go)
+    if (!c.out && this.clock - c.t >= .25) c.out = true;
+    return c.out;
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {
@@ -1271,7 +1306,7 @@ class Input {
   // with another finger resting on the glass, or two moving the same way, is none. It takes over the stick and the tap
   _pinchMove(e) {
     const f = this._fingers.get(e.pointerId); if (!f) return; f.x = e.clientX; f.y = e.clientY;
-    if (this._fingers.size !== 2 || !this._zoomOn) return;
+    if (this._fingers.size !== 2 || !(this._zoomOn || this.pinches)) return;
     const [a, b] = [...this._fingers.values()], d = Math.hypot(b.x - a.x, b.y - a.y) || 1;
     if (!this._pinching) {
       const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, pa = (a.x - a.x0) * ux + (a.y - a.y0) * uy, pb = (b.x - b.x0) * ux + (b.y - b.y0) * uy;
@@ -1342,6 +1377,9 @@ const PAD_GLYPHS = {
   nintendo: ['B', 'A', 'Y', 'X', 'L', 'R', 'ZL', 'ZR', '−', '+', 'L stick', 'R stick', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home', 'Capture'],
   generic: ['Bottom', 'Right', 'Left', 'Top', 'L1', 'R1', 'L2', 'R2', 'Select', 'Start', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home', 'Touchpad']
 };
+/* the short forms of codes for a small badge (codeLabel(code, true)): the mouse's buttons, the long key names */
+const SHORT_LABELS = { Mouse0: 'LMB', Mouse1: 'MMB', Mouse2: 'RMB', Mouse3: 'M4', Mouse4: 'M5', Space: 'Spc', ShiftLeft: 'Shift', ShiftRight: 'RShft', ControlLeft: 'Ctrl', ControlRight: 'RCtrl',
+  AltLeft: 'Alt', AltRight: 'RAlt', Escape: 'Esc', Backspace: 'Bksp', Enter: 'Ent', NumpadEnter: 'Ent', CapsLock: 'Caps', WheelUp: 'Wh↑', WheelDown: 'Wh↓' };
 const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift', ControlLeft: 'Ctrl', ControlRight: 'R Ctrl', AltLeft: 'Alt', AltRight: 'R Alt',
   Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Esc', Backspace: 'Backspace', Tab: 'Tab', CapsLock: 'Caps', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
   Mouse0: 'Left click', Mouse1: 'Middle click', Mouse2: 'Right click', Mouse3: 'Mouse 4', Mouse4: 'Mouse 5', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[',
@@ -1699,6 +1737,9 @@ E.lang = {
   /** the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a
    *  function of your own for a game without E.Game's input */
   control(a) { const g = E.current; return (g && g.input && g.input.map && g.input.map[a] && g.input.label(a)) || a; },
+  /** text a game draws itself (not a line) with its {key:action} tags filled: E.font.text(g, E.lang.keys('{key:jump} to
+   *  jump'), ...) shows the player's own key or button for it, on the device used last */
+  keys(text) { return String(text).replace(/\{key:(\w+)\}/g, (tag, a) => this.control(a)); },
   /** the original line's letter count for text E.t gave in another language (E.Dialog types it over the original's time), or 0 */
   sourceLength(text) { return this._len.get(text) || 0; },
   /** whole letters in s, tags left out (a Chinese, Japanese or Korean character is one) */
