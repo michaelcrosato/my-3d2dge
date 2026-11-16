@@ -92,7 +92,7 @@
           "page": "dist/kits/my-3d2dge-zero.html",
           "at": "#zero",
           "title": "Zero: does it feel like F-Zero and Power Drift?",
-          "what": "GRAND PRIX runs both tracks for points. NEON CITY: up or Z the gas, down or X the brake, left and right steer; the barriers drain your energy (the bar at the bottom), the green pit lane on the start straight fills it, the yellow dash plates fling you; from the second lap Space spends energy on a boost. SKY RIBBON: the same on a track raised over a desert on pillars, banking in the bends and passing over itself; its pit is the green stretch. VS: two to four players in a split screen (player 2 presses 2, or Start on a pad). Added with v0.98.0.",
+          "what": "GRAND PRIX runs both tracks for points. NEON CITY: up or Z the gas, down or X the brake, left and right steer; the barriers drain your energy (the bar at the bottom), the green pit lane on the start straight fills it, the yellow dash plates fling you; from the second lap Space spends energy on a boost. SKY RIBBON: the same on a track raised over a desert on pillars, banking in the bends and passing over itself; its pit is the green stretch. VS: two to four players in a split screen (player 2 presses 2, or Start on a pad; two on one keyboard drive with W and the up arrow, the boost on F and .). Added with v0.98.0.",
           "look": "Is it fast and slick, the machines hovering, the barriers worth fearing? Does the energy-and-boost trade feel like F-Zero's? Does the ribbon feel raised, the climb and the drop, the pass over and under itself like Power Drift? Is four players in a split screen playable? On your phone: it drives itself forward; the stick steers; BOOST.",
           "links": [["Sky ribbon", "#zero/sky"], ["VS", "#zero/vs"]]
         },
@@ -100,7 +100,7 @@
           "page": "dist/kits/my-3d2dge-special.html",
           "at": "#special",
           "title": "Special: do the bonus stages and the arena feel right?",
-          "what": "PLANET: left and right turn a quarter at the next crossing, Space jumps; run over every blue sphere (it turns red), never touch a red one. TUBE: left and right run up the half-pipe's walls, Space jumps; enough rings by each of three gates, past the bombs. ARENA: up or Z the gas, left and right steer, Space fires a shell that bounces off the walls; pop the other karts' balloons, keep yours (players 2 to 4 press 2 or Start before it begins). TURN: left and right turn the soldier, the fort turning under him, up and down walk, Space fires; clear the three nests. ROOM (Super Castlevania IV): left and right walk, Space jumps; the room turns a quarter every few seconds and you fall down the screen whichever way it stands: take the three gems, then the door. Added with v0.99.0.",
+          "what": "PLANET: left and right turn a quarter at the next crossing, Space jumps; run over every blue sphere (it turns red), never touch a red one. TUBE: left and right run up the half-pipe's walls, Space jumps; enough rings by each of three gates, past the bombs. ARENA: up or Z the gas, left and right steer, Space fires a shell that bounces off the walls; pop the other karts' balloons, keep yours (players 2 to 4 press 2 or Start before it begins; two on one keyboard drive with W and the up arrow and fire with F and .). TURN: left and right turn the soldier, the fort turning under him, up and down walk, Space fires; clear the three nests. ROOM (Super Castlevania IV): left and right walk, Space jumps; the room turns a quarter every few seconds and you fall down the screen whichever way it stands: take the three gems, then the door. Added with v0.99.0.",
           "look": "Does the planet curve away on every side? Does the tube twist and roll with you, the runner on its wall? Is the battle fun, the shells' bounces readable? Does the fort turn smoothly, the soldier always facing up? On your phone: the stick and one button (JUMP or FIRE).",
           "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"], ["Room", "#special/room"]]
         },
@@ -355,7 +355,7 @@
         {
           "page": "dist/kits/my-3d2dge-road.html",
           "title": "Road",
-          "what": "The pseudo-3D road (OutRun, Super Hang-On, Chase H.Q.): a coast run of six stages in a pyramid, picked where the road forks, in a convertible or on a bike that leans, traffic, checkpoints and a rewind; a police chase that rams a getaway car to a stop. The cars low-poly models.",
+          "what": "The pseudo-3D road (OutRun, Super Hang-On, Pole Position, Top Gear, Road Rash, Chase H.Q., Night Striker, Panorama Cotton): a coast run of six stages in a pyramid, picked where the road forks, in a convertible or on a bike that leans, traffic, checkpoints and a rewind; a circuit, a qualifying lap for your grid slot, then three laps against a pack of seven, the fuel running low and a pit lane; a bike race against seven riders who fight; two players racing the circuit in a split screen; a police chase that rams a getaway car to a stop; an armoured car that flies over the night road, shooting; a witch on a broom over rolling hills, throwing stars at winged foes. The cars low-poly models.",
           "links": [["HD", "#road/hd"], ["Circuit", "#road/circuit"], ["Cotton", "#road/cotton"], ["Striker", "#road/striker"], ["Duel", "#road/duel"], ["Rash", "#road/rash"], ["Car", "#road/car"], ["Bike", "#road/bike"], ["Chase", "#road/chase"]]
         },
         {
@@ -367,19 +367,19 @@
         {
           "page": "dist/kits/my-3d2dge-special.html",
           "title": "Special",
-          "what": "The Mode 7 era's bonus stages and arenas (Sonic 3's Blue Sphere, Sonic 2's half-pipe, Super Mario Kart's battle, Contra III's top-down stages): a checkered planet that curves away, a half-pipe in space, karts with balloons for one to four players, a fort seen from above that turns with you.",
+          "what": "The Mode 7 era's bonus stages and arenas (Sonic 3's Blue Sphere, Sonic 2's half-pipe, Super Mario Kart's battle, Contra III's top-down stages, Super Castlevania IV's turning room): a checkered planet that curves away, a half-pipe in space, karts with balloons for one to four players, a fort seen from above that turns with you, a room seen side on that turns a quarter at a time, gravity always down the screen.",
           "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"], ["Room", "#special/room"]]
         },
         {
           "page": "dist/kits/my-3d2dge-sky.html",
           "title": "Sky",
-          "what": "Mode 7 flight (Pilotwings, Final Fantasy VI's airship): a light plane through ten rings and onto a runway, a skydive through hoops onto a target, an airship over a world that curves away below it; the camera pitched and rolled with the plane, the craft low-poly models.",
+          "what": "Mode 7 flight (Pilotwings, Final Fantasy VI's airship): a light plane through ten rings and onto a runway, a skydive through hoops onto a target, a rocket belt through low rings onto a pad, a hang glider climbing in thermals, an attack helicopter against anti-aircraft turrets, an airship over a world that curves away below it; the camera pitched and rolled with the plane, the craft low-poly models.",
           "links": [["Plane", "#sky/plane"], ["Skydive", "#sky/dive"], ["Rocket belt", "#sky/belt"], ["Glider", "#sky/glider"], ["Helicopter", "#sky/heli"], ["Voyage", "#sky/voyage"]]
         },
         {
           "page": "dist/kits/my-3d2dge-blaster.html",
           "title": "Blaster",
-          "what": "Shooters into the screen (Space Harrier, After Burner, Yoshi's Safari): a jet-pack hero over a checkered plain against saucers and a serpent, a jet that banks the horizon and locks missiles onto bandits and a bomber, a first-person ride through a valley with a cursor against slimes, bats and a walker.",
+          "what": "Shooters into the screen (Space Harrier, After Burner, Yoshi's Safari, HyperZone, Super Star Wars, Thunder Blade): a jet-pack hero over a checkered plain against saucers and a serpent, a jet that banks the horizon and locks missiles onto bandits and a bomber, a first-person ride through a valley with a cursor against slimes, bats and a walker; a craft along a winding course over a neon grid; a speeder free over the dunes, crawlers found by a radar; an attack helicopter over a city, overhead and then up its avenue between the towers, a gunship at the end.",
           "links": [["Blade", "#blaster/blade"], ["Speeder", "#blaster/speeder"], ["Zone", "#blaster/zone"], ["The plain", "#blaster/harrier"], ["The sea", "#blaster/burner"], ["The valley", "#blaster/safari"]]
         },
         {

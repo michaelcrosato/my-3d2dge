@@ -16,7 +16,7 @@
        (WebGPU). Calling one of them warns, naming its section (a class throws). A game of several genres starts
        from the full engine: dist/my-3d2dge.html (every slice and section, readable) or
        dist/my-3d2dge-compact.html.
-    3. The games live between GAME START and GAME END: a title menu plus the BLASTER (shooters into the screen: a jet-pack hero over a checkered plain, a jet that rolls the horizon and locks on, a first-person ride with a cursor; three bosses) slice.
+    3. The games live between GAME START and GAME END: a title menu plus the BLASTER (shooters into the screen, six stages: a jet-pack hero over a checkered plain, a jet that rolls the horizon and locks on, a first-person ride with a cursor, a craft along a winding neon course, a speeder free over the dunes that hunts crawlers by radar, an attack helicopter up a city's avenue, seen first from overhead; four bosses; Space Harrier, After Burner, Yoshi's Safari, HyperZone, Super Star Wars, Thunder Blade) slice.
        This is a genre kit: dist/my-3d2dge.html has every slice, and the handoff package (dist/handoff/)
        every kit readable, with the index, the guide and the tools (both in github.com/michaelcrosato/my-3d2dge).
        To make a new game, change the slice closest to your genre into yours (its own title, play and game-over
@@ -237,7 +237,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 ## Genre playbook (NES, SNES, Genesis, N64, PS1)
 | Genre (examples) | View | Build it with | Copy slice |
 |---|---|---|---|
-| Into the screen (Space Harrier, After Burner, Yoshi's Safari) | Mode 7, rolled; first person on rails | world-space shots and foes, a bank as `cam.roll`, a cursor's shot by `m7.pick(sx, sy, boxes)` after `m7.begin` | BLASTER |
+| Into the screen (Space Harrier, After Burner, Yoshi's Safari, HyperZone, Super Star Wars, Thunder Blade) | Mode 7, rolled; first person on rails | world-space shots and foes, a bank as `cam.roll`, a cursor's shot by `m7.pick(sx, sy, boxes)` after `m7.begin` | BLASTER |
 (This kit's BLASTER rows; API.md, in the repo and in dist/my-3d2dge.html, has the playbook's every genre.)
 
 **Sizes:** heroes 40-60 px tall at 320x240 (`size: 1.2-1.4`), bosses 1.8-2.4. Small things (coins, bullets, ships, pickups) are string sprites designed at 8-16 px, drawn at scale 2 if they are the player's ship. Keep hitboxes smaller than the art.
@@ -312,7 +312,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "starter.slice.shooter": "SHOOTER",
     "starter.slice.shooter.about": "VERTICAL SHOOT-EM-UP",
     "starter.slice.blaster": "BLASTER",
-    "starter.slice.blaster.about": "INTO THE SCREEN: A HERO, A JET, A RIDE",
+    "starter.slice.blaster.about": "INTO THE SCREEN: SIX STAGES, FOUR BOSSES",
     "starter.slice.arcade": "ARCADE",
     "starter.slice.arcade.about": "A CABINET OF THREE CLASSICS",
     "starter.slice.pinball": "PINBALL",
@@ -320,13 +320,13 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "starter.slice.kart": "KART",
     "starter.slice.kart.about": "MODE 7 KARTS, THREE LAPS",
     "starter.slice.road": "ROAD",
-    "starter.slice.road.about": "A COAST ROAD, ITS FORKS, A CHASE",
+    "starter.slice.road.about": "RACE, FIGHT, CHASE AND FLY DOWN THE ROAD",
     "starter.slice.zero": "ZERO",
     "starter.slice.zero.about": "ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY",
     "starter.slice.special": "SPECIAL",
-    "starter.slice.special.about": "A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT",
+    "starter.slice.special.about": "A PLANET, A HALF-PIPE, AN ARENA, A FORT, A ROOM",
     "starter.slice.sky": "SKY",
-    "starter.slice.sky.about": "A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP",
+    "starter.slice.sky.about": "PLANE, SKYDIVE, BELT, GLIDER, HELICOPTER, AIRSHIP",
     "starter.slice.puzzle": "PUZZLE",
     "starter.slice.puzzle.about": "FALLING BLOCKS AND FALLING PAIRS",
     "starter.slice.rhythm": "RHYTHM",
@@ -906,14 +906,14 @@ const SLICES = [
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
-  { id: 'blaster', label: 'BLASTER', about: 'INTO THE SCREEN: A HERO, A JET, A RIDE', family: 'ARCADE' },
+  { id: 'blaster', label: 'BLASTER', about: 'INTO THE SCREEN: SIX STAGES, FOUR BOSSES', family: 'ARCADE' },
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
   { id: 'pinball', label: 'PINBALL', about: 'ONE TABLE: RAMP, MULTIBALL, JACKPOT', family: 'ARCADE' },
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
-  { id: 'road', label: 'ROAD', about: 'A COAST ROAD, ITS FORKS, A CHASE', family: 'RACING' },
+  { id: 'road', label: 'ROAD', about: 'RACE, FIGHT, CHASE AND FLY DOWN THE ROAD', family: 'RACING' },
   { id: 'zero', label: 'ZERO', about: 'ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY', family: 'RACING' },
-  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT', family: 'ARCADE' },
-  { id: 'sky', label: 'SKY', about: 'A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP', family: 'FLIGHT' },
+  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A FORT, A ROOM', family: 'ARCADE' },
+  { id: 'sky', label: 'SKY', about: 'PLANE, SKYDIVE, BELT, GLIDER, HELICOPTER, AIRSHIP', family: 'FLIGHT' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
@@ -1214,7 +1214,7 @@ const BLASTER = (() => {
   const STAGE = {
     /** the zone: a course along a path over the grid; the craft a lateral u and a height on it, the camera behind banking into the bends */
     zone: {
-      start() { Object.assign(R, { s: 0, u: 0, zh: 60, steer: 0, spawn: 400 }); },
+      start() { Object.assign(R, { s: 0, u: 0, zh: 60, steer: 0, spawn: 400, pods: 0, mines: 0 }); },   // (pods: shot down; mines: run into)
       at(s, u, z) { const p = ZONE.at(s); return { x: p.x - Math.sin(p.angle) * u, y: p.y + Math.cos(p.angle) * u, z, a: p.angle }; },
       cam() { const c = this.at(R.s - 170, R.u * .6, 0), a = ZONE.at(R.s).angle, bend = E.angDiff(a, ZONE.at(R.s + 260).angle); return { x: c.x, y: c.y, h: 46 + R.zh * .55, angle: c.a + E.angDiff(c.a, a) * .5, pitch: 6 + R.zh * .02, fov: 70, roll: clamp(bend * 70, -24, 24) + R.steer * -6 }; },
       update(dt, k) {
@@ -1222,21 +1222,21 @@ const BLASTER = (() => {
         R.steer += (k.x - R.steer) * Math.min(1, dt * 8); R.u = clamp(R.u + R.steer * 300 * dt, -150, 150); R.zh = clamp(R.zh - k.y * 220 * dt, 16, 160);
         const me = this.at(R.s, R.u, R.zh);
         if (k.fire && R.cool <= 0) { R.cool = .11; R.fired++; R.shots.push({ x: me.x, y: me.y, z: me.z + 4, vx: Math.cos(me.a) * 1700, vy: Math.sin(me.a) * 1700, vz: 0, t: 0 }); A.sfx('shoot', { vol: .3 }); }
-        while (R.spawn < R.s + 2400 && R.spawn < ZL - 900) {   // what lies ahead, placed along the course: pods in threes, now and then a mine on it
+        while (R.spawn < R.s + 2400 && R.spawn < ZL - 900) {   // what lies ahead, placed along the course: pods in threes, now and then a mine on it, floating at the height the craft flies (steered round, over or under, or shot)
           const n = Math.round(R.spawn / 260), u = Math.sin(n * .9) * 110, mine = n % 4 === 3;
-          if (mine) { const q = this.at(R.spawn, -u * .6, 14); R.foes.push({ kind: 'mine', s: R.spawn, u: -u * .6, x: q.x, y: q.y, z: 14, hp: 2, r: 16 }); }
+          if (mine) { const q = this.at(R.spawn, -u * .6, 60); R.foes.push({ kind: 'mine', s: R.spawn, u: -u * .6, x: q.x, y: q.y, z: 60, hp: 2, r: 16 }); }
           else for (let i = -1; i <= 1; i++) { const q = this.at(R.spawn + i * 40, u + i * 40, 50 + Math.abs(i) * 30); R.foes.push({ kind: 'pod', s: R.spawn + i * 40, u: u + i * 40, x: q.x, y: q.y, z: q.z, hp: 1, r: 16, ph: n + i }); }
           R.spawn += 260;
         }
         for (const f of R.foes) if (f.hp > 0) {
           f.t = (f.t || 0) + dt;
           if (f.kind === 'pod') { f.s -= 160 * dt; f.u += Math.sin(f.t * 2 + f.ph) * 40 * dt; const q = this.at(f.s, f.u, f.z); f.x = q.x; f.y = q.y; if (!f.shot && f.s - R.s < 900 && f.ph % 3 === 0) { f.shot = true; fireAt(f, 560); } }
-          if (Math.abs(f.s - R.s) < 14 && Math.abs(f.u - R.u) < f.r + 6 && Math.abs(f.z - R.zh) < 26) { f.hp = 0; boom(f.x, f.y, f.z); hurt(); }
+          if (Math.abs(f.s - R.s) < 14 && Math.abs(f.u - R.u) < f.r + 6 && Math.abs(f.z - R.zh) < 26) { f.hp = 0; boom(f.x, f.y, f.z); hurt(); if (f.kind === 'mine') R.mines++; }
         }
         R.foes = R.foes.filter(f => f.hp > 0 && f.s > R.s - 300);
         if (R.s >= ZL - 400) clear();
       },
-      hit(s) { for (const f of R.foes) if (f.hp > 0 && Math.hypot(s.x - f.x, s.y - f.y, s.z - f.z) < f.r + 8) { if (--f.hp <= 0) { boom(f.x, f.y, f.z); score(f.kind === 'mine' ? 500 : 200); } return true; } return false; },
+      hit(s) { for (const f of R.foes) if (f.hp > 0 && Math.hypot(s.x - f.x, s.y - f.y, s.z - f.z) < f.r + 8) { if (--f.hp <= 0) { boom(f.x, f.y, f.z); score(f.kind === 'mine' ? 500 : 200); if (f.kind === 'pod') R.pods++; } return true; } return false; },
       me() { const m = this.at(R.s, R.u, R.zh); return { x: m.x, y: m.y, z: m.z }; },
       gather(V) {
         const k0 = Math.floor((R.s - 160) / 90);
@@ -1517,11 +1517,11 @@ const BLASTER = (() => {
       },
       cam() { const p = RAIL.at(R.s), look = R.boss ? Math.atan2(R.boss.y - p.y, R.boss.x - p.x) : p.angle; return { x: p.x, y: p.y, h: 26, angle: look + (R.cur[0] / game.W - .5) * .25, pitch: 3 + (R.cur[1] / game.H - .5) * 8, fov: game.H > game.W ? 80 : 70 }; },
       update(dt, k) {
-        const I = game.input, ptr = I.pointer && I.pointer();
+        const I = game.input, ptr = I.pointer && I.pointer(), drawn = this.cam();   // (the camera the last frame was drawn with: a tap or a click is on what it showed, so the shot is picked through it, not one already turned to the cursor's new place)
         if (ptr && (!R.ptr || ptr[0] !== R.ptr[0] || ptr[1] !== R.ptr[1])) R.cur = ptr.slice(); R.ptr = ptr;
         R.cur = [clamp(R.cur[0] + k.x * 230 * dt, 6, game.W - 6), clamp(R.cur[1] + k.y * 230 * dt, 6, game.H - 6)];
         const shoot = k.tap || (k.fire && R.cool <= 0 && !(I.lastDevice === 'touch' && !auto)); if (k.tap) R.cur = k.tap.slice();
-        if (shoot) { R.cool = .22; R.fired++; A.sfx('shoot', { vol: .4 }); R.flash = .06; VP.vale.begin({ W: game.W, H: game.H }, this.cam()); const h = VP.vale.pick(R.cur[0], R.cur[1], targets()), f = h && h.target;
+        if (shoot) { R.cool = .22; R.fired++; A.sfx('shoot', { vol: .4 }); R.flash = .06; VP.vale.begin({ W: game.W, H: game.H }, drawn); const h = VP.vale.pick(R.cur[0], R.cur[1], targets()), f = h && h.target;
           if (f && f.hp > 0) { f.hp--; if (f.hp <= 0) { boom(f.x, f.y, f.z + 12, f.weak ? 1.6 : 1); score(f.weak ? 3000 : f.kind === 'shell' ? 200 : 500); } else A.sfx('hit', { vol: .4 }); } }
         if (R.flash > 0) R.flash -= dt;
         if (!R.boss) { R.s = Math.min(RAIL.length - 40, R.s + 150 * dt); if (R.s >= RAIL.length - 40) { const p = RAIL.at(RAIL.length), ap = p.angle; R.boss = { x: p.x + Math.cos(ap) * 230, y: p.y + Math.sin(ap) * 230, t: 0 };
@@ -1609,18 +1609,20 @@ const BLASTER = (() => {
   function end() { mode = 'results'; after.i = 0; R.best = best('blaster', R.score); R.won = R.phase === 'clear'; }
   /** the autopilot (the bot, and a demo): the hero lines up with what is ahead and keeps clear of the columns; the jet
    *  turns toward the bandits, locks them and fires; the cursor goes to the nearest foe on the screen; the helicopter
-   *  takes the free line up the avenue (round a wing, under or over a skybridge) nearest the foe ahead */
+   *  takes the free line up the avenue (round a wing, under or over a skybridge) nearest the foe ahead (R.still: hands
+   *  off, nothing steered or fired: the bot's craft left to fly straight on) */
   function pilot() {
-    const k = { x: 0, y: 0, fire: true, missile: false, roll: false };
+    const k = { x: 0, y: 0, fire: !R.still, missile: false, roll: false };
+    if (R.still) return k;
     if (R.name === 'harrier') {
       const B = R.boss, f = B && B.parts && B.hp > 0 ? B.parts[0] : R.foes.filter(f => f.hp > 0 && f.y < R.F - 100 && f.kind !== 'col').sort((a, b) => b.y - a.y)[0];
       let tx = f ? f.x : 0, tz = f ? f.z : 60;
       for (const c of R.foes) if (c.kind === 'col' && c.y < R.F + 20 && R.F - c.y < 500 && Math.abs(c.x - tx) < 50) tz = Math.max(tz, 150);
       for (const h of R.hot) if (h.y < R.F && R.F - h.y < 400 && Math.abs(h.x - R.hx) < 40) tx += h.x > R.hx ? -80 : 80;
       k.x = clamp((tx - R.hx) / 40, -1, 1); k.y = clamp(-(tz - R.hz) / 40, -1, 1);
-    } else if (R.name === 'zone') {   // line up the nearest pod ahead; a mine ahead on your line: step round it
+    } else if (R.name === 'zone') {   // line up the nearest pod ahead; a mine ahead on your line: step round it, keeping your height
       const f = R.foes.filter(f => f.hp > 0 && f.s > R.s + 60 && f.kind === 'pod').sort((a, b) => a.s - b.s)[0], m = R.foes.find(f => f.kind === 'mine' && f.hp > 0 && f.s > R.s && f.s < R.s + 420 && Math.abs(f.u - R.u) < 50);
-      const tu = m ? m.u + (m.u > R.u ? -110 : 110) : f ? f.u : 0, tz = m ? 30 : f ? f.z : 60; k.x = clamp((tu - R.u) / 30, -1, 1); k.y = clamp(-(tz - R.zh) / 30, -1, 1);
+      const tu = m ? m.u + (m.u > R.u ? -110 : 110) : f ? f.u : 0, tz = f ? f.z : 60; k.x = clamp((tu - R.u) / 30, -1, 1); k.y = clamp(-(tz - R.zh) / 30, -1, 1);
     } else if (R.name === 'speeder') {   // the nearest crawler: turn to it, close in, veer off its side; fire at whatever is lined up
       const v = R.v, dist = f => Math.hypot(f.x - v.x, f.y - v.y), off = f => Math.abs(E.angDiff(v.yaw, Math.atan2(f.y - v.y, f.x - v.x))), f = R.foes.filter(f => f.kind === 'crawler').sort((a, b) => dist(a) - dist(b))[0];
       if (f) { const a = E.angDiff(v.yaw, Math.atan2(f.y - v.y, f.x - v.x)), d = dist(f); k.x = d < 240 ? 1 : clamp(a * 3, -1, 1); k.y = d > 900 ? -1 : d < 500 ? 1 : 0; }
@@ -1698,12 +1700,14 @@ const BLASTER = (() => {
   const HERO_ICON = (g, x, y) => { px.rect(g, x + 2, y, 4, 4, '#ffd040'); px.rect(g, x + 1, y + 4, 6, 5, '#e83a30'); px.rect(g, x + 1, y + 9, 2, 3, '#2a3a8a'); px.rect(g, x + 5, y + 9, 2, 3, '#2a3a8a'); };
 
   /** the bot (tools/kits-test.mjs): each stage played alone by the autopilot to its boss's fall (the hits it takes
-   *  counted; the bot plays on through them) */
+   *  counted; the bot plays on through them; the zone's pods shot down and mines run into too), then the zone again with
+   *  the craft left alone, straight down the middle at its height: the mines on its line hit it (still) */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
       game.go('blaster', null, { fade: 0 }); game.advance(1 / 120); const out = {};
-      for (let i = 0; i < STAGES.length; i++) { auto = true; begin(i, true); let n = 0; for (; n < 150 && mode === 'play'; n++) game.advance(1); out[STAGES[i]] = { cleared: !!R.won, score: R.score, hits: R.hits, seconds: n }; toMenu(); }
+      for (let i = 0; i < STAGES.length; i++) { auto = true; begin(i, true); let n = 0; for (; n < 150 && mode === 'play'; n++) game.advance(1); out[STAGES[i]] = Object.assign({ cleared: !!R.won, score: R.score, hits: R.hits, seconds: n }, R.name === 'zone' && { pods: R.pods, mines: R.mines }); toMenu(); }
+      auto = true; begin(STAGES.indexOf('zone'), true); R.still = true; for (let n = 0; n < 150 && mode === 'play'; n++) game.advance(1); out.zone.still = R.mines; toMenu();
       return Object.assign(out, { errors: game.errors.length });
     } finally { Math.random = was; auto = false; }
   }
@@ -1714,6 +1718,15 @@ const BLASTER = (() => {
     update, draw, bot,
     /** a stage played by the autopilot (a demo; the bot's) */
     demo(stage) { begin(Math.max(0, STAGES.indexOf(stage)), true); auto = true; },
+    /** the safari's foes on the screen as the last frame drew them, each where a tap would hit it (no rock or nearer box
+     *  over it), nearest first: [{ i (its place in the stage's foes), kind, x, y (its box's middle), w (its width), all in
+     *  game pixels, d (how far it is from the camera) }] (the phone test taps one) */
+    sights() {
+      if (!R || R.name !== 'safari') return [];
+      const cam = STAGE.safari.cam(), V = VP.vale.begin({ W: game.W, H: game.H }, cam), all = targets();
+      return all.filter(q => q.target && q.target.hp > 0).map(q => { const p = V.project(q.x, q.y, q.z); return p && { i: R.foes.indexOf(q.target), kind: q.target.kind, x: p[0], y: p[1] - q.h * p[2] / 2, w: q.w * p[2], d: Math.hypot(q.x - cam.x, q.y - cam.y) }; })
+        .filter(o => o && o.x > 0 && o.x < game.W && o.y > 0 && o.y < game.H && (V.pick(o.x, o.y, all) || {}).target === R.foes[o.i]).sort((a, b) => a.d - b.d);
+    },
     state: () => R && { mode, stage: R.name, phase: R.phase, t: +R.t.toFixed(2), score: R.score, lives: R.lives, hits: R.hits, foes: R.foes.length, shots: R.shots.length, fired: R.fired,
       hero: R.name === 'harrier' ? [Math.round(R.hx), Math.round(R.hz)] : R.name === 'burner' ? [Math.round(R.j.x), Math.round(R.j.y), Math.round(R.j.z), +R.j.roll.toFixed(3)] : R.name === 'zone' ? [Math.round(R.s), Math.round(R.u), Math.round(R.zh)] : R.name === 'speeder' ? [Math.round(R.v.x), Math.round(R.v.y), +R.v.yaw.toFixed(3)] : R.name === 'blade' ? [Math.round(R.hx), Math.round(R.F + R.dy), Math.round(R.hz)] : [Math.round(R.s), Math.round(R.cur[0]), Math.round(R.cur[1])], boss: R.boss ? (R.boss.hp !== undefined ? R.boss.hp : R.boss.parts.map(p => p.hp)) : null },
     /** the proof: the harrier stage, flying up and right, firing, then down and left */

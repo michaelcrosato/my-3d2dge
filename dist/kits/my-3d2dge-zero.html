@@ -313,7 +313,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "starter.slice.shooter": "SHOOTER",
     "starter.slice.shooter.about": "VERTICAL SHOOT-EM-UP",
     "starter.slice.blaster": "BLASTER",
-    "starter.slice.blaster.about": "INTO THE SCREEN: A HERO, A JET, A RIDE",
+    "starter.slice.blaster.about": "INTO THE SCREEN: SIX STAGES, FOUR BOSSES",
     "starter.slice.arcade": "ARCADE",
     "starter.slice.arcade.about": "A CABINET OF THREE CLASSICS",
     "starter.slice.pinball": "PINBALL",
@@ -321,13 +321,13 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     "starter.slice.kart": "KART",
     "starter.slice.kart.about": "MODE 7 KARTS, THREE LAPS",
     "starter.slice.road": "ROAD",
-    "starter.slice.road.about": "A COAST ROAD, ITS FORKS, A CHASE",
+    "starter.slice.road.about": "RACE, FIGHT, CHASE AND FLY DOWN THE ROAD",
     "starter.slice.zero": "ZERO",
     "starter.slice.zero.about": "ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY",
     "starter.slice.special": "SPECIAL",
-    "starter.slice.special.about": "A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT",
+    "starter.slice.special.about": "A PLANET, A HALF-PIPE, AN ARENA, A FORT, A ROOM",
     "starter.slice.sky": "SKY",
-    "starter.slice.sky.about": "A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP",
+    "starter.slice.sky.about": "PLANE, SKYDIVE, BELT, GLIDER, HELICOPTER, AIRSHIP",
     "starter.slice.puzzle": "PUZZLE",
     "starter.slice.puzzle.about": "FALLING BLOCKS AND FALLING PAIRS",
     "starter.slice.rhythm": "RHYTHM",
@@ -952,14 +952,14 @@ const SLICES = [
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
-  { id: 'blaster', label: 'BLASTER', about: 'INTO THE SCREEN: A HERO, A JET, A RIDE', family: 'ARCADE' },
+  { id: 'blaster', label: 'BLASTER', about: 'INTO THE SCREEN: SIX STAGES, FOUR BOSSES', family: 'ARCADE' },
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
   { id: 'pinball', label: 'PINBALL', about: 'ONE TABLE: RAMP, MULTIBALL, JACKPOT', family: 'ARCADE' },
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
-  { id: 'road', label: 'ROAD', about: 'A COAST ROAD, ITS FORKS, A CHASE', family: 'RACING' },
+  { id: 'road', label: 'ROAD', about: 'RACE, FIGHT, CHASE AND FLY DOWN THE ROAD', family: 'RACING' },
   { id: 'zero', label: 'ZERO', about: 'ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY', family: 'RACING' },
-  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT', family: 'ARCADE' },
-  { id: 'sky', label: 'SKY', about: 'A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP', family: 'FLIGHT' },
+  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A FORT, A ROOM', family: 'ARCADE' },
+  { id: 'sky', label: 'SKY', about: 'PLANE, SKYDIVE, BELT, GLIDER, HELICOPTER, AIRSHIP', family: 'FLIGHT' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
@@ -1085,7 +1085,8 @@ scenes.over = {
  * life and your boost: from the second lap, BOOST spends some of it for a burst; out of it, the machine limps.
  * GRAND PRIX: both tracks, points for places. VS: two to four players in a split screen on the city.
  * Deep links: #zero/gp, #zero/city, #zero/sky, #zero/vs; #zero/gba the Grand Prix at the Game Boy Advance's 240 x 160.
- * KEYS: left / right steer, up / Z gas, down / X brake, Space / C boost. A pad: the stick, A gas, X brake, B boost.
+ * KEYS: left / right steer, up / Z gas, down / X brake, Space / C boost (two on one keyboard: W / up gas, S / down
+ * brake, F / . boost). A pad: the stick, A gas, X brake, B boost.
  * TOUCH: the stick steers, it accelerates by itself; BOOST.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floors, and the ribbon as m7.quad strips over them; E.Car and
  * E.Race (the drive module) the machines, the laps and the drivers (heights: true, as the ribbon crosses itself; a
@@ -1095,6 +1096,7 @@ scenes.over = {
 const ZERO = (() => {
   const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0', 'Pad7'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2', 'Pad6'], boost: ['Space', 'KeyC', 'ShiftLeft', 'Pad1', 'Pad5'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
+  KEYS.halves = { left: { gas: ['KeyW'], brake: ['KeyS'] }, right: { gas: ['ArrowUp'], brake: ['ArrowDown'] } };   // (VS on one keyboard: W and up the gas, S and down the brake, as alone; BOOST each half's first button, F and .)
   const hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
   const MACHINE = new E.Mesh([['box', [2, 0, 3.4], [13, 6, 1.8], 'body', { top: [.8, .7], tip: [-2, 0] }], ['box', [12, 0, 3], [5, 3.6, 1.2], 'body', { top: [.4, .6] }], ['ball', [1, 0, 6], [5, 2.6, 2], '#8ae8ff', { n: 6 }],
     ['tube', [-11, 4.6, 3.6], 1.8, 3, '#3a3a46', { mirror: true, n: 6 }], ['tube', [-14.4, 4.6, 3.6], 1.3, .4, 'glow', { mirror: true, n: 6 }], ['face', [[-6, 6, 4.4], [-13, 6, 4.4], [-14, 10.5, 3.8], [-9, 10.5, 3.8]], 'trim', { both: true, mirror: true }],
@@ -1189,11 +1191,12 @@ const ZERO = (() => {
   let mode = 'menu', G = null, race = null, players = [], cams = [], t = 0, over = 0, track = 'city', auto = false, idle = 0, attract = false;
   const menu = new E.Menu(game, [E.t('zero.menu.gp'), E.t('zero.menu.city'), E.t('zero.menu.sky'), E.t('zero.menu.vs'), E.t('zero.menu.back')], { onPick: i => i === 4 ? game.go('title') : i === 3 ? versus() : (G = { gp: i === 0, pts: CAST.map(() => 0) }, go(i === 2 ? 'sky' : 'city')) });
   const after = new E.Menu(game, [E.t('zero.menu.next'), E.t('zero.menu.menu')], { onPick: i => i === 0 ? (G && G.gp ? (track === 'city' ? go('sky') : (G.pts = CAST.map(() => 0), go('city'))) : G && G.vs ? go('city', true) : go(track)) : toMenu() });   // (after the ribbon a Grand Prix is over: RACE ON starts another)
-  function toMenu() { mode = 'menu'; race = null; G = null; idle = 0; if (attract) { attract = false; auto = false; } game.splitScreen(0); A.music('title'); }
+  function toMenu() { mode = 'menu'; race = null; G = null; idle = 0; if (attract) { attract = false; auto = false; } game.splitScreen(0); game.allowJoin({ max: 4 }); A.music('title'); }   // (the menu and VS's join screen let players in)
   function versus() { G = { vs: true, pts: CAST.map(() => 0) }; if (game.players.length >= 2) go('city', true); else { mode = 'join'; A.sfx('select'); } }
   /** a race on a track: six machines on the grid (the players' at the back), three laps */
   function go(which, vs) {
     if (!vs) for (const q of game.players.slice(1)) if (q.half) game.removePlayer(q);   // (a race of one: player 1 has the whole keyboard back; a pad's player stays for the next VS)
+    game.allowJoin(false);   // (no one joins mid-race, nor the attract mode's: the menu lets them in)
     track = which; mode = 'race'; over = 0; t = 0;
     if (which === 'city' && !city) city = buildCity(); if (which === 'sky' && !sky) sky = buildSky();
     race = new E.Race({ path: which === 'city' ? CITY : RIB, laps: 3, width: which === 'city' ? HALF * .8 : HW * .7, checkpoints: 12, items: [], heights: which === 'sky' });
@@ -1210,7 +1213,7 @@ const ZERO = (() => {
   function update(dt) {
     const I = game.input; I.touchSet('boost', null, mode === 'race');
     t += dt;
-    const touched = I.anyPressed() || !!I.clicked();   // (a phone's tap presses no key)
+    const touched = game.players.some(q => q.anyPressed()) || !!I.clicked();   // (any player's key or button; a phone's tap presses no key)
     if (mode === 'menu') { menu.update(dt); idle = touched ? 0 : idle + dt; if (idle > 25) { idle = 0; attract = true; auto = true; G = { gp: false, pts: CAST.map(() => 0) }; go(Math.floor(t / 25) % 2 ? 'sky' : 'city'); } return; }   // (left alone, it races by itself: an attract mode)
     if (attract && touched) { attract = false; auto = false; toMenu(); return; }
     if (mode === 'join') { if (game.players.length >= 2 && I.pressed('confirm')) go('city', true); else if (I.pressed('cancel')) mode = 'menu'; return; }   // (up to four join; player 1 starts it)
@@ -1312,21 +1315,24 @@ const ZERO = (() => {
   }
 
   /** the bot (tools/kits-test.mjs): the Grand Prix with every machine driven by its driver (yours too): both tracks to
-   *  the end; then four players in a split screen on the city, the gas held a while */
+   *  the end; the attract mode, ended by a tap and by the pause key; then four players in a split screen on the city,
+   *  the gas held a while (W and the up arrow for the two on the keyboard) */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
       game.go('zero', null, { fade: 0 }); game.advance(1 / 120); auto = true; const out = {};
       G = { gp: true, pts: CAST.map(() => 0) };
-      for (const tr of ['city', 'sky']) { go(tr); let n = 0; for (; n < 220 && !race.over; n++) game.advance(1); out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +Math.max(...race.racers.map(R => R.stuckMax)).toFixed(2), energy: race.racers.map(R => Math.round(R.energy)), jumps: race.racers.reduce((a, R) => a + (R.jumps || 0), 0) }; if (race.over) finish(); }   // (stuck: the longest any stood still)   // (jumps: off the ribbon's kicker, over 0.3 s in the air)
+      for (const tr of ['city', 'sky']) { go(tr); let n = 0; for (; n < 220 && !race.over; n++) game.advance(1); out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +Math.max(...race.racers.map(R => R.stuckMax)).toFixed(2), energy: race.racers.map(R => Math.round(R.energy)), jumps: race.racers.map(R => R.jumps || 0) }; if (race.over) finish(); }   // (stuck: the longest any stood still; jumps: each machine's landings from a peak over 3 units, off the ribbon's kicker)
       out.points = G.pts.slice(); auto = false;
       toMenu(); idle = 30; game.advance(1 / 60); out.attract = attract && mode === 'race';   // (left alone on the title: it races by itself)
       const I = game.input, dev = I.lastDevice; for (const e of ['down', 'up']) I.feed(e, game.W / 2, game.H * .3, { touch: true }); game.advance(1 / 60);
       out.tapBack = !attract && mode === 'menu'; I.lastDevice = dev; toMenu();   // (a phone's tap ends it)
+      idle = 30; game.advance(1 / 60); I.press('Escape'); game.advance(1 / 60); I.release('Escape'); out.pauseBack = !attract && mode === 'menu' && !game.paused; I.lastDevice = dev; toMenu();   // (so does the pause key: the attract mode pauses no race)
       game.go('zero', { part: 'gba' }, { fade: 0 }); game.advance(1 / 60); out.gba = [game.W, game.H]; game.go('zero', null, { fade: 0 }); game.advance(1 / 60); auto = false;
       while (game.players.length < 4) game.addPlayer({ keys: game.players.length === 1 ? 'right' : undefined });
-      G = { vs: true, pts: CAST.map(() => 0) }; go('city', true); for (const P of game.players) P.hold('gas'); game.advance(8); for (const P of game.players) P.hold('gas', false);
-      out.vs = { viewports: game.viewports.length, prog: players.map(R => Math.round(R.prog)) };
+      G = { vs: true, pts: CAST.map(() => 0) }; go('city', true); const P = game.players, KW = ['KeyW', 'ArrowUp'], own = q => q.map.gas.filter(c => !c.startsWith('Pad') && !c.startsWith('Act:')).join();   // (two on one keyboard, W and the up arrow their gas; the pads' players hold theirs)
+      const p0 = players.map(R => R.prog); P.forEach((q, i) => KW[i] ? q.press(KW[i]) : q.hold('gas')); game.advance(8); P.forEach((q, i) => KW[i] ? q.release(KW[i]) : q.hold('gas', false));
+      out.vs = { viewports: game.viewports.length, moved: players.map((R, i) => Math.round(R.prog - p0[i])), halves: [own(P[0]), own(P[1])] };   // (moved: each player's way along the track from the grid)
       const gas = () => ['ArrowUp', 'KeyW', 'KeyZ'].filter(c => game.input.map.gas.includes(c)).length;   // (a race of one after it: player 1's gas on the whole keyboard again)
       out.solo = [gas()]; go('city'); out.solo.push(gas(), game.players.filter(P => P.half).length);
       toMenu(); while (game.players.length > 1) game.removePlayer(game.players.length);
@@ -1334,14 +1340,15 @@ const ZERO = (() => {
     } finally { Math.random = was; auto = false; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['boost'], camera: { zoom: false },
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', touch: ['boost'], camera: { zoom: false },
+    get pausable() { return !attract; },   // (the attract mode is the title's: Esc, P or Start ends it, as any key does, and pauses no race)
     enter(d) {
       mode = 'menu'; race = null; menu.i = 0; auto = false; attract = false; idle = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; game.allowJoin({ max: 4 }); A.music('title');
       const gba = !!d && d.part === 'gba'; game.screen.setOptions({ res: gba ? 'gba' : 'ps1', expand: !gba });   // (#zero/gba: the Game Boy Advance's 240 x 160 exactly, letterboxed: F-Zero: Maximum Velocity's)
       if (d && d.part) { if (d.part === 'vs') versus(); else { G = { gp: d.part === 'gp' || d.part === 'gba', pts: CAST.map(() => 0) }; go(d.part === 'sky' ? 'sky' : 'city'); } }
     },
-    exit() { game.splitScreen(0); game.allowJoin(false); attract = false; auto = false; idle = 0; game.screen.setOptions({ res: 'ps1', expand: true }); },   // (an attract race left by the pause menu's quit: none of it carried back in)
-    back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
+    exit() { game.splitScreen(0); game.allowJoin(false); attract = false; auto = false; idle = 0; game.screen.setOptions({ res: 'ps1', expand: true }); },   // (an attract race left for another scene: none of it carried back in)
+    back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results' || attract) { toMenu(); return true; } return false; },
     update, draw, bot, hud: r => { if (players.length > 1 && mode === 'results') board(r); },
     /** a race driven by the autopilot (a demo; the bot's): 'city' or 'sky' */
     demo(tr) { auto = true; G = { gp: false, pts: CAST.map(() => 0) }; go(tr === 'sky' ? 'sky' : 'city'); },

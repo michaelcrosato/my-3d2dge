@@ -21,6 +21,25 @@ game.audio plays my-game-audio's songs: scored music (orchestral, synthwave, chi
   song after it go through.
 - **Docs**: `docs/KITS.md` lists the module beside the songbook; decision D99.
 
+## 0.105.1 (2026-11-16)
+
+Fixes from an audit of `docs/MODE7.md` against the kits: every row's deep link, its code and its check.
+
+- **Engine**: SKY's HELICOPTER: the flak turrets fire at it from the height it can fire missiles from (3 up), no longer only above 10, so flying low is no way under them; the LIFT OFF prompt, the aiming cross and the landing count from the same height.
+- **Engine**: BLASTER's SAFARI: a tap picks through the camera as the frame drew it (the camera turns with the cursor), so a tap on a foe shoots it; it turned to the tap first and missed most foes off the middle. `sights()` lists the foes a tap can hit, where they are drawn.
+- **Engine**: BLASTER's ZONE: the mines float at the craft's height, to steer round or shoot; they sat under it and never hit. The autopilot keeps its height and steps round them.
+- **Engine**: ROAD's COTTON: the first pumpkin of each wave hops like the rest; it slid along the road under every star, unhittable, still firing.
+- **Engine**: ROAD's DUEL: player 1 starts in the middle lane, clear of the pack; it started right behind the pack's first car and was bumped on the first step.
+- **Engine**: ROAD's coast run: the CHECKPOINT arch adds its time as you pass it (once per leg; a rewind back past it takes it back), no longer at the fork 72 segments on, where a run that reached the arch with seconds left could still time out.
+- **Engine**: ZERO: no one joins mid-race (pressing 2 took the arrows and the gas from a player racing alone); the menu lets players in, as KART's does.
+- **Engine**: ZERO's attract race: Esc, P or Start ends it like any other key, no longer pausing over it; a phone's back goes to the menu.
+- **Engine**: ZERO's VS and SPECIAL's ARENA, two on one keyboard: W and the up arrow are each half's gas (the boost or the shell on F and .), as in KART and ROAD; the gas was on F and . and W did nothing.
+- **Engine**: SPECIAL's ARENA: a CPU kart pinned against a wall counts its time from `dt`.
+- **Tools**: the kits test asks ZONE for pods shot and no mine hit (and, flown hands off, a mine run into); the helicopter for flak at 5 up; ZERO's ribbon for at least five machines jumping off the kicker; ZERO's VS and SPECIAL's split arena for W and the up arrow driving; ZERO's demo to end on the pause key; COTTON for every foe but one; and opens `#zero/gba` and `#kart/gba` in a 2:1 window, letterboxed at 240 x 160. The phone test taps a foe in the valley and it falls.
+- **Tools**: the build's kit descriptions name every mode: BLASTER's six stages and four bosses, SKY's six events, ROAD's circuit, rash, duel, striker and cotton, SPECIAL's room; the title's captions for the four kits widened to match.
+- **Docs**: the Labs page's cards for SKY, BLASTER, ROAD and SPECIAL name their newer modes, and ZERO's and SPECIAL's the keys for two on one keyboard; `AI_GUIDE.md` sends Thunder Blade to BLASTER's BLADE, Panorama Cotton to ROAD's COTTON and Castlevania IV's room to SPECIAL's ROOM, and lists `mesh` and `rewind` among the fourteen modules the agent edition takes; README's and API.md's rows name HyperZone, Super Star Wars, Thunder Blade, Panorama Cotton and Castlevania IV (the API card 22,029 tokens, past its soft 22,000: D98).
+- **Docs**: ROAD's manual: six blows put you down in the rash (not three); the coast run's clock starts at 44 (the chase 55); the autopilot goes right at the first fork and left at the next. `docs/MODE7.md`'s checks say what they now prove.
+
 ## 0.105.0 (2026-11-16)
 
 The last parts of the owner's Mode 7 list played: Pilotwings' hang glider and helicopter, Thunder Blade's city, Top Gear's fuel and pit stops, and Panorama Cotton.

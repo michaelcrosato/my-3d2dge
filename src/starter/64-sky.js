@@ -132,8 +132,9 @@ const SKY = (() => {
   const GLIDE = [[2048, 3250, 540, -Math.PI / 2], [2700, 2350, 800, -.93], [2150, 1650, 560, -2.24], [1950, 2300, 300, 1.87]], GLIDE0 = [2048, 3720, 600];
   const THERMALS = [[2260, 2950], [1760, 1880], [2920, 2260]], TH_R = 160;
   const lift = (x, y, z) => THERMALS.reduce((l, [tx, ty]) => { const d = Math.hypot(x - tx, y - ty) / TH_R; return d < 1 ? Math.max(l, 42 * (1 - d * d) * clamp((1400 - z) / 300, 0, 1)) : l; }, 0);   // (strongest at the core, fading out above 1100)
-  // the helicopter's: five flak turrets on the island (it starts on the belt's pad); its missile's speed and dip, the flak's speed
-  const TURRETS = [[2380, 2300], [1700, 2250], [1560, 2950], [2620, 3050], [2500, 1700]], MS = 380, DIP = .14, FLAK = 150;
+  // the helicopter's: five flak turrets on the island (it starts on the belt's pad); its missile's speed and dip, the flak's
+  // speed; the height it is up at (off the pad: it can fire, the turrets fire at it, a touchdown after it counts)
+  const TURRETS = [[2380, 2300], [1700, 2250], [1560, 2950], [2620, 3050], [2500, 1700]], MS = 380, DIP = .14, FLAK = 150, HUP = 3;
   const yawOf = (L, i, from) => L[i][3] !== undefined ? L[i][3] : Math.atan2(L[i][1] - (i ? L[i - 1][1] : from[1]), L[i][0] - (i ? L[i - 1][0] : from[0]));
   const SONG = { bpm: 116, steps: 4, tracks: [
     { wave: 'square', vol: .05, notes: 'E5 . G5 . A5 . . G5 | E5 . D5 . C5 . . . | D5 . E5 . G5 . A5 . | B5 . . A5 G5 . . . | C6 . B5 . A5 . G5 . | A5 . G5 . E5 . D5 . | E5 . G5 . A5 . D5 . | C5 . . . . . . .' },
@@ -242,7 +243,7 @@ const SKY = (() => {
     P.vz += (want - P.vz) * Math.min(1, dt * 2.5); P.yaw += clamp(k.x, -1, 1) * 1.3 * dt;
     P.v += ((ground ? 0 : -clamp(k.y, -1, 1) * 170) - P.v) * Math.min(1, dt * (ground ? 6 : 1.1)); P.speed = Math.abs(P.v);
     P.roll += ((ground ? 0 : clamp(k.x, -1, 1) * .3) - P.roll) * Math.min(1, dt * 4); P.lean += (-P.v / 170 * .28 - P.lean) * Math.min(1, dt * 4);
-    P.x += Math.cos(P.yaw) * P.v * dt; P.y += Math.sin(P.yaw) * P.v * dt; P.z = clamp(P.z + P.vz * dt, 0, 800); if (P.z > 10) P.up = true;
+    P.x += Math.cos(P.yaw) * P.v * dt; P.y += Math.sin(P.yaw) * P.v * dt; P.z = clamp(P.z + P.vz * dt, 0, 800); if (P.z > HUP) P.up = true;
     if (P.z > 0) { P.ground = false; return; }
     P.vz = Math.max(0, P.vz); if (P.ground || !P.up) return;   // (standing, or not yet off the pad)
     P.ground = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); A.sfx('land');
@@ -393,7 +394,7 @@ const SKY = (() => {
       if (S.down && S.speed < 4) finish();
     } else if (ev === 'heli') {
       heli(S, dt, k); S.cool -= dt;
-      if (k.act && S.cool <= 0 && S.hits < 3 && !S.down && S.z > 3) { S.mis.push(missile(S)); S.cool = .45; S.fired++; A.sfx('whoosh'); }
+      if (k.act && S.cool <= 0 && S.hits < 3 && !S.down && S.z > HUP) { S.mis.push(missile(S)); S.cool = .45; S.fired++; A.sfx('whoosh'); }
       battle(S, dt);
       if (S.down) { S.after = (S.after || 0) + dt; if (S.after > 1.6) finish(); }
     } else {
@@ -543,7 +544,7 @@ const SKY = (() => {
       if (ev === 'heli' && !P.down && P.hits < 3) {   // a red mark over each turret standing; on the pad, how to lift off; up, where a missile would meet the ground (a red cross)
         for (const T of P.tur) { const q = !T.dead && m7.project(T.x, T.y, 52); if (q && q[1] > 4) { const x = Math.round(q[0]), y = Math.round(q[1]); px.poly(g, [[x - 4, y - 5], [x + 4, y - 5], [x, y]], '#0a1020'); px.poly(g, [[x - 3, y - 4], [x + 3, y - 4], [x, y - 1]], '#ff4030'); } }
         if (!P.up) txt(E.t('sky.hud.lift', { key: game.input.label('gas') }), W / 2, H * .72, '#ffe890', { align: 'center' });
-        else if (P.z > 3) { const m = missile(P), tt = m.z / -m.vz, q = m7.project(m.x + m.vx * tt, m.y + m.vy * tt, 0); if (q) { const x = Math.round(q[0]), y = Math.round(q[1]); for (const [a, b, w, h] of [[-7, 0, 4, 1], [4, 0, 4, 1], [0, -6, 1, 4], [0, 3, 1, 4]]) px.rect(g, x + a, y + b, w, h, '#ff5040'); } }
+        else if (P.z > HUP) { const m = missile(P), tt = m.z / -m.vz, q = m7.project(m.x + m.vx * tt, m.y + m.vy * tt, 0); if (q) { const x = Math.round(q[0]), y = Math.round(q[1]); for (const [a, b, w, h] of [[-7, 0, 4, 1], [4, 0, 4, 1], [0, -6, 1, 4], [0, 3, 1, 4]]) px.rect(g, x + a, y + b, w, h, '#ff5040'); } }
       }
       if (bannerT > 0 && banner) txt(banner, W / 2, Math.round(H * .3), '#ffffff', { align: 'center', scale: E.font.width(banner, { scale: 2 }) <= W - 8 ? 2 : 1 });   // (half the size where it would run off a narrow screen)
       if (mode === 'results' && res) {
@@ -561,7 +562,8 @@ const SKY = (() => {
   /** the bot (tools/kits-test.mjs): each event flown by the autopilot to its end: the plane round the rings and onto the
    *  runway, the diver through the hoops onto the target, the belt through its rings onto the pad, the glider up a
    *  thermal, through its rings and onto the target, the helicopter's five turrets and back onto the pad, the airship to
-   *  the three beacons and home (first, a player who joined on the keyboard's right half: let go as SKY starts) */
+   *  the three beacons and home (first, a player who joined on the keyboard's right half: let go as SKY starts); last,
+   *  the helicopter left hovering 5 up beside a turret (under its height of old): the flak comes for it there too */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
@@ -572,6 +574,8 @@ const SKY = (() => {
           : e === 'heli' ? { turrets: S.kills, hits: S.hits, fired: S.fired, landed: S.landed, dist: S.landed ? Math.round(S.dist) : null, score: res && res.total, seconds: n } : { lit: S.lit.filter(Boolean).length, home: S.home, seconds: n };
         toMenu();
       }
+      start('heli'); S.x = TURRETS[0][0] + 300; S.y = TURRETS[0][1]; S.z = 5; for (let n = 0; n < 8 && mode === 'fly'; n++) game.advance(1);   // (no stick: it hovers)
+      out.low = { z: Math.round(S.z), hits: S.hits }; toMenu();
       return Object.assign(out, { errors: game.errors.length });
     } finally { Math.random = was; pilot = null; }
   }

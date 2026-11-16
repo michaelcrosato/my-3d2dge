@@ -1,4 +1,4 @@
-// The SPECIAL kit's game (Mode 7 bonus stages and arenas: a planet of spheres that curves away, a half-pipe in space, kart battle with balloons for one to four, a fort seen from above that turns with you), readable: the starter's shell (src/starter/00-shell.js), then
+// The SPECIAL kit's game (Mode 7 bonus stages and arenas: a planet of spheres that curves away, a half-pipe in space, kart battle with balloons for one to four, a fort seen from above that turns with you, a room seen side on that turns a quarter at a time, gravity down the screen; Blue Sphere, Sonic 2's half-pipe, Super Mario Kart's battle, Contra III, Super Castlevania IV), readable: the starter's shell (src/starter/00-shell.js), then
 // the slice from line 168 (src/starter/68-special.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. special.html plays it; node kits/test.mjs special runs it headless.
 /* ============================== GAME START ==============================
@@ -40,14 +40,14 @@ const SLICES = [
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
-  { id: 'blaster', label: 'BLASTER', about: 'INTO THE SCREEN: A HERO, A JET, A RIDE', family: 'ARCADE' },
+  { id: 'blaster', label: 'BLASTER', about: 'INTO THE SCREEN: SIX STAGES, FOUR BOSSES', family: 'ARCADE' },
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
   { id: 'pinball', label: 'PINBALL', about: 'ONE TABLE: RAMP, MULTIBALL, JACKPOT', family: 'ARCADE' },
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
-  { id: 'road', label: 'ROAD', about: 'A COAST ROAD, ITS FORKS, A CHASE', family: 'RACING' },
+  { id: 'road', label: 'ROAD', about: 'RACE, FIGHT, CHASE AND FLY DOWN THE ROAD', family: 'RACING' },
   { id: 'zero', label: 'ZERO', about: 'ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY', family: 'RACING' },
-  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT', family: 'ARCADE' },
-  { id: 'sky', label: 'SKY', about: 'A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP', family: 'FLIGHT' },
+  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A FORT, A ROOM', family: 'ARCADE' },
+  { id: 'sky', label: 'SKY', about: 'PLANE, SKYDIVE, BELT, GLIDER, HELICOPTER, AIRSHIP', family: 'FLIGHT' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
@@ -177,9 +177,9 @@ scenes.over = {
  * ROOM: a room seen side on that turns a quarter at a time (Super Castlevania IV's), gravity always down the screen, so
  * a floor becomes a wall; take its three gems, then out by its door before the time runs out.
  * Deep links: #special/planet, #special/tube, #special/arena, #special/turn, #special/room.
- * KEYS: left / right turn or steer (TURN: up / down walk), up / Z gas (ARENA), Space / X jump or fire. A pad: the
- * stick, A gas, B jump or fire. TOUCH: the stick; JUMP or FIRE (ARENA: it drives by itself, the stick pulled down backs
- * it up).
+ * KEYS: left / right turn or steer (TURN: up / down walk), up / Z gas (ARENA), Space / X jump or fire (the ARENA for
+ * two on one keyboard: W / up gas, S / down brake, F / . fire). A pad: the stick, A gas, B jump or fire. TOUCH: the
+ * stick; JUMP or FIRE (ARENA: it drives by itself, the stick pulled down backs it up).
  * HOW IT WORKS: E.Mode7 (the mode7 module): the planet a floor with curve (a globe) and wrap; the tube m7.quad strips
  * along an E.Path, the camera rolled with the runner so the pipe's floor stays down; the arena a floor of cells and its
  * walls as quads, the karts E.Car (the drive module); the fort the camera at pitch 90 (straight down), turned with you;
@@ -188,6 +188,7 @@ scenes.over = {
 const SPECIAL = (() => {
   const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0', 'Pad7'], brake: ['ArrowDown', 'KeyS', 'Pad2', 'Pad6'], fire: ['Space', 'KeyX', 'KeyC', 'Pad1', 'Pad5'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
+  KEYS.halves = { left: { gas: ['KeyW'], brake: ['KeyS'] }, right: { gas: ['ArrowUp'], brake: ['ArrowDown'] } };   // (the ARENA on one keyboard: W and up the gas, S and down the brake, as alone; FIRE each half's first button, F and .)
   const HERO = new E.Humanoid({ size: 1.1, hair: 'spiky', colors: { cloth: '#3a6ae8', pants: '#e8e8f0', hair: '#ffd040' } });
   const SONG = { bpm: 150, steps: 4, tracks: [
     { wave: 'square', vol: .05, notes: 'E5 . G5 . A5 . G5 E5 | D5 . E5 . G5 . . . | E5 . G5 . A5 . C6 A5 | G5 . E5 . D5 . . . | C5 . E5 . G5 . E5 C5 | D5 . G5 . B5 . . . | A5 . G5 . E5 . D5 . | E5 . . . . . . .' },
@@ -353,11 +354,11 @@ const SPECIAL = (() => {
       return { karts, shells: [], time: 120, cams: karts.map(K => ({ x: K.car.x, y: K.car.y, h: 22, angle: K.car.angle, pitch: 10, fov: 70 })), humans: auto ? 0 : n };
     },
     // a CPU kart: the nearest rival with balloons, steered for, fired at when it is ahead; off the walls
-    drive(S, K) {
+    drive(S, K, dt) {
       const c = K.car, foes = S.karts.filter(o => o !== K && o.balloons > 0).sort((a, b) => Math.hypot(a.car.x - c.x, a.car.y - c.y) - Math.hypot(b.car.x - c.x, b.car.y - c.y)), f = foes[0];
       const lead = f ? Math.hypot(f.car.x - c.x, f.car.y - c.y) / 250 * .85 : 0; let want = f ? Math.atan2(f.car.y + f.car.vy * lead - c.y, f.car.x + f.car.vx * lead - c.x) : c.angle;   // (where it will be when the shell gets there)
       for (const a of [0, .6, -.6, 1.2, -1.2]) { const h = c.angle + a; if (!solid(c.x + Math.cos(h) * 30, c.y + Math.sin(h) * 30)) { if (a && solid(c.x + Math.cos(c.angle) * 30, c.y + Math.sin(c.angle) * 30)) want = h; break; } }
-      const off = E.angDiff(c.angle, want + (K.k - 1.5) * .09 * Math.sin(K.cool * 3)); K.slow = Math.abs(c.speed) < 15 && K.rev <= 0 ? K.slow + 1 / 120 : 0; if (K.slow > .8) { K.rev = .6; K.slow = 0; }   // (pinned against a wall: back off a moment)   // (each CPU a little off its aim, and wavering)
+      const off = E.angDiff(c.angle, want + (K.k - 1.5) * .09 * Math.sin(K.cool * 3)); K.slow = Math.abs(c.speed) < 15 && K.rev <= 0 ? K.slow + dt : 0; if (K.slow > .8) { K.rev = .6; K.slow = 0; }   // (pinned against a wall: back off a moment)   // (each CPU a little off its aim, and wavering)
       const back = K.rev > 0; return { steer: clamp(off * 2, -1, 1) * (back ? -1 : 1), gas: back ? 0 : 1, brake: back ? 1 : 0, fire: f && Math.abs(off) < .25 && Math.hypot(f.car.x - c.x, f.car.y - c.y) < 280 };
     },
     update(S, dt) {
@@ -365,7 +366,7 @@ const SPECIAL = (() => {
         K.cool -= dt; K.hit = Math.max(0, K.hit - dt); K.rev -= dt;
         if (K.balloons <= 0) { K.car.update(dt, ARENA_MAP, { gas: 0, brake: 1, hold: true }); continue; }
         const tm = K.input && K.input.lastDevice === 'touch' && K.input.move();   // (on touch it drives by itself: the stick steers, and pulled down it brakes and backs up)
-        const ctl = tm ? { steer: tm[0], gas: tm[1] > .5 ? 0 : 1, brake: tm[1] > .5 ? 1 : 0 } : K.input || this.drive(S, K), fire = K.input ? K.input.pressed('fire') : ctl.fire;
+        const ctl = tm ? { steer: tm[0], gas: tm[1] > .5 ? 0 : 1, brake: tm[1] > .5 ? 1 : 0 } : K.input || this.drive(S, K, dt), fire = K.input ? K.input.pressed('fire') : ctl.fire;
         K.car.update(dt, ARENA_MAP, ctl);
         if (fire && K.cool <= 0 && S.shells.filter(o => o.by === K).length < 2) {   // (two shells out at most)
           K.cool = K.input ? .8 : 2.6 + K.k * .3;   // (the CPU fires less often than you can)
@@ -540,7 +541,8 @@ const SPECIAL = (() => {
   function hud(r) { if (part !== 'arena' || !S) return; if (mode === 'over') over(r); else r.overlay(g => ARENA.clock(g, S, r.W, Math.round(r.H / 2) - 4)); }
 
   // the bot: each stage by its autopilot, for a while or to its end; then player 2 on the keyboard's right half, the arena
-  // split in two, and a stage of one after it: player 1 alone, the arrows steering again
+  // split in two (W and the up arrow each half's gas, held a second), and a stage of one after it: player 1 alone, the
+  // arrows steering again
   function bot() {
     const was = Math.random; Math.random = E.rng(5);
     try {
@@ -549,7 +551,9 @@ const SPECIAL = (() => {
         start(p); let n = 0; for (; n < 150 && mode === 'play'; n++) game.advance(1);
         out[p] = Object.assign({ seconds: n, over: mode === 'over', won: !!(result && result.won) }, STAGE[p].state(S));
       }
-      auto = false; toMenu(); game.addPlayer({ keys: 'right' }); start('arena'); game.advance(1); out.split = game.viewports.length;
+      auto = false; toMenu(); game.addPlayer({ keys: 'right' }); start('arena'); const P = game.players, at = S.karts.slice(0, 2).map(K => [K.car.x, K.car.y]), own = q => q.map.gas.filter(c => !c.startsWith('Pad') && !c.startsWith('Act:')).join();
+      P[0].press('KeyW'); P[1].press('ArrowUp'); game.advance(1); P[0].release('KeyW'); P[1].release('ArrowUp');   // (one keyboard: W player 1's gas, the up arrow player 2's)
+      out.split = game.viewports.length; out.halves = [own(P[0]), own(P[1])]; out.moved = at.map(([x, y], i) => Math.round(Math.hypot(S.karts[i].car.x - x, S.karts[i].car.y - y)));
       toMenu(); start('tube'); game.input.press('ArrowLeft'); game.advance(.5); game.input.release('ArrowLeft'); out.solo = { players: game.players.length, th: +S.th.toFixed(2) };
       toMenu(); return Object.assign(out, { errors: game.errors.length });
     } finally { Math.random = was; auto = false; }
