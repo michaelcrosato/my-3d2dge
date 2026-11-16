@@ -1288,7 +1288,7 @@ class Input {
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
       if (!p && this.padIndex !== null) { this.padLost = this.lastDevice === 'gamepad'; this.stopRumble(); }   // unplugged while in use
       if (this.padIndex !== null) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight', 'PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight']) this.release(c); }   // (a pad gone or changed lets go once; with none, a script's pad codes stay held)
-      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = []; this.padValues = [];
+      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = []; this.padValues = []; this._cr = null; this._opt = false;   // (a Create held as the pad went: forgotten)
       this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
       if (this.aimSource === 'pad') this.aimSource = 'move';
     }

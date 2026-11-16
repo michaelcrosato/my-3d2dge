@@ -883,7 +883,7 @@ class Input {
     this.clock += dt; this.padLost = false;
     let p = null;
     try { p = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).find(q => q && q.connected !== false) || null; } catch (e) { /* gamepads blocked */ }
-    if ((p ? p.index : null) !== this.padIndex) { if (!p && this.padIndex !== null) this.padLost = this.lastDevice === 'gamepad'; this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; this.padId = p ? p.id : ''; }
+    if ((p ? p.index : null) !== this.padIndex) { if (!p && this.padIndex !== null) this.padLost = this.lastDevice === 'gamepad'; this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; this.padId = p ? p.id : ''; this._cr = null; this._opt = false; }
     if (p) {
       const x = p.axes[0] || 0, y = p.axes[1] || 0, l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;
       this.padMove = [x * k, y * k];
