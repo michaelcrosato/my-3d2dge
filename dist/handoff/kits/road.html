@@ -162,6 +162,19 @@
     "road.chase.left": "IT WENT LEFT!",
     "road.chase.right": "IT WENT RIGHT!",
     "road.chase.wrong": "WRONG WAY: IT'S PULLING AWAY",
+    "road.menu.cotton": "COTTON: WITCH ON A BROOM",
+    "road.stage.meadow": "GREEN HILLS",
+    "road.cotton.boss": "PUMPKIN KING",
+    "road.cotton.won": "STAGE CLEAR!",
+    "road.cotton.down": "NO LIVES LEFT",
+    "road.fuel": "FUEL",
+    "road.fuel.low": "LOW FUEL: PIT LANE ON THE RIGHT",
+    "road.fuel.out": "OUT OF FUEL!",
+    "road.pit.fill": "REFUELLING",
+    "road.pit.full": "FULL TANK",
+    "road.pit.slow": "PIT LANE: SLOW DOWN",
+    "road.pit.sign": "PIT",
+    "road.pit.lane": "PIT LANE",
     "engine.key.space": "Space",
     "engine.key.shift_left": "Shift",
     "engine.key.shift_right": "R Shift",
@@ -469,7 +482,20 @@
     "road.qual.grid": "After the qualifying lap: you start the race from grid slot {n} (1 is the front), your lap took {t} seconds.",
     "road.chase.left": "The chase: the radio says the getaway car took the left road at the fork ahead.",
     "road.chase.right": "The chase: the radio says the getaway car took the right road at the fork ahead.",
-    "road.chase.wrong": "The chase: you took the other road at the fork; the getaway car is now farther ahead."
+    "road.chase.wrong": "The chase: you took the other road at the fork; the getaway car is now farther ahead.",
+    "road.menu.cotton": "A young witch flies her broom over a road through green hills, throwing magic at the creatures that swoop at her.",
+    "road.stage.meadow": "A stage's name: a winding road over rolling green hills on a sunny day.",
+    "road.cotton.boss": "The witch's last foe: a giant flying pumpkin with a crown; its name over its life bar and as it arrives.",
+    "road.cotton.won": "The witch's flight is over: the Pumpkin King is beaten.",
+    "road.cotton.down": "The witch's flight is over: she was hit once too often.",
+    "road.fuel": "Beside the car's fuel gauge.",
+    "road.fuel.low": "The tank is nearly empty: the pit lane, to refuel, is along the right edge of the road before the finish line.",
+    "road.fuel.out": "The tank is empty: the car can only crawl until it reaches the pit lane.",
+    "road.pit.fill": "The car is in the pit lane, slow enough, and its tank is filling.",
+    "road.pit.full": "The car's tank is full again: back to the race.",
+    "road.pit.slow": "The car is in the pit lane but too fast to refuel: slow down.",
+    "road.pit.sign": "Written on the signs beside the pit lane (short: the sign is small).",
+    "road.pit.lane": "Written across the arch over the road where the pit lane begins."
   },
   "names": ["my-3D2dge"],
   "brief": "The my-3D2dge starter: a title menu of small games, one per genre, each a complete slice to copy and change. Its menus and notices are short, arcade-like, mostly in capitals; keep them short, since they sit on a 320 x 240 screen. The player is unnamed and unseen in the menus; address them with the familiar \"you\" where a line needs one.\n\nLines with ids starting engine. are the engine's own words: its pause menu, settings, controls screen, save slots, notices and key names, shown on every game made with it. Keep them short: they sit on buttons and in narrow rows."
@@ -477,7 +503,7 @@
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">ROAD</b><span>Starting · my-3D2dge v0.104.3</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">ROAD</b><span>Starting · my-3D2dge v0.105.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <canvas id="screen"></canvas>
 <script src="../my-3d2dge.js"></script>
 <script src="road.js"></script>
