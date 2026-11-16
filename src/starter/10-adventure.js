@@ -1,11 +1,18 @@
 /* =====================================================================================
- * SLICE 1  ADVENTURE  (Secret of Mana, Zelda: ALttP). Three rooms: village, ruins, shrine. Talk, clear the ruins for
- * the key, open the great door, claim the crystal. THE LOOK: wall MATERIALS, ONE floorTex with PAINTED LIGHT, pitched
- * roofs, leaf-clump bushes, light shafts, dialog PORTRAITS.
- * KEYS: WASD or arrows move, J or X swings the sword, Enter or Space talks. TOUCH: the stick, ATTACK, CONFIRM.
+ * SLICE 1  ADVENTURE  (Secret of Mana, Zelda: ALttP). @modules dualsense
+ * Three rooms: village, ruins, shrine. Talk, clear the ruins for the key, open the great door, claim the crystal. THE
+ * LOOK: wall MATERIALS, ONE floorTex with PAINTED LIGHT, pitched roofs, leaf-clump bushes, light shafts, dialog PORTRAITS.
+ * KEYS (its own, ADV_KEYS: one action a key): WASD or arrows move; J, X or a left click swings the sword (a click swings
+ * toward the pointer; hold to charge a spin); E, Enter, Space or F talks and turns the page (a click on a villager in
+ * reach talks too: the one under the pointer is the one spoken to); C changes the camera. PAD: the stick moves, □ or R2
+ * swings, ✕ talks, R3 the camera, Options pauses. DUALSENSE: the light bar is his hearts, R2 buzzes once the spin is
+ * charged; any pad rumbles on hits, the charged spin and the great door. TOUCH: the stick, SWORD, and TALK (NEXT in a
+ * dialog) only beside someone; a tap on a villager talks; with Touch assists on (Settings) the sword swings by itself at
+ * a foe in reach and a press turns him to the nearest; a swipe takes the area's name and the end's box away.
  * ANY SCREEN: rooms are 4:3 in a world that goes on past them (forest above and below, the next rooms beside), so a
- * screen of any shape is filled. CAMERA (Settings, or C): ROOMS slides screen by screen as Zelda's does, the rooms beside
- * this one under a dim CURTAIN (they wait, as their monsters do); SCROLL follows the hero. The HUD sits in the corners.
+ * screen of any shape is filled. CAMERA (Settings, or C / R3): ROOMS slides screen by screen as Zelda's does, the rooms
+ * beside this one under a dim CURTAIN (they wait, as their monsters do); SCROLL follows the hero. The HUD sits in the
+ * corners.
  * ===================================================================================== */
 const ADV = (() => {
   const T = 16, ROOM = [14 * T, 12 * T], AREAS = ['village', 'ruins', 'shrine'].map(a => E.t('adventure.area.' + a));   // the rooms' names (lines)
@@ -137,6 +144,7 @@ const ADV = (() => {
   const bg = new E.Backdrop({ sky: ['#3a74c8', '#8ac2ea', '#e4f2f4', '#9ccae6', '#5a90c8'], layers: [{ kind: 'clouds', color: '#ffffff', y: .3, height: .16, parallax: .04, drift: 3 },
     { kind: 'clouds', color: '#ffffff', y: .98, height: .4, parallax: .1, drift: 3, seed: 9 }] });
   let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx;
+  let ds = null, padLight = null, padTrig = null;   // the DualSense's extras (the dualsense module), and what they show now
   // CAMERA, the player's choice: 'rooms' slides screen by screen (Zelda), 'scroll' follows the hero (Settings, or C)
   const GROUP = E.t('adventure.setting.group');   // (the settings screen's group for the slice's own settings)
   game.settings.define({ key: 'advCamera', group: GROUP, label: E.t('adventure.setting.camera'), options: ['rooms', 'scroll'].map(v => [v, E.t('adventure.setting.camera.' + v)]), value: 'rooms', help: E.t('adventure.setting.camera.help') });
@@ -146,11 +154,21 @@ const ADV = (() => {
   const gpuWanted = () => game.settings.advLight === 'gpu' || (game.settings.advLight === 'auto' && !!(window.matchMedia && matchMedia('(pointer: fine)').matches));
   const lighting = () => { if (!map) return; if (gpuWanted() && !gpu) gpu = game.enableGPU({ map }); if (gpu) Object.assign(gpu, { map, enabled: gpuWanted(), bands: 24, wrap: .5 }); };
   game.settings.define({ key: 'advLight', group: GROUP, label: E.t('adventure.setting.light'), options: ['auto', 'gpu', 'fast'].map(v => [v, E.t('adventure.setting.light.' + v)]), value: 'auto', help: E.t('adventure.setting.light.help'), apply: () => { if (game.sceneName === 'adventure') lighting(); } });
-  addEventListener('keydown', e => { if (e.code !== 'KeyC' || e.repeat || game.sceneName !== 'adventure' || game.paused) return; const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note(E.t('adventure.note.camera', { mode: E.lang.upper(E.t('adventure.setting.camera.' + v)) })); });
+  // THE KEYS, the action adventure's (docs/CONTROLS.md): DEFAULT's moves and menus, the sword on J, X, a left click, □ and
+  // R2, talking on E, Enter, Space, F (and Z) and ✕, so no key both swings and talks (J and ✕ did: beside a villager the
+  // sword never came out); the camera on C and R3. DEFAULT's dash, skill and jump this game never reads are left out
+  const ADV_KEYS = Object.assign((({ dash, skill, jump, ...k }) => k)(E.Input.DEFAULT), {
+    attack: ['KeyJ', 'KeyX', 'Mouse0', 'Pad2', 'Pad7'], confirm: ['KeyE', 'Enter', 'NumpadEnter', 'Space', 'KeyF', 'KeyZ', 'Pad0'],
+    cancel: ['Escape', 'Backspace', 'KeyK', 'Pad1'], camera: ['KeyC', 'Pad11'] });
+  const camera = () => { const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note(E.t('adventure.note.camera', { mode: E.lang.upper(E.t('adventure.setting.camera.' + v)) })); };
   const sliding = () => !!game.cam.room && game.cam.moving;   // a room slide holds the world still
   const roomOf = x => Math.floor(x / ROOM[0]), mod = (a, n) => ((a % n) + n) % n, near = (cx, cy, tag) => map.floorAt((cx + .5) * T, (cy + .5) * T) === tag;
   const txt = (g, s, x, y, c, o) => E.font.text(g, s, x, y, c, { shadow: '#07040c', outline: false, ...o });
-  const talkable = () => npcs.find(n => E.dist(hero, n) < 34);
+  // who he can talk to: a villager in reach, the one under the mouse first (hover moves the focus); pickNpc(q): the one
+  // in reach drawn at a screen point (r.pick: the villagers are drawn with pick), for a click or a tap on one
+  const pickNpc = q => q && game.r ? game.r.pick(q[0], q[1]).find(v => npcs.includes(v) && E.dist(hero, v) < 34) || null : null;
+  const hovered = () => game.input.lastDevice === 'mouse' ? pickNpc(game.input.pointer()) : null;
+  const talkable = () => hovered() || npcs.find(n => E.dist(hero, n) < 34);
   // CONTACT SHADOWS: a darker core in a soft ellipse, cool purple
   const shadow = (r, x, y, rad) => { r.shadow(x, y, rad, .28, '#2a2048'); r.shadow(x, y, rad * .6, .22, '#2a2048'); };
 
@@ -219,7 +237,7 @@ const ADV = (() => {
     const at = map.find('hero');
     // SWORD (Secret of Mana): J chains slash, backslash, spin, kept low (a raised blade crosses his face); short holds (hold)
     // let the follow-through settle instead of freezing; hold J to CHARGE
-    hero = Object.assign(new E.Body({ ...at, r: 4.5 }), { hp: 3, max: 3, facing: Math.PI / 2, inv: 0, hurt: 0, charge: 0, rig: RIGS.hero(),
+    hero = Object.assign(new E.Body({ ...at, r: 4.5 }), { hp: 3, max: 3, facing: Math.PI / 2, inv: 0, hurt: 0, charge: 0, autoT: 0, rig: RIGS.hero(),
       combo: new E.Combo([new E.Attack('slash', { z0: -8, z1: -11, a1: -1.2, wind: .12, hold: .1 }), new E.Attack('backslash', { z0: -11, z1: -9, a1: 1.2, hold: .1 }), new E.Attack('spin', { ...WAIST, hold: .15 })], { window: .3 }),
       spin: new E.Attack('spin', { ...WAIST, active: .36, reach: 10, lean: .3, hold: .12 }) });
     hero.sw = hero.combo;   // the attack running now
@@ -255,6 +273,17 @@ const ADV = (() => {
     // the floor is lit already; GPU lighting (if any) adds light pools and shadows
     L.enabled = false; lighting(); mood(MOOD[0]); A.music('adventure');
     game.input.touchSet('attack', E.t('adventure.touch.sword'));
+    ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true }) : null; padLight = padTrig = null;
+  }
+  // haptics on any pad (a DualSense's or another's), only while it is what the player plays with
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  // the DUALSENSE: the light bar is his hearts (green; amber; one left, red and pulsing; white while hurt, the crystal's
+  // blue at the end), R2 buzzes while a charged spin waits to be let go. Each is sent as it changes
+  function padExtras() {
+    if (!ds) return;
+    const h = hero, k = h.hp / h.max, c = won ? '#bff8ff' : h.hurt > 0 ? '#ffffff' : k > .67 ? '#3a8a4a' : k > .34 ? '#e8a030' : Math.floor(game.real * 3) % 2 ? '#e8283a' : '#5a0a14';
+    if (c !== padLight) ds.light(padLight = c);
+    const t = h.charge >= .6 ? 'charged' : null; if (t !== padTrig) { padTrig = t; ds.trigger('right', t && { pulse: [.1, 18, .25] }); }
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
   const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };   // (at the bottom, clear of the touch buttons)
@@ -303,23 +332,44 @@ const ADV = (() => {
   }
   function update(dt) {
     const h = hero, room = roomOf(h.x), inp = game.input, npc = talkable();
+    if (inp.pressed('camera')) camera();   // C or R3, any time (Settings has it too)
     inp.touchSet('confirm', E.t(talk.open ? 'adventure.touch.next' : 'adventure.touch.talk'), talk.open || !!npc);   // a CONTEXT button: there only when there is someone to talk to
     if (held) held.t -= dt;
     for (const n of npcs) npcLife(n, dt);
-    if (talk.update(dt)) { poseHero(dt); return; }   // dialog pauses the world
+    padExtras();
+    if (talk.update(dt)) { poseHero(dt); return; }   // dialog pauses the world (a swipe skips it: E.Dialog)
     mood(MOOD[room]);
     if (room !== area.room) area = { room, t: 2.6 }; else area.t -= dt;
+    // a swipe on a touch screen takes what is temporary away: the end's box (to the title at once), the area's name
+    if (won && held.t < 98.5 && inp.swipe(true)) return void game.go('title');
+    if (area.t > 0 && inp.swipe(true)) area.t = 0;
     if (sliding() || won || held && held.t > 0) { poseHero(dt); return; }   // the room slides or the hero cheers
     h.inv -= dt; h.hurt -= dt; if (h.hp <= 0) return;
-    if (npc && inp.pressed('confirm')) return void say(npc, npc.name, npc.lines[npc.said++ % npc.lines.length]);
+    // talk: confirm beside a villager; a left click on the one under the pointer (it doesn't swing); a tap on one in reach
+    const tap = inp.lastDevice === 'touch' && pickNpc(inp.clicked()), click = !!npc && npc === hovered() && inp.pressed('attack');
+    const who = tap || (npc && (inp.pressed('confirm') || click) ? npc : null);
+    if (who) { inp.consume('attack'); return void say(who, who.name, who.lines[who.said++ % who.lines.length]); }
     // screen-relative keys become a ground direction; swings root the hero
     const mv = inp.move(), md = game.view.screenDirToGround(mv[0], mv[1]), sp = h.sw.busy ? 20 : h.charge > .15 ? 45 : 80;
     if (Math.hypot(md[0], md[1]) > .1 && !h.sw.busy) h.facing = Math.atan2(md[1], md[0]);
     const hurt = h.hurt > 0, acc = (hurt ? 400 : 900) * dt; h.vx = approach(h.vx, hurt ? 0 : md[0] * sp, acc); h.vy = approach(h.vy, hurt ? 0 : md[1] * sp, acc);
-    // sword: one hit per target per swing; a press chains the combo; holding J charges, letting go spins
-    if (inp.buffered('attack') && !h.spin.busy && h.combo.press()) { inp.consume('attack'); h.charge = 0; }
-    if (inp.down('attack') && !h.sw.busy) { if (h.charge < .6 && (h.charge += dt) >= .6) { A.sfx('charge'); P.glints(...h.rig.tip(), 6); game.flash('#fff4c0', .1, .35); h.rig.kick(5); } }
+    // sword: one hit per target per swing; a press chains the combo; holding J charges, letting go spins. A swing from a
+    // left click goes toward the pointer (the keys and a pad swing the way he faces)
+    const prey = () => foes.filter(f => f.room === room && !f.hang && !(f.dying > 0));   // (what the touch assists swing at)
+    if (inp.buffered('attack') && !h.spin.busy && h.combo.press()) {
+      inp.consume('attack'); h.charge = 0;
+      const m = inp.lastDevice === 'mouse' && game.r && inp.pointer(), at = m && game.r.w(h.x, h.y, h.z + 10), d = m && game.view.screenDirToGround(m[0] - at[0], m[1] - at[1]);   // (the pointer and him on screen)
+      const t = !m && inp.assist && E.assist.nearest(h.x, h.y, prey(), 32);   // TOUCH ASSIST: a press turns him to the nearest foe
+      if (d && (d[0] || d[1])) h.facing = Math.atan2(d[1], d[0]); else if (t) h.facing = E.angleTo(h, t);
+    }
+    if (inp.down('attack') && !h.sw.busy) { if (h.charge < .6 && (h.charge += dt) >= .6) { A.sfx('charge'); P.glints(...h.rig.tip(), 6); game.flash('#fff4c0', .1, .35); h.rig.kick(5); buzz(.35, .1); } }
     else { if (h.charge >= .6 && h.spin.start()) game.shake(2); h.charge = 0; }
+    // TOUCH ASSIST (input.assist: touch play with Settings, Touch assists on): the sword swings by itself at a foe in reach,
+    // so the thumb is free to move; the charged spin stays the player's
+    h.autoT -= dt;
+    if (inp.assist && !h.combo.busy && !h.spin.busy && !inp.down('attack') && h.charge === 0 && h.autoT <= 0) {
+      const t = E.assist.nearest(h.x, h.y, prey(), 24); if (t && h.combo.press()) { h.facing = E.angleTo(h, t); h.autoT = .35; }
+    }
     if (h.charge >= .6 && Math.random() < dt * 12) P.glints(...h.rig.tip(), 1, '#fff4a0', 4);
     for (const a of [h.combo, h.spin]) if (a.update(dt) === 'active') A.sfx(a === h.combo && h.combo.step < 2 ? 'swing' : 'whoosh');
     const sw = h.sw = h.spin.busy ? h.spin : h.combo, round = sw === h.spin || h.combo.step === 2;   // spins hit all around
@@ -340,13 +390,13 @@ const ADV = (() => {
     }
     // the key opens the door and warps the hero inside
     if (keys > 0 && !gate.open && E.dist(h, gate) < 22) {
-      gate.open = true; keys--; A.sfx('door'); game.shake(3); P.dust(gate.x, gate.y + 10, 2, 14, { color: '#8a7a6a', speed: 50 });
+      gate.open = true; keys--; A.sfx('door'); game.shake(3); buzz(.6, .3); P.dust(gate.x, gate.y + 10, 2, 14, { color: '#8a7a6a', speed: 50 });
       game.after(.5, () => { Object.assign(h, { x: entry.x, y: entry.y, vx: 0, vy: 0, facing: -Math.PI / 2 }); game.cam.snap = true; game.flash('#07040c', .5); A.sfx('warp'); });
     }
     for (const it of items) if (!it.got && it.kind === 'relic' && Math.random() < dt * 5) P.glints(it.x, it.y, 22, 1, '#bff8ff', 14);   // the relic sparkles
     for (const it of items) if (!it.got && E.dist(it, h) < (it.kind === 'relic' ? 15 : 10)) {
       it.got = true; P.glints(it.x, it.y, 6, 4); if (it.kind === 'gem') { gems++; A.sfx('coin'); } else if (it.kind === 'heart') { h.hp = Math.min(h.max, h.hp + 1); A.sfx('heal'); }
-      else { won = true; held = { spr: CRYSTALS[1], t: 99 }; game.flash('#ffffff', .2); P.glints(it.x, it.y, 20, 24, '#bff8ff', 30); A.music('victory'); game.after(6, () => game.go('title')); }
+      else { won = true; held = { spr: CRYSTALS[1], t: 99 }; game.flash('#ffffff', .2); buzz(.5, .4); P.glints(it.x, it.y, 20, 24, '#bff8ff', 30); A.music('victory'); game.after(6, () => game.go('title')); }
     }
     // enemies act only in the hero's room. A hit stuns (no AI); the last plays the death, then vanish()
     for (const f of foes) {
@@ -478,7 +528,7 @@ const ADV = (() => {
       if (it.kind === 'relic') r.sprite(it.x, it.y, 18 + bob, CRYSTALS[0], { glow: .5 });   // (its sparkle comes from update: draw changes nothing)
       else { shadow(r, it.x, it.y, 3); r.sprite(it.x, it.y, 3 + bob, it.kind === 'gem' ? GEM : HEART, { glow: .5 }); }
     }
-    for (const b of [...npcs, ...pets]) r.actor(b.x, b.y, b.z || 0, (g, ox, oy) => (b.rig || b.look).draw(g, ox, oy, view), { every: 2, key: b });   // townsfolk animate every other frame (a phone's frame time goes to the hero and foes)
+    for (const b of [...npcs, ...pets]) r.actor(b.x, b.y, b.z || 0, (g, ox, oy) => (b.rig || b.look).draw(g, ox, oy, view), { every: 2, key: b, pick: npcs.includes(b) ? b : undefined });   // townsfolk animate every other frame (a phone's frame time goes to the hero and foes); a villager can be clicked (r.pick)
     for (const f of foes) if (!f.dead) {   // tells shiver (a goblin's builds); dying foes blink before the poof
       const c = f.atk, tell = f.tell ? .7 : f.kind === 'goblin' && c.phase === 'wind' ? .3 + c.u * 1.5 : 0;
       r.actor(f.x + shiver(tell), f.y, f.z, (g, ox, oy) => f.look.draw(g, ox, oy, view), { flash: f.flash > 0 || f.dying > 0 && f.dying < .4 && Math.floor(game.time * 16) % 2 });
@@ -528,15 +578,16 @@ const ADV = (() => {
         return txt(g, E.t('adventure.won.score', { gems, best: best('adventure', gems) }), r.W / 2, wy + 34, '#ffe08a', { align: 'center' });
       }
       if (talk.open) return;
-      if (!touch()) {
-        const a = prompt('attack', E.t('adventure.prompt.sword')), b = prompt('confirm', E.t('adventure.prompt.talk')), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = r.H - 22;
+      if (!touch()) {   // (above the touch buttons where they show: a tablet played with keys or a pad)
+        const ta = game.input.touchArea(), a = prompt('attack', E.t('adventure.prompt.sword')), b = prompt('confirm', E.t('adventure.prompt.talk')), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = ta ? Math.round(ta.y0) - 22 : r.H - 22;
         E.ui.box(g, cx, cy, w, 18, WIN); txt(g, a, cx + 8, cy + 5, '#d8d0f0');
         txt(g, b, cx + w - 8 - E.font.width(b), cy + 5, npc && Math.floor(game.real * 3) % 2 ? '#ffe08a' : '#d8d0f0');   // 'Talk' blinks near a villager
       }
-      if (npc) {   // a speech bubble: you can talk
-        const [fx, fy] = r.w(npc.x, npc.y, 0), q = E.charView(r.view).p(0, 0, 44), x = Math.round(fx + q[0]), y = Math.round(fy + q[1]);
-        E.ui.box(g, x - 11, y - 14, 22, 12, WIN); px.poly(g, [[x - 4, y - 3], [x + 2, y - 3], [x - 3, y + 1]], WIN.border);
-        for (let k = 0; k < 3; k++) px.rect(g, x - 6 + k * 5, y - 9 - (Math.floor(game.real * 3) % 3 === k ? 1 : 0), 2, 2, '#ffe08a');
+      if (npc) {   // a speech bubble: you can talk; with keys or a pad it holds the key that talks (✕, E), read from ten feet
+        const [fx, fy] = r.w(npc.x, npc.y, 0), q = E.charView(r.view).p(0, 0, 44), x = Math.round(fx + q[0]), y = Math.round(fy + q[1]), k = !touch() && game.input.label('confirm'), bw = k ? Math.max(22, E.font.width(k) + 10) : 22;
+        E.ui.box(g, x - Math.round(bw / 2), y - 14, bw, 12, WIN); px.poly(g, [[x - 4, y - 3], [x + 2, y - 3], [x - 3, y + 1]], WIN.border);
+        if (k) txt(g, k, x, y - 11 - (Math.floor(game.real * 3) % 2), '#ffe08a', { align: 'center' });
+        else for (let j = 0; j < 3; j++) px.rect(g, x - 6 + j * 5, y - 9 - (Math.floor(game.real * 3) % 3 === j ? 1 : 0), 2, 2, '#ffe08a');
       }
       if (area.t > 0) {   // the area's name drops in, then goes
         const w = E.font.width(AREAS[area.room]) + 20, y = Math.round(42 - (Math.max(0, area.t - 2.3) + Math.max(0, .3 - area.t)) * 120);
@@ -550,7 +601,7 @@ const ADV = (() => {
     for (let i = 0; i < 3; i++) { px.rect(g, x + i * (w + 2), y, w, h, i === room ? '#fff4c0' : '#1a1838'); px.rect(g, x + i * (w + 2) + 1, y + 1, w - 2, h - 2, i === room ? C[i] : E.shade(C[i], -.45)); }
     if (Math.floor(game.real * 3) % 2) px.rect(g, x + Math.round(hero.x / ROOM[0] * (w + 2)) - 1, y + 1 + Math.round(clamp((hero.y - OY) / ROOM[1], 0, 1) * (h - 4)), 2, 2, '#ffffff');
   }
-  return { view: 'threequarter', views: ['threequarter', 'topdown', 'iso'], input: 'DEFAULT', res: 'ps1', propSize: 1.25, pausable: true, touch: ['attack', 'confirm'], enter: start, update, draw,
+  return { view: 'threequarter', views: ['threequarter', 'topdown', 'iso'], input: ADV_KEYS, res: 'ps1', propSize: 1.25, pausable: true, touch: ['confirm', 'attack'], enter: start, update, draw,   // (TALK first: as it pops up, SWORD stays under the thumb)
     // the player zooms in to 2x, and out as far as the world round the rooms fills the screen: to .85x on a wide one, not
     // at all held upright (its forest is sized for 1x there). A TileMap scene rotates cleanly
     camera: { zoom: g => [g.upright ? 1 : .85, 2], rotate: true },
@@ -558,6 +609,6 @@ const ADV = (() => {
     /** the proof: a walk round the village and into the ruins, the sword swinging and every word read; a hash of the run */
     run: (n = 600) => proof('adventure', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 90); if (i % 40 === 20) k.tap('attack'); if (i % 120 === 60) k.tap('confirm'); },
       () => [hero.x, hero.y, hero.hp, gems, keys, area, won, foes.map(f => [f.x, f.y, f.hp])]),
-    exit() { game.cam.room = null; game.cam.smooth = .18; if (gpu) gpu.enabled = false; L.enabled = false; } };
+    exit() { game.cam.room = null; game.cam.smooth = .18; if (gpu) gpu.enabled = false; L.enabled = false; if (ds) ds.clear(); } };
 })();
 scenes.adventure = ADV;

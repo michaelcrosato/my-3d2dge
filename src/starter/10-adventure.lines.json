@@ -32,7 +32,8 @@
   "adventure.won": "MANA CRYSTAL!",
   "adventure.won.score": "Gems {gems}    Best {best}",
   "adventure.prompt.sword": "Sword",
-  "adventure.prompt.talk": "Talk"
+  "adventure.prompt.talk": "Talk",
+  "action.camera": "Camera"
  },
  "notes": {
   "adventure.area.village": "The first room's name, shown as the hero walks in.",
@@ -44,14 +45,15 @@
   "adventure.setting.group": "The heading of this game's own settings on the settings screen.",
   "adventure.setting.camera.help": "Zelda: the game The Legend of Zelda, whose camera slides a screen at a time.",
   "adventure.setting.light.help": "GPU: the graphics chip; keep the word if your language uses it.",
-  "adventure.note.camera": "Shown briefly when C switches the camera; {mode} is the setting's choice (Rooms or Scroll) in capitals.",
+  "adventure.note.camera": "Shown briefly when the camera key (C, or R3 on a controller) switches the camera; {mode} is the setting's choice (Rooms or Scroll) in capitals.",
   "adventure.touch.sword": "A touch button's label: short.",
   "adventure.touch.next": "A touch button's label (the next page of the dialog): short.",
   "adventure.touch.talk": "A touch button's label (talk to the villager nearby): short.",
   "adventure.hud.keys": "Beside a key icon: how many keys the hero holds ({count}), as \"x1\".",
   "adventure.won.score": "The gems found this time, and the most ever found.",
-  "adventure.prompt.sword": "What the attack button does, after its key in the corner: \"J Sword\".",
-  "adventure.prompt.talk": "What the confirm button does, after its key in the corner: \"Enter Talk\"."
+  "adventure.prompt.sword": "What the attack button does, after its key or button in the corner: \"J Sword\", \"□ Sword\".",
+  "adventure.prompt.talk": "What the talk button does, after its key or button in the corner: \"E Talk\", \"✕ Talk\".",
+  "action.camera": "Its name on the controls screen: the key that switches the camera between Rooms and Scroll."
  },
  "max": {
   "adventure.hud.keys": 4

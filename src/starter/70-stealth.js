@@ -1,13 +1,21 @@
 /* =====================================================================================
- * SLICE 7  STEALTH  (Assassin's Creed, Metal Gear, Tenchu). A rooftop district at dusk: steal the ledger from the brick
- * roof and slip out by the east gate. Three guards (one on a roof) patrol with sight cones; what they see makes them
- * notice (?), search the last place they saw you, and at last chase (!) across the roofs. Hide in tall grass while
- * crouched, take a guard down silently from behind (J), or from a roof above (J as you stand over them). In a fight their
- * swings are telegraphed: K just before the blow parries and stuns them.
- * Keys (E.Input.THIRDPERSON): WASD move, Shift sprint, Space jump, climb a wall, vault, leap a gap, C crouch, J attack or
- * take down, K block or parry, L dodge roll, V view. The ledger is a checkpoint. The hero climbs any wall: Space at a
- * face latches on, the stick climbs (up the screen is up the wall), Space leaps up, C lets go. TOUCH: the stick, JUMP,
- * ATTACK, BLOCK, CROUCH.
+ * SLICE 7  STEALTH  (Assassin's Creed, Metal Gear, Tenchu). @modules dualsense
+ * A rooftop district at dusk: steal the ledger from the brick roof and slip out by the east gate. Three guards (one on a
+ * roof) patrol with sight cones; what they see makes them notice (?), search the last place they saw you, and at last
+ * chase (!) across the roofs. Hide in tall grass while crouched, take a guard down silently from behind (J), or from a
+ * roof above (J as you stand over them). In a fight their swings are telegraphed: K just before the blow parries and
+ * stuns them.
+ * Keys (THIRDPERSON without the interact, use and map it never reads; its M muted too): WASD move, Shift sprint, Space
+ * jump, climb a wall, vault, leap a gap, C or Ctrl crouch, J or a left click attack or take down (a click strikes toward
+ * the pointer), K or a right click block or parry, Q or L dodge roll, V view. PAD: the stick moves, ✕ jump and climb, ○
+ * crouch, □ strike, L1 block, R1 roll, R2 or L3 sprint, Options pauses. DUALSENSE: the light bar is the guards' mood
+ * (dusk blue; amber as one notices, orange searching, red pulsing in a chase; green while hidden in the grass), a guard's
+ * bark plays from the controller's speaker (Settings); any pad rumbles on takedowns, parries, hits and an alarm. The
+ * ledger is a checkpoint. The hero climbs any wall: Space at a face latches on, the stick climbs (up the screen is up the
+ * wall), Space leaps up, C lets go. The key list shows for the first 20 seconds and after a respawn. TOUCH: the stick,
+ * JUMP (LEAP on a wall), ATTACK (TAKE DOWN when one is in reach), CROUCH (LET GO on a wall, STAND crouched), and in a
+ * fight BLOCK (PARRY in a wind-up) and ROLL pop up; with Touch assists on (Settings) the stick pushed all the way
+ * sprints, a strike turns to the nearest guard, and the blade swings by itself at a guard who is chasing, in reach.
  * HOW IT WORKS: the hero and the guards are E.Mover bodies (the same climbing, vaulting and gap-leaping for both); a
  * guard's eyes are E.sees through the map's heights, its mind an E.Suspicion, its legs a FlowField that climbs, drops and
  * jumps. Climbs, vaults, rolls and takedowns are E.ACTIONS; the facades are wall-type options; the belfry's canopy sorts by
@@ -72,7 +80,21 @@ const STEALTH = (() => {
     [[6.5, 6.5, 0], [20.5, 6.5, 0], [20.5, 8.5, 0], [6.5, 8.5, 0]],
     [[11.5, 12.2, 0], [20.5, 12.2, 0], [20.5, 8.2, 0], [11.5, 8.2, 0]]
   ];
-  let hero, rig, guards, attack, checkpoint, ledger, won, over, hp, hurtT, alertT, ui = null;
+  let hero, rig, guards, attack, checkpoint, ledger, won, over, hp, hurtT, alertT, keysT, autoT, wonT, ui = null;
+  // THE KEYS: THIRDPERSON's, without the interact, use and map this game never reads (they listed controls that do
+  // nothing, and the map's M was the shell's mute); Q (the left hand, freed from use) rolls too
+  const KEYS = (({ interact, use, map: m, ...k }) => Object.assign(k, { dodge: ['KeyQ', 'KeyL', 'Pad5'] }))(E.Input.THIRDPERSON);
+  // the DUALSENSE (the dualsense module): the light bar is the guards' mood, the most alarmed one's (green while hidden),
+  // a guard's bark comes from the controller's speaker (where the player turned it on); buzz: a rumble on any pad
+  let ds = null, padLight = null;
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  const RANK = { calm: 0, notice: 1, search: 2, alert: 3 }, LIGHT = { calm: '#203048', notice: '#ffc040', search: '#ff9a40', alert: '#ff4a3a' };
+  function padExtras() {
+    if (!ds) return;
+    const st = guards.reduce((a, g) => !g.dead && RANK[g.mind.state] > RANK[a] ? g.mind.state : a, 'calm');
+    const c = won ? '#80e0ff' : st === 'alert' ? (Math.floor(game.real * 4) % 2 ? '#ff4a3a' : '#5a0a0a') : st === 'calm' && hero.exposure === 0 ? '#1a6a2a' : LIGHT[st];
+    if (c !== padLight) ds.light(padLight = c);
+  }
   const say = (title, text) => ui.toast(title, text, 3);
   const inGrass = b => b.z < 2 && map.floorAt(b.x, b.y) === 'grass';
 
@@ -89,7 +111,7 @@ const STEALTH = (() => {
     if (g.dead) return;   // (a takedown moves the body it takes: the hero's action plays it)
     if (g.stun > 0) { g.stun -= dt; g.update(dt, map, { move: [0, 0] }); return; }
     const seen = hero && !over ? E.sees(g, hero, { map, range: 110, fov: 1.5 }) : { seen: false, exposure: 0 }, st = g.mind.update(dt, seen, hero);
-    if (g.mind.changed && st === 'alert') { A.sfx('select'); g.bark = 1.2; }
+    if (g.mind.changed && st === 'alert') { if (ds) ds.speaker('select'); else A.sfx('select'); g.bark = 1.2; buzz(.3, .25); }   // (the bark: from the controller where its speaker is on)
     let goal = null, speed = 'walk';
     if (st === 'alert') { goal = hero; speed = 'run'; }
     else if (st === 'search' && g.mind.last) goal = g.mind.last;
@@ -125,13 +147,15 @@ const STEALTH = (() => {
     rig = rig || new E.Humanoid({ size: 1.2, build: 'heroic', hood: true, weapon: 'sword', bladeLen: 7, outfit: 'coat', sleeves: 'long', cape: { len: 6, width: 5, seg: 2.4 }, colors: { cloth: '#d8d2c4', coat: '#d8d2c4', cape: '#8a2a2a', capeIn: '#5a1a1a', pants: '#3a3448', metal: '#e8e8f0' } });
     attack = new E.Attack('slash', { reach: 9 }); guards = ROUTES.map(makeGuard);
     ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: it takes over from the engine's own, keeping the pause menu)
-    checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; say(E.t('stealth.goal.ledger'), E.t('stealth.toast.start'));
+    checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; keysT = 20; autoT = 0; wonT = 0; say(E.t('stealth.goal.ledger'), E.t('stealth.toast.start'));
+    ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null;
+    game.input.touchSet('block', null, false); game.input.touchSet('dodge', E.t('stealth.touch.roll'), false);   // (not until a fight)
     game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = !!(window.matchMedia && matchMedia('(pointer: fine)').matches); L.ambient = .6; A.music(SONG); A.layer('chase', 0, .02); A.layer('alarm', 0, .02);
   }
   function respawnAt(cp) {
     Object.assign(hero, { x: cp.x, y: cp.y, z: cp.z, vx: 0, vy: 0, vz: 0, onGround: true, action: null }); hp = HP;
     guards.forEach((g, i) => { if (!g.dead) { const [x, y, z] = ROUTES[i][0]; Object.assign(g, { x: x * T, y: y * T, z, vx: 0, vy: 0, vz: 0, at: 1, stun: 0, action: null }); g.mind.reset(); g.swing.cancel(); } });
-    game.cam.snap = true; say(E.t('stealth.toast.respawn'));
+    game.cam.snap = true; keysT = 10; say(E.t('stealth.toast.respawn'));   // (the keys again for a while)
   }
   function lose() { if (checkpoint) { A.sfx('die'); respawnAt(checkpoint); } else { over = true; game.after(.8, () => game.go('over', { from: 'stealth' })); } }
   // a takedown within reach: [guard, from above] or null
@@ -149,13 +173,30 @@ const STEALTH = (() => {
   }
   function tryTakedown() { const t = takedown(); if (!t) return false; hero.play('takedown', { other: t[0], aerial: t[1], map }); return finishGuard(t[0], hero.action); }
   const parrying = () => guards.some(g => !g.dead && g.swing.phase === 'wind' && g.swing.u > .35 && Math.hypot(g.x - hero.x, g.y - hero.y) < 26);
-  function finishGuard(g, act) { g.dead = true; g.action = act; A.sfx('punch'); game.freeze(.06); return true; }
+  function finishGuard(g, act) { g.dead = true; g.action = act; A.sfx('punch'); game.freeze(.06); buzz(.7, .15); return true; }
+  // a strike's way: from a left click toward the pointer (the screen's way from the hero to it, onto the ground: right on a
+  // roof too); on touch with assists on, the nearest guard on his level in reach; else the way he faces
+  function aimStrike(I) {
+    const m = I.lastDevice === 'mouse' && game.r && I.pointer(), at = m && game.r.w(hero.x, hero.y, hero.z + 12), d = m && game.view.screenDirToGround(m[0] - at[0], m[1] - at[1]);
+    const t = !m && I.assist && E.assist.nearest(hero.x, hero.y, guards.filter(g => !g.dead && E.sameLevel(hero, g)), 26);
+    if (d && (d[0] || d[1])) hero.facing = Math.atan2(d[1], d[0]); else if (t) hero.facing = Math.atan2(t.y - hero.y, t.x - hero.x);
+  }
   function heroUpdate(dt) {
     const I = game.input;
     hero.exposure = inGrass(hero) && hero.crouch ? 0 : 1;   // crouched in tall grass: unseen
+    // TOUCH ASSIST (input.assist: touch play, Settings' Touch assists on): the stick pushed all the way sprints (touch has
+    // no sprint button); let go the moment it isn't (and on any other device: hold() is no key of theirs)
+    I.hold('sprint', I.assist && Math.hypot(...I.move()) > .95 && !hero.crouch);
+    autoT -= dt;
     if (!hero.action) {
       if (I.pressed('dodge') && hero.dodge(undefined, 34)) A.sfx('whoosh');
-      else if (I.pressed('attack') && !tryTakedown() && attack.start()) { I.consume('attack'); A.sfx('swing'); }
+      else if (I.pressed('attack') && !tryTakedown() && attack.start()) { I.consume('attack'); A.sfx('swing'); aimStrike(I); }
+      // TOUCH ASSIST: the blade swings by itself at a guard who is chasing him, in reach (a calm one is the player's call:
+      // a takedown, or let him pass)
+      else if (I.assist && autoT <= 0 && !attack.busy && !hero.wall) {
+        const t = E.assist.nearest(hero.x, hero.y, guards.filter(g => !g.dead && g.mind.state === 'alert' && E.sameLevel(hero, g)), 18);
+        if (t && attack.start()) { hero.facing = Math.atan2(t.y - hero.y, t.x - hero.x); A.sfx('swing'); autoT = .5; }
+      }
     }
     attack.update(dt);
     attack.hits(guards.filter(g => !g.dead), g => E.inArc(hero, hero.facing, g, 20, 1.3, 10), g => {
@@ -163,10 +204,13 @@ const STEALTH = (() => {
       if (g.stun > 0 || --g.hp <= 0) { g.dead = true; g.action = null; A.sfx('die', { vol: .5 }); } else g.mind.level = 1.2;
     });
     // a parry: block in the last moments of a guard's wind-up
-    // CONTEXT touch buttons: ATTACK says TAKE DOWN when one is in reach, BLOCK says PARRY in a guard's wind-up
-    I.touchSet('attack', !hero.action && takedown() ? E.t('stealth.touch.takedown') : null); I.touchSet('block', parrying() ? E.t('stealth.touch.parry') : null);
+    // CONTEXT touch buttons: ATTACK says TAKE DOWN when one is in reach; BLOCK (PARRY in a guard's wind-up) and ROLL pop up
+    // only in a fight (a guard chasing, near); CROUCH says LET GO on a wall and STAND crouched, JUMP says LEAP on a wall
+    const fight = guards.some(g => !g.dead && g.mind.state === 'alert' && Math.hypot(g.x - hero.x, g.y - hero.y) < 48), parry = parrying();
+    I.touchSet('attack', !hero.action && takedown() ? E.t('stealth.touch.takedown') : null); I.touchSet('block', parry ? E.t('stealth.touch.parry') : null, fight || parry);
+    I.touchSet('dodge', E.t('stealth.touch.roll'), fight); I.touchSet('crouch', hero.wall ? E.t('stealth.touch.letgo') : hero.crouch ? E.t('stealth.touch.stand') : null); I.touchSet('jump', hero.wall ? E.t('stealth.touch.leap') : null);
     if (I.pressed('block')) for (const g of guards) if (!g.dead && g.swing.phase === 'wind' && g.swing.u > .35 && Math.hypot(g.x - hero.x, g.y - hero.y) < 26) {
-      g.swing.cancel(); g.stun = 1.3; A.sfx('kick'); game.flash('#ffffff', .08); P.sparks(g.x, g.y, g.z + 18, 10, hero.facing); say(E.t('stealth.toast.parried'));
+      g.swing.cancel(); g.stun = 1.3; A.sfx('kick'); game.flash('#ffffff', .08); buzz(.5, .08); P.sparks(g.x, g.y, g.z + 18, 10, hero.facing); say(E.t('stealth.toast.parried'));
     }
     hero.update(dt, map, attack.busy ? { move: [0, 0] } : I);
     if (hero.hurt) { hp--; hurtT = .4; game.shake(3); if (hp <= 0) lose(); }
@@ -177,10 +221,12 @@ const STEALTH = (() => {
 
   function results() {
     const alive = guards.filter(g => !g.dead).length, top = best('stealth', alive);
+    const out = () => { ui.hide(); game.go('title'); };   // (its button, cancel and a sideways swipe: the title)
     ui.show('results', { kicker: E.t('stealth.results'), title: E.t('stealth.results.title'), stats: [[String(alive), E.t('stealth.results.alive')], [String(top), E.t('stealth.results.best')], [String(HP - hp), E.t('stealth.results.wounds')]],
-      actions: [{ label: E.t('stealth.results.back'), primary: true, fn: () => { ui.hide(); game.go('title'); } }] });
+      actions: [{ label: E.t('stealth.results.back'), primary: true, fn: out }], back: out });
   }
-  // the HUD, from this step's state: E.Shell redraws only what changed (keys hide by themselves on a touch screen)
+  // the HUD, from this step's state: E.Shell redraws only what changed (keys hide by themselves on a touch screen; they
+  // show for the first 20 seconds and after a respawn: seven chips all the game are too much from the sofa)
   function hud() {
     const k = a => E.lang.upper(game.input.label(a)), pad = game.input.lastDevice === 'gamepad', td = !hero.action && takedown();
     ui.hud(won || over ? {} : {
@@ -189,13 +235,16 @@ const STEALTH = (() => {
       status: hero.exposure === 0 ? { text: E.t('stealth.status.hidden'), color: '#9ae89a' } : alertT > 0 ? { text: E.t('stealth.status.hunted'), color: '#ff4a3a' } : hero.crouch ? E.t('stealth.status.crouched') : null,
       bars: [{ label: E.t('stealth.hud.health'), value: hp, max: HP, kind: 'pips', color: '#e8505a' }], counts: [[E.t('stealth.hud.down'), guards.filter(g => g.dead).length]],
       prompt: touch() ? null : td ? { act: 'attack', label: E.t('stealth.prompt.takedown'), hint: E.t(td[1] ? 'stealth.prompt.above' : 'stealth.prompt.behind') } : parrying() ? { act: 'block', label: E.t('stealth.prompt.parry') } : null,
-      keys: [[pad ? E.t('stealth.key.stick') : ['up', 'left', 'down', 'right'].map(k).join(''), E.t('stealth.key.move')], [k('sprint'), E.t('stealth.key.sprint')], [k('jump'), E.t('stealth.key.jump')], [k('crouch'), E.t('stealth.key.crouch')], [k('attack'), E.t('stealth.key.strike')], [k('block'), E.t('stealth.key.block')], [k('dodge'), E.t('stealth.key.roll')]]
+      keys: keysT > 0 ? [[pad ? E.t('stealth.key.stick') : ['up', 'left', 'down', 'right'].map(k).join(''), E.t('stealth.key.move')], [k('sprint'), E.t('stealth.key.sprint')], [k('jump'), E.t('stealth.key.jump')], [k('crouch'), E.t('stealth.key.crouch')], [k('attack'), E.t('stealth.key.strike')], [k('block'), E.t('stealth.key.block')], [k('dodge'), E.t('stealth.key.roll')]] : null
     });
   }
 
   function update(dt) {
     if (hurtT > 0) hurtT -= dt;
-    if (won || over) { hud(); rig.update(dt, hero.rigState({ pose: won ? 'cheer' : null })); return; }
+    keysT -= dt; padExtras();
+    // the end: the results' screen, or the title once it is closed (its close button: the game holds still under it)
+    if (won && !ui.screen && (wonT += dt) > .5) return void game.go('title');
+    if (won || over) { game.input.hold('sprint', false); hud(); rig.update(dt, hero.rigState({ pose: won ? 'cheer' : null })); return; }
     heroUpdate(dt);
     for (const g of guards) guardUpdate(g, dt);
     const alert = guards.some(g => !g.dead && g.mind.state === 'alert');
@@ -236,12 +285,14 @@ const STEALTH = (() => {
       }
     });
   }
-  return { view: 'iso', views: ['iso', 'threequarter'], input: 'THIRDPERSON', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'block', 'crouch'],
-    camera: { zoom: [.75, 2], rotate: true }, enter: start, update, draw,
+  // (the touch buttons: BLOCK and ROLL first, so as they pop up in a fight the others stay under the thumb; an upright
+  // phone starts closer, the district filling more of it)
+  return { view: 'iso', views: ['iso', 'threequarter'], input: KEYS, res: 'ps1', pausable: true, touch: ['block', 'dodge', 'jump', 'attack', 'crouch'],
+    camera: { zoom: [.75, 2], rotate: true, tall: 1.4 }, enter: start, update, draw,
     state: () => ({ hero, guards, map, ledger, won, hp }),   // for tests
     /** the proof: over the rooftops, jumping, swinging and crouching, the guards on their rounds; a hash of the run */
     run: (n = 600) => proof('stealth', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 100); if (i % 130 === 60) k.tap('jump'); if (i % 90 === 45) k.tap('attack'); if (i === 400) k.tap('crouch'); },
       () => [hero.x, hero.y, hero.z, hp, ledger, won, guards.map(g => [g.x, g.y, g.z, g.hp, g.dead])]),
-    exit() { game.cam.offset = null; L.enabled = false; if (ui) ui.hud({}); } };
+    exit() { game.cam.offset = null; L.enabled = false; if (ui) ui.hud({}); game.input.hold('sprint', false); if (ds) ds.clear(); } };
 })();
 scenes.stealth = STEALTH;
