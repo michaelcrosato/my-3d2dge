@@ -5,6 +5,22 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.106.0 (2026-11-16)
+
+game.audio plays my-game-audio's songs: scored music (orchestral, synthwave, chiptune cues) written as code.
+
+- **Engine**: new module `mga` (`engine/modules/mga.js`, the full engine only). `E.MGA.attach(game, MyGameAudio)` makes
+  `game.audio.music(song, { cue })` play a my-game-audio song (any object with `sections` and `form`) through
+  `game.audio.bus('music')`, so the Volume, Music and Sound settings, `mute()` and `duck()` apply. The music clock stays
+  game.audio's own: a silent chip song with the cue's tempo and length, so `pos`, `at(step)`, `onBeat` and `stopMusic()`
+  work, headless too. `layer()`, `sting()` and a cue change go to the song's layers, stingers and cues. A chip song
+  plays as before. The library is the game's to load; the module bundles nothing (D99).
+- **Tools**: `tools/mga-test.mjs` (`node tools/mga-test.mjs`): the module end to end in Chromium with the real library (its file
+  given by `MGA_DIST`; without it, the test says so and passes). An analyser on the music bus hears the song, hears it
+  silenced by the Music volume and lowered by `duck()`; `at(16)` fires on its step; a layer, a cue change and a chip
+  song after it go through.
+- **Docs**: `docs/KITS.md` lists the module beside the songbook; decision D99.
+
 ## 0.105.1 (2026-11-16)
 
 Fixes from an audit of `docs/MODE7.md` against the kits: every row's deep link, its code and its check.

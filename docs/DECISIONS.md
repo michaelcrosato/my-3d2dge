@@ -1756,3 +1756,17 @@ An entry:
   choice anyone would make differently. The counts stay, so the trimming pass knows where to start.
 - **Answered:** the owner
 - **Landed in:** v0.104.1
+
+## D99 · 2026-11-16 · The MGA module adapts my-game-audio, a library the game loads itself
+
+- **Principle:** no dependencies in the engine or the games (CLAUDE.md), and one general system a module (KITS.md)
+- **Call:** `engine/modules/mga.js` lets `game.audio.music()` play songs from my-game-audio (MIT, the same owner): music,
+  sound effects and voices written as code, rendered in workers, with cues, layers and stingers. The module holds no
+  dependency: `E.MGA.attach(game, lib)` takes the library a game chose to load (its one-file dist), and adapts it to
+  game.audio's buses, settings and music clock. Without the library, or headless, the clock still runs and the sound is
+  skipped, as with the chip synth. No kit carries the module, and the build bundles no part of the library.
+- **Why:** a game that wants orchestral or synthwave music gets it through the API it already uses (volume, mute, the
+  pause's duck, `at(step)`), and the engine's own chip audio is unchanged. Loading an outside file is the game's
+  choice, as a game may load anything; the engine stays dependency-free.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.106.0

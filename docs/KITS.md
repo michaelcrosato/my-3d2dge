@@ -54,7 +54,7 @@ in the core.
 | a free camera; selection and orders; agents with needs | core and module `strategy` | RTS, builders, sims, tactics |
 | walkable areas, hotspots, verbs | module `click` | point-and-click, visual novels |
 | 2D rigid bodies; destructible terrain | modules `physics`, `terrain` | pinball, Breakout, artillery, Lemmings, Asteroids |
-| a music clock, layers; a songbook; charts and judgments | core audio, modules `songs`, `rhythm` | rhythm, stealth and chases, every genre's music |
+| a music clock, layers; a songbook; charts and judgments; scored songs (my-game-audio) | core audio, modules `songs`, `rhythm`, `mga` | rhythm, stealth and chases, every genre's music |
 | lock-on, camera zones, tank controls; vehicles, tracks, flight | the 3D engine | 3D action, horror, racing, flight, rails, first-person dungeons |
 
 ## Modules
