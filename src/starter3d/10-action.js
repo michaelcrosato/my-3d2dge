@@ -1,11 +1,21 @@
 /* =====================================================================================
- * SLICE 1  ACTION  (Zelda 64's dungeons, Diablo; the stress test's hall in real 3D). A torch-lit hall of stone, pillars
- * and low walls, a raised dais in the middle with stairs up both sides. J or a click: a three-hit combo (slash,
- * backslash, spin; the spin hits all round); Shift dashes (through attacks: a moment untouchable), J while dashing
- * thrusts; Space jumps (onto the dais, over low walls); E throws an ember bolt where the mouse points; Q locks on (Zelda's
- * targeting: the nearest in sight, Q again the next, none left lets go; the chase camera strafes round it). Five waves:
+ * SLICE 1  ACTION  (Zelda 64's dungeons, Diablo; the stress test's hall in real 3D). @modules dualsense
+ * A torch-lit hall of stone, pillars and low walls, a raised dais in the middle with stairs up both sides. A three-hit
+ * combo (slash, backslash, spin; the spin hits all round); a dash (through attacks: a moment untouchable), the attack
+ * while dashing thrusts; a jump (onto the dais, over low walls); an ember bolt where you aim; lock-on (Zelda's
+ * targeting: the nearest in sight, again the next, none left lets go; the chase camera strafes round it). Five waves:
  * husks, skeletons, slimes that hop and pounce, wisps that orbit and shoot; at most three of them attack at once, each
  * telegraphing its swing with a red arc on the floor; then a knight. Big hits throw bodies; crates and barrels break.
+ * KEYS (World3D.INPUT, the lock on a middle click too): WASD or arrows move, J or a left click the combo, Shift or K
+ * dash, Space jump, E, L or a right click the bolt (toward the mouse: a ring on the floor marks where), Q, Tab or a
+ * middle click lock on, C the camera (the view, the chase camera, first person; a click there takes the mouse to look).
+ * PAD (PlayStation names): the left stick moves, the right stick aims the bolt (turns the chase and first cameras), □ or
+ * R2 the combo, ○ dash, ✕ jump, △ or R1 the bolt, L2 (or L1) lock on, R3 the camera, Options pauses. DUALSENSE: the light
+ * bar is his health (teal, amber, a red pulse; white as a wave falls, gold as the knight does), R2 clicks as the sword
+ * swings; the heart's chime from the controller's speaker; any pad rumbles on his hurts, big blows, broken crates and the
+ * knight's fall. TOUCH: the stick, ATTACK, DASH, JUMP, SKILL, and LOCK where there is a monster to lock on (NEXT while
+ * locked); the touch assists (Settings, on at first) swing at a monster in reach and turn the bolt onto the one nearest
+ * its way. A swipe takes the controls away.
  * THE 3D: every monster is a Rapier body (the crowd pushes and piles up by itself, knockback is momentum); the hero is a
  * character controller; the monsters find their way up the stairs on the level's flow field. The camera: the 2D views
  * as 3D cameras (V), the chase camera and first person (C); lock-on (world.camera.lock, cycle). ACTION.run(n): a scripted
@@ -89,6 +99,20 @@ const ACTION = (() => {
   let world = null, flow = null, hero = null, H = null, rnd = Math.random, lamp = null;
   let wave = 0, kills = 0, score = 0, tokens = 0, nextTurn = 0, boss = null, ended = 0, hint = 0;
   const enemies = [], corpses = [], shots = [];
+  // THE KEYS: World3D.INPUT, the lock on L2 first (the standard's lock-on: L1 still locks) and a middle click (a PC's
+  // third-person lock-on button), the dash on ○ alone (L2 is the lock's)
+  const KEYS = Object.assign({}, W3.INPUT, { dash: ['ShiftLeft', 'ShiftRight', 'KeyK', 'Pad1'], lock: ['KeyQ', 'Tab', 'Mouse1', 'Pad6', 'Pad4'] });
+  // the DUALSENSE (the dualsense module): the light bar is his health, R2 clicks as the sword goes; buzz: a rumble on any
+  // pad, while it is what he plays with
+  let ds = null, padLight = null, padTrig, flashT = 0, flashC = null;
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  const flashPad = (c, t) => { flashC = c; flashT = t; };   // (the light bar a moment in another colour: a wave down, the knight down)
+  function padExtras(dt) {
+    if (!ds) return; flashT -= dt;
+    const k = H.hp / H.max, c = flashT > 0 ? flashC : k > .5 ? '#2f8f86' : k > .25 ? '#e8a030' : Math.floor(game.real * 3) % 2 ? '#e8283a' : '#5a0a14';
+    if (c !== padLight) ds.light(padLight = c);
+    const tr = H.dead ? 'free' : 'sword'; if (tr !== padTrig) { padTrig = tr; ds.trigger('right', H.dead ? null : { weapon: [.2, .45, .3] }); }   // (set on change only)
+  }
   BOOT.push([E.t('action3d.boot'), () => { world = new W3(game, { level: LEVEL, torchShadows: 1, torchLights: 8, lights: 2, ambient: ['#6a64a0', '#2a2438', 6] }); flow = world.flow(); lamp = world.light({ color: '#c9c2ec', reach: 160, power: 20 }); }]);
 
   /** a fresh hall: the hero at his mark, the crates and barrels, wave 1 on its way (seed: the fight's randomness) */
@@ -143,6 +167,12 @@ const ACTION = (() => {
       const dashing = S.dashT > 0;
       if (dashing ? S.thrust.start() : (!S.thrust.busy && S.combo.press())) { ctl.use('attack'); S.dashT = 0; if (!dashing && S.aim !== undefined) h.facing = S.aim; A.sfx('swing'); }
     }
+    // the touch assists (ctl.assist: a touch screen, Settings' Touch assists on): the combo by itself at a monster in
+    // reach, turned to it, so the other thumb is free for the dash, the bolt and the lock (never on a pad or keys)
+    if (ctl.assist && free && S.dashT <= 0 && !S.thrust.busy && !S.combo.busy) {
+      const e = E.assist.nearest(h.x, h.y, enemies.filter(e => e.spawnT <= 0 && Math.abs(e.z - h.z) < 24), HIT.slash.range + 4);
+      if (e) { S.aim = Math.atan2(e.y - h.y, e.x - h.x); if (S.combo.press()) { h.facing = S.aim; A.sfx('swing'); } }
+    }
     const At = S.thrust.busy ? S.thrust : S.combo;
     if (S.dashT > 0) { S.dashT -= dt; const u = 1 - S.dashT / .2, sp = 260 * (1 - .5 * u * u); h.vx = Math.cos(S.dashDir) * sp; h.vy = Math.sin(S.dashDir) * sp; }
     else { const slow = At.busy ? .25 : 1, acc = (h.grounded ? 900 : 420) * dt; h.vx = approach(h.vx, md[0] * SPEED * slow, acc); h.vy = approach(h.vy, md[1] * SPEED * slow, acc); }
@@ -153,7 +183,9 @@ const ACTION = (() => {
       At.hits(world.props, p => Math.abs(p.z - h.z - 8) < 22 && E.inArc(h, h.facing, p, hit.range + 4, hit.half), p => smash(p, hit.big ? 110 : 75, hit.big ? 60 : 40));
     }
     if (free && ctl.pressed('skill', .15) && S.boltCD <= 0) {   // an ember bolt where he aims
-      ctl.use('skill'); const a = S.aim !== undefined ? S.aim : h.facing; h.facing = a; S.boltCD = .3; S.castT = .18; A.sfx('shoot');
+      ctl.use('skill'); let a = S.aim !== undefined ? S.aim : h.facing;
+      if (ctl.assist && !L) { const v = E.assist.aim(h.x, h.y, Math.cos(a), Math.sin(a), enemies.filter(e => e.spawnT <= 0), { cone: .6, range: 220 }); a = Math.atan2(v[1], v[0]); }   // (the touch assists: onto the monster nearest its way)
+      h.facing = a; S.boltCD = .3; S.castT = .18; A.sfx('shoot');
       shots.push({ x: h.x + Math.cos(a) * 8, y: h.y + Math.sin(a) * 8, z: h.z + 11, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, vz: 0, life: 1.2, from: 'hero', dmg: 9, color: '#ffb347', core: '#fff3c4' });
     }
     if (S.cheer > 0) S.cheer -= dt;
@@ -165,16 +197,16 @@ const ACTION = (() => {
   function hurtHero(dmg, ang) {
     const h = hero, S = H; if (S.inv > 0 || S.dead) return false;
     S.inv = .8; S.hurtT = .22; h.flash = .05; S.hitA = ang + Math.PI; h.push(Math.cos(ang) * 170, Math.sin(ang) * 170);
-    game.freeze(.05); game.shake(3); P.sparks(h.x, h.y, h.z + 12, 6, ang + Math.PI); A.sfx('hurt');
+    game.freeze(.05); game.shake(3); P.sparks(h.x, h.y, h.z + 12, 6, ang + Math.PI); A.sfx('hurt'); buzz(.5, .18);
     S.hp -= dmg; S.combo.cancel(); S.thrust.cancel(); P.text(h.x, h.y, h.z + 30, '-' + dmg, '#ff7a6a');
-    if (S.hp <= 0) { S.hp = 0; S.dead = true; S.deadT = 0; P.bits(h.x, h.y, h.z + 8, 20, ['#2f8f86', '#c8452f', '#f1c7a0']); }
+    if (S.hp <= 0) { S.hp = 0; S.dead = true; S.deadT = 0; P.bits(h.x, h.y, h.z + 8, 20, ['#2f8f86', '#c8452f', '#f1c7a0']); buzz(.9, .5); }
     return true;
   }
   /** a crate or barrel struck: knocked away, and broken at its second blow (a heart inside, now and then) */
   function smash(p, dv, up) {
     world.knock(p, hero.x, hero.y, dv, up); A.sfx('bump');
     if (++p.data.hits < 2) return;
-    P.bits(p.x, p.y, p.z, 14, BITS[p.kind] || BITS.crate); P.dust(p.x, p.y, p.z - 4, 6, { speed: 40 }); world.remove(p); A.sfx('explode');
+    P.bits(p.x, p.y, p.z, 14, BITS[p.kind] || BITS.crate); P.dust(p.x, p.y, p.z - 4, 6, { speed: 40 }); world.remove(p); A.sfx('explode'); buzz(.2, .08);
     if (rnd() < .35) world.thing('heart', p.x, p.y, undefined, { spin: .5, bob: 2 });
   }
 
@@ -182,7 +214,7 @@ const ACTION = (() => {
   function hurt(e, dmg, ang, kb, big) {
     e.hp -= dmg; e.flash = big ? .04 : .07; e.stun = .22; e.push(Math.cos(ang) * kb, Math.sin(ang) * kb, big ? 70 : 0);
     if (e.rig) { e.atk = null; e.rig.kick(2.5); } else if (e.type === 'slime') { e.blob.kick(5); e.state = 'idle'; e.t = .5; } else e.charge = 0;
-    game.freeze(big ? .06 : .045); game.shake(big ? 3 : 2); A.sfx(big ? 'kick' : 'hit');
+    game.freeze(big ? .06 : .045); game.shake(big ? 3 : 2); A.sfx(big ? 'kick' : 'hit'); buzz(big ? .35 : .15, big ? .1 : .06);
     P.sparks(lerp(hero.x, e.x, .6), lerp(hero.y, e.y, .6), e.z + (e.type === 'wisp' ? 0 : 10), 7, ang);
     P.text(e.x, e.y, e.z + e.head + 4, dmg, big ? '#ffd36a' : '#fff2c4');
     if (e.hp > 0) return;
@@ -191,7 +223,7 @@ const ACTION = (() => {
     else { P.bits(e.x, e.y, e.z + 6, 12, BITS[e.type]); P.ring(e.x, e.y, 3, 22, BITS[e.type][1], .3, e.z); }
     if (e.type === 'wisp') { P.glints(e.x, e.y, e.z, 10, '#e3c8ff'); e.orb.swell = 1; world.remove(e); return; }
     e.push(e.vx * .3, e.vy * .3, big ? 170 : 95); e.setSolid(false);   // the fallen fly with the blow, then slide; they stop blocking the crowd
-    if (e === boss) { game.flash('#fff4d0', .3, .6); game.freeze(.25); P.glints(e.x, e.y, e.z + 20, 24, '#ffd36a', 30); }
+    if (e === boss) { game.flash('#fff4d0', .3, .6); game.freeze(.25); P.glints(e.x, e.y, e.z + 20, 24, '#ffd36a', 30); buzz(.8, .5); flashPad('#ffd36a', 2.4); }
     if (rnd() < .08) world.thing('heart', e.x, e.y, undefined, { spin: .5, bob: 2 });
   }
   const _dir = [0, 0];
@@ -299,12 +331,12 @@ const ACTION = (() => {
       e.anim = e.rig ? { pose: 'die' } : { squash: -.42, squint: true, flap: 0 };
     }
     shotsStep(dt);
-    for (const t of world.touching(hero, 'heart')) { world.remove(t); H.hp = Math.min(H.max, H.hp + 20); P.glints(t.x, t.y, t.z + 6, 8, '#ff9aa8'); A.sfx('heal'); }
+    for (const t of world.touching(hero, 'heart')) { world.remove(t); H.hp = Math.min(H.max, H.hp + 20); P.glints(t.x, t.y, t.z + 6, 8, '#ff9aa8'); if (ds) ds.speaker('heal'); else A.sfx('heal'); }   // (from the DualSense's speaker where the player has it on)
     for (const e of enemies) if (e.fell) e.place(...world.randomFloor(rnd, 60, hero.x, hero.y));   // (thrown off the world: back on the floor)
     // a wave cleared: the hero cheers and the next marches in; the last one ends it
     if (!enemies.length && !H.dead && H.cheer <= 0 && !ended && corpses.every(c => c.deadT > .8)) {
       if (wave >= WAVES.length) { ended = 1; H.cheer = 2; game.after(2.4, () => game.go('over', { from: 'action', world, won: true, title: E.t('action3d.over.won'), lines: [E.t('action3d.over.all_waves', { count: WAVES.length }) + '   ' + E.t('action3d.over.defeated', { count: kills }), E.t('action3d.over.score', { score })] })); A.music('victory'); }
-      else { H.cheer = 1.6; P.glints(hero.x, hero.y, hero.z + 26, 14, '#ffd36a'); game.after(1.6, () => nextWave()); }
+      else { H.cheer = 1.6; P.glints(hero.x, hero.y, hero.z + 26, 14, '#ffd36a'); flashPad('#f4f0ff', .4); game.after(1.6, () => nextWave()); }
     }
     if (H.dead && H.deadT > 1.6 && !ended) { ended = 1; game.go('over', { from: 'action', world, lines: [E.t('action3d.over.wave_of', { wave, waves: WAVES.length }) + '   ' + E.t('action3d.over.defeated', { count: kills }), E.t('action3d.over.score', { score })] }); }
     world.step(dt);
@@ -316,14 +348,31 @@ const ACTION = (() => {
     E.font.text(g, E.t('action3d.hud.hp'), x, y + top + 1, '#ffd6d6', { outline: '#0b0814' });
     E.ui.bar(g, x + 14, y + top, 72, 7, H.hp / H.max, H.hp > 30 ? '#e0463c' : '#ff7a3a');
     E.font.text(g, E.t('action3d.hud.wave', { wave, waves: WAVES.length, score }), x, y + top + 11, '#f0e6ff', { outline: '#0b0814' });
-    if (boss && boss.alive) { const w = Math.min(180, r.W - 40); E.font.text(g, E.t('action3d.knight'), r.W / 2, r.H - 26, '#ffd36a', { align: 'center', outline: '#0b0814' }); E.ui.bar(g, r.W / 2 - w / 2, r.H - 16, w, 8, boss.hp / boss.max, '#c8452f'); }
-    if (hint > 0 && !touch()) E.font.text(g, prompt('attack', E.t('action3d.hint.combo')) + '   ' + prompt('dash', E.t('action3d.hint.dash')) + '   ' + prompt('jump', E.t('action3d.hint.jump')) + '   ' + prompt('skill', E.t('action3d.hint.bolt')) + '   ' + prompt('lock', E.t('action3d.hint.lock')) + '   ' + prompt('camera', E.t('action3d.hint.camera')), r.W / 2, r.H - 40, '#e8e0ff', { align: 'center', outline: '#0b0814', font: 'tiny' });
+    // (the bottom: above the touch buttons on a phone)
+    const ta = game.input.touchArea(), foot = ta && ta.y0 < r.H - 8 ? Math.round(ta.y0) - 6 : r.H - 8;
+    if (boss && boss.alive) { const w = Math.min(180, r.W - 40); E.font.text(g, E.t('action3d.knight'), r.W / 2, foot - 18, '#ffd36a', { align: 'center', outline: '#0b0814' }); E.ui.bar(g, r.W / 2 - w / 2, foot - 8, w, 8, boss.hp / boss.max, '#c8452f'); }
+    // the controls for a few seconds, in the player's own keys or buttons (on a touch screen its buttons say them): the
+    // normal font, read from a sofa, two rows; a swipe takes them away
+    if (hint > 0 && !touch()) keyHint(g, r, [[prompt('attack', E.t('action3d.hint.combo')), prompt('dash', E.t('action3d.hint.dash')), prompt('jump', E.t('action3d.hint.jump'))],
+      [prompt('skill', E.t('action3d.hint.bolt')), prompt('lock', E.t('action3d.hint.lock')), prompt('camera', E.t('action3d.hint.camera'))]], (boss && boss.alive ? foot - 22 : foot) - 2, clamp(hint, 0, 1));
+  }
+  /** a hint's rows (each a list of prompts, broken again where too wide for the screen) over a dark ribbon, ending at y */
+  function keyHint(g, r, rows, y, a = 1) {
+    const lh = E.font.lineHeight(), L = [];
+    for (const parts of rows) { let row = ''; for (const p of parts) { const t = row ? row + '   ' + p : p; if (row && E.font.width(t) > r.W - 12) { L.push(row); row = p; } else row = t; } if (row) L.push(row); }
+    const y0 = Math.round(y - L.length * lh);
+    g.save(); g.globalAlpha = .5 * a; g.fillStyle = '#05030c'; g.fillRect(0, y0 - 3, r.W, L.length * lh + 4); g.restore(); g._c = null;
+    L.forEach((t, i) => E.font.text(g, t, r.W / 2, y0 + i * lh, '#e8e0ff', { align: 'center', outline: '#0b0814' }));
   }
 
   /* ---- the controls this step, from the camera ---- */
-  const ctl = { move: [0, 0], aim: null, cam: [0, 1, .5], pressed: (a, w) => game.input.buffered(a, w), use: a => game.input.consume(a) };
+  // (assist: the touch assists, from the player's input: a proof's own controls have none, so its fight never changes)
+  const ctl = { move: [0, 0], aim: null, cam: [0, 1, .5], assist: false, pressed: (a, w) => game.input.buffered(a, w), use: a => game.input.consume(a) };
   function controls() {
-    world.camera.ground(game.input.move(), ctl.move); ctl.aim = world.camera.aim(hero);
+    const cam = world.camera, I = game.input; cam.ground(I.move(), ctl.move); ctl.assist = I.assist;
+    // the aim: the mouse's point or the right stick in the view camera; behind him (chase, first) the right stick turns the
+    // camera instead, so in first person he aims where it looks, in the chase camera where he runs
+    ctl.aim = I.aimSource === 'pad' && cam.mode === 'first' ? cam.heading : I.aimSource === 'pad' && cam.mode === 'chase' ? null : cam.aim(hero);
     const a = world.camera.heading; ctl.cam[0] = -Math.cos(a); ctl.cam[1] = -Math.sin(a); ctl.cam[2] = Math.cos((world.camera.pose || { pitch: -.6 }).pitch);
     return ctl;
   }
@@ -339,10 +388,20 @@ const ACTION = (() => {
   }
 
   return {
-    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: W3.INPUT, pausable: true, touch: ['attack', 'dash', 'jump', 'skill', 'lock'], camera: { zoom: [.6, 2], tall: 1.6 },
-    enter() { reset(1); active = world; A.music('dungeon'); world.camera.set('view'); },
-    update(dt) { cameraKey(world); hint -= dt; step(dt, controls()); },
+    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: KEYS, pausable: true, touch: ['attack', 'dash', 'jump', 'skill', 'lock'], camera: { zoom: [.6, 2], tall: 1.6 },
+    enter() { reset(1); active = world; A.music('dungeon'); world.camera.set('view'); ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0; },
+    exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
+    update(dt) {
+      const inp = game.input; cameraKey(world); hint -= dt;
+      if (hint > 0 && inp.swipe(true)) hint = 0;   // (a swipe takes the controls away)
+      step(dt, controls()); padExtras(dt);
+      // LOCK where there is a monster in range to lock on, NEXT while locked
+      const cam = world.camera; inp.touchSet('lock', cam.lockOn ? E.lang.upper(E.t('action3d.hint.next')) : null, !!cam.lockOn || enemies.some(e => e.spawnT <= 0 && Math.hypot(e.x - hero.x, e.y - hero.y) < cam.lockRange));
+    },
     draw(r) {
+      // the mouse's aim in the view camera: a ring on the floor where the bolt goes
+      const I = game.input, cam = world.camera;
+      if (cam.mode === 'view' && I.aimSource === 'mouse' && I.mouse.active && !H.dead && !cam.lockOn) { const m = world.screenToFloor(I.mouse.cx, I.mouse.cy, hero.z + 4); if (m) world.arc(m[0], m[1], world.floorAt(m[0], m[1], hero.z + 8) + .5, 2.5, 4, 0, TAU, '#ffd36a', .5); }
       // telegraphs on the floor, bolts, the hero's lamp
       for (const e of enemies) {
         if (e.type === 'walker' && e.atk && e.atk.busy && e.atk.phase === 'wind') { const u = e.atk.u, r0 = e.r * .6; world.arc(e.x, e.y, e.z, r0, r0 + (e.k.reach[e.next] * (e.k.rig.size || 1) - r0) * u, e.facing - .8, e.facing + .8, '#ff4a3a', .25 + .45 * u); }

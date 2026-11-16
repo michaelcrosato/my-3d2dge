@@ -1,11 +1,25 @@
 /* =====================================================================================
- * SLICE 3  SHOOTER  (Apex Legends' movement and gunplay, without the multiplayer; first or third person). A badlands
+ * SLICE 3  SHOOTER  (Apex Legends' movement and gunplay, without the multiplayer; first or third person). @modules dualsense
+ * A badlands
  * two kilometres across, streamed as you go: golden grass that sways, red rock mesas in strata, dry riverbeds,
  * junipers and pines; six outposts joined by dirt roads, each with buildings to breach, containers, a watch tower with
  * a zipline and supply bins. MOVE: sprint, crouch, slide (downhill it speeds up), jump, vault low cover, mantle onto
  * ledges, climb walls, ladders, ziplines, kick doors in. FIGHT: a rifle and a shotgun (from the hip or down the
  * sights: recoil, spread, reloads), a punch with a lunge, frag grenades; raiders with shields hold five outposts, and
- * the drop point has a firing range. T switches first and third person.
+ * the drop point has a firing range. T switches first and third person (or Settings, Game, View).
+ * KEYS: WASD or arrows, the mouse looks (a click takes it), a left click or J fires, a right click or K aims, R reloads,
+ * E or F uses, Space jumps (vaults, mantles), C crouches (slides at a sprint), Shift sprints, V punches (kicks a door),
+ * G throws a grenade, Q or the wheel swaps the guns (1 the rifle, 2 the shotgun), T first or third person. PAD
+ * (PlayStation names, Apex's): the left stick moves, the right stick looks, R2 fires, L2 aims, □ reloads (uses beside
+ * something), ✕ jumps, ○ crouches, L3 sprints, R3 punches, L1 throws, △ swaps, R1 (or the touchpad) first or third.
+ * DUALSENSE: gyro aim (Controls, Controller: on top of the stick), R2's break is the gun's (a light click for the
+ * rifle, a heavy one for the shotgun, nothing dry), L2 a firm pull down the sights, the light bar the shield (purple,
+ * white once it is gone, a red pulse when hurt badly, orange as you are hit), the gun's click when dry and its
+ * magazine and pin from the controller's speaker; any pad rumbles on each shot, a hit taken, a punch or kick that lands,
+ * a blast near you and a hard landing. TOUCH: the stick, a finger on the other half looks, FIRE, AIM, JUMP, DUCK, SWAP,
+ * VIEW, HIT (KICK at a door) by a door or a raider, USE where there is something to use (else RELOAD while the gun is
+ * short), NADE with a raider awake near (a row on a screen on its side, two columns upright); the touch assists (Settings, on at first) sprint at the stick's rim, fire at a raider under the sights
+ * and pull the sights toward one (a SPRINT button with them off). A swipe takes a banner and the controls away.
  * THE 3D: the ground is a terrain (world terrain: a height and a color function, streamed in chunks for the physics
  * and the picture); the structures are one merged mesh over fixed blocks; grass is merged tufts that sway (TSL); trees
  * and rocks are shapes streamed by chunk. Every soldier is drawn by code with the pen on a procedural skeleton (feet
@@ -1030,6 +1044,20 @@ const SHOOT = (() => {
   const PATTERN = [0, .3, .6, .4, 0, -.5, -.8, -.6, -.2, .3, .8, 1, .6, .1, -.4, -.9, -1, -.5, 0, .5, .9, .7, .2, -.3, -.7, -.4, 0, .4];
   let world = null, hero = null, pb = null, S = null, rnd = Math.random;   // pb: the player's body (its pose and gun)
   const raiders = [], loot = [], nades = [];
+  // the DUALSENSE (the dualsense module): gyro aim, the triggers (the gun's break, a firm aim), the light bar (the shield),
+  // the controller's speaker; buzz: a rumble on any pad, while it is what the player plays with. ds.* only in update and
+  // the frame (a proof's steps never read them); sfx: a small sound from the controller's speaker where it is on
+  let ds = null, padLight = null, padTrig = null, flashT = 0;
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  const sfx = (name, o) => ds ? ds.speaker(name, o) : A.sfx(name, o);
+  const RIFLE_PULL = { weapon: [.2, .4, .35] }, SHOTGUN_PULL = { weapon: [.25, .55, .8] }, AIM_PULL = { resist: [.15, .35] };
+  function padExtras(dt) {
+    if (!ds) return; flashT -= dt;
+    const c = flashT > 0 ? '#ff8a2a' : !S.alive ? '#5a0a14' : S.hp < 35 ? (Math.floor(game.real * 3) % 2 ? '#e8283a' : '#5a0a14') : S.shield > 0 ? '#b07aff' : '#f0ece4';
+    if (c !== padLight) ds.light(padLight = c);
+    const am = S.ammo[S.cur], dry = am[0] === 0 && am[1] === 0, k = !S.alive || S.won ? 'free' : S.cur + (dry ? '-dry' : '');   // (set on change: a swap, a reload, the last round, the end)
+    if (k !== padTrig) { padTrig = k; ds.trigger('right', k === 'free' || dry ? null : S.cur === 'rifle' ? RIFLE_PULL : SHOTGUN_PULL); ds.trigger('left', k === 'free' ? null : AIM_PULL); }
+  }
   /** a reload's shape over time t (seconds): how the gun tilts (pitch, yaw, roll), lifts, where the left hand is (in the
    *  gun's own frame), the magazine (0 in, 1 in the hand, 2 out), the charging handle, a shell in the hand */
   function reloadCurve(weapon, t, dur, empty) {
@@ -1057,7 +1085,7 @@ const SHOOT = (() => {
   /** fire the current weapon from the eye (eye: [x, y, z], aim: the frame of the view). Hitscan: every pellet a ray */
   function fire(eye, F, muzzle) {
     const W = WEAPONS[S.cur], am = S.ammo[S.cur];
-    if (am[0] <= 0) { A.sfx('empty'); S.fireCd = .25; if (am[1] > 0) startReload(); return; }
+    if (am[0] <= 0) { sfx('empty'); S.fireCd = .25; if (am[1] > 0) startReload(); return; }
     am[0]--; S.fireCd = 1 / W.rate; S.lastShot = S.time; S.shots++;
     const moving = Math.hypot(hero.vx, hero.vy), sp = lerp(W.hip, W.adsSpread, S.adsB) + (W.pellets > 1 ? 0 : clamp(moving / RUN, 0, 1) * .03 * (1 - S.adsB * .7) + (hero.grounded ? 0 : .05) + S.bloom);
     S.bloom = Math.min(W.maxBloom, S.bloom + W.bloom);
@@ -1083,7 +1111,7 @@ const SHOOT = (() => {
     S.pitch = clamp(S.pitch + kp, -1.45, 1.45); S.yaw += ky; S.recP += kp * .6; S.recY += ky * .3; S.burst++;
     S.kicks.push([W.punch, kk]);
     pb.rec.v += S.cur === 'rifle' ? 34 : 70; S.flash = 1; S.fovK = 1;
-    game.shake(W.shake * (1 - S.adsB * .4));
+    game.shake(W.shake * (1 - S.adsB * .4)); buzz(S.cur === 'rifle' ? .15 : .55, S.cur === 'rifle' ? .04 : .12);
     A.sfx(W.sound, { vary: .06 });
     if (S.cur === 'shotgun') S.pumpT = 0;
     alertNear(hero.x, hero.y, 130 * M, 'shot');
@@ -1135,7 +1163,7 @@ const SHOOT = (() => {
     }
     const dp = Math.hypot(hero.x - x, hero.y - y, hero.z + 14 - z);
     if (dp < r && world.clear(x, y, z + 6, hero.x, hero.y, hero.z + 16)) { hurtPlayer(dmg * .6 * (1 - dp / r), x, y); const d = nrm([hero.x - x, hero.y - y, 0]); hero.vx += d[0] * 180 * (1 - dp / r); hero.vy += d[1] * 180 * (1 - dp / r); hero.vz = Math.max(hero.vz, 90 * (1 - dp / r)); }
-    game.shake(clamp(9 - dp / M * .3, 1, 9)); alertNear(x, y, 160 * M, 'boom');
+    game.shake(clamp(9 - dp / M * .3, 1, 9)); alertNear(x, y, 160 * M, 'boom'); if (dp < 20 * M) buzz(.8 * (1 - dp / (20 * M)) + .2, .35);
   }
   /** grenades in flight: gravity, bounces off what they meet (a ray along each step), a fuse */
   function stepNades(dt) {
@@ -1174,6 +1202,16 @@ const SHOOT = (() => {
     const k = lookK(), m = I.mouse;
     S.yaw += m[0] * k; S.pitch = clamp(S.pitch - m[1] * k, -1.45, 1.45);
     const a = I.stick2; if (a) { const mag = Math.hypot(a[0], a[1]), rate = (1.2 + 2.6 * mag * mag) * lerp(1, .55, ease(S.adsB)); S.yaw += a[0] / mag * rate * mag * dt; S.pitch = clamp(S.pitch - a[1] / mag * rate * .8 * mag * dt, -1.45, 1.45); }
+    // the touch assists' aim: down the sights or firing, the view drawn slowly toward a raider's chest close to it
+    if (I.assist && (S.ads || I.down('fire'))) {
+      const ex = hero.x, ey = hero.y, ez = hero.z + S.eye; let best = null, bs = 1e9;
+      for (const e of raiders) {
+        if (!e.alive) continue; const dx = e.a.x - ex, dy = e.a.y - ey, d = Math.hypot(dx, dy); if (d > 60 * M || d < 1) continue;
+        const dyaw = E.angDiff(S.yaw, Math.atan2(dy, dx)), dp = Math.atan2(e.a.z + 20 - ez, d) - S.pitch, sc = Math.hypot(dyaw, dp);
+        if (Math.abs(dyaw) < .12 && Math.abs(dp) < .12 && sc < bs) { bs = sc; best = [dyaw, dp]; }
+      }
+      if (best) { const k = 1.5 * dt; S.yaw += clamp(best[0], -k, k); S.pitch = clamp(S.pitch + clamp(best[1], -k, k), -1.45, 1.45); }
+    }
     if (S.recP || S.recY) { const r = Math.min(1, dt * lerp(1.6, 6, clamp((S.time - S.lastShot - .06) / .12, 0, 1))); S.pitch -= S.recP * r; S.yaw -= S.recY * r; S.recP -= S.recP * r; S.recY -= S.recY * r; }   // (some comes back even mid-burst)
   }
   /** the soldiers standing in the way: the player stops against them (the engine's heroes pass through each other; the
@@ -1279,7 +1317,7 @@ const SHOOT = (() => {
   }
   function land(sp) {
     const v = S.fallV; S.fallV = 0; S.landT = S.time; S.landV = -v;
-    if (v < -60) { pb.dip.v -= Math.min(60, -v * .18); S.dipC.v -= Math.min(40, -v * .12); A.sfx('land', { vol: clamp(-v / 300, .3, 1) }); P.dust(hero.x, hero.y, hero.z, 5, { speed: 30, color: '#b8a07a' }); }
+    if (v < -60) { pb.dip.v -= Math.min(60, -v * .18); S.dipC.v -= Math.min(40, -v * .12); A.sfx('land', { vol: clamp(-v / 300, .3, 1) }); P.dust(hero.x, hero.y, hero.z, 5, { speed: 30, color: '#b8a07a' }); if (v < -250) buzz(.3, .1); }
     S.move = S.crouch ? 'crouch' : 'stand';
     if (I0.down('crouch') && sp > 92) startSlide();
   }
@@ -1302,7 +1340,7 @@ const SHOOT = (() => {
     if (S.move === 'zip') return stepZip(dt, I, jumpP);
     // onto a ladder: walk into it
     if (fwd > .5 && S.move !== 'slide') { const L = nearLadder(); if (L) { S.move = 'ladder'; S.ladder = pb.ladder = L; h.fly = true; S.crouch = false; S.sprint = false; return; } }
-    S.sprint = I.down('sprint') && fwd > .5 && !S.ads && S.time - S.lastShot > .3 && S.move !== 'slide' && S.act !== 'melee';
+    S.sprint = (I.down('sprint') || (I.assist && fwd > .9)) && fwd > .5 && !S.ads && S.time - S.lastShot > .3 && S.move !== 'slide' && S.act !== 'melee';   // (the touch assists: at the stick's rim)
     if (S.sprint && S.crouch && S.move !== 'slide' && roomToStand()) S.crouch = false;
     if (h.grounded && S.move !== 'air') {
       if (S.move === 'slide') {   // momentum: friction, downhill speeds it up, a little steering
@@ -1359,7 +1397,7 @@ const SHOOT = (() => {
       if (S.act === 'reload') {
         const am = S.ammo[S.cur];
         if (S.cur === 'rifle') {
-          if (crossed(.38)) A.sfx('magout'); if (crossed(1.05)) { const n = Math.min(W.mag - am[0], am[1]); am[0] += n; am[1] -= n; A.sfx('magin'); } if (S.reloadEmpty && crossed(1.5)) A.sfx('bolt');
+          if (crossed(.38)) A.sfx('magout'); if (crossed(1.05)) { const n = Math.min(W.mag - am[0], am[1]); am[0] += n; am[1] -= n; sfx('magin'); } if (S.reloadEmpty && crossed(1.5)) A.sfx('bolt');
         } else {
           for (let i = 0; i < S.shells; i++) if (crossed(.15 + i * W.shell + W.shell * .62) && am[1] > 0) { am[0]++; am[1]--; A.sfx('shell'); }
           if (I.pressed('fire') && am[0] > 0) { S.act = null; S.pumpT = S.reloadEmpty ? 0 : 9; }
@@ -1377,11 +1415,13 @@ const SHOOT = (() => {
     }
     S.ads = I.down('aim') && !busyMove && !S.act;   // (not mid-reload, mid-punch, mid-throw or mid-swap)
     S.adsB = approach(S.adsB, S.ads ? 1 : 0, dt / .16); if (S.ads) S.sprint = false;
-    // fire: held (the rifle) or each press (the shotgun, once its pump is back)
-    const trig = W.auto ? I.down('fire') : I.pressed('fire', .12);
-    if (!I.down('fire')) S.burst = 0;
+    // fire: held (the rifle) or each press (the shotgun, once its pump is back); with the touch assists, by itself while a
+    // raider stands under the sights in reach (a ray along the view, the way a shot goes)
+    const auto = I.assist && !busyMove && !S.act && S.ammo[S.cur][0] > 0 && underSights(W.far * .7);
+    const trig = W.auto ? I.down('fire') || auto : I.pressed('fire', .12) || auto;
+    if (!I.down('fire') && !auto) S.burst = 0;
     if (trig && S.fireCd <= 0 && !busyMove && (!S.act || (S.act === 'reload' && S.cur === 'shotgun' && S.ammo.shotgun[0] > 0)) && (S.cur !== 'shotgun' || S.pumpT > .42)) {
-      if (!W.auto) I.use('fire');
+      if (!W.auto && I.pressed('fire', .12)) I.use('fire');
       if (S.act === 'reload') S.act = null;
       const c = S.cam, eye = S.view === 'first' ? [hero.x, hero.y, hero.z + S.eye] : tpsOrigin(c), F = frameYP(eye, S.yaw, S.pitch);
       fire(eye, F, muzzlePoint(F));
@@ -1393,13 +1433,21 @@ const SHOOT = (() => {
       I.use('use');
       if (near.zip) startZip(near.zip); else if (near.door) toggleDoor(near.door); else if (near.bin) openBin(near.bin);
     } else if (I.pressed('reload') || (use && !near)) startReload();
-    if (I.pressed('swap') && S.act !== 'swap' && !busyMove) { I.use('swap'); S.act = null; startAct('swap', .5); A.sfx('swapw'); }
+    // swap: the other gun (Q, the wheel, △), or a slot's own key (1 the rifle, 2 the shotgun: nothing when it is out)
+    const slot = (I.pressed('slot1') && S.cur !== 'rifle') || (I.pressed('slot2') && S.cur !== 'shotgun');
+    if ((I.pressed('swap') || slot) && S.act !== 'swap' && !busyMove) { I.use('swap'); I.use('slot1'); I.use('slot2'); S.act = null; startAct('swap', .5); A.sfx('swapw'); }
     if (I.pressed('melee') && !['melee', 'kick'].includes(S.act) && !busyMove && S.move !== 'zip') {
       I.use('melee'); S.act = null; const d = doorAhead();
       if (d) startAct('kick', .72); else { startAct('melee', .55); A.sfx('swing'); const e = raiders.find(q => q.alive && Math.hypot(q.a.x - hero.x, q.a.y - hero.y) < 4.6 * M && Math.abs(q.a.z - hero.z) < 20 && Math.cos(Math.atan2(q.a.y - hero.y, q.a.x - hero.x) - S.yaw) > .75); if (e) S.lunge = { e, t: .085 }; }
     }
-    if (I.pressed('grenade') && S.nades > 0 && !S.act && !busyMove) { I.use('grenade'); startAct('throw', .78); A.sfx('pin'); }
-    if (I.pressed('view')) { I.use('view'); S.view = S.view === 'first' ? 'third' : 'first'; game.note(E.t(S.view === 'first' ? 'shooter3d.note.first_person' : 'shooter3d.note.third_person'), 1.2); }
+    if (I.pressed('grenade') && S.nades > 0 && !S.act && !busyMove) { I.use('grenade'); startAct('throw', .78); sfx('pin'); }
+    if (I.pressed('view')) { I.use('view'); S.view = S.view === 'first' ? 'third' : 'first'; game.note(E.t(S.view === 'first' ? 'shooter3d.note.first_person' : 'shooter3d.note.third_person'), 1.2); if (I.assist !== undefined) { viewSet = S.view; game.settings.set(VIEW.key, S.view); } }   // (the player's: the setting follows; a proof's controls leave it)
+  }
+  /** a live raider under the sights within far: the first thing a ray along the view meets (the touch assists' fire) */
+  function underSights(far) {
+    const c = S.cam; if (!c) return false;
+    const eye = S.view === 'first' ? [hero.x, hero.y, hero.z + S.eye] : tpsOrigin(c), F = frameYP(eye, S.yaw, S.pitch), h = world.ray(eye[0], eye[1], eye[2], F.f[0], F.f[1], F.f[2], far, { skip: hero });
+    return !!(h && h.actor && raiders.some(e => e.alive && e.a === h.actor));
   }
   /** where a shot leaves from in third person: the camera's ray, begun level with the player (nothing behind them hit) */
   function tpsOrigin(c) { const F = frameYP([c.x, c.y, c.z], S.yaw, S.pitch), d = dot(sub([hero.x, hero.y, hero.z + S.eye], [c.x, c.y, c.z]), F.f); return add([c.x, c.y, c.z], F.f, Math.max(0, d)); }
@@ -1414,7 +1462,7 @@ const SHOOT = (() => {
     for (const e of raiders) { if (!e.alive) continue; const dx = e.a.x - hero.x, dy = e.a.y - hero.y, d = Math.hypot(dx, dy); if (d < 2.9 * M && Math.abs(e.a.z - hero.z) < 20 && Math.cos(Math.atan2(dy, dx) - S.yaw) > .55 && d < bd) { best = e; bd = d; } }
     if (!best) return;
     const d = nrm([best.a.x - hero.x, best.a.y - hero.y, 0]), res = hurtRaider(best, 30, false, d, [best.a.x, best.a.y, best.a.z + 20], true);
-    best.a.push(d[0] * 190, d[1] * 190, 60); if (res) hitmark(res); A.sfx('punch'); game.freeze(.05); game.shake(3);
+    best.a.push(d[0] * 190, d[1] * 190, 60); if (res) hitmark(res); A.sfx('punch'); game.freeze(.05); game.shake(3); buzz(.5, .1);
     S.punchY.x += 2.2; S.punchR.x -= 4.2; S.punchP.x += 1.4; S.vmEvent = 'impact';   // (the view jolts along the blow, at once: the freeze holds it there)
     // the star where the fist meets the body: in first person just ahead of the knuckles in the eye's frame, drawn on the
     // overlay over the fist (behind it in the world, the glove hid it); in third person on the body, chest high
@@ -1427,7 +1475,7 @@ const SHOOT = (() => {
     const d = doorAhead(), f = [Math.cos(S.yaw), Math.sin(S.yaw), 0];
     if (d) breakDoor(d, f);
     for (const e of raiders) if (e.alive && Math.hypot(e.a.x - hero.x, e.a.y - hero.y) < 3 * M && Math.cos(Math.atan2(e.a.y - hero.y, e.a.x - hero.x) - S.yaw) > .5) { const res = hurtRaider(e, 40, false, f, [e.a.x, e.a.y, e.a.z + 12], true); e.a.push(f[0] * 260, f[1] * 260, 80); if (res) hitmark(res); impactStar([e.a.x - f[0] * 6, e.a.y - f[1] * 6, e.a.z + 12], f, 2.8, 'white'); }
-    A.sfx('kickdoor'); game.shake(4); game.freeze(.05); S.punchP.v -= 12;
+    A.sfx('kickdoor'); game.shake(4); game.freeze(.05); S.punchP.v -= 12; buzz(.5, .1);
   }
   function throwNade() {
     if (S.nades <= 0) return; S.nades--;
@@ -1590,6 +1638,7 @@ const SHOOT = (() => {
     const toS = Math.min(S.shield, dmg); S.shield -= toS; S.hp -= dmg - toS; S.hurtT = .45; S.lastHurt = S.time;
     S.hitDirs.push({ a: Math.atan2(fy - hero.y, fx - hero.x), t: 1.3 }); if (S.hitDirs.length > 6) S.hitDirs.shift();
     A.sfx(toS > 0 && S.shield > 0 ? 'shieldhit' : toS > 0 ? 'shieldbreak' : 'ouch', { vol: .9 }); S.punchR.v += (rnd() - .5) * 12; S.punchP.v += 4;
+    if (toS > 0 && S.shield <= 0) buzz(.7, .25); else buzz(.4, .15); flashT = .15;
     pb.hit[0] += (hero.x - fx) * .02; pb.hit[1] += (hero.y - fy) * .02;
     if (S.hp <= 0) { S.hp = 0; S.alive = false; S.lost = true; pb.move = 'dead'; pb.dead = { t: 0, dir: Math.atan2(hero.y - fy, hero.x - fx), g: hero.z }; S.view = 'third'; game.after(2.6, () => game.go('over', { from: 'shooter', world, lines: [E.t('shooter3d.over.lost', { kills: num(S.kills), cleared: S.cleared, total: HELD })] })); }
   }
@@ -1844,46 +1893,63 @@ const SHOOT = (() => {
       const p = world.project(n.p[0], n.p[1], n.p[2] + 8 + n.t * 18); if (!p || (n.t > .8 && Math.floor(n.t * 20) % 2)) continue;   // (beside the hit, not over it)
       F.text(g, String(Math.round(n.v)), p[0] + 10 + n.t * 6, p[1] - 5, n.head ? '#ffd23a' : n.col || '#ffffff', { align: 'left', outline: OL, scale: n.head ? 2 : 1 });
     }
-    // the compass: bearings every 15 degrees, the outposts (red: held, grey: cleared) with their distance
+    // (read at ten feet: the normal font throughout, the mag's count twice its size)
+    // (the bottom of each side: above the touch buttons on a phone, where they are under it)
+    const lh = F.lineHeight(), ta = game.input.touchArea(), above = (x0, x1) => ta && ta.y0 < H - 8 && ta.x0 < x1 && ta.x1 > x0 ? Math.round(ta.y0) - 4 : H - 4;
+    // the compass: bearings every 15 degrees, the outposts (red: held, grey: cleared); the nearest one held, its distance
     const CW = Math.min(170, W - 120), x0 = cx - CW / 2, span = 110, yb = 5;
-    rect(x0, yb + 8, CW, 1, 'rgba(255,255,255,.35)');
+    rect(x0, yb + 9, CW, 1, 'rgba(255,255,255,.35)');
     for (let dgr = 0; dgr < 360; dgr += 15) {
       let rel = ((dgr - BEARING(S.yaw) + 540) % 360) - 180; if (Math.abs(rel) > span / 2) continue;
       const x = cx + rel / span * CW, lab = { 0: 'n', 45: 'ne', 90: 'e', 135: 'se', 180: 's', 225: 'sw', 270: 'w', 315: 'nw' }[dgr];   // (the points' lines: shooter3d.compass.<point>)
-      if (lab) F.text(g, E.t('shooter3d.compass.' + lab), x, yb, dgr === 0 ? '#ffb347' : '#ffffff', { align: 'center', outline: OL, font: 'tiny' }); else rect(x, yb + 5, 1, 3, 'rgba(255,255,255,.6)');
+      if (lab) F.text(g, E.t('shooter3d.compass.' + lab), x, yb, dgr === 0 ? '#ffb347' : '#ffffff', { align: 'center', outline: OL }); else rect(x, yb + 6, 1, 3, 'rgba(255,255,255,.6)');
     }
+    let near = null, nd = 1e9;
     for (const o of OUTPOSTS) {
       if (o.id === 'drop') continue; const a = Math.atan2(o.y - hero.y, o.x - hero.x), rel = ((BEARING(a) - BEARING(S.yaw) + 540) % 360) - 180; if (Math.abs(rel) > span / 2) continue;
       const x = cx + rel / span * CW, done = o.left === 0, d = Math.round(Math.hypot(o.x - hero.x, o.y - hero.y) / M);
-      rect(x - 1, yb + 11, 3, 3, done ? '#8a8a8a' : '#ff4a3a'); F.text(g, E.t('shooter3d.compass.metres', { metres: num(d) }), x, yb + 16, done ? '#a8a8a8' : '#ffd0c8', { align: 'center', outline: OL, font: 'tiny' });
+      rect(x - 1, yb + 12, 3, 3, done ? '#8a8a8a' : '#ff4a3a'); if (!done && d < nd) { nd = d; near = x; }
     }
-    F.text(g, String(Math.round(BEARING(S.yaw))), cx, yb + 24, '#ffe7a8', { align: 'center', outline: OL, font: 'tiny' });
-    // shield (purple, in segments) and health, bottom left; grenades
-    const bx = 8, by = H - 20, segW = 17;
+    const brg = String(Math.round(BEARING(S.yaw))), bw = F.width(brg) / 2 + 3;
+    if (near !== null) { const t = E.t('shooter3d.compass.metres', { metres: num(nd) }), tw = F.width(t) / 2 + 3, nx = clamp(near, x0 + tw, x0 + CW - tw); F.text(g, t, nx, yb + 17, '#ffd0c8', { align: 'center', outline: OL }); if (Math.abs(nx - cx) < tw + bw) near = 'over'; }
+    if (near !== 'over') F.text(g, brg, cx, yb + 17, '#ffe7a8', { align: 'center', outline: OL });   // (the bearing, unless the outpost's distance is there)
+    // shield (purple, in segments) and health, bottom left; grenades: the key that throws one, the count
+    const bx = 8, segW = 17, by = above(0, bx + segW * 4 + 16) - 14;
     for (let i = 0; i < 4; i++) { const f = clamp((S.shield - i * 25) / 25, 0, 1); rect(bx + i * (segW + 2) - 1, by - 1, segW + 2, 6, OL); rect(bx + i * (segW + 2), by, segW, 4, '#3a2a52'); if (f > 0) rect(bx + i * (segW + 2), by, Math.round(segW * f), 4, '#b07aff'); }
     const hw = segW * 4 + 6; rect(bx - 1, by + 7, hw + 2, 6, OL); rect(bx, by + 8, hw, 4, '#4a1a1a'); rect(bx, by + 8, Math.round(hw * clamp(S.hp / HP, 0, 1)), 4, S.hp < 30 ? '#ff5a4a' : '#f0ece4');
-    F.text(g, E.t('shooter3d.hud.grenades', { grenades: S.nades }), bx + hw + 6, by + 2, '#b8d890', { outline: OL, font: 'tiny' });
-    // the gun: its name, the mag big, the rest small, the other slot; a reload's progress
-    const rx = W - 8;
-    F.text(g, String(am[0]), rx - 28, by - 8, am[0] === 0 ? '#ff5a4a' : am[0] <= WP.mag * .25 ? '#ffb347' : '#ffffff', { align: 'right', outline: OL, scale: 2 });
-    F.text(g, '/ ' + am[1], rx, by - 2, '#c8c0b0', { align: 'right', outline: OL, font: 'tiny' });
-    F.text(g, WP.name, rx, by + 8, '#ffe7a8', { align: 'right', outline: OL, font: 'tiny' });
-    F.text(g, E.t('shooter3d.hud.slot', { slot: S.cur === 'rifle' ? 1 : 2, weapon: S.cur === 'rifle' ? WEAPONS.shotgun.name : WEAPONS.rifle.name }), rx, by - 18, '#8a8478', { align: 'right', outline: OL, font: 'tiny' });
-    if (S.act === 'reload') { const f = clamp(S.actT / S.actDur, 0, 1); rect(rx - 60, by + 16, 60, 2, '#3a3428'); rect(rx - 60, by + 16, Math.round(60 * f), 2, '#ffe7a8'); }
-    // the outposts and the feed, top right; where you are, top left
-    F.text(g, E.t('shooter3d.hud.outposts', { cleared: S.cleared, total: HELD }), W - 6, 6, '#ffe7a8', { align: 'right', outline: OL, font: 'tiny' });
-    S.feed.forEach((f, i) => F.text(g, f.text, W - 6, 16 + i * 8, f.c || '#ffffff', { align: 'right', outline: OL, font: 'tiny' }));
+    F.text(g, E.t('shooter3d.hud.grenades', { grenades: S.nades }), bx, by - lh - 2, '#b8d890', { outline: OL });
+    // the gun: the other one (and the key that swaps), the mag big, the rest, its name; a reload's progress
+    const rx = W - 8, ry = above(W - 110, W) - 4;
+    F.text(g, E.t('shooter3d.hud.slot', { weapon: S.cur === 'rifle' ? WEAPONS.shotgun.name : WEAPONS.rifle.name }), rx, ry - 26 - 2 * lh, '#a8a090', { align: 'right', outline: OL });
+    const rest = '/ ' + am[1]; F.text(g, rest, rx, ry - 18 - lh + 6, '#c8c0b0', { align: 'right', outline: OL });
+    F.text(g, String(am[0]), rx - F.width(rest) - 4, ry - 18 - lh, am[0] === 0 ? '#ff5a4a' : am[0] <= WP.mag * .25 ? '#ffb347' : '#ffffff', { align: 'right', outline: OL, scale: 2 });
+    F.text(g, WP.name, rx, ry - lh - 2, '#ffe7a8', { align: 'right', outline: OL });
+    if (S.act === 'reload') { const f = clamp(S.actT / S.actDur, 0, 1); rect(rx - 60, ry, 60, 2, '#3a3428'); rect(rx - 60, ry, Math.round(60 * f), 2, '#ffe7a8'); }
+    // where you are, top left; the outposts and the feed (three), top right: beside the compass where they fit, else under
+    // it, and under the corner's buttons where they stay (a touch screen)
     const here = OUTPOSTS.find(o => Math.hypot(o.x - hero.x, o.y - hero.y) < (o.r + 30) * M);
-    F.text(g, here ? here.name : E.t('shooter3d.place.badlands'), 6, 6, here ? '#ffffff' : '#c8c0b0', { outline: OL, font: 'tiny' });
-    if (here && here.id !== 'drop') F.text(g, here.left ? E.t('shooter3d.hud.left', { count: here.left }) : E.t('shooter3d.hud.cleared'), 6, 14, here.left ? '#ff9a8a' : '#a8e0a0', { outline: OL, font: 'tiny' });
-    else if (here) F.text(g, E.t('shooter3d.hud.range'), 6, 14, '#c8c0b0', { outline: OL, font: 'tiny' });
-    // what's in reach; the banner; the controls at first
+    const left = [[here ? here.name : E.t('shooter3d.place.badlands'), here ? '#ffffff' : '#c8c0b0']];
+    if (here && here.id !== 'drop') left.push([here.left ? E.t('shooter3d.hud.left', { count: here.left }) : E.t('shooter3d.hud.cleared'), here.left ? '#ff9a8a' : '#a8e0a0']);
+    else if (here) left.push([E.t('shooter3d.hud.range'), '#c8c0b0']);
+    const under = yb + 18 + lh, ly = Math.max(...left.map(l => F.width(l[0]))) + 10 > x0 ? under : 6;
+    left.forEach(([t, c], i) => F.text(g, t, 6, ly + i * lh, c, { outline: OL }));
+    const right = [[E.t('shooter3d.hud.outposts', { cleared: S.cleared, total: HELD }), '#ffe7a8'], ...S.feed.slice(0, 3).map(f => [f.text, f.c || '#ffffff'])];
+    const ca = game.cornerArea({ pinned: true }), rw = Math.max(...right.map(l => F.width(l[0]))) + 10;
+    let ty = W - rw < x0 + CW ? under : 6; if (ca && ca.x0 < W - 6 && ca.x1 > W - rw) ty = Math.max(ty, Math.ceil(ca.y1) + 2);
+    right.forEach(([t, c], i) => F.text(g, t, W - 6, ty + i * lh, c, { align: 'right', outline: OL }));
+    // what's in reach; the banner (a swipe takes it away); the controls at first
     if (S.near && S.alive) F.text(g, E.t('shooter3d.use.' + S.near.what), cx, Math.round(H * .66), '#ffffff', { align: 'center', outline: OL });   // (its keys as the player's: {key:use})
     if (S.banner && S.banner.t > 0) { const k = clamp(S.banner.t, 0, 1); g.globalAlpha = k; F.title(g, S.banner.text, cx, Math.round(H * .2), { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'], depth: 2 }); F.text(g, S.banner.sub, cx, Math.round(H * .2) + 22, '#ffe7a8', { align: 'center', outline: OL }); g.globalAlpha = 1; }
-    if (S.time < 10 && S.alive && !touch()) {
-      F.text(g, E.t('shooter3d.help.move'), cx, H - 44, '#ffffff', { align: 'center', outline: OL, font: 'tiny' });
-      F.text(g, E.t('shooter3d.help.fight'), cx, H - 36, '#ffffff', { align: 'center', outline: OL, font: 'tiny' });
-      F.text(g, E.t('shooter3d.help.mouse'), cx, H - 28, '#c8c0b0', { align: 'center', outline: OL, font: 'tiny' });
+    // the controls for ten seconds, in the player's own keys or buttons, broken into rows that fit (a swipe takes them
+    // away); with the mouse not taken, how to take it (while the mouse is what plays)
+    const dev = game.input.lastDevice, kb = dev === 'keyboard' || dev === 'mouse', rows = [];
+    if (S.time < 10 && S.alive && !touch() && helpOn) rows.push(...[E.t('shooter3d.help.move'), E.t('shooter3d.help.fight')].map(t => t.split(/\s{2,}/)));
+    if (S.alive && kb && !world.camera.locked && ((S.time < 10 && helpOn) || dev === 'mouse')) rows.push([E.t('shooter3d.help.mouse')]);
+    if (rows.length) {
+      const L = []; for (const parts of rows) { let row = ''; for (const p of parts) { const t = row ? row + '   ' + p : p; if (row && F.width(t) > W - 12) { L.push(row); row = p; } else row = t; } if (row) L.push(row); }
+      const y0 = Math.round(Math.min(by - lh - 6, ry - 30 - 2 * lh) - L.length * lh), a = S.time < 10 && helpOn ? clamp(10 - S.time, 0, 1) : 1;
+      g.globalAlpha = .5 * a; rect(0, y0 - 3, W, L.length * lh + 4, '#05030c'); g.globalAlpha = 1;
+      L.forEach((t, i) => F.text(g, t, cx, y0 + i * lh, i === L.length - 1 && !world.camera.locked && kb ? '#e8e0c8' : '#ffffff', { align: 'center', outline: OL }));
     }
     g._c = null;
   }
@@ -1928,10 +1994,20 @@ const SHOOT = (() => {
   const { start, pause, confirm, cancel } = E.Input.DEFAULT;
   const KEYS = { up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
     jump: ['Space', 'Pad0'], crouch: ['KeyC', 'Pad1'], sprint: ['ShiftLeft', 'ShiftRight', 'Pad10'], fire: ['Mouse0', 'KeyJ', 'Pad7'], aim: ['Mouse2', 'KeyK', 'Pad6'],
-    reload: ['KeyR', 'Pad2'], use: ['KeyE', 'KeyF', 'Pad2'], melee: ['KeyV', 'Pad11'], grenade: ['KeyG', 'Pad4'], swap: ['KeyQ', 'Digit1', 'Digit2', 'Pad3'], view: ['KeyT', 'Pad5'],
+    reload: ['KeyR', 'Pad2'], use: ['KeyE', 'KeyF', 'Pad2'], melee: ['KeyV', 'Pad11'], grenade: ['KeyG', 'Pad4'], swap: ['KeyQ', 'WheelUp', 'WheelDown', 'Pad3'], view: ['KeyT', 'Pad5', 'Pad17'],
+    slot1: ['Digit1'], slot2: ['Digit2'],   // (1 the rifle, 2 the shotgun: a slot's own key, as a PC shooter has; the wheel and Q swap)
     start, pause, confirm, cancel };
-  // the touch buttons and their labels (lines shooter3d.touch.<action>; KICK: melee's at a door)
-  const TOUCH = ['use', 'melee', 'swap', 'crouch', 'jump', 'aim', 'fire'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.t('shooter3d.touch.' + a)])), KICK = E.t('shooter3d.touch.kick');
+  // the touch buttons and their labels (lines shooter3d.touch.<action>; KICK: melee's at a door, RELOAD: use's with nothing
+  // to use); NADE, USE, HIT and SPRINT pop up where they act (a raider awake near, something to use or a gun short, a door
+  // or a raider at hand, the touch assists off). A row on a screen held on its side; upright, two columns (a row of ten
+  // won't fit), the ones that pop up on top, FIRE in the corner
+  const TOUCH = ['grenade', 'sprint', 'use', 'melee', 'view', 'swap', 'crouch', 'aim', 'jump', 'fire'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.t('shooter3d.touch.' + a)])), KICK = E.t('shooter3d.touch.kick'), RELOAD = E.t('shooter3d.touch.reload');
+  let tallWas = null;   // (the touch buttons' layout made for an upright screen, or not)
+  const touchLayout = () => { const tall = game.H > game.W; if (tall === tallWas) return; tallWas = tall; game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS, layout: tall ? 'grid' : 'row' }); };
+  // Settings, Game, View: first or third person (T, R1 or the touchpad switch it too, and the setting follows), for a
+  // touch screen most of all, which has no key for it; shown in this game's scene only
+  const VIEW = { key: 'shooterView', label: E.t('shooter3d.setting.view'), group: 'Game', value: 'first', options: [['first', E.t('shooter3d.setting.view.first')], ['third', E.t('shooter3d.setting.view.third')]], help: E.t('shooter3d.setting.view.help'), show: g => g.sceneName === 'shooter' };
+  let helpOn = true, viewSet = null;   // (helpOn: the controls not swiped away; viewSet: the View setting last applied)
   /** one step of the game */
   function step(dt, I) {
     if (!(dt > 0)) { ip.still = true; world.step(0); return; }   // (time stopped, timeScale 0: nothing moves)
@@ -2045,7 +2121,8 @@ const SHOOT = (() => {
     streamScatter(world, hero.x, hero.y, 1e9);
     world.camera.set('fixed'); world.camera.follow(S.focus); camStep(0);
   }
-  const I = { move: [0, 0], mouse: [0, 0], stick2: null, pressed: (a, w) => game.input.buffered(a, w), use: a => game.input.consume(a), down: a => game.input.down(a) };
+  // (assist: the touch assists, from the player's input: a proof's own controls have none, so its run never changes)
+  const I = { move: [0, 0], mouse: [0, 0], stick2: null, assist: false, pressed: (a, w) => game.input.buffered(a, w), use: a => game.input.consume(a), down: a => game.input.down(a) };
   /** the proof: a scripted run from the drop point (moving, sprinting, a slide, jumps, bursts at the range, a punch, a
    *  swap, a reload, aiming), n steps of 1/120 s; returns the world's hash */
   function run(n = 600) {
@@ -2076,11 +2153,26 @@ const SHOOT = (() => {
   }]);
   return {
     view: 'iso', input: KEYS, pausable: true, touch: TOUCH,
-    enter() { reset(1); active = world; A.music(null); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS }); },
+    enter() {
+      game.settings.define(VIEW); reset(1); active = world; A.music(null); tallWas = null; touchLayout();
+      helpOn = true; viewSet = null; ds = E.DualSense ? E.DualSense.attach(game, { gyro: true, triggers: true, light: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0;
+    },
+    exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene: the triggers free)
     update(dt) {
-      I.move = game.input.move(); world.camera.takeMouse(I.mouse); I.stick2 = game.input.padAim;
-      step(dt, I);
-      const inp = game.input; inp.touchSet('use', S.near ? TOUCH_LABELS.use : null, !!S.near); inp.touchSet('melee', S.near && S.near.kick ? KICK : null, !!(S.near && S.near.kick) || raiders.some(e => e.alive && Math.hypot(e.a.x - hero.x, e.a.y - hero.y) < 5 * M));
+      const inp = game.input; touchLayout();
+      if (game.settings[VIEW.key] !== viewSet) { viewSet = game.settings[VIEW.key]; if (S.alive) S.view = viewSet; }   // (Settings, View, changed: the camera follows)
+      I.move = inp.move(); world.camera.takeMouse(I.mouse); I.stick2 = inp.padAim; I.assist = inp.assist;
+      if (ds) { const g = ds.gyroAim(dt); I.mouse[0] += g[0]; I.mouse[1] += g[1]; }   // (gyro aim: on top of the stick, as the mouse is; slower down the sights)
+      step(dt, I); padExtras(dt);
+      // a swipe takes away what is temporary: the banner, else the controls
+      if (inp.swipe()) { if (S.banner && S.banner.t > 0) { inp.swipe(true); S.banner.t = 0; } else if (helpOn && S.time < 10) { inp.swipe(true); helpOn = false; } }
+      // the touch buttons where they act: USE by something to use (else RELOAD while the gun is short), HIT (KICK at a door)
+      // by a door or a raider, NADE with a raider awake near, SPRINT with the touch assists off (on, the stick's rim runs)
+      const am = S.ammo[S.cur], short = am[0] < WEAPONS[S.cur].mag && am[1] > 0 && S.act !== 'reload';
+      inp.touchSet('use', S.near ? TOUCH_LABELS.use : RELOAD, !!S.near || short);
+      inp.touchSet('melee', S.near && S.near.kick ? KICK : null, !!(S.near && S.near.kick) || raiders.some(e => e.alive && Math.hypot(e.a.x - hero.x, e.a.y - hero.y) < 5 * M));
+      inp.touchSet('grenade', null, S.nades > 0 && raiders.some(e => e.alive && !e.dummy && e.state !== 'idle' && e.state !== 'patrol' && Math.hypot(e.a.x - hero.x, e.a.y - hero.y) < 40 * M));
+      inp.touchSet('sprint', null, !inp.assist);
     },
     draw(r) { world.draw(r); r.overlay(g => hud(g, r)); },
     get world() { return world; }, get hero() { return hero; }, get state() { return S; }, get raiders() { return raiders; },
