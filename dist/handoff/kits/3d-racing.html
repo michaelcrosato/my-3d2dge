@@ -67,13 +67,17 @@
     "racing3d.menu.race": "RACE",
     "racing3d.menu.vs": "VS (2 PLAYERS)",
     "racing3d.menu.back": "BACK",
-    "racing3d.join": "PLAYER 2: PRESS 2 OR START ON A PAD",
+    "racing3d.join": "PLAYER 2: {how}",
     "racing3d.after.again": "RACE AGAIN",
     "racing3d.after.menu": "MENU",
     "racing3d.note.behind": "BEHIND THE KART",
     "racing3d.note.view": "{view} VIEW",
     "racing3d.hud.drift": "DRIFT",
     "racing3d.hud.turbo": "TURBO!",
+    "racing3d.hint": "{gas} GAS  {brake} BRAKE  {drift} HOP + DRIFT  {item} ITEM",
+    "racing3d.item.boost": "BOOST",
+    "racing3d.item.shot": "SHELL",
+    "racing3d.item.hazard": "PEEL",
     "racing3d.board.row": "{place}. {name}",
     "racing3d.driver.nova": "NOVA",
     "racing3d.driver.luma": "LUMA",
@@ -396,11 +400,13 @@
     "racing3d.title": "The slice's own title over its menu (a kart racing game).",
     "racing3d.menu.race": "The menu: a race against five computer drivers, a race for two players on a split screen, or back to the title.",
     "racing3d.menu.vs": "VS: versus, two players against each other.",
-    "racing3d.join": "Waiting for a second player: 2 is the keyboard's 2 key, START a gamepad's Start button.",
+    "racing3d.join": "Waiting for a second player: {how} says how to join (the engine's line: press Options on a controller, or 2 on the keyboard), in capitals.",
     "racing3d.after.again": "The menu after a race's results: race again, or back to the race menu.",
     "racing3d.note.behind": "The camera just changed to the one behind the kart.",
     "racing3d.note.view": "The camera just changed to a view; {view} is its name (iso, top-down). Shown in capitals.",
     "racing3d.hud.drift": "A drift held long enough to charge a boost (blue sparks); TURBO! when it is fully charged (orange sparks). Keep both short.",
+    "racing3d.hint": "The controls during the countdown: {gas}, {brake}, {drift} and {item} are the player's own keys or buttons (R2, L2...), each followed by what it does; parts separated by two spaces. HOP + DRIFT: hop into a bend and hold it to drift.",
+    "racing3d.item.boost": "The item touch button's label, named for the item held: a BOOST, a SHELL (fired ahead), a PEEL (dropped behind). Keep each short.",
     "racing3d.board.row": "A row of the results board: the finishing place as a plain number (1. NOVA), then the driver's name.",
     "racing3d.driver.nova": "The six drivers' names (the player drives NOVA): keep them, or write them in your letters.",
     "action.gas": "A control's name on the controls screen: accelerate.",
@@ -417,7 +423,7 @@
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">3D RACING</b><span>Starting · my-3D2dge v0.106.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">3D RACING</b><span>Starting · my-3D2dge v0.106.2</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen"></canvas></div>
 <script src="../my-3d2dge.js"></script>
 <script type="module" src="../my-3d2dge-3d.js"></script>

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.106.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.106.2 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and 25 working games and an animation lab.
@@ -33,7 +33,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.106.0)
+# my-3D2dge API card (v0.106.2)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -3398,7 +3398,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.106.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.106.2</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -3426,7 +3426,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.106.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.106.2  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -3513,7 +3513,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.106.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.106.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -4432,8 +4432,9 @@ class Input {
   /**
    * On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide
    * them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack:
-   * 'B' }, force, layout, slide }). layout: 'row' (the default), 'diamond' (up to four, as a pad's face: the actions in
-   * the order bottom, right, left, top), 'grid' (two columns), 'arc' (the first big in the corner, the rest round it);
+   * 'B' }, force, layout, slide }). layout: 'row' (the default; a row too long for the screen wraps upward), 'diamond'
+   * (up to four, as a pad's face: the actions in the order bottom, right, left, top), 'grid' (two columns), 'arc' (the
+   * first big in the corner, the rest round it, the circle widened so they never overlap);
    * slide: true lets a finger slide from button to button (a fighter's punch to kick) instead of holding the first. The other half of the screen is a move stick (past halfway it presses up, down, left and right too,
    * as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a
    * pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
@@ -4489,12 +4490,12 @@ class Input {
     box.dataset.sys = 'touch';
     if (!document.getElementById('e3-touch-css')) { const st = document.createElement('style'); st.id = 'e3-touch-css'; st.textContent = '[data-sys=touch] button.on{background:rgba(255,255,255,.34)!important;border-color:#fff!important;transform:scale(.93)}[data-sys=touch] button{transition:transform .06s}'; document.head.appendChild(st); }   // (a press shows under the finger)
     const lay = actions.length > 4 && o.layout === 'diamond' ? 'grid' : o.layout || 'row', at = {};   // (each button's middle and size, for a layout of its own)
-    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (lay === 'row' ? ';display:flex;gap:10px' + (left ? ';flex-direction:row-reverse' : '') : '');
+    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (lay === 'row' ? ';display:flex;gap:10px;flex-wrap:wrap-reverse;justify-content:flex-end;max-width:calc(100vw - 28px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))' + (left ? ';flex-direction:row-reverse' : '') : '');
     if (lay !== 'row') {
       const g = 8, n = actions.length;
       if (lay === 'diamond') { const pos = [[1, 2], [2, 1], [0, 1], [1, 0]]; actions.forEach((a, i) => { at[a] = [pos[i][0] * (size * .82), pos[i][1] * (size * .82), size]; }); }   // (bottom, right, left, top)
       else if (lay === 'grid') actions.forEach((a, i) => { at[a] = [(i % 2) * (size + g), Math.floor(i / 2) * (size + g), size]; });
-      else { const big = Math.round(size * 1.3), R = big / 2 + size / 2 + g; at[actions[0]] = [0, 0, big]; actions.slice(1).forEach((a, k) => { const t = Math.PI * (1 + .5 * (n > 2 ? k / (n - 2) : .5)); at[a] = [R * Math.cos(t), R * Math.sin(t), size]; }); }   // arc: round the big one, from its left to above it
+      else { const big = Math.round(size * 1.3), R = Math.max(big / 2 + size / 2 + g, n > 2 ? (n - 2) * (size + g) / (Math.PI / 2) : 0); at[actions[0]] = [0, 0, big]; actions.slice(1).forEach((a, k) => { const t = Math.PI * (1 + .5 * (n > 2 ? k / (n - 2) : .5)); at[a] = [R * Math.cos(t), R * Math.sin(t), size]; }); }   // arc: round the big one, from its left to above it
       const xs = actions.map(a => at[a][0] - at[a][2] / 2), ys = actions.map(a => at[a][1] - at[a][2] / 2), x0 = Math.min(...xs), y0 = Math.min(...ys);
       const W = Math.max(...actions.map(a => at[a][0] + at[a][2] / 2)) - x0, H = Math.max(...actions.map(a => at[a][1] + at[a][2] / 2)) - y0;
       box.style.width = Math.ceil(W) + 'px'; box.style.height = Math.ceil(H) + 'px';
@@ -13547,23 +13548,25 @@ class Shell {
   _menu() { return this._std; }
   /** open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over
    *  o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act,
-   *  primary, disabled }], back (fn for cancel), rows: ['glyphs', 'invertY', '#A heading'] (settings' rows, changed as on
-   *  the settings screen) }. From another screen it stacks (back() returns); shown again, it updates
-   *  (the new spec over the old). 'settings' takes its items
+   *  primary, disabled }], back (fn for cancel; shell.back() in it closes the screen), rows: ['glyphs', 'invertY',
+   *  '#A heading'] (settings' rows, changed as on the settings screen) }. From another screen it stacks (back() returns);
+   *  shown again, it updates in place (the new spec over the old; the focus stays). 'settings' takes its items
    *  - 'title': { name, subtitle, meta: [...], footer }
    *  - 'help': { keys: [[key, what]], sections: [[heading, text]] }
    *  - 'results': { emblem, stats: [[value, label]], medals: [[label, earned]] }
    *  - 'map': { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) } */
   show(name, spec = {}) {
     const top = this._stack[this._stack.length - 1], again = top && top.name === name, s = Object.assign({}, this._o.screens && this._o.screens[name], again ? top.s : null, spec);
-    if (again) this._stack.pop();   // the same screen again: updated in place
-    else { if (top) top.focus = this._focusAt(); this._status = ''; }   // (the focus comes back here when the new screen closes)
-    this._stack.push({ name, s, focus: again ? top.focus : undefined }); this._capEnd(); this._render(); return this;
+    if (again) top.s = s;   // the same screen again: updated in place, the same entry (_render keeps its focus)
+    else { if (top) top.focus = this._focusAt(); this._status = ''; this._stack.push({ name, s }); }   // (the focus comes back here when the new screen closes)
+    this._capEnd(); this._render(); return this;
   }
-  /** what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes) */
+  /** what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen
+   *  resumes). Called from inside the screen's own back(), it closes the screen: back: () => { tidy(); shell.back(); } */
   back() {
     const top = this._stack[this._stack.length - 1]; if (!top) return this;
-    if (top.s.back) { top.s.back(); return this; }
+    // the screen's own back() takes cancel; one called from inside it (top.own) closes the screen (it had called it again forever)
+    if (top.s.back && !top.own) { top.own = 1; try { top.s.back(); } finally { top.own = 0; } return this; }
     this._stack.pop(); this._capEnd(); if (top.name === 'pause') this._game.resume();
     this._closed(); this._render(); return this;
   }
@@ -14756,7 +14759,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.106.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.106.2: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15000,7 +15003,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/click.js ---- */
 /*!
-my-3D2dge module CLICK v0.106.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.106.2: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -15420,7 +15423,7 @@ E.Click = Click;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.106.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.106.2: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15668,7 +15671,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/dualsense.js ---- */
 /*!
-my-3D2dge module DUALSENSE v0.106.0: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
+my-3D2dge module DUALSENSE v0.106.2: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -15892,7 +15895,7 @@ E.DualSense = {
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.106.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.106.2: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -16469,7 +16472,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.106.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.106.2: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16655,7 +16658,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.106.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.106.2: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17067,7 +17070,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mesh.js ---- */
 /*!
-my-3D2dge module MESH v0.106.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.106.2: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17208,7 +17211,7 @@ E.Mesh = Mesh;
 <script>
 /* ---- inlined from engine/modules/mga.js ---- */
 /*!
-my-3D2dge module MGA v0.106.0: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
+my-3D2dge module MGA v0.106.2: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -17222,13 +17225,14 @@ to load (its dist/my-game-audio.js, one dependency-free file, gives the global M
   MyGameAudio.createPlayer (workers, parallel, cache, stream).
 - The music clock is game.audio's own: the song runs a silent chip song with its cue's tempo and length (four steps a
   beat), so game.audio.pos, at(step, fn), onBeat(fn) and stopMusic() work on it, headless too (where there is no
-  sound, or no library: lib null). pos.step counts from the start, intro included; a cue whose sections change tempo
-  keeps its first body section's on the clock.
+  sound, or no library: lib null). pos.step counts from the start, intro included. A cue whose tempo changes bar by
+  bar (a section's bpm, tempo line or rit.) is followed: on each beat the clock is set to reach where the music is
+  by the next one (holds, fermatas, are not followed).
 - game.audio.layer(name, vol, fade) sets a song's layer (song.layers); game.audio.sting(name, { at }) plays one of its
   stingers; music(song, { cue }) with the song playing changes cue on the next bar.
 - mga.player: the my-game-audio player (null without sound): sfx(name), say(text, character), prepare(song, cue)...;
-  E.MGA.isSong(x): true for a my-game-audio song; E.MGA.clock(song, cue) -> { bpm, steps, len, intro } (the silent
-  song's numbers).
+  E.MGA.isSong(x): true for a my-game-audio song; E.MGA.clock(song, cue) -> { bpm, steps, len, intro, start,
+  stepAt(t) } (the silent song's numbers; start: the bpm at its first step; stepAt: where the music is t seconds in).
 
 ```js mga
 const E = My3D2dge, game = new E.Game({ headless: true }); game.start({ update() {}, draw() {} });
@@ -17239,7 +17243,10 @@ if (!E.MGA.isSong(song) || E.MGA.isSong({ bpm: 120, tracks: [] })) throw new Err
 let hit = -1; game.audio.music(song, { cue: 'calm' }); game.audio.at(8, () => { hit = game.audio.pos.step; });
 for (let i = 0; i < 120 && hit < 0; i++) game.advance(1 / 60);
 if (Math.round(hit) !== 8 || game.audio.pos.bpm !== 120) throw new Error('at(8) on its step: ' + hit);
-const c = E.MGA.clock(song, 'tense'); if (c.bpm !== 90 || c.len !== 16 || c.intro !== 32) throw new Error(JSON.stringify(c));
+const c = E.MGA.clock(song, 'tense'); if (c.bpm !== 90 || c.len !== 16 || c.intro !== 32 || c.start !== 120) throw new Error(JSON.stringify(c));
+const slow = { bpm: 120, meter: [4, 4], sections: { A: { bars: 2, parts: {} }, B: { bars: 1, bpm: 60, parts: {} } }, form: ['A', 'B'] };
+game.audio.music(slow); for (let i = 0; i < 360; i++) game.advance(1 / 60);   // 6 s: A's 32 steps in 4 s, half of B
+if (Math.abs(game.audio.pos.step - 40) > 1 || game.audio.pos.bpm > 70) throw new Error('follows B at 60: ' + game.audio.pos.step);
 game.audio.layer('drums', 0); game.audio.stopMusic(); if (game.audio.pos.playing) throw new Error('stopped');
 ```
 Rules: load my-game-audio's dist file in the page before calling attach; keep music quiet by default (Settings'
@@ -17261,27 +17268,60 @@ function cueOf(song, cue) {
   if (song.loop) return { intro: song.intro || [], body: song.loop };
   return { intro: [], body: song.form };
 }
+// the bars of some sections as { steps, bpm, sec } (four steps a beat), each bar's tempo as my-game-audio's arranger
+// reads it: the section's tempo line ('-' keeps the last), else its rit. [from, to], else its bpm, else the song's
+function barsOf(song, names) {
+  const out = [];
+  for (const n of names) {
+    const s = song.sections[n] || {}, bars = s.bars || 0, beats = (s.meter || song.meter || [4, 4])[0];
+    const base = s.bpm || song.bpm || 120;
+    const cells = s.tempo ? String(s.tempo).split('|').map(x => x.trim()).filter(Boolean) : null;
+    let last = base;
+    for (let b = 0; b < bars; b++) {
+      let bpm = base;
+      if (cells && cells[b] !== undefined) bpm = cells[b] === '-' ? last : (+cells[b] > 0 ? +cells[b] : last);
+      else if (s.rit) bpm = s.rit[0] + (s.rit[1] - s.rit[0]) * b / Math.max(1, bars - 1);
+      last = bpm;
+      out.push({ steps: beats * 4, bpm, sec: 60 / bpm * beats });
+    }
+  }
+  return out;
+}
 /** the silent chip song's numbers for a cue: { bpm (its first body section's), steps: 4 a beat, len (the body's
- *  steps), intro (the intro's steps) } */
+ *  steps), intro (the intro's steps), start (the bpm at its first step), stepAt(t) (the step the music is at t seconds
+ *  in, the intro once and the body looping), bpmAt(t), varies (its tempo changes) } */
 function clock(song, cue) {
   const d = cueOf(song, cue), steps = 4;
-  const beatsOf = names => names.reduce((a, n) => { const s = song.sections[n] || {}; return a + (s.bars || 0) * ((s.meter || song.meter || [4, 4])[0]); }, 0);
+  const ib = barsOf(song, d.intro), bb = barsOf(song, d.body);
+  const sum = (bars, k) => bars.reduce((a, b) => a + b[k], 0);
+  const introS = sum(ib, 'steps'), introT = sum(ib, 'sec'), bodyS = sum(bb, 'steps'), bodyT = sum(bb, 'sec');
   const first = song.sections[d.body[0]] || {};
   const bpm = first.bpm || (first.tempo ? +String(first.tempo).split('|').map(x => x.trim()).filter(Boolean)[0] || song.bpm : song.bpm) || 120;
-  return { bpm, steps, len: Math.max(1, beatsOf(d.body) * steps), intro: beatsOf(d.intro) * steps };
+  // where the music is t seconds in: [step, bpm there]
+  const where = t => {
+    let bars = ib, s = 0;
+    if (t >= introT && bodyT > 0) { const k = Math.floor((t - introT) / bodyT); t = t - introT - k * bodyT; s = introS + k * bodyS; bars = bb; }
+    for (const b of bars) { if (t < b.sec) return [s + t / b.sec * b.steps, b.bpm]; t -= b.sec; s += b.steps; }
+    const lb = bars[bars.length - 1] || { bpm, steps: 0, sec: 1 }; return [s, lb.bpm];
+  };
+  const all = ib.concat(bb);
+  return {
+    bpm, steps, len: Math.max(1, bodyS), intro: introS, start: all.length ? all[0].bpm : bpm,
+    stepAt: t => where(t)[0], bpmAt: t => where(t)[1], varies: all.some(b => b.bpm !== all[0].bpm)
+  };
 }
 // the silent song: rests the cue's length, and a silent track for each layer (so game.audio.layer finds it)
 function shadow(song, cue) {
   const c = clock(song, cue), rest = Array(c.intro + c.len).fill('.').join(' ');
   const tracks = [{ wave: 'square', vol: 0, notes: rest }, ...Object.keys(song.layers || {}).map(name => ({ name, wave: 'square', vol: 0, notes: '.' }))];
-  return { bpm: c.bpm, steps: c.steps, len: c.intro + c.len, tracks };
+  return { bpm: c.start, steps: c.steps, len: c.intro + c.len, tracks };
 }
 
 /** attach my-game-audio (lib: the MyGameAudio global, or null for the clock alone) to a game's audio. Returns
  *  { player, song, cue }: the my-game-audio player (made at the first song, null without sound) and what plays */
 function attach(game, lib, opts = {}) {
   const A = game.audio, base = { music: A.music.bind(A), stopMusic: A.stopMusic.bind(A), layer: A.layer.bind(A), sting: A.sting.bind(A) };
-  const M = { player: null, song: null, cue: null };
+  const M = { player: null, song: null, cue: null, clock: null };
   const player = () => {
     if (M.player || !lib || game.headless) return M.player;
     const music = A.bus('music'); if (!music) return null;   // no sound here (no Web Audio, or it failed)
@@ -17294,12 +17334,21 @@ function attach(game, lib, opts = {}) {
     if (M.song === song && M.cue === cue && !o.restart) return;
     const changing = M.song === song;
     M.song = song; M.cue = cue;
+    const c = clock(song, cue); M.clock = c.varies ? c : null;
     base.music(shadow(song, cue), { fade: o.fade, sync: o.sync, restart: true });
     const p = player(); if (!p) return;
     if (changing) p.cue(cue, { at: o.at || 'bar', fade: o.fade });
     else p.music(song, { cue, fade: o.fade, at: o.at }).catch(e => console.warn('my-game-audio:', e && e.message || e));
   };
-  A.stopMusic = fade => { if (M.song && M.player) M.player.stop({ fade: fade || .06 }); M.song = null; return base.stopMusic(fade); };
+  A.stopMusic = fade => { if (M.song && M.player) M.player.stop({ fade: fade || .06 }); M.song = null; M.clock = null; return base.stopMusic(fade); };
+  // a cue whose tempo changes: on each beat, a tempo that brings the clock to where the music is by the next beat
+  // (so no error builds up however long it plays)
+  A.onBeat(() => {
+    const c = M.song && M.clock, p = A.pos; if (!c || !p.playing) return;
+    const want = c.stepAt(p.t), err = Math.max(-2, Math.min(2, want - p.step));
+    const b = c.bpmAt(p.t) * (1 + err / c.steps);
+    if (Math.abs(b - p.bpm) > 1e-6 * b) A.tempo(b);
+  });
   A.layer = (name, vol = 1, fade = .5) => { if (M.song && M.player && hasLayer(M.song, name)) M.player.layer(name, vol, fade); return base.layer(name, vol, fade); };
   A.sting = (what, o = {}) => {
     if (M.song && typeof what === 'string' && M.song.stingers && M.song.stingers[what]) { if (M.player) M.player.sting(what, o); return; }
@@ -17315,7 +17364,8 @@ E.MGA = {
   attach: attach,
   /** isSong(x): true for a my-game-audio song (sections and a form, no tracks) */
   isSong: isSong,
-  /** clock(song, cue): the silent chip song's numbers for a cue: { bpm, steps: 4, len, intro } (steps) */
+  /** clock(song, cue): the silent chip song's numbers for a cue: { bpm, steps: 4, len, intro, start, stepAt(t),
+   *  bpmAt(t), varies } (steps; stepAt: where the music is t seconds in) */
   clock: clock
 };
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
@@ -17324,7 +17374,7 @@ E.MGA = {
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.106.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.106.2: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17686,7 +17736,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!
-my-3D2dge module PHYSICS v0.106.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.106.2: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18056,7 +18106,7 @@ E.Physics = Physics;
 <script>
 /* ---- inlined from engine/modules/rewind.js ---- */
 /*!
-my-3D2dge module REWIND v0.106.0: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.106.2: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18119,7 +18169,7 @@ E.Rewind = Rewind;
 <script>
 /* ---- inlined from engine/modules/rhythm.js ---- */
 /*!
-my-3D2dge module RHYTHM v0.106.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.106.2: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -18329,7 +18379,7 @@ E.Rhythm = Rhythm;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.106.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.106.2: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18521,7 +18571,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.106.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.106.2: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18707,7 +18757,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.106.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.106.2: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -19045,7 +19095,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/songs.js ---- */
 /*!
-my-3D2dge module SONGS v0.106.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.106.2: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -19202,7 +19252,7 @@ E.Songbook = Songbook;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.106.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.106.2: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -19413,7 +19463,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.106.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.106.2: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -19871,7 +19921,7 @@ E.tooltip = (r, x, y, lines) => {
 <script>
 /* ---- inlined from engine/modules/terrain.js ---- */
 /*!
-my-3D2dge module TERRAIN v0.106.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.106.2: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

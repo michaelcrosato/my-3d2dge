@@ -73,6 +73,7 @@
     "action3d.hint.bolt": "bolt",
     "action3d.hint.lock": "lock",
     "action3d.hint.camera": "camera",
+    "action3d.hint.next": "next",
     "action3d.over.won": "HALL CLEARED",
     "action3d.over.all_waves": {"one":"ALL {count} WAVES","other":"ALL {count} WAVES"},
     "action3d.over.wave_of": "WAVE {wave} OF {waves}",
@@ -379,12 +380,13 @@
     "action3d.knight": "The last wave's boss, an armoured knight: the note as it marches in, and its name over its health bar.",
     "action3d.hud.hp": "Hit points: the label beside the hero's health bar. Keep it two or three letters.",
     "action3d.hud.wave": "The top-left corner in play: the wave (as 3/5) and the score, with three spaces between them.",
-    "action3d.hint.combo": "A button prompt's word, after the key (\"J combo\"): the three-hit sword combo. The controls hint lists six such prompts in one row, so keep each word short.",
+    "action3d.hint.combo": "A button prompt's word, after the key (\"J combo\"): the three-hit sword combo. The controls hint lists six such prompts in two rows, so keep each word short.",
     "action3d.hint.dash": "A button prompt's word, after the key: dash.",
     "action3d.hint.jump": "A button prompt's word, after the key: jump.",
     "action3d.hint.bolt": "A button prompt's word, after the key: throw an ember bolt (a magic fire shot).",
     "action3d.hint.lock": "A button prompt's word, after the key: lock on to the nearest monster (Zelda's targeting).",
     "action3d.hint.camera": "A button prompt's word, after the key: change the camera.",
+    "action3d.hint.next": "The lock-on's touch button while locked on, in capitals: lock on to the next monster. Keep it about as short as LOCK.",
     "action3d.over.won": "The title over the end screen when all five waves are beaten.",
     "action3d.over.all_waves": "The end screen after a win: {count} is the number of waves (5). Another stat follows on the same row.",
     "action3d.over.wave_of": "The end screen after a loss: the wave the hero fell in, of how many.",
@@ -399,7 +401,7 @@
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">3D ACTION</b><span>Starting · my-3D2dge v0.106.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">3D ACTION</b><span>Starting · my-3D2dge v0.106.2</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen"></canvas></div>
 <script src="../my-3d2dge.js"></script>
 <script src="../src/assets/sets/action3d.js"></script>

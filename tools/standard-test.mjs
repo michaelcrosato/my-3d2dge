@@ -201,6 +201,17 @@ if (!process.argv.includes('--node')) {
       await ev(p, () => [...document.querySelectorAll('.esh-sh button')].find(b => b.textContent === 'Quit').click()); await ev(p, () => step(30));
       const q3 = await ev(p, () => [game.sceneName, game.paused, game.shell.screen]);
       check(`${ed}: Quit to title asks first (Keep playing focused, Escape goes back), then goes`, q[0] === 'confirm' && q[1] === 'Keep playing' && q2 === 'pause' && q3[0] === 'title' && !q3[1] && q3[2] === null, JSON.stringify([q, q2, q3]));
+      // a screen whose own back() tidies up and calls shell.back(): Escape closes it (it had overflowed the stack); a
+      // screen shown again is updated in place, the focus where it was (it had gone back to the first button)
+      const errs = p.errors.length;
+      await ev(p, () => { window.tidy = 0; game.shell.show('setup', { title: 'Setup', back: () => { window.tidy++; game.shell.back(); }, actions: [['Ready', () => {}]] }); step(); });
+      await p.keyboard.press('Escape'); await ev(p, () => step());
+      const own = await ev(p, () => [game.shell.screen, window.tidy]);
+      check(`${ed}: Escape on a screen whose own back() calls shell.back() closes it, once`, own[0] === null && own[1] === 1 && p.errors.length === errs, JSON.stringify(own) + ' ' + p.errors.slice(errs).join(' | '));
+      const kept = await ev(p, () => { const sh = game.shell; sh.show('menu', { title: 'Menu', actions: [['One', () => {}], ['Two', () => {}], ['Three', () => {}]] });
+        [...document.querySelectorAll('.esh-sh button')].find(b => b.textContent === 'Two').focus(); sh.show('menu', { text: 'Updated' });
+        const r = [document.activeElement.textContent, document.querySelector('.esh-sh p').textContent]; sh.hide(); return r; });
+      check(`${ed}: a screen shown again is updated in place, the focus kept where it was`, kept[0] === 'Two' && kept[1] === 'Updated', JSON.stringify(kept));
       // the corner's menu on a title: the settings, the title waiting under them, then going on
       await p.click('#e3-corner button[aria-label=Menu]'); await ev(p, () => step());
       const t1 = await ev(p, () => [game.shell.screen, game.paused]); await p.keyboard.press('Escape'); await ev(p, () => step());

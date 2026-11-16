@@ -5,6 +5,21 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.106.2 (2026-11-16)
+
+The mga module's music clock follows a my-game-audio cue whose tempo changes from bar to bar.
+
+- **Engine**: `E.MGA` follows a cue whose tempo changes (a section's own bpm, a tempo line, a rit.): on each beat it sets `game.audio.tempo` so the clock reaches where the music is by the next beat, so `pos.step`, `at(step)` and `onBeat` stay with the music however long it loops. It had kept the first body section's tempo throughout, so the clock drifted from the music at every change. Over ten minutes of a cue at 120, 77 and a rit. from 140 to 90 (headless), the clock was never more than 0.03 steps (3 ms) from the music. The silent song now starts at the tempo of the cue's first bar, the intro's if it has one. `E.MGA.clock(song, cue)` also gives `start`, `stepAt(t)`, `bpmAt(t)` and `varies`. Holds (fermatas) are not followed.
+- **Tools**: the module's example (run by contract-test) plays a cue that slows from 120 to 60 and checks the clock is on step 40, 6 s in.
+
+## 0.106.1 (2026-11-16)
+
+A builder's game (an open-world RPG made by another model on v0.100.0) crashed with `Maximum call stack size exceeded` in `Shell.back` when its co-op setup screen's Back was pressed: the screen's own `back` tidied up and then called `shell.back()`, as the engine's own audio-offset calibration did.
+
+- **Engine**: `shell.back()` called from inside the open screen's own `back` (`back: () => { tidy(); shell.back(); }`) closes that screen. It had called the screen's `back` again, forever, until the stack overflowed: a builder's screen with a back of its own had no way to close itself but `hide()`, and Cancel or Escape on the settings' audio-offset calibration crashed the page the same way. A `back` that doesn't call it still keeps its screen (to ask first), and one that closes two still sends the second through the screen under's own `back`.
+- **Engine**: `shell.show(name)` on the open screen updates it in place, and the focus stays where it was, as the Shell meant: it had made a new screen, so the focus went back to the first button. A screen redrawn as things change (that builder's co-op setup, shown again as each player gets ready) no longer sends a controller player's focus back to the top after every press.
+- **Tools**: contract-test cancels a screen whose own `back` calls `shell.back()` (and one that updates itself first), the audio-offset calibration, and a `back` that closes two; standard-test presses Escape on such a screen in Chromium and shows a screen again with the focus on its second button. Before the fix the cancels overflowed the stack and the focus went back to the first button.
+
 ## 0.106.0 (2026-11-16)
 
 game.audio plays my-game-audio's songs: scored music (orchestral, synthwave, chiptune cues) written as code.

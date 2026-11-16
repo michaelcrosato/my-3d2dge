@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.106.0)
+# my-3D2dge API index (v0.106.2)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -119,7 +119,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.106.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.106.2"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -333,7 +333,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.tap(a)`: press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down() are true in the next step, released() in the one after
 - `input.tick(dt)`: advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and released() (the engine calls it every step)
 - `input.touchArea()` †: where the touch buttons cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W and r.H), or null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself)
-- `input.touchButtons(actions, o = {})` †: On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' }, force, layout, slide }). layout: 'row' (the default), 'diamond' (up to four, as a pad's face: the actions in the order bottom, right, left, top), 'grid' (two columns), 'arc' (the first big in the corner, the rest round it); slide: true lets a finger slide from button to button (a fighter's punch to kick) instead of holding the first. The other half of the screen is a move stick (past halfway it presses up, down, left and right too, as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
+- `input.touchButtons(actions, o = {})` †: On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' }, force, layout, slide }). layout: 'row' (the default; a row too long for the screen wraps upward), 'diamond' (up to four, as a pad's face: the actions in the order bottom, right, left, top), 'grid' (two columns), 'arc' (the first big in the corner, the rest round it, the circle widened so they never overlap); slide: true lets a finger slide from button to button (a fighter's punch to kick) instead of holding the first. The other half of the screen is a move stick (past halfway it presses up, down, left and right too, as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
 - `input.touchSet(a, label = null, show = true)` †: one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null, near || talking)
 - `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
 - `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it. Every preset (E.Input.DEFAULT, PLATFORMER, THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel). The keys held stay held (down() in the new layout, not pressed() again), and a press no step has seen counts in it
@@ -1249,7 +1249,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.Shell({ settings })`: settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max, step, options, value } (kept in game.settings, beside the standard ones)
 - `new E.Shell({ store, meters })`: store: where an older version saved them; meters: meters per world unit for distances
 - `new E.Shell({ standard })`: false leaves out the standard menu (the pause screen's Settings, Controls, Full screen and Quit, and the settings' groups)
-- `shell.back()` †: what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes)
+- `shell.back()` †: what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes). Called from inside the screen's own back(), it closes the screen: back: () => { tidy(); shell.back(); }
 - `shell.dispose()` †: take its elements away and let go of the game (game.dispose() does it)
 - `shell.hide()` †: close every screen (and resume, when the menu paused the game)
 - `shell.hud(st = {})` †: the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn)
@@ -1261,7 +1261,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `shell.hud({ minimap })` †: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick(x, y) (the world point clicked), fog (an E.Fog: unseen cells black, seen ones dim), camera: true (the ground the screen shows) }
 - `shell.screen` †: the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays
 - `shell.settings` †: the player's settings: game.settings (the standard ones and the game's own, by key)
-- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel), rows: ['glyphs', 'invertY', '#A heading'] (settings' rows, changed as on the settings screen) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old). 'settings' takes its items
+- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel; shell.back() in it closes the screen), rows: ['glyphs', 'invertY', '#A heading'] (settings' rows, changed as on the settings screen) }. From another screen it stacks (back() returns); shown again, it updates in place (the new spec over the old; the focus stays). 'settings' takes its items
 - `shell.show('title')` †: { name, subtitle, meta: [...], footer }
 - `shell.show('help')` †: { keys: [[key, what]], sections: [[heading, text]] }
 - `shell.show('results')` †: { emblem, stats: [[value, label]], medals: [[label, earned]] }
@@ -1590,7 +1590,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `E.MGA` †: my-game-audio songs on game.audio
 - `E.MGA.attach()` †: attach(game, MyGameAudio, opts): game.audio plays my-game-audio songs from then on; returns { player, song, cue }
-- `E.MGA.clock()` †: clock(song, cue): the silent chip song's numbers for a cue: { bpm, steps: 4, len, intro } (steps)
+- `E.MGA.clock()` †: clock(song, cue): the silent chip song's numbers for a cue: { bpm, steps: 4, len, intro, start, stepAt(t), bpmAt(t), varies } (steps; stepAt: where the music is t seconds in)
 - `E.MGA.isSong()` †: isSong(x): true for a my-game-audio song (sections and a form, no tracks)
 
 ## Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js)

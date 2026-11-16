@@ -1,4 +1,4 @@
-# The genre kits (v0.106.0)
+# The genre kits (v0.106.2)
 
 A kit is a complete small game in one genre, written to be copied: its title, play and end, the modules it rests on,
 its sound, touch controls and a phone's screen. The API card's Genre playbook (`API.md`) names a kit for each genre (its
@@ -72,10 +72,10 @@ from.
 
 | Kit | Files | What it plays | Modules | Deep links |
 | --- | --- | --- | --- | --- |
-| 3D ACTION | [3d-action.js](3d-action.js), [3d-action.html](3d-action.html) | a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test | none | #action |
-| 3D PLATFORMER | [3d-platformer.js](3d-platformer.js), [3d-platformer.html](3d-platformer.html) | a 3D course of islands, platforms and coins, Mario 64 and Spyro | none | #platformer |
-| 3D SHOOTER | [3d-shooter.js](3d-shooter.js), [3d-shooter.html](3d-shooter.html) | an open world to move through and fight in, first or third person: Apex Legends without the multiplayer | none | #shooter |
-| 3D HORROR | [3d-horror.js](3d-horror.js), [3d-horror.html](3d-horror.html) | a mansion's wings by flashlight under fixed cameras: a pistol that locks on, zombies, dogs, keys, a crank, an item box and saves, a boss; Resident Evil and Alone in the Dark | rpg | #horror |
-| 3D RACING | [3d-racing.js](3d-racing.js), [3d-racing.html](3d-racing.html) | a kart circuit in a valley: banked bends, a hill, a jump, a dirt shortcut, five drivers, items, three laps, two players in a split screen; Mario Kart 64 and Crash Team Racing | drive | #racing, #racing/race, #racing/vs |
-| 3D FLIGHT | [3d-flight.js](3d-flight.js), [3d-flight.html](3d-flight.html) | a stage on rails over the sea to a base, then a boss in free flight: lasers, charged lock-on shots, barrel rolls, rings and a wingman on the radio; Star Fox 64 and Panzer Dragoon | none | #flight |
-| 3D CRAWLER | [3d-crawler.js](3d-crawler.js), [3d-crawler.html](3d-crawler.html) | a dungeon in first person, a cell at a time: a party of four with portraits, gates, a lever, plates, an automap, real time or turns; Eye of the Beholder, Dungeon Master and Wizardry | grid | #crawler, #crawler/warden |
+| 3D ACTION | [3d-action.js](3d-action.js), [3d-action.html](3d-action.html) | a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test | dualsense | #action |
+| 3D PLATFORMER | [3d-platformer.js](3d-platformer.js), [3d-platformer.html](3d-platformer.html) | a 3D course of islands, platforms and coins, Mario 64 and Spyro | dualsense | #platformer |
+| 3D SHOOTER | [3d-shooter.js](3d-shooter.js), [3d-shooter.html](3d-shooter.html) | an open world to move through and fight in, first or third person: Apex Legends without the multiplayer | dualsense | #shooter |
+| 3D HORROR | [3d-horror.js](3d-horror.js), [3d-horror.html](3d-horror.html) | a mansion's wings by flashlight under fixed cameras: a pistol that locks on, zombies, dogs, keys, a crank, an item box and saves, a boss; Resident Evil and Alone in the Dark | rpg, dualsense | #horror |
+| 3D RACING | [3d-racing.js](3d-racing.js), [3d-racing.html](3d-racing.html) | a kart circuit in a valley: banked bends, a hill, a jump, a dirt shortcut, five drivers, items, three laps, two players in a split screen; Mario Kart 64 and Crash Team Racing | drive, dualsense | #racing, #racing/race, #racing/vs |
+| 3D FLIGHT | [3d-flight.js](3d-flight.js), [3d-flight.html](3d-flight.html) | a stage on rails over the sea to a base, then a boss in free flight: lasers, charged lock-on shots, barrel rolls, rings and a wingman on the radio; Star Fox 64 and Panzer Dragoon | dualsense | #flight |
+| 3D CRAWLER | [3d-crawler.js](3d-crawler.js), [3d-crawler.html](3d-crawler.html) | a dungeon in first person, a cell at a time: a party of four with portraits, gates, a lever, plates, an automap, real time or turns; Eye of the Beholder, Dungeon Master and Wizardry | grid, dualsense | #crawler, #crawler/warden |
