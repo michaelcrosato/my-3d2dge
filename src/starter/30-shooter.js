@@ -1,19 +1,26 @@
 /* =====================================================================================
- * SLICE 3  SHOOTER  (vertical shoot-'em-up: Raiden, 1943, Strikers 1945; then a horizontal one: Gradius, R-Type). @modules arcade
+ * SLICE 3  SHOOTER  (vertical shoot-'em-up: Raiden, 1943, Strikers 1945; then a horizontal one: Gradius, R-Type). @modules arcade dualsense
  * A tall "tate" screen (240 x 320) scrolls up over farmland, a river town and an air base where a flying fortress waits.
  * 'overhead' maps world x/y to screen pixels; the 272 px world pans a little with the ship. z only orders the drawing:
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
  * PS1 LOOK: real alpha and additive light (px.blend), never dither; altitude shadows, one-point perspective buildings.
- * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs. TOUCH: a
- * thumb anywhere on the screen steers (input.steer = 'drag', input.drag()), the ship going 1.5x as far as the thumb (DRAG:
- * one swipe crosses the screen), and it fires by itself; BOMB is the button.
+ * HUD on top, radio calls in a see-through box at the bottom edge. KEYS: arrows or WASD fly, Space / Z / J fires (held:
+ * autofire; a tap: a burst), X / K bombs. A PAD: the stick or d-pad, ✕ or R2 fire, ○ or L2 bomb; it rumbles at a hit, a
+ * bomb and a boss's fall. A DUALSENSE (the dualsense module): the light bar blue in play, red while the ship is down, a
+ * flash for a bomb, blinking at the boss's warning (its siren from the controller's speaker); R2 buzzes like a vulcan,
+ * L2 clicks while there is a bomb (stage 2: a lit power) to take. TOUCH: a thumb anywhere on the screen steers
+ * (input.steer = 'drag', input.drag()), the ship going 1.5x as far as the thumb (DRAG: one swipe crosses the screen); with
+ * Touch assists on (input.assist) it fires by itself, with them off a FIRE button shows; BOMB shows while there is a bomb
+ * (stage 2: the button names the lit power, and shows while one is lit). The arcade frame's continue and table go on a tap
+ * or a flick (the stick off while they hold play).
  * ANY SCREEN: res [240, 320] with expand. The map is WW wide; a wider screen (landscape, a desktop) shows the valley going
  * on beyond it (2b) and the playfield is the whole screen (span()): the ship flies edge to edge and the waves spread to
  * match (air() maps their x). W x H are the screen's, read each step. game.go('shooter', { at: 30 }) starts at the boss.
  * STAGE 2 (11; #shooter/horizontal, and after the fortress): a horizontal stage (Gradius, R-Type) at [320, 240]: rock
  * above and below, capsules that light a power bar (the bomb key takes the lit power), options that follow the ship's
  * past path, a mid-boss looping an E.Path, the core battleship. THE ARCADE FRAME (10; the arcade module): the last ship
- * lost brings a continue; a score that makes the table brings initials on a letter wheel; then the table.
+ * lost brings a continue (confirm or a tap takes it, cancel or a flick lets it go); a score that makes the table brings
+ * initials on a letter wheel; then the table (confirm, a tap or a flick: the title).
  * ===================================================================================== */
 const SHOOT = (() => {
   const WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // world width (the playfield), stage length, scroll px/s, building perspective, stage card seconds
@@ -309,7 +316,23 @@ const SHOOT = (() => {
   }
 
   /* ---- 6. STATE, WAVES AND UNITS ---- */
-  let ship, foes, items, craters, fx, clouds, shots, scroll, t, wave, lives, bombs, score, power, boss, won, fireT, warnT;
+  let ship, foes, items, craters, fx, clouds, shots, scroll, t, wave, lives, bombs, score, power, boss, won, fireT, warnT, bombT = 0;
+  // THE CONTROLS' EXTRAS, both stages. The touch buttons as the moment needs them: FIRE only on a touch screen with Touch
+  // assists off (with them on it fires by itself), the bomb button only where it acts (label: its word, null its own);
+  // none while the arcade frame holds play
+  const buttons = (bombOn, label) => { const I = game.input; I.touchSet('fire', null, !ending && I.lastDevice === 'touch' && !I.assist); I.touchSet('bomb', label, !ending && bombOn); };
+  // the stage card's help: the keys or buttons ({key:fire}), on a touch screen the drag and the buttons it has (n: the stage)
+  const how = n => 'shooter.stage' + n + (!touch() ? '.keys' : game.input.assist ? '.touch' : '.touch_fire');
+  // a DualSense's extras (the dualsense module; nothing without one): the light bar says how the ship is, R2 buzzes like a
+  // vulcan while there is play, L2 clicks while there is a bomb (or a lit power) to take; sent when they change
+  let ds = null, dsKey = '';
+  const dsOn = () => { ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; dsKey = ''; };
+  const dsOff = () => { if (ds) ds.clear(); dsKey = ''; };
+  const pad5 = (light, take) => {
+    const k = (ending ? '' : light) + (take && !ending); if (!ds || k === dsKey) return; dsKey = k;
+    ds.light(ending ? '#3050ff' : light); ds.trigger('right', ending ? null : { pulse: [.1, 25, .35] }); ds.trigger('left', take && !ending ? { weapon: [.3, .6, .7] } : null);
+  };
+  const sfx = (name, o) => ds ? ds.speaker(name, o) : A.sfx(name, o);   // (from the controller's speaker where the player has it on)
   const STATS = { jet: [3, 9, 100, 1.1], jet2: [6, 10, 150, 1.3], heli: [16, 13, 300, 1.5], bomber: [80, 26, 2000, 2.4], tank: [10, 10, 500, 1.3], gun: [14, 10, 400, 1.3], parked: [4, 10, 200, 1.1] };   // hp, hit radius, points, blast
   const ART = { jet: [JET, 'jet', 1.15, 40], jet2: [JET2, 'jet2', 1.15, 40], heli: [HELI, 'heli', 1.3, 30, 12], bomber: [BOMBER, 'bomber', 1.5, 64, 18], parked: [JET, 'parked', 1.3] };   // parts, palette, scale, altitude (shadow offset), nose gun (v)
   const muzzle = f => frame(f.x, f.y, f.a, f.art[2])(0, f.art[4]), TELL = .4;   // heli, bomber guns glow TELL s before a volley
@@ -350,12 +373,12 @@ const SHOOT = (() => {
     if (!f.air) craters.push(crater0(f.x, f.y, f.kind === 'parked' ? 10 : 8, 5)); if (f.drop) items.push({ type: f.drop, x: f.x, y: f.y, t: 0, r: 8 });
   }
   function hitShip() {   // not while out or shielded: a hit-stop, a .4 s spin-out (see draw), then the blast
-    if (ship.respawn > 0 || ship.inv > 0) return; ship.respawn = 2; lives--; power = Math.max(1, power - 1); shots.clear('foe');
+    if (ship.respawn > 0 || ship.inv > 0) return; ship.respawn = 2; lives--; power = Math.max(1, power - 1); shots.clear('foe'); game.input.rumble(.8, .35);
     game.freeze(.06); game.after(.4, () => boom(ship.x, ship.y, 2, { air: true }));
     if (!talk.open) radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.hit'), { expr: 'wince' }, { upright: true });   // face-on, not bowed
   }
   function bomb() {   // a carpet of blasts sweeps up the screen and scorches it
-    bombs--; ship.inv = Math.max(ship.inv, 2); shots.clear('foe'); game.flash('#fff0d0', .4, .8); game.shake(5); A.sfx('boom');
+    bombs--; ship.inv = Math.max(ship.inv, 2); shots.clear('foe'); game.flash('#fff0d0', .4, .8); game.shake(5); A.sfx('boom'); game.input.rumble(1, .5); bombT = .4;
     for (let i = 0; i < 9; i++) game.after(i * .06, () => { const [a, b] = span(), x = E.rand(a + 24, b - 24), y = scroll + H - 50 - i * 30; boom(x, y, 1.5, { sound: i % 4 === 0, shake: 0, freeze: false }); if (i % 2) craters.push(crater0(x, y, 6, 2)); });
     for (const f of foes) if (f.seen) f.hp -= 40; if (boss && !boss.dying) for (const p of boss.parts) if (p.hp > 0) p.hp -= 30;
   }
@@ -380,7 +403,7 @@ const SHOOT = (() => {
       f.gone = true; boss = null; won = t; best('shooter', score); A.music('victory'); game.after(2.8, () => {   // a dip (anticipation), then the fists pump; zoomed out so they show
         const mood = { pose: 'crouch', expr: 'smile' }; radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.down'), mood, { zoom: 2.3, headY: .62 }); game.after(.2, () => mood.pose = 'cheer');
       }); game.after(7, () => game.go('shooter-horizontal', { score, lives }, { fade: 'white' }));   // the crash; on to stage 2
-      boom(f.x, f.y, 4); for (let i = 0; i < 8; i++) game.after(i * .06, () => boom(f.x + E.rand(-45, 45), f.y + E.rand(-40, 40), 2, { sound: false, shake: 0, freeze: false }));
+      boom(f.x, f.y, 4); game.input.rumble(1, .9); for (let i = 0; i < 8; i++) game.after(i * .06, () => boom(f.x + E.rand(-45, 45), f.y + E.rand(-40, 40), 2, { sound: false, shake: 0, freeze: false }));
       add({ k: 'ring', x: f.x, y: f.y, r: 170, life: 1 }); game.flash('#fff4e0', 1.1, 1); game.shake(8); craters.push(crater0(f.x, f.y, 24, 14), crater0(f.x - 34, f.y + 18, 10, 8)); return;
     }
     f.x = WW / 2 + Math.sin(f.t * .5) * 44; f.y += (f.y - scroll < 112 ? 40 : 0) * dt;
@@ -389,7 +412,7 @@ const SHOOT = (() => {
     if (core.hp < core.max * .6 && Math.random() < dt * 8) P.smoke(f.x + E.rand(-30, 30), f.y + E.rand(-40, 10), 14, 1, { size: 4 });
     for (const p of f.parts) if (p.hp <= 0 && !p.done) {
       p.done = true; pop(p.x, p.y, p.pts);
-      if (p.s) { game.shake(4); game.freeze(.06); for (let i = 0; i < 4; i++) game.after(i * .1, () => boom(p.x + E.rand(-10, 10), p.y + E.rand(-14, 14), 1.3, { air: true, shake: 0 })); } else { f.dying = 3.4; A.music(null); shots.clear('foe'); }
+      if (p.s) { game.shake(4); game.freeze(.06); game.input.rumble(.6, .25); for (let i = 0; i < 4; i++) game.after(i * .1, () => boom(p.x + E.rand(-10, 10), p.y + E.rand(-14, 14), 1.3, { air: true, shake: 0 })); } else { f.dying = 3.4; A.music(null); shots.clear('foe'); }
     }
     for (const o of [f, ...f.parts]) if (o.chg > 0 && (o.chg -= dt) <= 0 && !(o.hp <= 0) && ship.respawn <= 0) o.shot();   // a charge ran out: fire
     if (f.fire <= 0 && f.y - scroll > 60 && ship.respawn <= 0 && !talk.open) bossFire(f);   // no new attack under a radio call
@@ -398,7 +421,9 @@ const SHOOT = (() => {
 
   /* ---- 7. UPDATE ---- */
   function update(dt) {
-    W = game.W; H = game.H;
+    W = game.W; H = game.H; bombT -= dt;
+    buttons(bombs > 0, null);
+    pad5(ship.respawn > 0 ? '#ff3030' : warnT > 0 ? (Math.floor(warnT * 5) % 2 ? '#ff2020' : '#400000') : bombT > 0 ? '#ffe0a0' : '#3a6aff', bombs > 0);
     if (frameStep(dt)) return;   // (the arcade frame: the continue, the initials, the table)
     const over = Math.max(0, scroll + H - MAP_H);   // a window grown taller mid-stage: keep the map's foot on the screen's bottom
     if (over) { scroll -= over; for (const o of [ship, ...items, ...shots.list, ...foes.filter(f => f.air)]) o.y -= over; }
@@ -410,7 +435,7 @@ const SHOOT = (() => {
     talk.update(dt);   // radio chatter (not modal)
     while (wave < TIMELINE.length && t >= TIMELINE[wave][0]) TIMELINE[wave++][1]();
     // the fortress: a warning, and HQ's call (zoomed out and turned so the raised fist stays in frame; a low camera clears the brim)
-    if (scroll <= 0 && warnT === 0 && !won) { warnT = 3.4; A.music(null); radio(HQ, E.t('shooter.name.hq'), E.t('shooter.radio.fortress'), { point: true, aim: .6, expr: 'angry' }, { pitch: 4, zoom: 2, turn: .7 }); for (let i = 0; i < 4; i++) game.after(i * .75, () => A.sfx({ wave: 'square', freq: 'A5', to: 'D5', dur: .45, vol: .25 })); }
+    if (scroll <= 0 && warnT === 0 && !won) { warnT = 3.4; A.music(null); radio(HQ, E.t('shooter.name.hq'), E.t('shooter.radio.fortress'), { point: true, aim: .6, expr: 'angry' }, { pitch: 4, zoom: 2, turn: .7 }); for (let i = 0; i < 4; i++) game.after(i * .75, () => sfx({ wave: 'square', freq: 'A5', to: 'D5', dur: .45, vol: .25 })); }
     if (warnT > 0 && (warnT -= dt) <= 0) {   // the boss: a core and two gun pods
       boss = { kind: 'boss', x: WW / 2, y: scroll - 90, t: 0, flash: -1, fire: 2, n: 0, aim: D, kick: 0, trail: 1, air: true, scale: 1, spin: 0, dying: 0, parts: [-1, 1, 0].map(s => ({ s, hp: s ? 90 : 380, r: s ? 15 : 30, aim: D, kick: 0, pts: s ? 5000 : 50000 })) };
       boss.parts.forEach(p => Object.assign(p, { boss, x: boss.x, y: boss.y, max: p.hp })); foes.push(boss); A.music('boss');
@@ -420,7 +445,7 @@ const SHOOT = (() => {
       const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
       const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] * DRAG : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] * DRAG : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
       if (inp.pressed('fire')) ship.burst = .5;
-      if ((inp.down('fire') || touch() || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level; on a touch screen it fires by itself
+      if ((inp.down('fire') || inp.assist || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level; on a touch screen it fires by itself (Touch assists)
         fireT = .07; ship.gun = .035; A.sfx('shoot', { vol: .2 });
         for (const [dx, da] of [[-5, 0], [5, 0], [-10, -.08], [10, .08], [-13, -.2], [13, .2], [-4, -.34], [4, .34]].slice(0, power * 2)) shots.fire({ x: ship.x + dx, y: ship.y - 16, z: 20, vx: Math.sin(da) * 440, vy: -Math.cos(da) * 440, r: 3, life: .9, team: 'ship' });
       }
@@ -560,7 +585,7 @@ const SHOOT = (() => {
     }
     if (t < INTRO) {   // stage card above the radio call; nobody fires until it clears
       band(40, 62, '#080a1c'); E.font.title(g, E.t('shooter.stage1'), mid, 46, { align: 'center', scale: 3 });
-      txt(g, E.t('shooter.stage1.name'), mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, E.t(touch() ? 'shooter.stage1.touch' : 'shooter.stage1.keys'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys ({key:fire})
+      txt(g, E.t('shooter.stage1.name'), mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, E.t(how(1)), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys ({key:fire})
     }
     if (warnT > 0) {
       band(60, 62, '#2a0406');
@@ -571,13 +596,16 @@ const SHOOT = (() => {
   /* ---- 10. THE ARCADE FRAME (the arcade module): a continue when the last ship is lost, initials on a letter wheel for a
    * score that makes the table, the table, then the title. Both stages share it; the HUD stays the slice's own ---- */
   const cab = new E.Arcade(game, { id: 'shooter', hud: false });
-  let ending = null, endT = 0;   // null in play; 'cont', 'entry' or 'table' at the end
+  let ending = null, endT = 0, te = null;   // null in play; 'cont', 'entry' or 'table' at the end; te: the touch stick's state while the frame holds play
+  // while the frame holds play the touch stick is off (a drag steers from anywhere, so no flick would be a swipe): a flick
+  // lets the continue go and leaves the table; back on after
+  const held = on => { const I = game.input; if (on && te === null) { te = I.touchEnabled; I.touchEnabled = false; } else if (!on && te !== null) { I.touchEnabled = te; te = null; } };
   const endGame = s => { if (cab.qualifies(s)) { ending = 'entry'; cab.enter(s, '', () => { ending = 'table'; endT = 0; }); } else { ending = 'table'; endT = 0; } A.music(null); };
   const lost = (s, revive) => { best('shooter', s); ending = 'cont'; cab.continue(9, yes => { if (yes) { ending = null; revive(); } else endGame(s); }); };
   // a step of the frame: true while it holds play (the continue, the wheel, the table: a press or 8 s go to the title)
   function frameStep(dt) {
-    cab.update(dt); if (!ending) return false;
-    if (ending === 'table') { const I = game.input; endT += dt; if (endT > 8 || (endT > 1 && (I.pressed('confirm') || I.pressed('start') || I.clicked()))) game.go('title'); }
+    cab.update(dt); held(!!ending); if (!ending) return false;
+    if (ending === 'table') { const I = game.input; endT += dt; if (endT > 8 || (endT > 1 && (I.pressed('confirm') || I.pressed('start') || I.clicked() || I.swipe(true)))) game.go('title'); }
     return !!ending && !(ending === 'cont' && !cab.continuing && !cab.entry);
   }
   function frameDraw(r) {
@@ -636,8 +664,8 @@ const SHOOT = (() => {
     const powerOff = () => Object.assign(s, { speed: 0, missile: false, weapon: 'shot', options: 0, shield: 0, cursor: -1 });
     function hit() {   // the ship lost: every power with it (Gradius), back in from the left a moment later
       const p = s.ship; if (p.dead > 0 || p.inv > 0) return;
-      if (s.shield > 0) { s.shield--; p.inv = .25; A.sfx('bump'); P.sparks(p.x + 10, p.y, 14, 6); return; }
-      p.dead = 1.6; s.lives--; boom(p.x, p.y, 1.6, { air: true }); powerOff(); shots.clear('foe');
+      if (s.shield > 0) { s.shield--; p.inv = .25; A.sfx('bump'); P.sparks(p.x + 10, p.y, 14, 6); if (!s.bot) game.input.rumble(.3, .12); return; }
+      p.dead = 1.6; s.lives--; boom(p.x, p.y, 1.6, { air: true }); powerOff(); shots.clear('foe'); if (!s.bot) game.input.rumble(.8, .35);
     }
     function take() {   // the bomb key: the lit slot's power
       const k = BAR[s.cursor]; if (!k) return;
@@ -653,6 +681,8 @@ const SHOOT = (() => {
     }
     function update(dt) {
       w = game.W; h = game.H; Y0 = Math.round((h - BAND) / 2);
+      buttons(s.cursor >= 0, s.cursor >= 0 ? E.lang.upper(E.t('shooter.power.' + BAR[s.cursor].toLowerCase())) : E.t('shooter.touch.power'));   // (it names the power it takes)
+      pad5(s.ship.dead > 0 ? '#ff3030' : s.warn > 0 ? (Math.floor(s.warn * 5) % 2 ? '#ff2020' : '#400000') : '#3a6aff', s.cursor >= 0);
       if (frameStep(dt)) return;
       const I = game.input, p = s.ship, move = s.lock ? 0 : RATE * dt;
       s.t += dt; s.x += move; talk.update(dt);
@@ -669,7 +699,7 @@ const SHOOT = (() => {
         p.inv -= dt; p.gun -= dt; p.bank = approach(p.bank, mv[1], 5 * dt);
         p.x = clamp(p.x + (d ? d[0] * DRAG : mv[0] * sp * dt), s.x + 12, s.x + w - 24); p.y = clamp(p.y + (d ? d[1] * DRAG : mv[1] * sp * dt), 8, BAND - 8);
         if (Math.hypot(mv[0], mv[1]) > .1 || move) trail.unshift([p.x, p.y]), trail.pop();   // the options follow where the ship has been
-        if ((p.cool -= dt) <= 0 && (s.bot || I.down('fire') || touch())) { p.cool = s.weapon === 'laser' ? .16 : .1; p.gun = .035; A.sfx('shoot', { vol: .18 }); fire(p.x, p.y); for (let i = 0; i < s.options; i++) fire(...optAt(i)); }
+        if ((p.cool -= dt) <= 0 && (s.bot || I.down('fire') || I.assist)) { p.cool = s.weapon === 'laser' ? .16 : .1; p.gun = .035; A.sfx('shoot', { vol: .18 }); fire(p.x, p.y); for (let i = 0; i < s.options; i++) fire(...optAt(i)); }
         if (s.missile && (s.mcool -= dt) <= 0) { s.mcool = .7; for (const [x, y] of [[p.x, p.y], ...Array.from({ length: s.options }, (_, i) => optAt(i))]) mis.push({ x, y: y + 4, vx: 110, vy: 110 }); }
         if (s.bot ? botTake() : I.pressed('bomb')) take();
         if (rock(p.x, p.y) || rock(p.x + 8, p.y, 2)) hit();
@@ -717,7 +747,7 @@ const SHOOT = (() => {
         boom(f.x, f.y, f.kind === 'core' ? 4 : f.kind === 'mid' ? 3 : f.kind === 'carrier' ? 2 : .9, { air: f.air });
         if (f.cap || (f.group && --f.group.left === 0)) caps.push({ x: f.x, y: f.y, t: 0 });
         if (f.kind === 'mid') { s.lock = false; A.music(CAVERN); caps.push({ x: f.x - 10, y: f.y - 10, t: 0 }, { x: f.x + 10, y: f.y + 10, t: 0 }); }
-        if (f.kind === 'core') { s.won = s.t; shots.clear('foe'); A.music('victory'); for (let i = 0; i < 8; i++) game.after(i * .12, () => boom(f.x + E.rand(-50, 50), f.y + E.rand(-40, 40), 2, { air: true, sound: i % 3 === 0, shake: 0, freeze: false })); game.flash('#fff4e0', 1, 1); game.after(2.5, () => radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.core'), { pose: 'cheer', expr: 'smile' })); game.after(6, () => endGame(s.score)); }
+        if (f.kind === 'core') { s.won = s.t; shots.clear('foe'); A.music('victory'); if (!s.bot) game.input.rumble(1, .8); for (let i = 0; i < 8; i++) game.after(i * .12, () => boom(f.x + E.rand(-50, 50), f.y + E.rand(-40, 40), 2, { air: true, sound: i % 3 === 0, shake: 0, freeze: false })); game.flash('#fff4e0', 1, 1); game.after(2.5, () => radio(PILOT, E.t('shooter.name.eagle'), E.t('shooter.radio.core'), { pose: 'cheer', expr: 'smile' })); game.after(6, () => endGame(s.score)); }
       }
       for (const f of foes) if (f.group && f.gone && f.hp > 0 && f.group.left > 0) f.group.left = -1;   // one got away: no capsule for that six
       if (p.dead <= 0) shots.hit([p], hit, 'foe');
@@ -803,17 +833,18 @@ const SHOOT = (() => {
       BAR.forEach((k, i) => {   // the lit slot blinks; a power you hold is drawn dim
         const lit = i === s.cursor, had = (k === 'SPEED' && s.speed >= 4) || (k === 'MISSILE' && s.missile) || (k === 'DOUBLE' && s.weapon === 'double') || (k === 'LASER' && s.weapon === 'laser') || (k === 'OPTION' && s.options >= 4) || (k === 'SHIELD' && s.shield > 0);
         E.ui.box(g, bx + i * bw, by, bw - 2, 12, { bg: lit ? (game.real * 6 % 2 < 1 ? ['#ff8a30', '#a03a10'] : ['#ffd040', '#c86a10']) : BLUE, border: GOLD, alpha: lit ? 1 : .8 });
-        txt(g, E.t('shooter.power.' + k.toLowerCase()), bx + i * bw + bw / 2 - 1, by + 4, lit ? '#1a0a00' : had ? '#7a84b0' : '#ffffff', { align: 'center', font: 'tiny', shadow: lit ? false : '#05060c' });
+        const word = E.t('shooter.power.' + k.toLowerCase()), font = E.font.width(word) <= bw - 6 ? 'normal' : 'tiny';   // (the normal font where the slot is wide enough: a TV, landscape)
+        txt(g, word, bx + i * bw + bw / 2 - 1, by + (font === 'tiny' ? 4 : 3), lit ? '#1a0a00' : had ? '#7a84b0' : '#ffffff', { align: 'center', font, shadow: lit ? false : '#05060c' });
       });
       const f = foes.find(o => o.kind === 'core' || o.kind === 'mid');
       if (f) { const o = Math.round(mid0) - 120, k = f.hp / f.max; win(o + 44, 30, 152, 13, RED); txt(g, E.t(f.kind === 'mid' ? 'shooter.hud.cruiser' : 'shooter.hud.core'), o + 48, 33, '#ff9a8a'); E.ui.bar(g, o + 96, 34, 96, 6, k, '#e8404a', { border: '#140b12', bg: '#2a0a12' }); }
-      if (s.t < INTRO) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 50, W2, 62, '#080a1c')); E.font.title(g, E.t('shooter.stage2'), mid0, 56, { align: 'center', scale: 3 }); txt(g, E.t('shooter.stage2.name'), mid0, 84, '#fff', { align: 'center', gradient: ['#ffffff', '#b8e8ff'] }); txt(g, E.t(touch() ? 'shooter.stage2.touch' : 'shooter.stage2.keys'), mid0, 97, '#c8d0f0', { align: 'center' }); }
+      if (s.t < INTRO) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 50, W2, 62, '#080a1c')); E.font.title(g, E.t('shooter.stage2'), mid0, 56, { align: 'center', scale: 3 }); txt(g, E.t('shooter.stage2.name'), mid0, 84, '#fff', { align: 'center', gradient: ['#ffffff', '#b8e8ff'] }); txt(g, E.t(how(2)), mid0, 97, '#c8d0f0', { align: 'center' }); }
       if (s.warn > 0) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 70, W2, 50, '#2a0406')); E.font.title(g, E.t('shooter.warning'), mid0, 80, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(s.warn * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); }
       if (s.won && s.t - s.won > 2 && !ending) { win(Math.round(mid0) - 108, 64, 216, 52, BLUE); E.font.title(g, E.t('shooter.clear'), mid0, 70, { align: 'center', scale: 3 }); txt(g, E.t('shooter.clear.score', { score: pad(s.score) }), mid0, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
     }
     const scene = { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [320, 240], expand: true, pausable: true, touch: ['fire', 'bomb'], propSize: 1, camera: { zoom: false },
-      enter(d) { begin(d); w = game.W; h = game.H; game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music(CAVERN); L.enabled = false; if (gpu) gpu.enabled = false; game.input.touchSet('fire', null, false); game.input.touchSet('bomb', E.t('shooter.touch.power')); game.input.steer = 'drag'; },
-      exit() { game.cam.smooth = .18; game.input.steer = 'stick'; game.input.touchSet('bomb', null); }, update, draw,
+      enter(d) { begin(d); w = game.W; h = game.H; game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music(CAVERN); L.enabled = false; if (gpu) gpu.enabled = false; dsOn(); game.input.steer = 'drag'; },
+      exit() { game.cam.smooth = .18; held(false); dsOff(); game.input.steer = 'stick'; game.input.touchSet('bomb', null); game.input.touchSet('fire', null); }, update, draw,
       state: () => ({ x: Math.round(s.x), ship: [Math.round(s.ship.x - s.x), Math.round(s.ship.y)], score: s.score, lives: s.lives, power: [s.speed, s.missile, s.weapon, s.options, s.shield, s.cursor], boss: !!foes.find(f => f.kind === 'core'), won: !!s.won, ending, table: cab.table() }),
       end(score) { s.score = score; s.lives = -1; s.ship.dead = 1e9; ending = 'cont'; endGame(score); },   // for tests: the end, now
       wheel: () => cab.entry && cab.wheel,   // for tests: where the letter wheel is (its taps)
@@ -838,9 +869,9 @@ const SHOOT = (() => {
     enter(d) {   // the camera is shared: set it here, restore on exit
       if (d && d.part === 'horizontal') { game.go('shooter-horizontal', null, { fade: 0 }); return; }   // #shooter/horizontal
       W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
-      game.input.touchSet('fire', null, false); game.input.steer = 'drag';   // a touch screen fires by itself (no button for it), a thumb anywhere steers
+      dsOn(); game.input.steer = 'drag';   // a thumb anywhere steers (buttons(): FIRE only with Touch assists off)
     },
-    exit() { game.cam.smooth = .18; game.input.steer = 'stick'; }, update, draw,
+    exit() { game.cam.smooth = .18; held(false); dsOff(); game.input.steer = 'stick'; game.input.touchSet('fire', null); }, update, draw,
     state: () => ({ ship, span: span(), score }),   // for tests (span: the playfield's left and right ends)
     /** the proof: firing all the way over the farmland, weaving, one bomb; then the horizontal stage's; a hash of each run */
     run: (n = 600) => proof('shooter', n, (i, k) => { if (!i) k.hold('fire'); walk(i, k, ['left', 'up', 'right', 'down'], 75); if (i === 300) k.tap('bomb'); },

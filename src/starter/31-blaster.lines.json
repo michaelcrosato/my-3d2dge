@@ -24,7 +24,15 @@
   "blaster.stage.zone": "STAGE 4: THE ZONE",
   "blaster.stage.speeder": "STAGE 5: THE DUNES",
   "blaster.crawlers": "CRAWLERS {n}",
-  "blaster.stage.blade": "STAGE 6: THE CITY"
+  "blaster.stage.blade": "STAGE 6: THE CITY",
+  "blaster.touch.missile": "MISSILE {n}",
+  "blaster.how.fly": "{key:move} FLY   {key:fire} FIRE",
+  "blaster.how.burner": "{key:fire} FIRE   {key:missile} MISSILES   {key:roll} ROLL",
+  "blaster.how.safari": "{key:move} AIM   {key:fire} SHOOT",
+  "blaster.how.safari_mouse": "AIM WITH THE MOUSE   {key:fire} SHOOT",
+  "blaster.how.auto": "{key:move} TO FLY, AUTO-FIRE",
+  "blaster.how.button": "{key:move} TO FLY, {key:fire} SHOOTS",
+  "blaster.how.tap": "TAP TO SHOOT"
  },
  "notes": {
   "blaster.title": "The shooter's title, on its menu: one who blasts.",
@@ -43,6 +51,17 @@
   "blaster.stage.zone": "Stage 4's name: a craft along a winding course over a grid of light. Also a menu entry that plays it alone.",
   "blaster.stage.speeder": "Stage 5's name: a speeder free over the desert's dunes. Also a menu entry.",
   "blaster.crawlers": "How many of the big tracked crawlers (the stage's targets) are left, {n}.",
-  "blaster.stage.blade": "Stage 6's name: an attack helicopter over a city's streets, then low up its avenue between the tall buildings. Also a menu entry that plays it alone."
+  "blaster.stage.blade": "Stage 6's name: an attack helicopter over a city's streets, then low up its avenue between the tall buildings. Also a menu entry that plays it alone.",
+  "blaster.touch.missile": "The missile touch button while targets are locked: {n} of them (1 to 4). One short word in capitals and the number.",
+  "blaster.how.fly": "A stage card's help under its name: {key:move} is the move keys or stick (WASD, L stick), {key:fire} the fire key or button (Space, ✕).",
+  "blaster.how.burner": "The jet's stage card: {key:fire} fires the cannon, {key:missile} the missiles at what the reticle has locked, {key:roll} a barrel roll (each the player's key or button).",
+  "blaster.how.safari": "The valley's stage card: {key:move} moves the aiming cursor, {key:fire} shoots where it is.",
+  "blaster.how.safari_mouse": "The valley's stage card for a mouse player: the cursor follows the mouse, {key:fire} (the left click) shoots.",
+  "blaster.how.auto": "A stage card on a touch screen with Touch assists on: {key:move} is the touch stick (STICK); the gun fires by itself.",
+  "blaster.how.button": "A stage card on a touch screen with Touch assists off: {key:move} is the touch stick, {key:fire} the FIRE button's word.",
+  "blaster.how.tap": "The valley's stage card on a touch screen: a tap shoots where it lands."
+ },
+ "max": {
+  "blaster.touch.missile": 10
  }
 }
