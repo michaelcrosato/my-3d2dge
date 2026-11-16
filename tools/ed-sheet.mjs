@@ -108,7 +108,7 @@ const res = await page.evaluate(([id, SC]) => {
     for (const [s0, secs] of seq) for (let i = 0; i < Math.round(secs * 60); i++) {
       rig.update(DT, Object.assign({ facing: .6 }, base, s0));
       const J = rig.J, P = {};
-      for (const k in J) if (k !== 'bladeDir' && J[k]) P[k] = rig._w(J[k]);   // relative to the body: moving the whole body is not a pop
+      for (const k in J) if (k !== 'bladeDir' && J[k]) P[k] = rig.worldOffset(J[k]);   // relative to the body: moving the whole body is not a pop
       if (prev) for (const k in P) if (prev[k]) {
         const d = Math.hypot(P[k][0] - prev[k][0], P[k][1] - prev[k][1], P[k][2] - prev[k][2]) / size;
         if (d > topSpeed) { topSpeed = d; topAt = name + ' (' + k + ')'; }
