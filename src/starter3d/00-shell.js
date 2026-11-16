@@ -35,6 +35,9 @@ const SLICES = [
 // a prompt in the player's own controls ('J Sword', '□ Sword' on a pad, 'ATTACK Sword' on a touch screen); word is a
 // line (E.t), and the two are a line too (starter3d.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';   // (a touch-only device starts on touch: the engine's lastDevice)
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge (the race's lap and time end left of it)
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 // START picks too (the touch START; Enter), and a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu

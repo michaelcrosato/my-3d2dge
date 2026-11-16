@@ -34,8 +34,6 @@ const RACING = (() => {
   const dsSet = (light, right, left) => { const k = light + JSON.stringify([right, left]); if (k === dsWas) return; dsWas = k; ds.light(light); ds.trigger('right', right); ds.trigger('left', left); };
   const dsOff = () => { if (ds && dsWas !== 'off') { dsWas = 'off'; ds.clear(); } };
   const PULL = { resist: [.05, .25] }, BRAKE = { resist: [.15, .7] }, THRUST = { pulse: [.05, 40, .5] }, ROUGH = { pulse: [.05, 30, .25] }, CHARGE = { pulse: [.1, 30, .3] };   // (the throttle's spring, a firm brake, a boost's thrust, the grass, a drift charging)
-  // the corner's menu button where it stays in play (a touch screen): the race's lap and time end left of it
-  const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 
   /* ---- THE CIRCUIT: its racing line (the start at its first point, heading east along the bottom straight), heights in
    * it (the hill on the east side, the jump on the north straight); the shortcut across the infield's hairpin ---- */

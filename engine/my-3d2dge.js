@@ -1005,8 +1005,9 @@ class Input {
   /**
    * On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide
    * them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack:
-   * 'B' }, force, layout, slide }). layout: 'row' (the default), 'diamond' (up to four, as a pad's face: the actions in
-   * the order bottom, right, left, top), 'grid' (two columns), 'arc' (the first big in the corner, the rest round it);
+   * 'B' }, force, layout, slide }). layout: 'row' (the default; a row too long for the screen wraps upward), 'diamond'
+   * (up to four, as a pad's face: the actions in the order bottom, right, left, top), 'grid' (two columns), 'arc' (the
+   * first big in the corner, the rest round it, the circle widened so they never overlap);
    * slide: true lets a finger slide from button to button (a fighter's punch to kick) instead of holding the first. The other half of the screen is a move stick (past halfway it presses up, down, left and right too,
    * as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a
    * pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
@@ -1062,12 +1063,12 @@ class Input {
     box.dataset.sys = 'touch';
     if (!document.getElementById('e3-touch-css')) { const st = document.createElement('style'); st.id = 'e3-touch-css'; st.textContent = '[data-sys=touch] button.on{background:rgba(255,255,255,.34)!important;border-color:#fff!important;transform:scale(.93)}[data-sys=touch] button{transition:transform .06s}'; document.head.appendChild(st); }   // (a press shows under the finger)
     const lay = actions.length > 4 && o.layout === 'diamond' ? 'grid' : o.layout || 'row', at = {};   // (each button's middle and size, for a layout of its own)
-    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (lay === 'row' ? ';display:flex;gap:10px' + (left ? ';flex-direction:row-reverse' : '') : '');
+    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (lay === 'row' ? ';display:flex;gap:10px;flex-wrap:wrap-reverse;justify-content:flex-end;max-width:calc(100vw - 28px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))' + (left ? ';flex-direction:row-reverse' : '') : '');
     if (lay !== 'row') {
       const g = 8, n = actions.length;
       if (lay === 'diamond') { const pos = [[1, 2], [2, 1], [0, 1], [1, 0]]; actions.forEach((a, i) => { at[a] = [pos[i][0] * (size * .82), pos[i][1] * (size * .82), size]; }); }   // (bottom, right, left, top)
       else if (lay === 'grid') actions.forEach((a, i) => { at[a] = [(i % 2) * (size + g), Math.floor(i / 2) * (size + g), size]; });
-      else { const big = Math.round(size * 1.3), R = big / 2 + size / 2 + g; at[actions[0]] = [0, 0, big]; actions.slice(1).forEach((a, k) => { const t = Math.PI * (1 + .5 * (n > 2 ? k / (n - 2) : .5)); at[a] = [R * Math.cos(t), R * Math.sin(t), size]; }); }   // arc: round the big one, from its left to above it
+      else { const big = Math.round(size * 1.3), R = Math.max(big / 2 + size / 2 + g, n > 2 ? (n - 2) * (size + g) / (Math.PI / 2) : 0); at[actions[0]] = [0, 0, big]; actions.slice(1).forEach((a, k) => { const t = Math.PI * (1 + .5 * (n > 2 ? k / (n - 2) : .5)); at[a] = [R * Math.cos(t), R * Math.sin(t), size]; }); }   // arc: round the big one, from its left to above it
       const xs = actions.map(a => at[a][0] - at[a][2] / 2), ys = actions.map(a => at[a][1] - at[a][2] / 2), x0 = Math.min(...xs), y0 = Math.min(...ys);
       const W = Math.max(...actions.map(a => at[a][0] + at[a][2] / 2)) - x0, H = Math.max(...actions.map(a => at[a][1] + at[a][2] / 2)) - y0;
       box.style.width = Math.ceil(W) + 'px'; box.style.height = Math.ceil(H) + 'px';
