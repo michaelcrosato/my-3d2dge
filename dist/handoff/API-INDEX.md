@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.106.0)
+# my-3D2dge API index (v0.106.1)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -118,7 +118,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.106.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.106.1"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1229,7 +1229,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.Shell({ settings })`: settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max, step, options, value } (kept in game.settings, beside the standard ones)
 - `new E.Shell({ store, meters })`: store: where an older version saved them; meters: meters per world unit for distances
 - `new E.Shell({ standard })`: false leaves out the standard menu (the pause screen's Settings, Controls, Full screen and Quit, and the settings' groups)
-- `shell.back()` †: what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes)
+- `shell.back()` †: what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes). Called from inside the screen's own back(), it closes the screen: back: () => { tidy(); shell.back(); }
 - `shell.dispose()` †: take its elements away and let go of the game (game.dispose() does it)
 - `shell.hide()` †: close every screen (and resume, when the menu paused the game)
 - `shell.hud(st = {})` †: the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn)
@@ -1241,7 +1241,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `shell.hud({ minimap })` †: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick(x, y) (the world point clicked), fog (an E.Fog: unseen cells black, seen ones dim), camera: true (the ground the screen shows) }
 - `shell.screen` †: the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays
 - `shell.settings` †: the player's settings: game.settings (the standard ones and the game's own, by key)
-- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel), rows: ['glyphs', 'invertY', '#A heading'] (settings' rows, changed as on the settings screen) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old). 'settings' takes its items
+- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel; shell.back() in it closes the screen), rows: ['glyphs', 'invertY', '#A heading'] (settings' rows, changed as on the settings screen) }. From another screen it stacks (back() returns); shown again, it updates in place (the new spec over the old; the focus stays). 'settings' takes its items
 - `shell.show('title')` †: { name, subtitle, meta: [...], footer }
 - `shell.show('help')` †: { keys: [[key, what]], sections: [[heading, text]] }
 - `shell.show('results')` †: { emblem, stats: [[value, label]], medals: [[label, earned]] }
