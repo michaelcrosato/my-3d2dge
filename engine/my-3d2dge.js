@@ -1964,7 +1964,7 @@ Object.assign(ENGINE_LINES, {
   'engine.calibrate.how': 'Tap on each click you hear, in time with it, not before ({taps} of 8). The higher click starts each bar.',
   'engine.calibrate.done': 'Your sound comes {ms} ms after the beat. Keep it, or tap on to measure again.', 'engine.calibrate.tap': 'Tap',
   'engine.note.fullscreen_blocked': 'Full screen not allowed here', 'engine.note.pad_lost': 'Controller disconnected', 'engine.note.pad_lost_text': 'Press a button on a controller to use it, or play on.',
-  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.stick': 'Stick', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
+  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.stick': 'Stick', 'engine.join.prompt': 'Press {pad} on a controller, or {key} on the keyboard', 'engine.join.prompt_pad': 'Press {pad} on a controller', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
   // save slots (game.saves)
   'engine.saves.auto': 'Autosave', 'engine.saves.slot': 'Slot {n}', 'engine.saves.empty': 'Empty', 'engine.saves.damaged': 'Damaged: it cannot be read',
   'engine.saves.newer': 'From a newer version of the game', 'engine.saves.level': 'Level {level}', 'engine.saves.save': 'Save', 'engine.saves.load': 'Load',
@@ -4301,6 +4301,13 @@ Game.prototype.allowJoin = function (o = {}) {
   this._join = { max: clamp(o.max || 2, 2, 4), onJoin: o.onJoin || null, keys: o.keys !== false };
   this._lobby = this._join.keys && this.screen.canvas ? new Input(_pStub(this), { join: ['Digit2'] }) : null;   // (listens for 2 while player 1 has the whole keyboard)
   _pClaim(this); return this;
+};
+/** how a player joins, in the player's own words and symbols: 'Press Options on a controller, or 2 on the keyboard'
+ *  (Menu with Xbox symbols; only the controller where allowJoin's keys are off). A join screen's line, with no START or
+ *  2 written into it */
+Game.prototype.joinPrompt = function () {
+  const I = this.input, pad = I.codeLabel('Pad9'), keys = !this._join || this._join.keys;
+  return keys ? ENG('join.prompt', { pad, key: I.codeLabel('Digit2') }) : ENG('join.prompt_pad', { pad });
 };
 /** a player in now: { pad: index } (a gamepad) or { keys: 'right' } (the keyboard's right half; player 1 takes the
  *  left). Returns its input (null when four play already) */

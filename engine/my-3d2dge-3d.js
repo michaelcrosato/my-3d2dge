@@ -1994,7 +1994,8 @@ class Vehicle extends Actor {
    *  drift: actions). E.Race calls it as it does an E.Car's (map: not read). Sets the velocity world.step gives Rapier */
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
-    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
+    const pull = a => typeof c.value === 'function' ? c.value(a) : c.down(a) ? 1 : 0;   // (an input's travel: R2 and L2 halfway, half the gas; a key, all of it)
+    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? Math.max(o.auto ? 1 : 0, pull('gas')) : c.gas || 0, brake = inp ? pull('brake') : c.brake || 0, hold = !inp && !!c.hold;
     const dr = inp && (!c.map || c.map.drift), drift = inp ? !!dr && c.down('drift') : !!c.drift, hop = inp ? !!dr && c.pressed('drift') : drift && !this._held; this._held = drift;   // (an input with no drift action: none, and no warning)
     const S = o.surfaces[this.surface] || {}, air = !this.onGround;
     if (S.boost && !air) this.boost(S.boost);

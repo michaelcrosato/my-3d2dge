@@ -15,7 +15,8 @@ a game plays the same without them (docs/CONTROLS.md).
   ds.player(0..3): the player lights (-1 off).
 - ds.trigger('left' | 'right', effect): null (free), { resist: [start, force] } (a firm pull from start: a brake, a
   bowstring), { weapon: [start, end, force] } (a click between start and end: a gun's break), { pulse: [start, hz,
-  force] } (a buzz from start: an engine, a machine gun); numbers 0..1, hz 1..255. Set it when it changes, not each step.
+  force] } (a buzz from start: an engine, a machine gun); numbers 0..1, hz 1..255. Set it when it changes, not each step;
+  under a pause the triggers are free by themselves.
 - ds.gyroAim(dt) -> [dx, dy]: screen pixels to add to an aim cursor or a camera this step, from the controller's turn and
   tilt ([0, 0] with gyro aim off or no DualSense). ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() ->
   'left' | 'right' | 'up' | 'down' in the step after a flick on the touchpad, else null.
@@ -159,6 +160,7 @@ class DualSense {
   // each step: the gyro's rate less its drift (learned while the controller lies still), a touchpad flick, the mic's level
   _tick(dt) {
     this._flicked = null;
+    if (this.game.paused !== this._paused) { this._paused = this.game.paused; this._push(); }   // (the triggers freed under a pause, back after it)
     if (this.connected) {
       const d = this._raw.map((r, i) => r - this._bias[i]), calm = d.every(x => Math.abs(x) < 300);
       this._still = calm ? this._still + dt : 0; if (this._still > .8) for (let i = 0; i < 3; i++) this._bias[i] += (this._raw[i] - this._bias[i]) * .05;
@@ -174,7 +176,8 @@ class DualSense {
   _push() {
     if (!this._dev || !this._dev.opened) return;
     const S = this.game.settings, c = new Uint8Array(47), w = this._want;
-    if (this._o.triggers) { const on = S.padTriggers !== false; c[0] |= 0x0c; c.set(effect(on && w.right), 10); c.set(effect(on && w.left), 21); }
+    // the triggers' effects (free under a pause: a menu doesn't push back), the light bar, the player lights
+    if (this._o.triggers) { const on = S.padTriggers !== false && !this.game.paused; c[0] |= 0x0c; c.set(effect(on && w.right), 10); c.set(effect(on && w.left), 21); }
     if (w.light && S.padLight !== false) { c[1] |= 0x04; c[44] = parseInt(w.light.slice(1, 3), 16); c[45] = parseInt(w.light.slice(3, 5), 16); c[46] = parseInt(w.light.slice(5, 7), 16); }
     if (w.player !== null) { c[1] |= 0x10; c[43] = w.player >= 0 ? LEDS[w.player % 4] : 0; }
     const key = c.join(); if (key === this._sent) return;
