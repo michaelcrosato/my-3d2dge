@@ -335,7 +335,7 @@ const SKY = (() => {
    *  that way) and turns it; the fuel runs down (faster on GAS), and when it's gone it falls; down again on the ground
    *  (once up), the landing judged by the pad and how hard */
   function belt(P, dt, k) {
-    if (P.down) { P.v *= .9; return; }
+    if (P.down) { P.v *= .9; P.roll *= .9; return; }   // (down: it stops, and stands up straight)
     const idle = P.z <= 0 && !k.gas, lift = P.fuel <= 0 ? -1.3 : k.gas ? 1 : k.brake ? -1 : -.3; P.thrust = !idle && lift > -.5 ? 1 : 0;   // (on the ground it stands, its jets off, till GAS)
     if (!idle) P.fuel = Math.max(0, P.fuel - (1 + (k.gas ? 2 : 0)) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
     P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += ((P.z > 0 ? -clamp(k.y, -1, 1) * 120 : 0) - P.v) * Math.min(1, dt * (P.z > 0 ? 1.1 : 6)); P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;   // (the lean flies it only off the ground)

@@ -224,7 +224,7 @@ if (opt('baseline')) {
 // a // comment put at the end of a line in the middle of it leaves what follows commented out: the code never runs, and
 // nothing else notices (it happened four times in the Mode 7 kits, v0.102.0 and v0.103.0)
 {
-  const CODE = /\)\s+[A-Za-z_$][\w$.\[\]]*\s*(\+?=|\(|\.\w+\()[^;]*;\s*$/;
+  const CODE = /\)\s+(?:(?:if|for|while|return|const|let|var|new)\b|[A-Za-z_$][\w$.\[\]]*\s*(?:(?:[-+*/%&|^]|\*\*|<<|>>>?|&&|\|\||\?\?)?=(?!=)|\+\+|--|\(|\.\w+\()).*[;}]\s*$/;   // (after the comment's closing parenthesis: a statement, to the line's end)
   let n = 0, seen = 0;
   const walk = d => { for (const e of readdirSync(join(root, d), { withFileTypes: true })) { const f = d + '/' + e.name; if (e.isDirectory()) walk(f); else if (f.endsWith('.js')) {
     seen++; read(f).split('\n').forEach((l, i) => { const t = l.trim(), c = l.indexOf('//'); if (c < 0 || t.startsWith('//') || t.startsWith('*') || /https?:/.test(l)) return;

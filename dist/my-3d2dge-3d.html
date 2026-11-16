@@ -4299,7 +4299,7 @@ const SHOOT = (() => {
     const amp = (walking ? clamp(sp / RUN, 0, 1) : 0) * (1 - S.adsB * .85) * (1 + vm.spr * .6), s1 = Math.sin(vm.ph * TAU), c1 = Math.cos(vm.ph * TAU), br = Math.sin(drawT * 1.6) * (1 - S.adsB * .8);
     // the stance: hip to sights, then the sprint's low ready, crouch, slide, traversal (gun away)
     let o = mixv(V.hip, V.ads, ease(S.adsB)), pit = .02 * (1 - S.adsB), yw = -.035 * (1 - S.adsB), rl = 0;
-    o = add(o, [-Math.min(2.4, vm.kick.x * 1.8), vm.sx.x * .7 + s1 * .42 * amp, vm.sy.x * .5 - Math.abs(c1) * .5 * amp + br * .07 - vm.dip.x * .09 - clamp(h.vz * .012, -1.8, 1.8) * (S.move === 'air' ? 1 : 0)]);
+    o = add(o, [-Math.min(2.4, vm.kick.x * 1.8), vm.sx.x * .7 + s1 * .42 * amp, vm.sy.x * .5 - Math.abs(c1) * .5 * amp + br * .07 + vm.dip.x * .09 - clamp(h.vz * .012, -1.8, 1.8) * (S.move === 'air' ? 1 : 0)]);
     pit += vm.kp.x * .12 - (S.move === 'air' ? clamp(h.vz * .0003, -.04, .04) : 0) - vm.sy.x * .02 + Math.cos(vm.ph * TAU * 2) * .012 * amp + br * .004; yw += vm.sx.x * .025; rl += vm.kr.x * .08 + vm.sx.x * .05 + s1 * .03 * amp;
     o = mixv(o, add([7.6, 3.2, -3.9], [0, s1 * .8, -Math.abs(c1) * .9]), vm.spr); pit -= (.2 + c1 * .03) * vm.spr; yw -= (.72 + s1 * .04) * vm.spr; rl -= (.78 + s1 * .06) * vm.spr;   // (the sprint: canted across the body, muzzle down and left, swinging with the stride)
     o = add(o, [-.8 * vm.cr - .2 * vm.sl, -.4 * vm.cr + .6 * vm.sl, -.7 * vm.cr - 1.1 * vm.sl - 14 * vm.trav]); rl += .34 * vm.cr - .5 * vm.sl + .5 * vm.trav; yw -= .1 * vm.sl; pit += .06 * vm.cr + .12 * vm.sl - .9 * vm.trav;   // (crouched: low and central; a slide: down and out to the right, canted the camera's way)   // (crouched: a little lower and closer; a slide: canted hard, the muzzle up, kept in view)

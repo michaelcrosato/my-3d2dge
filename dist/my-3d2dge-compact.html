@@ -14489,7 +14489,7 @@ const SKY = (() => {
    *  that way) and turns it; the fuel runs down (faster on GAS), and when it's gone it falls; down again on the ground
    *  (once up), the landing judged by the pad and how hard */
   function belt(P, dt, k) {
-    if (P.down) { P.v *= .9; return; }
+    if (P.down) { P.v *= .9; P.roll *= .9; return; }   // (down: it stops, and stands up straight)
     const idle = P.z <= 0 && !k.gas, lift = P.fuel <= 0 ? -1.3 : k.gas ? 1 : k.brake ? -1 : -.3; P.thrust = !idle && lift > -.5 ? 1 : 0;   // (on the ground it stands, its jets off, till GAS)
     if (!idle) P.fuel = Math.max(0, P.fuel - (1 + (k.gas ? 2 : 0)) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
     P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += ((P.z > 0 ? -clamp(k.y, -1, 1) * 120 : 0) - P.v) * Math.min(1, dt * (P.z > 0 ? 1.1 : 6)); P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;   // (the lean flies it only off the ground)
@@ -15190,7 +15190,8 @@ const ROAD = (() => {
         if (v.fall > 0) { v.fall -= dt; v.speed = Math.max(0, v.speed - 4200 * dt); v.z += v.speed * dt; if (v.fall <= 0) { v.hp = 3; v.speed = 2400; } continue; }   // (down: it tumbles to a stop, then gets back on)
         const gap = v.z - P.z, want = TOP * v.pace * (gap > 8000 ? .92 : gap < -8000 ? 1.08 : 1) * (P.circuit ? 1 - Math.abs(road.curveAt(v.z)) * .02 : 1), c = road.centers(v.z)[0];   // (a car eases off in a bend)
         v.speed += clamp(want - v.speed, -1600 * dt, 1500 * dt); v.z += v.speed * dt;
-        const block = (P.circuit ? (DUO || [P]).map(Q => ({ z: Q.z, lane: Q.x - c })) : L.traffic).find(o => o.z > v.z && o.z - v.z < 2600 && Math.abs(c + o.lane - v.x) < .45); if (block) v.goal = c + (o => o > 0 ? -2 / 3 : o < 0 ? 2 / 3 : (v.k & 1 ? 2 / 3 : -2 / 3))(block.lane);   // (on the circuit: a player ahead in its line)
+        const ahead = P.circuit ? (DUO || [P]).map(Q => ({ z: Q.z, lane: Q.x - c })) : L.traffic, blocked = x => ahead.some(o => o.z > v.z && o.z - v.z < 2600 && Math.abs(c + o.lane - x) < .45);
+        if (blocked(v.goal)) { const free = [-2 / 3, 0, 2 / 3].map(l => c + l).filter(x => !blocked(x)).sort((a, b) => Math.abs(a - v.x) - Math.abs(b - v.x))[0]; if (free !== undefined) v.goal = free; }   // (the lane it's bound for blocked ahead, by traffic or, on the circuit, a player: the nearest lane clear)
         v.x += clamp(v.goal - v.x, -1, 1) * dt * 1.4;
         for (const o of L.traffic) if (Math.abs(o.z - v.z) < 900 && Math.abs(c + o.lane - v.x) < .35) { v.speed *= .6; v.x += v.x > c + o.lane ? .2 : -.2; }
         if (P.circuit) { if (Math.abs(gap) < 1100 && Math.abs(v.x - P.x) < .4 && P.bump <= 0 && P.crash <= 0) bump(P, v, gap); }
@@ -15427,7 +15428,8 @@ const ZERO = (() => {
     return { map, m7, towers };
   }
   /* ---- SKY RIBBON: a figure of eight in the air (the line's points [x, y, z]), its segments, pillars and shadow ---- */
-  const HW = 64, RIB = new E.Path(Array.from({ length: 24 }, (_, i) => { const a = i / 24 * Math.PI * 2; return [2048 + 1500 * Math.sin(a), 2048 + 1050 * Math.sin(a) * Math.cos(a), 230 + 170 * Math.cos(a) + 30 * Math.sin(a * 3) + (i === 1 ? 50 : 0)]; }), { closed: true, smooth: 'catmull' });   // (i 1: the kicker, a hump on the straight past the overpass, Power Drift's jump)
+  const rib = a => [2048 + 1500 * Math.sin(a), 2048 + 1050 * Math.sin(a) * Math.cos(a), 230 + 170 * Math.cos(a) + 30 * Math.sin(a * 3)], ST = Math.PI / 12;   // (the figure of eight's point at angle a)
+  const HW = 64, RIB = new E.Path([0, 2 / 3, 1, 4 / 3, ...Array.from({ length: 22 }, (_, i) => i + 2)].map(k => { const q = rib(k * ST); if (k === 1) q[2] += 20; if (k === 4 / 3) q[2] += 16; return q; }), { closed: true, smooth: 'catmull' });   // (the line through 24 points round, two more either side of the kicker: a ramp on the straight past the overpass, a shelf to land on after its crest, Power Drift's jump)
   const RL = RIB.length, STEP = 64;
   let sky = null;
   function buildSky() {
@@ -15464,13 +15466,15 @@ const ZERO = (() => {
   function ride(R, dt) {   // (held to it: at the middle's height, so its place on the line is exact, drawn lifted by the bank)
     const c = R.car, s = RIB.nearest(c.x, c.y, c.z), p = RIB.at(s), f = surf(s, (c.x - p.x) * -Math.sin(p.angle) + (c.y - p.y) * Math.cos(p.angle));
     R.pit = s > RPIT[0] && s < RPIT[1]; R.slope = (RIB.at(s + 20).z - p.z) / 20; R.bank = f.bank; R.lift = f.z - p.z; c.z = p.z; c.vz = 0; c.onGround = true;
-    // its body (drawn): falls at 160 a second squared, so where the track drops away faster than that it flies on (off the
-    // kicker's crest: Power Drift's jump) and lands back on it, losing a little speed; on the ground it keeps to the track
-    if (!dt || R.bz === undefined) { R.bz = f.z; R.bv = 0; R.air = 0; } else {
-      R.bv -= 160 * dt; R.bz += R.bv * dt;
-      if (R.bz <= f.z) { if (R.air > .3) { c.vx *= .95; c.vy *= .95; R.jumps = (R.jumps || 0) + 1; if (players.includes(R)) A.sfx('land', { vol: .5 }); } R.bv = (f.z - R.sz) / dt; R.bz = f.z; R.air = 0; } else R.air += dt;
+    // its body (drawn) rides the line's height as it changes step by step (on the line: the bank and a push sideways no part of it),
+    // and falls at G: where the line's climb eases off faster (off the kicker's crest: Power Drift's jump) it flies on, its
+    // shadow on the track, and lands back; a real jump (over 3 units high) costs a little speed
+    const G = 130, up = dt && R.pz !== undefined ? (p.z - R.pz) / dt : 0; R.pz = p.z;
+    if (!dt || R.bz === undefined) { R.bz = p.z; R.bv = up; R.air = 0; R.peak = 0; } else {
+      R.bv -= G * dt; R.bz += R.bv * dt; R.peak = Math.max(R.peak, R.bz - p.z);
+      if (R.bz <= p.z) { if (R.peak > 3) { c.vx *= .95; c.vy *= .95; R.jumps = (R.jumps || 0) + 1; if (players.includes(R)) A.sfx('land', { vol: .5 }); } R.bz = p.z; R.bv = up; R.air = 0; R.peak = 0; } else R.air += dt;
     }
-    R.sz = f.z; R.lift += R.bz - f.z;
+    R.lift += R.bz - p.z;
   }
 
 
@@ -15560,7 +15564,7 @@ const ZERO = (() => {
     const i = r.viewport ? r.viewport.i : 0, me = players[i], cam = cams[i], V = view();
     if (track === 'city') towersOf(cam); else ribbonFor(cam);
     const fx = Math.cos(cam.angle), fy = Math.sin(cam.angle);
-    for (const R of race.racers) if (R.air > 0 && (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 10) V.add(R.car.x, R.car.y, R.sz + .5, (g, sx, sy, k) => { const a = g.globalAlpha; g.globalAlpha = .35; px.ell(g, sx, sy, 9 * k, 4 * k, '#000000'); g.globalAlpha = a; });   // (in the air: its shadow on the track)
+    for (const R of race.racers) if (R.bz - R.car.z > 1.5 && (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 10) V.add(R.car.x, R.car.y, R.car.z + (R.lift || 0) - (R.bz - R.car.z) + .5, (g, sx, sy, k) => { const a = g.globalAlpha; g.globalAlpha = .35; px.ell(g, sx, sy, 9 * k, 4 * k, '#000000'); g.globalAlpha = a; });   // (in the air: its shadow on the track)
     for (const R of race.racers) if (R === me || (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 26) V.mesh(MACHINE, R.car.x, R.car.y, R.car.z + (track === 'sky' ? R.lift || 0 : 0) + 3 + Math.sin(t * 9 + R.ci) * .6, { scale: .8, yaw: R.car.angle, roll: clamp(R.car.slide * .012, -.5, .5) + (track === 'sky' ? R.bank || 0 : 0), colors: { body: R.cast.body, trim: R.cast.trim, glow: R.car.boostT > 0 ? '#ffe060' : '#ff6a2a' } });   // (it leans with its slide; one beside the camera, nearer than its near plane can draw, is left out)
     V.draw(r, cam);
     if (me) race.hud(r, me, { color: players.length > 1 ? ['#a0d8ff', '#ffd080', '#a0ffa0', '#ffa0e0'][i] : '#ffffff', right: r.viewport && r.viewport.y > 0 ? null : cornerX() });
