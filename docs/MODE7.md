@@ -18,7 +18,8 @@ mode it shares with others, the line says so, and what of the game is not there.
 | Yoshi's Safari, Battle Clash | BLASTER: SAFARI | `#blaster/safari` | first person on rails, an aiming cursor (`m7.pick(sx, sy, boxes)`, replay-safe) | kits: the walker's fall; phone: a tap aims and fires, once |
 | Street Racer | ZERO: VS | `#zero/vs` | four players in a split screen (`game.splitScreen(4)`); its fists are ROAD's RASH | kits: four viewports racing |
 | Mario Kart: Super Circuit, F-Zero: Maximum Velocity | KART, ZERO at GBA size | `#kart/gba`, `#zero/gba` | 240 x 160 exactly, letterboxed | kits: ZERO's is 240 x 160; a route check opens both |
-| Super Castlevania IV, Contra III (top-down stages) | SPECIAL: TURN | `#special/turn` | the floor seen from straight above, turned with the hero (`pitch: 90`): Contra III's top-down stages; Castlevania IV's room is a side-view platform room that turns on its own, with gravity, which TURN (top-down, turned as you turn) is not | kits: every nest; phone: the stick turns the fort |
+| Contra III (top-down stages) | SPECIAL: TURN | `#special/turn` | the floor seen from straight above, turned with the hero (`pitch: 90`) | kits: every nest; phone: the stick turns the fort |
+| Super Castlevania IV (the turning room) | SPECIAL: ROOM | `#special/room` | a side-on room drawn as a Mode 7 floor under the same straight-down camera, turned a quarter at a time on its own; gravity down the screen, so a floor becomes a wall | kits: the three gems and the door |
 | Super Mario Kart | KART | `#kart/race`, `#kart/vs` | Mode 7 karts, drifts, items, two players | kits: six karts, three laps, a split screen |
 | F-Zero | ZERO: CITY, GRAND PRIX | `#zero/city`, `#zero/gp` | energy, barriers, a pit, dash plates, machines as models | kits: six machines finish the Grand Prix |
 
@@ -70,7 +71,7 @@ mode it shares with others, the line says so, and what of the game is not there.
 | Branching and overlapping roads | `road.add(n, { split, branch })`; `E.Race({ heights })` with `m7.quad` layers | ROAD's forks; ZERO's SKY RIBBON |
 | A closed circuit, laps | the road loops at `road.length`; `E.Race` (the drive module) for Mode 7 tracks | ROAD's CIRCUIT and DUEL; KART, ZERO |
 | First-person and rail cameras | a camera set each step from a point along an `E.Path` (`path.at(s)`) | BLASTER's SAFARI and ZONE |
-| Flat rotation with no perspective | `pitch: 90` | SPECIAL's TURN |
+| Flat rotation with no perspective | `pitch: 90` | SPECIAL's TURN and ROOM |
 | Split screen for 2 to 4 | `game.splitScreen(n)`, `r.viewport` (Mode 7 and the road); two on one keyboard (`Input.halfKeys`) | KART, ZERO, SPECIAL's ARENA, ROAD's DUEL |
 | An aiming cursor | `m7.pick(sx, sy, boxes)` | BLASTER's SAFARI |
 | Rewind | `E.Rewind` (the rewind module) | ROAD |

@@ -100,9 +100,9 @@
           "page": "dist/kits/my-3d2dge-special.html",
           "at": "#special",
           "title": "Special: do the bonus stages and the arena feel right?",
-          "what": "PLANET: left and right turn a quarter at the next crossing, Space jumps; run over every blue sphere (it turns red), never touch a red one. TUBE: left and right run up the half-pipe's walls, Space jumps; enough rings by each of three gates, past the bombs. ARENA: up or Z the gas, left and right steer, Space fires a shell that bounces off the walls; pop the other karts' balloons, keep yours (players 2 to 4 press 2 or Start before it begins). TURN: left and right turn the soldier, the fort turning under him, up and down walk, Space fires; clear the three nests. Added with v0.99.0.",
+          "what": "PLANET: left and right turn a quarter at the next crossing, Space jumps; run over every blue sphere (it turns red), never touch a red one. TUBE: left and right run up the half-pipe's walls, Space jumps; enough rings by each of three gates, past the bombs. ARENA: up or Z the gas, left and right steer, Space fires a shell that bounces off the walls; pop the other karts' balloons, keep yours (players 2 to 4 press 2 or Start before it begins). TURN: left and right turn the soldier, the fort turning under him, up and down walk, Space fires; clear the three nests. ROOM (Super Castlevania IV): left and right walk, Space jumps; the room turns a quarter every few seconds and you fall down the screen whichever way it stands: take the three gems, then the door. Added with v0.99.0.",
           "look": "Does the planet curve away on every side? Does the tube twist and roll with you, the runner on its wall? Is the battle fun, the shells' bounces readable? Does the fort turn smoothly, the soldier always facing up? On your phone: the stick and one button (JUMP or FIRE).",
-          "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"]]
+          "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"], ["Room", "#special/room"]]
         },
         {
           "page": "dist/kits/my-3d2dge-sky.html",
@@ -368,7 +368,7 @@
           "page": "dist/kits/my-3d2dge-special.html",
           "title": "Special",
           "what": "The Mode 7 era's bonus stages and arenas (Sonic 3's Blue Sphere, Sonic 2's half-pipe, Super Mario Kart's battle, Contra III's top-down stages): a checkered planet that curves away, a half-pipe in space, karts with balloons for one to four players, a fort seen from above that turns with you.",
-          "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"]]
+          "links": [["Planet", "#special/planet"], ["Tube", "#special/tube"], ["Arena", "#special/arena"], ["Turn", "#special/turn"], ["Room", "#special/room"]]
         },
         {
           "page": "dist/kits/my-3d2dge-sky.html",
