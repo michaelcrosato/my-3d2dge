@@ -1732,3 +1732,14 @@ An entry:
   own would cost two hundred thousand; a builder looking for the rotating room finds it beside the turning fort.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.103.0
+
+## D97 · 2026-11-16 · ZERO's budget raised to 225,000 tokens
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D92 (ZERO's own budget, 222,000)
+- **Call:** Power Drift, one of the owner's three stretch goals, was played by ZERO's SKY RIBBON with its machines held
+  to the track: its jumps off the crests were not there. The ribbon gains a kicker (a hump on the straight past the
+  overpass) and each machine a body that falls under gravity, so off the kicker's crest it flies a moment, its shadow on
+  the track, and lands back on it. That takes ZERO just past 222,000; its budget goes to 225,000.
+- **Why:** a stretch goal named by the owner, for a few hundred tokens; the rest of the kit is unchanged.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.104.0
