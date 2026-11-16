@@ -34,6 +34,10 @@ function hot(x, y, w, h, o) { if ((UI.hudPass || UI.underPass) && UI.modal) retu
   UI.nextHot.push(Object.assign({ x, y, w, h }, o)); const m = UI.mouse; return m.x >= x && m.x < x + w && m.y >= y && m.y < y + h; }
 /** the screen is held upright (a phone in portrait): panels lay out for it */
 const UI_tall = () => game.H > game.W * 1.3;
+/** a screen read from a sofa (a window 1,600 CSS px wide or more: a TV, a big monitor), as Settings' own large type
+ *  takes it: text a player must read (tooltips, totals, the HUD's numbers and labels) is drawn in the normal font there,
+ *  not the 3 x 5 tiny one; tf(o) adds { font: 'tiny' } to a text's options only off a TV */
+const UI_tv = () => typeof innerWidth === 'number' && innerWidth >= 1600, UI_tf = (o = {}) => UI_tv() ? o : Object.assign({}, o, { font: 'tiny' });
 /** how many game pixels make a finger's target (44 CSS pixels) on this screen */
 const UI_finger = () => { const sc = game.screen; return Math.ceil(44 * (sc.dpr || 1) / (sc.S || 1)); };
 const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y < r0.y + r0.h;
