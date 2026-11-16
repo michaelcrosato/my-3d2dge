@@ -1769,4 +1769,4 @@ An entry:
   pause's duck, `at(step)`), and the engine's own chip audio is unchanged. Loading an outside file is the game's
   choice, as a game may load anything; the engine stays dependency-free.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
-- **Landed in:** v0.105.0
+- **Landed in:** v0.106.0

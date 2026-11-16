@@ -5,7 +5,7 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
-## 0.105.0 (2026-11-16)
+## 0.106.0 (2026-11-16)
 
 game.audio plays my-game-audio's songs: scored music (orchestral, synthwave, chiptune cues) written as code.
 
@@ -20,6 +20,18 @@ game.audio plays my-game-audio's songs: scored music (orchestral, synthwave, chi
   silenced by the Music volume and lowered by `duck()`; `at(16)` fires on its step; a layer, a cue change and a chip
   song after it go through.
 - **Docs**: `docs/KITS.md` lists the module beside the songbook; decision D99.
+
+## 0.105.0 (2026-11-16)
+
+The last parts of the owner's Mode 7 list played: Pilotwings' hang glider and helicopter, Thunder Blade's city, Top Gear's fuel and pit stops, and Panorama Cotton.
+
+- **Engine**: SKY's HANG GLIDER (`#sky/glider`): no engine; it banks, pitches, sinks and stalls; three thermals (golden coils) lift it while it circles in one; four rings, one above its start, then the bullseye, slow and level; SLOW an air brake. Scored out of 100.
+- **Engine**: SKY's HELICOPTER (`#sky/heli`): off the pad, GAS climbs, SLOW comes down, let go and it hovers; the stick tilts and turns it; ACT (FIRE) a missile; five anti-aircraft turrets that aim and fire flak, three hits and it's down; all five, then land on the pad. Scored out of 100.
+- **Engine**: BLASTER's BLADE (`#blaster/blade`, the sixth stage, Thunder Blade): a city's streets as a Mode 7 floor and its buildings as lit box models; first seen from straight overhead shooting down at tanks, jeeps, rooftop guns and helicopters, then the camera swings down behind the helicopter up the avenue between the towers and under the skybridges; a gunship at the end.
+- **Engine**: ROAD's CIRCUIT and DUEL: fuel (a tank lasts about two of the three laps; dry, the car crawls) and a pit lane along the right of the straight before the line that refuels a car slowed into it (Top Gear); the autopilot stops once.
+- **Engine**: ROAD's COTTON (`#road/cotton`, Panorama Cotton): a witch on a broom over a winding road through big rolling hills, anywhere on the screen, throwing stars at sixteen waves of winged puffs and hopping pumpkins, then the Pumpkin King.
+- **Tools**: the kits test flies the glider and the helicopter, clears BLADE and COTTON, and pits in the circuit and the duel; the phone test taps the new buttons.
+- **Docs**: `docs/MODE7.md`'s Pilotwings, Top Gear, Thunder Blade and Panorama Cotton rows; no game on the list has a part left out.
 
 ## 0.104.3 (2026-11-16)
 
