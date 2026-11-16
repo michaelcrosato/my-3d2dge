@@ -1850,3 +1850,20 @@ An entry:
 - **Why:** at timeScale 0 the pad's cursor and the camera stood still, so a stopped park could not be built on a pad.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.107.0
+
+## D106 · 2026-11-16 · Kits whose keys or buttons moved to their genre's
+
+- **Principle:** the controls standard (D100): the keys PC players expect for the genre, the pad in the PlayStation
+  layout, one action per key in a scene
+- **Call:** where a kit's old keys clashed or were not the genre's, they moved (the old ones kept as alternates where they
+  don't clash): 3D CRAWLER takes Legend of Grimrock's (A D sidestep, Q E turn); 3D ACTION's lock-on is L2 first;
+  PUZZLE rotates on ↑ X W K and back on Z J, and a click no longer rotates; SIM pauses on Esc, P and Options again and
+  stops time on Space; RTS keeps Space for the alert and Z X for the panel, so they no longer also confirm; ROGUELIKE
+  drops the mouse buttons its play never used (a left click no longer waits a turn, a right click no longer drinks),
+  and the adventure, platformer, stealth, artillery, tactics and pinball drop preset actions they never used; RHYTHM's J and K no longer pick and back out;
+  POINT-AND-CLICK takes SCUMM's verb keys in its nine-verbs room; the racers put gas on R2 and brake on L2 first.
+  Each kit's header and Controls screen say the keys it has now.
+- **Why:** a key that does two things in one scene, or a genre's player reaching for a key that does nothing, is what
+  the standard asks the pass to end.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0
