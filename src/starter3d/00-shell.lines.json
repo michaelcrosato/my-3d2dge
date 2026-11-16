@@ -4,7 +4,7 @@
   "starter3d.logo.3d": "3D",
   "starter3d.prompt": "{key} {word}",
   "starter3d.how.touch": "Tap a game to play it",
-  "starter3d.how.pad": "{key:move} + {key:confirm}   {key:start} menu",
+  "starter3d.how.pad": "{key:move} + {key:confirm}   {key:options} settings",
   "starter3d.how.keys": "{key:move} + {key:confirm} or click   M mute",
   "starter3d.note.view": "{view} view",
   "starter3d.note.camera_reset": "CAMERA RESET",

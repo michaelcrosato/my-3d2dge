@@ -4,7 +4,7 @@
   "starter.tagline": "My \"3D\" 2D Game Engine",
   "starter.prompt": "{key} {word}",
   "starter.how.touch": "Tap a game to play it",
-  "starter.how.pad": "{key:move} + {key:confirm}   {key:start} menu",
+  "starter.how.pad": "{key:move} + {key:confirm}   {key:options} settings",
   "starter.how.keys": "{key:move} + {key:confirm} or click   V view   - = zoom   M mute",
   "starter.note.view": "{view} view",
   "starter.note.camera_reset": "CAMERA RESET",

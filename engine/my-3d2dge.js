@@ -932,7 +932,8 @@ class Input {
     if (!this.rebindable(a) || (device !== 'keys' && device !== 'pad') || !BINDABLE.test(code) || padCode(code) !== (device === 'pad')) return 'reserved';
     const other = Object.keys(this.map).find(b => b !== a && !(b in MENU_KEYS) && this.map[b].includes(code));
     if (other) return other;
-    this._setBindings(Object.assign({}, this.bindings, { [a]: Object.assign({}, this.bindings[a], { [device]: [code] }) }));
+    const keep = code === 'Pad17' ? this.map[a].filter(c => padCode(c) && c !== 'Pad17' && !FIXED_CODES.has(c) && !c.startsWith('PadAxis') && !c.startsWith('PadRAxis')).slice(0, 1) : [];   // (the touchpad is a DualSense's alone: the button before it stays too)
+    this._setBindings(Object.assign({}, this.bindings, { [a]: Object.assign({}, this.bindings[a], { [device]: [code, ...keep] }) }));
     return null;
   }
   /** take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves */
@@ -964,7 +965,7 @@ class Input {
    *  Xbox symbols). o: { short: true } the form for a small badge ('LMB', 'Spc'), all: true every one it has there */
   label(a, device = this.lastDevice, o) {
     const m = this.map[a]; if (!m) { this._check(a); return ''; }
-    if (device === 'touch') { const t = this._touchSet && this._touchSet[a]; return (t && t.label) || (this._touchLabels && this._touchLabels[a]) || this._actionCaps(a); }   // (the button as it reads now: touchSet's label first)
+    if (device === 'touch') { const t = this._touchSet && this._touchSet[a]; return (t && t.label) || (this._touchLabels && this._touchLabels[a]) || ((a === 'start' || a === 'pause') ? E.lang.upper(ENG('corner.menu')) : this._actionCaps(a)); }   // (start and pause: the corner's menu button is the touch START)   // (the button as it reads now: touchSet's label first)
     const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
     if (o && o.all) { const cs = device === 'gamepad' ? pads : keys.length ? keys : pads; return cs.map(c => this.codeLabel(c, !!o.short)).join(' / '); }   // (every key or button it has there: 'D-pad ← / □')
     const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
@@ -1039,6 +1040,12 @@ class Input {
     if (x1 < x0) return null;
     const a = this.screenPoint(x0, y0), b = this.screenPoint(x1, y1);
     return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] };
+  }
+  // the touch buttons gone (a scene with none: a title, a game over): each let go, the elements taken away
+  _touchOff() {
+    for (const el of [this._touchEl, this._startEl]) if (el) { for (const b of el.querySelectorAll('[data-act]')) this.release('Act:' + b.dataset.act); el.remove(); }
+    if (this._slideFingers) this._slideFingers.clear();
+    this._touchEl = this._startEl = null; this._touchArgs = null; this._touchLabels = null; this._touchBtns = {};
   }
   /** build the touch buttons again from the player's settings (touch, hand, touchSize, touchOpacity) */
   _touchSync() {
@@ -1984,7 +1991,7 @@ Object.assign(ENGINE_LINES, {
   'engine.shell.calibrate': 'Calibrate', 'engine.shell.keep_it': 'Keep it', 'engine.shell.cancel': 'Cancel', 'engine.shell.dismiss': 'Dismiss', 'engine.shell.tutorial': 'Tutorial',
   'engine.shell.interact': 'Interact', 'engine.shell.hold_to_interact': 'Hold to interact', 'engine.shell.language': 'Language',
   'engine.shell.distance': '{m} m', 'engine.shell.distance_above': '{m} m  ·  ABOVE YOU', 'engine.shell.distance_below': '{m} m  ·  BELOW YOU',
-  'engine.controls.how': 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.',
+  'engine.controls.how': 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.', 'engine.controls.how_pad': 'Choose an action, then press its new button. The d-pad, the left stick and the menu\'s buttons always work.',
   'engine.controls.keyboard': 'Keyboard', 'engine.controls.controller': 'Controller', 'engine.controls.press': 'Press…',
   'engine.controls.bind_keys': '{action}, keyboard: {keys}', 'engine.controls.bind_pad': '{action}, controller: {keys}', 'engine.controls.none': 'none', 'engine.controls.player': 'Player {player}',
   'engine.controls.player_pad': 'Player {player} (controller)', 'engine.controls.player_left': 'Player {player} (left keys)', 'engine.controls.player_right': 'Player {player} (right keys)',
@@ -1996,7 +2003,7 @@ Object.assign(ENGINE_LINES, {
   'engine.calibrate.how': 'Tap on each click you hear, in time with it, not before ({taps} of 8). The higher click starts each bar.',
   'engine.calibrate.done': 'Your sound comes {ms} ms after the beat. Keep it, or tap on to measure again.', 'engine.calibrate.tap': 'Tap',
   'engine.note.fullscreen_blocked': 'Full screen not allowed here', 'engine.note.pad_lost': 'Controller disconnected', 'engine.note.pad_lost_text': 'Press a button on a controller to use it, or play on.',
-  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press Esc or Start', 'engine.touch.start': 'Start', 'engine.touch.stick': 'Stick', 'engine.join.prompt': 'Press {pad} on a controller, or {key} on the keyboard', 'engine.join.prompt_pad': 'Press {pad} on a controller', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
+  'engine.note.back_again': 'Back again to leave', 'engine.note.joined': '{player} joined', 'engine.note.paused_how': 'Press {key:pause}', 'engine.note.paused_how_touch': 'Tap the menu button', 'engine.touch.start': 'Start', 'engine.touch.stick': 'Stick', 'engine.join.prompt': 'Press {pad} on a controller, or {key} on the keyboard', 'engine.join.prompt_pad': 'Press {pad} on a controller', 'engine.touch.start_label': 'Start or menu', 'engine.note.zoom': 'Zoom {zoom}x', 'engine.note.zoom_min': 'Zoom {zoom}x min', 'engine.note.zoom_max': 'Zoom {zoom}x max', 'engine.corner.menu': 'Menu',
   // save slots (game.saves)
   'engine.saves.auto': 'Autosave', 'engine.saves.slot': 'Slot {n}', 'engine.saves.empty': 'Empty', 'engine.saves.damaged': 'Damaged: it cannot be read',
   'engine.saves.newer': 'From a newer version of the game', 'engine.saves.level': 'Level {level}', 'engine.saves.save': 'Save', 'engine.saves.load': 'Load',
@@ -3464,6 +3471,7 @@ class Game {
     if (ok('input')) this.input.use(s.input);
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (ok('touch')) this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch);
+    else if (!s.pausable && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus)
     if (ok('cursor')) this.input.padCursor = s.cursor;
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
@@ -3555,7 +3563,7 @@ class Game {
     const sc = this.scene;
     if (this._split && HOOKS.frame) HOOKS.frame(this, shx, shy);   // a split screen: the scene drawn in each viewport (section 10j)
     else { this.lights._clear(); this.r._begin(c.x + shx, c.y + shy); if (sc && sc.draw) sc.draw(this.r); }
-    if (this.shownNote && this.real < this.shownNote.end) { const n = this.shownNote; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
+    if (this.shownNote && this.real < this.shownNote.end) { const n = this.shownNote; this.r.overlay(g => { const w = E.font.width(n.text) + 10, h = E.font.lineHeight() + 4, x = Math.round(this.r.W / 2 - w / 2); px.blend(g, .6, 'normal', () => px.rect(g, x, 3, w, h, '#05040c')); E.font.text(g, n.text, this.r.W / 2, 5, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }); }   // (the 5 x 7 font on a dark band: read from a sofa)
     const IC = this.input; if (IC.padCursor && IC.lastDevice === 'gamepad' && IC._padPt) { const [cx, cy] = IC._padPt.map(Math.round); this.r.overlay(g => { const A = [[0, 0], [0, 11], [3, 8], [5, 12], [7, 11], [5, 7], [9, 7]].map(([x, y]) => [cx + x, cy + y]); px.poly(g, A.map(([x, y], i) => [x + (i ? (x > cx ? 1 : -1) : -1), y + (i ? 1 : -1)]), '#0b0814'); px.poly(g, A, '#ffffff'); }); }   // the pad's cursor (padCursor)
     if (this.settings.showFps) { const st = this.stats, t = this.fps + ' FPS  ' + this.hz + ' HZ' + (this.drawEvery > 1 ? ' (EVERY ' + this.drawEvery + ')' : '') + '  ' + (st.updateMs + st.renderMs).toFixed(1) + ' MS';   // Settings, Display
       this.r.overlay(g => { const w = E.font.width(t, { font: 'tiny' }) + 6; g.fillStyle = '#000000b0'; g.fillRect(Math.round(this.r.W / 2 - w / 2), 0, w, 9); g._c = null; E.font.text(g, t, this.r.W / 2, 2, '#9cff9c', { align: 'center', outline: false, font: 'tiny' }); }); }
@@ -3563,7 +3571,7 @@ class Game {
     if (this.paused && this.pauseOverlay && !(this.shell && this.shell._sys && this.shell.screen)) this.r.overlay(g => {
       const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r._checker, 'repeat'); else { g.fillStyle = '#05030c'; g.globalAlpha = .55; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
       E.font.text(g, E.lang.upper(this._players && this._players.length > 1 && this.pausedBy ? ENG('shell.paused_by', { player: this.pausedBy }) : ENG('shell.paused')), r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });   // (several players: who)
-      E.font.text(g, E.lang.upper(ENG('note.paused_how')), r.W / 2, r.H / 2 + 8, '#c9c0e0', { align: 'center' });
+      E.font.text(g, E.lang.upper(ENG(this.input.lastDevice === 'touch' ? 'note.paused_how_touch' : 'note.paused_how')), r.W / 2, r.H / 2 + 8, '#c9c0e0', { align: 'center' });
     });
     const fx = this._flash;
     if (fx) { const a = (1 - fx.t / fx.dur) * (fx.k === undefined ? 1 : fx.k); if (a <= 0) this._flash = null; else this.r.overlay(g => { const r = this.r; g.save(); if (E.style.trans === 'dither') { const pat = r._fadePattern(a * .85), c = mkCanvas(4, 4), cg = c.getContext('2d'); cg.drawImage(pat, 0, 0); cg.globalCompositeOperation = 'source-in'; cg.fillStyle = fx.color; cg.fillRect(0, 0, 4, 4); g.fillStyle = g.createPattern(c, 'repeat'); } else { g.fillStyle = fx.color; g.globalAlpha = qa(a * .75); g.globalCompositeOperation = 'lighter'; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; }); }
@@ -9817,7 +9825,7 @@ class Dialog {
       if (inp.repeat('down') || inp.repeat('right')) { this.choice = (this.choice + 1) % this.choices.length; this.game.audio.sfx('select'); }
       // a tap or click on a choice picks it; the mouse moved over one moves the cursor there
       const b = this._cbox(d), row = q => q && q[0] >= b.x && q[0] < b.x + b.w && q[1] >= b.y && q[1] < b.y + b.h ? clamp(Math.floor((q[1] - b.y - 3) / d.lh), 0, this.choices.length - 1) : -1;
-      const p = inp.lastDevice === 'mouse' && inp.pointer(), hv = p && (!this._hp || p[0] !== this._hp[0] || p[1] !== this._hp[1]) ? row(p) : -1; this._hp = p ? p.slice() : null;
+      const moved = inp.mouse.t !== this._mt; this._mt = inp.mouse.t; const hv = moved ? row(inp.pointer()) : -1;   // (the mouse moved over a choice, or the pad's cursor: the cursor goes there)
       if (hv >= 0 && hv !== this.choice) { this.choice = hv; this.game.audio.sfx('select'); }
       const tc = row(c); if (tc >= 0) { this.choice = tc; chose = true; }
     }
@@ -10020,6 +10028,8 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-bind{display:grid;grid-template-columns:1fr minmax(92px,auto) minmax(92px,auto);gap:6px 10px;align-items:center;margin-top:8px}.esh-bind small{color:var(--muted);font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-align:center}
 .esh-bind button{text-align:center;text-transform:none;letter-spacing:.02em;font-size:12px;padding:8px 10px}.esh-bind button.cap{outline:2px dashed var(--accent);outline-offset:2px}
 .esh-bind.one{grid-template-columns:1fr minmax(120px,auto)}.esh-bind.one>span{font-size:14px}
+.esh-list{display:grid;grid-template-columns:1fr;column-gap:28px;align-items:start}.esh-list>:not(.esh-row){grid-column:1/-1}
+@media (min-width:720px){.esh-list{grid-template-columns:1fr 1fr}.esh-bind.one{grid-template-columns:1fr minmax(110px,auto) 1fr minmax(110px,auto);column-gap:16px}}
 .esh-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px;align-items:center}.esh-tabs button{min-height:40px!important;padding:8px 12px;text-align:center;font-size:12px;background:transparent;border-color:var(--line)}
 .esh-tabs button.on{background:var(--accent);border-color:var(--accent);color:#16130e}.esh-tabs kbd{font-size:10px;padding:1px 5px;opacity:.75}
 .esh-desc{min-height:2.9em;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.4}
@@ -10073,7 +10083,7 @@ class Shell {
     const r = this.root = this._el('div', 'esh' + (game._corner ? ' esh-cornered' : '')), th = Object.assign({}, SHELL_THEME, o.theme);   // (the top-right column starts below the corner's buttons)
     for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
     if (th.font && /\d|\b(bold|italic|normal|oblique)\b/.test(th.font)) warn('shell:font', 'E.Shell theme.font is a family ("Georgia, serif"), not a CSS shorthand ("' + th.font + '"): the size comes from theme.scale');
-    const K = th.scale !== undefined ? th.scale : o.tv === false ? 1 : o.tv === true ? () => clamp(innerWidth * .016, 18, 30) / 14 : () => clamp(innerWidth * .016, 14, 30) / 14;   // (for ten feet, by default: the whole interface larger in a larger window, a TV's 1,920 px about twice a laptop's; a phone's as it is)
+    const K = th.scale !== undefined ? th.scale : o.tv === false ? 1 : o.tv === true ? () => clamp(innerWidth * .016, 18, 30) / 14 : () => clamp(Math.min(innerWidth, innerHeight * 16 / 9) * .016, 14, 64) / 14;   // (for ten feet, by default: the whole interface larger in a larger window, a TV's 1,920 px about twice a laptop's; a phone's as it is)
     if (K !== 1) { const fit = () => { const k = Math.max(.25, +(typeof K === 'function' ? K(window) : K) || 1); Object.assign(r.style, { transform: 'scale(' + k + ')', transformOrigin: '0 0', inset: 'auto', left: '0', top: '0', width: 100 / k + 'vw', height: 100 / k + 'vh' }); }; fit(); addEventListener('resize', fit, { signal }); }
     const host = document.body; host.appendChild(r);
     const E2 = (cls, parent = r, tag = 'div') => { const e = this._el(tag, cls); e.hidden = true; parent.appendChild(e); return e; };
@@ -10197,7 +10207,7 @@ class Shell {
       for (const [k, v] of cnt || []) { const e = this._el('div', 'esh-cnt', k); e.appendChild(this._el('b', '', v)); out.push(e); }
       return out;
     });
-    const pr = s.prompt && Object.assign({}, s.prompt, { key: s.prompt.key || (s.prompt.act ? this._game.input.label(s.prompt.act) : 'E'), pad: !s.prompt.key && !!s.prompt.act && this._game.input.lastDevice === 'gamepad' });   // (the key follows the device in use: a controller's button drawn as one)
+    const pr = s.prompt && Object.assign({}, s.prompt, { key: s.prompt.key || this._game.input.label(s.prompt.act || (this._game.input.map.interact ? 'interact' : 'confirm')), pad: !s.prompt.key && this._game.input.lastDevice === 'gamepad' });   // (the key follows the device in use: a controller's button drawn as one)
     this._piece('pr', play && pr, p => {
       const box = this._el('div'), bar = this._el('div', 'esh-bar'), f = this._el('i'); f.style.width = clamp(p.progress || 0, 0, 1) * 100 + '%'; bar.appendChild(f);
       box.append(this._el('div', 'esh-k', p.hint || ENG(p.progress !== undefined ? 'shell.hold_to_interact' : 'shell.interact')), this._el('b', '', p.label || ''));
@@ -10291,7 +10301,7 @@ class Shell {
   _settingsRows(add, top) {
     const S = this._game.settings, own = this._items().map(i => i.key);
     if (!this._std) { for (const k of own) add(this._row(k)); return; }
-    const keysOf = g => S.keys(g).filter(k => (k !== 'scale' || this._game.screen._fixedRes()) && (k !== 'fullscreen' || this._game.o.fullscreen !== false) && (k !== 'zoom' || !this._game._zoomStd() || this._game._zooms()) && S.spec(k).type !== 'value');
+    const keysOf = g => S.keys(g).filter(k => (!S.spec(k).show || S.spec(k).show(this._game)) && (k !== 'scale' || this._game.screen._fixedRes()) && (k !== 'fullscreen' || this._game.o.fullscreen !== false) && (k !== 'zoom' || !this._game._zoomStd() || this._game._zooms()) && S.spec(k).type !== 'value');
     const groups = SHELL_GROUPS.concat([...new Set(S.keys().map(k => S.spec(k).group))].filter(g => !SHELL_GROUPS.includes(g) && !['Controls', 'Controller', 'Touch'].includes(g))).filter(g => keysOf(g).length);
     if (!groups.length) return;
     const tab = groups.includes(top.s.tab) ? top.s.tab : groups[0];
@@ -10310,16 +10320,16 @@ class Shell {
       P.forEach((q, k) => { const b = this._el('button', k === (this._pl || 0) ? 'pri' : '', ENG(q.device === 'gamepad' ? 'controls.player_pad' : q.half === 'left' ? 'controls.player_left' : q.half === 'right' ? 'controls.player_right' : 'controls.player', { player: k + 1 })); b.onclick = () => { this._pl = k; this._capEnd(''); this._render(); }; row.appendChild(b); });
       add(row);
     }
-    const S = this._game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = I._touchArgs && (coarse || I._touched || S.touch === 'on');
+    const S = this._game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = S.keys('Touch').length > 0 && (coarse || I._touched || S.touch === 'on' || !!I._touchArgs);   // (a touch screen's tab, with or without buttons on the screen now: a title's)
     // a tab for each way to play: the keyboard and mouse, the controller, and the touch buttons where there are some; it
     // opens on the one the player used last (show('controls', { tab: 'pad' }) on another)
     const devs = [['keys', ENG('controls.keyboard')], ['pad', ENG('controls.controller')]].concat(touch ? [['touch', groupWords('Touch')]] : []);
     const tab = devs.some(d => d[0] === top.s.tab) ? top.s.tab : I.lastDevice === 'gamepad' ? 'pad' : I.lastDevice === 'touch' && touch ? 'touch' : 'keys';
     add(this._tabs(devs, tab, d => { this._capEnd(''); this.show('controls', { tab: d, tabFocus: true }); }));
     if (tab === 'touch') { for (const k of S.keys('Touch')) add(this._row(k)); return; }
-    add(this._el('p', 'esh-m', ENG('controls.how')), st);
-    const grid = this._el('div', 'esh-bind one'), pad = tab === 'pad';
-    for (const a of Object.keys(I.map).filter(a => I.rebindable(a))) {
+    const pad = tab === 'pad', grid = this._el('div', 'esh-bind one');
+    add(this._el('p', 'esh-m', ENG(pad ? 'controls.how_pad' : 'controls.how')), st);
+    for (const a of Object.keys(I.map).filter(a => I.rebindable(a) && !(pad && STICK_CODES[a]))) {   // (on a controller the d-pad and the stick always move: no rows for them)
       const name = actionWords(I, a), codes = I.map[a].filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis') && padCode(c) === pad), cap = this._cap && this._cap.a === a && this._cap.device === tab;
       const b = this._el('button', cap ? 'cap' : ''); grid.appendChild(this._el('span', '', name));
       if (cap) b.textContent = ENG('controls.press');
@@ -10331,7 +10341,7 @@ class Shell {
     add(grid);
     if (!pad) return;
     add(this._el('p', 'esh-m', I.padId ? ENG('controls.pad_found', { name: I.padId.replace(/\s*\(.*$/, '') }) : ENG('controls.pad_none')));
-    for (const k of S.keys('Controller')) add(this._row(k));
+    for (const k of S.keys('Controller').filter(k => !S.spec(k).show || S.spec(k).show(this._game))) add(this._row(k));
   }
   _capStart(a, device, name) {
     const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)) };
@@ -10372,7 +10382,7 @@ class Shell {
     if (!top) { scr.replaceChildren(); return; }
     for (const k of ['hb', 'obj', 'vit', 'place', 'tip', 'pr', 'keys', 'mini']) { this._els[k].hidden = true; this._last[k] = null; }   // the HUD hides under a screen (a paused game calls no hud())
     const { name, s } = top, v = x => typeof x === 'function' ? x() : x, title = name === 'title'; this._tabGo = null;
-    const sh = this._el('div', 'esh-sh' + (title ? ' esh-ttl' : '')), box = this._el('div', title ? '' : 'esh-pan esh-mod' + (name === 'map' ? ' esh-wide' : ''));
+    const lists = name === 'settings' || name === 'controls', sh = this._el('div', 'esh-sh' + (title ? ' esh-ttl' : '')), box = this._el('div', title ? '' : 'esh-pan esh-mod' + (name === 'map' || lists ? ' esh-wide' : ''));
     sh.appendChild(box); sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-label', v(s.title || s.name) || name);
     const add = (...c) => box.append(...c.filter(Boolean));
     add(s.emblem && this._el('div', 'esh-emb', s.emblem), s.kicker && this._el('div', 'esh-k', v(s.kicker)));
@@ -10380,8 +10390,10 @@ class Shell {
     else add(this._el('h2', '', v(s.title) || { pause: this._game._players && this._game._players.length > 1 && this._game.pausedBy ? ENG('shell.paused_by', { player: this._game.pausedBy }) : ENG('shell.paused'), settings: ENG('shell.settings'), controls: ENG('shell.controls'), help: ENG('shell.help'), map: ENG('shell.map') }[name] || ''));   // (several players: who paused)
     add(v(s.text) && this._el('p', title ? '' : 'esh-m', v(s.text)));
     for (const key of v(s.rows) || []) add(key[0] === '#' ? this._el('div', 'esh-k esh-sec', key.slice(1)) : this._row(key));   // (setting rows on a screen of the game's own: '#' a heading)
-    if (name === 'settings') this._settingsRows(add, top);
-    if (name === 'controls') this._controls(add, top);
+    const list = lists && this._el('div', 'esh-list'), addL = (...c) => list.append(...c.filter(Boolean));   // (the rows two a line on a wide screen: a TV's page without scrolling)
+    if (name === 'settings') this._settingsRows(addL, top);
+    if (name === 'controls') this._controls(addL, top);
+    add(list);
     const desc = (name === 'settings' || name === 'controls' || (v(s.rows) || []).length) && this._el('p', 'esh-desc');   // (the focused row's help, under the list)
     add(desc);
     if (s.keys) { const g = this._el('div', 'esh-grid'), I = this._game.input; for (const [k, w] of v(s.keys)) { const act = k && typeof k === 'object' && k.act; g.append(this._chip(act ? I.label(act) : k, !!act && I.lastDevice === 'gamepad'), this._el('span', '', w)); } add(g); }   // ({ act }: the player's own key or button)
@@ -10398,7 +10410,7 @@ class Shell {
     if (name === 'settings' && this._std) acts.push([ENG('shell.controls'), () => this.show('controls')], [ENG('shell.restore'), () => { for (const g of SHELL_GROUPS.concat('Game')) this._game.settings.reset(g); this.show('settings'); }]);
     if (name === 'controls') acts.push([ENG('shell.restore'), () => { this._ctlI().resetBindings(); this._game.settings.reset('Controller'); this._game.settings.reset('Touch'); this._status = ENG('controls.restored'); this.show('controls'); }]);
     if (!acts.length && !title || name === 'settings' || name === 'controls') acts.push([ENG('shell.back'), () => this.back()]);
-    const btns = this._el('div', 'esh-btns'), lists = name === 'settings' || name === 'controls'; acts.forEach((a, i) => btns.appendChild(this._btn(a, i, !lists))); add(btns);
+    const btns = this._el('div', 'esh-btns'); acts.forEach((a, i) => btns.appendChild(this._btn(a, i, !lists))); add(btns);
     if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
     add(s.footer && this._el('div', 'esh-m', v(s.footer)));
     add(this._hints(title));

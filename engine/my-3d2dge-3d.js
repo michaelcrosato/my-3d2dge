@@ -340,6 +340,7 @@ function mouseLook(gc) {
     const I = PAGE.game.input; I.release('Mouse' + e.button); I.consumeAll();   // (the click that takes the mouse is no swing or shot)
   });
   document.addEventListener('pointerlockchange', () => { for (const w of PAGE.worlds) w.camera.locked = document.pointerLockElement === gc; });
+  PAGE.game.hook('enter', () => { if (document.pointerLockElement === gc) document.exitPointerLock(); });   // (a scene change frees the mouse: a menu, a game over)
   document.addEventListener('mousemove', e => {
     const c = cam(); if (!c || !c.locked || PAGE.game.paused) return;
     const k = .0024, dx = e.movementX || 0, dy = e.movementY || 0;

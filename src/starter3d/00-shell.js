@@ -32,13 +32,13 @@ const SLICES = [
   { id: 'flight', label: 'FLIGHT', about: 'ON RAILS TO THE BASE, A BOSS IN FREE FLIGHT', family: 'SHOOTER' },
   { id: 'crawler', label: 'CRAWLER', about: 'A DUNGEON IN FIRST PERSON: A PARTY OF FOUR, A CELL AT A TIME', family: 'RPG' }
 ].map(s => Object.assign(s, { label: E.t('starter3d.slice.' + s.id), about: E.t('starter3d.slice.' + s.id + '.about'), family: E.t('starter3d.family.' + s.family.toLowerCase().replace(/ /g, '_')) }));
-// a prompt in the player's own controls ('J Sword', 'X Sword', 'ATTACK Sword' on a touch screen); word is a line (E.t),
-// and the two are a line too (starter3d.prompt), so a language can put them the other way round
-// (a phone or tablet before its first touch counts too: a coarse pointer and nothing else used yet)
-const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch' || (coarse && game.input.lastDevice === 'keyboard');
-// START picks too (the touch START, a pad's Start), as Enter does
-const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
+// a prompt in the player's own controls ('J Sword', '□ Sword' on a pad, 'ATTACK Sword' on a touch screen); word is a
+// line (E.t), and the two are a line too (starter3d.prompt), so a language can put them the other way round
+const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';   // (a touch-only device starts on touch: the engine's lastDevice)
+// START picks too (the touch START; Enter), and a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 let active = null;               // the world of the scene that is playing (the shared keys turn its camera)
 
 /* ---- the camera: C cycles the view, the chase camera and first person; V, [ ] and 0 work on the view (and turn the
@@ -96,7 +96,7 @@ BOOT.push([E.t('starter3d.boot.title_stage'), () => {
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'iso', input: W3.INPUT,
+  view: 'iso', input: MENU_IN,
   enter() { A.music('title'); active = null; game.resetCamera(); },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -135,7 +135,7 @@ const overMenu = new E.Menu(game, [E.t('starter3d.over.retry'), E.t('starter3d.o
 // as they are (no title on a win: CLEAR!)
 let over = { from: 'title', world: null, won: false, lines: [] };
 scenes.over = {
-  input: W3.INPUT,
+  input: MENU_IN,
   enter(d) { over = Object.assign({ won: false, lines: [] }, d); overMenu.i = 0; A.music(over.won ? 'victory' : null); if (!over.won) A.sfx('die'); active = null; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
