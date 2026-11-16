@@ -1705,4 +1705,18 @@ An entry:
 - **Why:** a kit that can't take a fix without cutting its own manual is a kit whose bugs stay; the 2,000 tokens are
   for its fixes, not for new modes.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
-- **Landed in:** v0.101.1
+- **Landed in:** v0.102.0
+
+## D95 · 2026-11-16 · BLASTER keeps a budget of its own: 221,000 tokens
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D69 (a 2D kit at most 216,000
+  cl100k tokens, but for the kits that keep budgets of their own)
+- **Call:** BLASTER stood at about 215,000 tokens with four stages and the audit's fixes. Super Star Wars' speeders
+  roam a Mode 7 plane freely, which none of its stages did (ZONE is a rail, BURNER a jet high over the sea), so it
+  gains a fifth, SPEEDER: free over the dunes, crawlers found by a radar. That takes it to 217,979. It joins `KIT2D`
+  with 221,000.
+- **Why:** the owner asked for the Mode 7 games to be played properly, each by a stage or a mode of its own where the
+  others can't stand in; a fifth stage in the kit that already has its floor, models and HUD costs less than a kit of
+  its own, and is easier for a builder to find.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.102.0
