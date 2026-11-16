@@ -7,7 +7,9 @@
  *   MOVES    the engine's actions (E.ACTIONS) on the hero: an execution and a takedown on real monsters, getting up,
  *            climbing up and down a stone block, hopping down, vaulting a low wall, a roll
  *   OBJECTS  the engine's core shapes (docs/ASSETS.md), turning beside the hero; the Asset Lab (/asset-lab) has the store
- * Left / Right pick, Up / Down change the reel, Enter replays, Z toggles slow motion, V view, [ ] turn, Esc leaves.
+ * Left / Right pick, Up / Down change the reel, Enter replays, Z (□ on a controller) toggles slow motion, V view, [ ] turn,
+ * Esc (○) leaves; on a touch screen the bar's buttons, a flick sideways picks, a flick down leaves. The line at the
+ * bottom names the keys of the device in use (input.label).
  * The gallery plays with a COPY of the saved hero (skills are ranked up for the show), so nothing here reaches the save.
  * A deep link opens one entry, so a tool can film it: #gallery/bestiary/husk, #gallery/skills/<skill id>,
  * #gallery/bosses/<boss id>, #gallery/poses/hands-on-hips, #gallery/moves/climb-up (add ?view=topdown, ?character=codex for Codex's skills).
@@ -214,8 +216,12 @@ const galleryScene = {
   exit() { slowMoReset(1); ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
   update(dt) {
     const inp = game.input, h = ED.hero, L0 = ED.L, cx = L0.w * 8, cy = L0.h * 8;
-    if (updateUI(dt) || ED.mode !== 'gallery') return;
+    const wh = UI.mouse.wheel; if (updateUI(dt) || ED.mode !== 'gallery') return;
+    if (wh) { GAL.i += Math.sign(wh); galReset(); sfx('select'); }   // (the wheel steps through the reel)
     if (inp.pressed('cancel')) { game.go('title'); return; }
+    const sw = inp.swipe(true);   // a flick: sideways picks, down leaves
+    if (sw && sw.dir === 'down') { game.go('title'); return; }
+    if (sw && (sw.dir === 'left' || sw.dir === 'right')) { GAL.i += sw.dir === 'left' ? 1 : -1; galReset(); sfx('select'); }
     const galKey = inp.repeat('menuRight') ? 'ArrowRight' : inp.repeat('menuLeft') ? 'ArrowLeft' : inp.repeat('menuUp') ? 'ArrowUp' : inp.repeat('menuDown') ? 'ArrowDown' : inp.pressed('confirm') ? 'Enter' : null;
     if (galKey) { const k = galKey;
       if (k === 'ArrowRight' || k === 'ArrowLeft') { GAL.i += k === 'ArrowRight' ? 1 : -1; galReset(); sfx('select'); }
@@ -257,7 +263,7 @@ const galleryScene = {
       : GAL.reel === 4 ? [ED.L.w * 8 - 4, ED.L.h * 8, 16] : GAL.reel === 5 ? [cx - 10, cy, 14] : [h.x, h.y, 19];
     const c = GAL.cam || (GAL.cam = tgt.slice()), k = Math.min(1, dt * 3); for (let i = 0; i < 3; i++) c[i] += (tgt[i] - c[i]) * k;
     game.focus(c[0], c[1], c[2]);
-    if (inp.pressed('labels')) { GAL.slow = !GAL.slow; }
+    if ((inp.pressed('labels') && !inp.pressed('menuLeft')) || inp.pressed('alt')) { GAL.slow = !GAL.slow; }   // (d-pad ← picks here: □ or Z slows)
     if (SLOW.raw !== (GAL.slow ? .3 : 1)) slowMoReset(GAL.slow ? .3 : 1);
   },
   draw(r) {
@@ -276,7 +282,7 @@ const galleryScene = {
       px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, 31 + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor
       E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
       const sp = Math.min(60, (W - 16) / GAL.reels.length);   // (six reels fit a phone held upright)
-      GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - (GAL.reels.length - 1) / 2) * sp, 22 + T, i === GAL.reel ? GOLD : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }));
+      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, 10, { click: () => { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } } }); E.font.text(g, n, rx, 22 + T, i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }); });   // (a click picks a reel)
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
@@ -286,7 +292,8 @@ const galleryScene = {
       else { const p = GAL_POSES[GAL.cur] || GAL_POSES[0]; title = p[0]; sub = p[2]; }
       E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
       E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
-      E.font.text(g, (GAL.i + 1) + ' / ' + items.length + '   ← → pick   ↑ ↓ reel   ENTER replay   Z slow' + (GAL.slow ? ' (ON)' : '') + '   V view   ESC back', cx, H - 6, '#a89ec8', { align: 'center', font: 'tiny', outline: false });
+      const dev = ctlDevice(), K = a => keyLabel(a, true, dev);   // the keys of the device in use (the touch bar names its own)
+      E.font.text(g, (GAL.i + 1) + ' / ' + items.length + (dev === 'touch' ? '   SWIPE TO PICK   SLOW' + (GAL.slow ? ' (ON)' : '') : '   ' + K('menuLeft') + ' ' + K('menuRight') + ' pick   ' + K('menuUp') + ' ' + K('menuDown') + ' reel   ' + K('confirm') + ' replay   ' + (dev === 'gamepad' ? K('alt') : K('labels')) + ' slow' + (GAL.slow ? ' (ON)' : '') + (dev === 'gamepad' ? '' : '   ' + K('camView') + ' view') + '   ' + K('cancel') + ' back'), cx, H - 6, '#a89ec8', { align: 'center', font: 'tiny', outline: false });
     } finally { HUD_out(g); } });
     drawPanels(r);
   }

@@ -484,7 +484,7 @@ def('mechanics', 'chasm', { name: 'Chasms', title: 'The Sundered Bridges', adj: 
   update(L0, dt) {
     MKA_fallCheck(L0); MKA_fallStep(L0, dt);
     const h = ED.hero;
-    if (h && L0.mkaLeaps && !L0._mkaLeapTold) for (const q of L0.mkaLeaps) if (Math.hypot(h.x - q.mx, h.y - q.my) < 40) { L0._mkaLeapTold = true; notify('DODGE (SPACE) LEAPS A NARROW GAP', '#bff6ff', 3.5); break; }
+    if (h && L0.mkaLeaps && !L0._mkaLeapTold) for (const q of L0.mkaLeaps) if (Math.hypot(h.x - q.mx, h.y - q.my) < 40) { L0._mkaLeapTold = true; notify('A DODGE ({key:dodge}) LEAPS A NARROW GAP', '#bff6ff', 3.5); break; }
   },
   draw(L0, r) {
     const h = ED.hero; if (!h || !L0.mkaLeaps) return;

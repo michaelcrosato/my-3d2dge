@@ -189,19 +189,42 @@ function heroNearSwings(h) {
 
 /* ---------- the per-step controller ---------- */
 // Each playable identity supplies movement and dodge timing (18-characters.js).
-function heroAim(h) {
+// The aim: the mouse, the right stick (a DualSense's gyro fine-tunes it: 97-rumble.js DS_aim), else the way he runs.
+// The aim assist (Controls: a controller's and the keyboard's, CONTROL.aimAssist; on touch the player's Touch assists,
+// input.assist): standing still he turns to the foe nearest ahead, and targeted skills take it. On touch the aim also
+// leans, while he runs, onto the foe nearest the way he runs (E.assist.aim). A mouse aims where it points
+function heroAim(h, dt = 1 / 60) {
   const inp = h.bot ? h.bot.input : game.input, view = game.view;   // h.bot: the autopilot drives a virtual input (93-autopilot.js)
   const mv = inp.move(), md = inp.worldMove ? inp.worldMove.slice() : view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
+  const touch = !h.bot && inp.lastDevice === 'touch', assist = h.bot || (touch ? inp.assist : CONTROL.aimAssist);
   let aimA = null, tgt = null;
   if (inp.aimSource === 'bot' && inp.aimAt) { tgt = inp.aimAt; aimA = Math.atan2(tgt[1] - h.y, tgt[0] - h.x); }
   else if (inp.aimSource === 'mouse') { const m = game.mouseGround(); if (m) { tgt = m; if (Math.hypot(m[0] - h.x, m[1] - h.y) > 3) aimA = Math.atan2(m[1] - h.y, m[0] - h.x); } }
-  else if (inp.aimSource === 'pad' && inp.padAim) { const d = view.screenDirToGround(inp.padAim[0], inp.padAim[1]); aimA = Math.atan2(d[1], d[0]); }
-  if (aimA === null && mlen > .1) aimA = Math.atan2(md[1], md[0]);
+  else if (inp.aimSource === 'pad' && inp.padAim) { const a = h.bot ? inp.padAim : DS_aim(dt, inp.padAim), d = view.screenDirToGround(a[0], a[1]); aimA = Math.atan2(d[1], d[0]); }
+  if (!h.bot && !(inp.aimSource === 'pad' && inp.padAim)) DS_aim(0, null);   // (the gyro's fine-tune starts over with the next push of the stick)
+  if (aimA === null && mlen > .1) {
+    let dx = md[0], dy = md[1];
+    if (touch && inp.assist) [dx, dy] = E.assist.aim(h.x, h.y, dx, dy, ED.foes.filter(m => m.alive && !m.untargetable && !(m.spawnT > 0)), { cone: .6, range: 160 });   // (touch assist: running at a foe aims at it)
+    aimA = Math.atan2(dy, dx);
+  }
   if (aimA !== null) h.aim = aimA;
-  if (!tgt) { const nearest = (!h.bot && !CONTROL.aimAssist) ? null : nearestEnemy('hero', h.x + Math.cos(h.aim) * 40, h.y + Math.sin(h.aim) * 40, 70); tgt = nearest ? [nearest.x, nearest.y] : [h.x + Math.cos(h.aim) * 60, h.y + Math.sin(h.aim) * 60]; }
-  if (!h.bot && CONTROL.aimAssist && inp.aimSource !== 'mouse' && !inp.padAim && mlen < .1) h.aim = Math.atan2(tgt[1] - h.y, tgt[0] - h.x);
+  if (!tgt) { const nearest = !assist ? null : nearestEnemy('hero', h.x + Math.cos(h.aim) * 40, h.y + Math.sin(h.aim) * 40, 70); tgt = nearest ? [nearest.x, nearest.y] : [h.x + Math.cos(h.aim) * 60, h.y + Math.sin(h.aim) * 60]; }
+  if (!h.bot && assist && inp.aimSource !== 'mouse' && !inp.padAim && mlen < .1) h.aim = Math.atan2(tgt[1] - h.y, tgt[0] - h.x);
   h.tx = tgt[0]; h.ty = tgt[1];
   return { md, mlen };
+}
+/** the touch standard's hack-and-slash assist (docs/CONTROLS.md): on touch, with Touch assists on (input.assist), the
+ *  basic attack swings by itself at a foe in reach, so a thumb stays free for the skills and the dodge. Only a free basic
+ *  skill (Blade Dance, Codex's Quillshot, Dan's Reap: the autopilot's own test), never in town, never while a skill
+ *  button is held, and held back while the stick pulls away from the foe (kiting stays the player's). A controller, the
+ *  keyboard and the mouse play as before */
+function heroAutoBasic(h, md, mlen) {
+  const i = h.slots.findIndex(id => id && REG.skills[id] && REG.skills[id].kind === 'basic' && !REG.skills[id].cost); if (i < 0) return;
+  const id = h.slots[i], S = REG.skills[id], reach = (S.tags || []).includes('proj') ? (S.range || 140) : 22;
+  const m = nearestEnemy('hero', h.x, h.y, reach + 30); if (!m || m.team !== 'foe' || Math.hypot(m.x - h.x, m.y - h.y) - (m.r || 0) > reach) return;
+  if (mlen > .1 && md[0] * (m.x - h.x) + md[1] * (m.y - h.y) <= 0) return;
+  if (h.act && !h.act.free && h.act.skill !== id) return;
+  h.aim = angTo(h, m); useSlot(h, i, true);
 }
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
@@ -224,7 +247,7 @@ function updateHero(h, dt, o = {}) {
   h.hp = Math.min(h.maxHp, h.hp + (s.lifeRegen || 0) * dt + (h.healT > 0 ? h.healRate * dt : 0)); h.healT -= dt;
   h.ember = Math.min(h.maxEmber, h.ember + (s.emberRegen || 0) * dt);
   if (h.dodges < h.maxDodge && (h.dodgeRe -= dt * (1 + (s.dodgeCd || 0) / 100)) <= 0) { h.dodges++; h.dodgeRe = TUNE.dodgeRecharge; }
-  const { md, mlen } = heroAim(h), sp = statusSpeed(h);
+  const { md, mlen } = heroAim(h, dt), sp = statusSpeed(h);
   // dodge: a quick low dash with invulnerability; it carries him over chasms (he is briefly airborne). A press he cannot
   // honour yet (mid-roll, mid-leap, mid-dash) is kept for a moment and rolls the instant he can: nothing is swallowed
   const canDodge = h.dodges > 0 && h.dodgeT <= 0 && sp > 0 && (!h.act || h.act.cancel !== false);
@@ -250,6 +273,7 @@ function updateHero(h, dt, o = {}) {
     // held keys: a held attack must not starve a tapped skill)
     const q = h.slotQ; if (q && ((h.act && h.act.cancel === false ? 0 : q.t -= dt) < 0 || game.time - q.at > 1.2 || useSlot(h, q.i) || !h.act)) h.slotQ = null;
     for (let i = 0; i < 6; i++) if (!fresh[i] && inp.down(SLOT_ACTS[i]) && !(h.act && h.act.hold) && h.dodgeT <= 0) useSlot(h, i, true);
+    if (!h.bot && !town && inp.assist && h.dodgeT <= 0 && !(h.act && h.act.hold) && !SLOT_ACTS.some(a => inp.down(a))) heroAutoBasic(h, md, mlen);
   } else h.slotQ = null;
   // hold-to-channel skills keep running while the key is down
   if (h.act && h.act.hold && !inp.down(SLOT_ACTS[h.act.slot])) h.act.release = true;
@@ -366,7 +390,7 @@ function drinkPotion(h) {
   h.potions--; h.potionT = .8;
   const heal = h.maxHp * TUNE.potionHeal * (1 + (h.stats.potionHeal || 0) / 100);
   h.hp = Math.min(h.maxHp, h.hp + heal * .35); h.healT = 1.5; h.healRate = heal * .65 / 1.5;
-  sfx('heal'); P.glints(h.x, h.y, 14, 10, '#ff6a7a', 14); P.ring(h.x, h.y, 2, 16, '#ff8a9a', .35);
+  padSfx('heal'); P.glints(h.x, h.y, 14, 10, '#ff6a7a', 14); P.ring(h.x, h.y, 2, 16, '#ff8a9a', .35);   // (a DualSense's speaker plays it, where the player has it on)
   BUS.emit('potion', { h, heal });
 }
 /** is the hero standing still and free (for pickups, talk prompts) */

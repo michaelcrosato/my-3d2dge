@@ -367,7 +367,7 @@ def('skills', 'chainlightning', {
   name: 'Chain Lightning', kind: 'core', tags: ['spell', 'chain'], el: 'storm', cost: 14, unlock: 2, color: '#6a5a10',
   runes: [{ id: 'fork', name: 'Forked Lightning', desc: 'Every enemy struck splits the arc in two: it spreads through a pack like a branching tree.' },
     { id: 'fire', name: 'Chain of Embers', desc: 'The arcs burn instead of shock: Fire damage that sets every target ablaze.' }],
-  desc: (rank, rune) => 'Fling lightning from the free hand. It strikes the enemy nearest the cursor for ' + SKS_pc(.95, rank) + ' weapon damage as ' + (rune === 'fire' ? 'Fire' : 'Storm') + ', then hops to ' + ((rune === 'fork' ? 5 : 2) + Math.floor(rank / 2)) + ' more, losing a little each hop.' +
+  desc: (rank, rune) => 'Fling lightning from the free hand. It strikes the enemy nearest where you aim for ' + SKS_pc(.95, rank) + ' weapon damage as ' + (rune === 'fire' ? 'Fire' : 'Storm') + ', then hops to ' + ((rune === 'fork' ? 5 : 2) + Math.floor(rank / 2)) + ' more, losing a little each hop.' +
     (rune === 'fork' ? ' Each hop forks in two.' : rune === 'fire' ? ' Every target burns.' : ''),
   icon: (g, x, y, s) => SKS_ICON.chain(g, x, y, s),
   cast(h, ctx) {
@@ -454,7 +454,7 @@ def('skills', 'meteor', {
   name: 'Meteor', kind: 'ultimate', tags: ['spell', 'aoe'], el: 'fire', cost: 40, cd: 9, unlock: 11, color: '#7a2a10',
   runes: [{ id: 'shower', name: 'Meteor Shower', desc: 'Calls a storm of small meteors over the whole area instead of one great rock.' },
     { id: 'comet', name: 'Frozen Comet', desc: 'A comet of ice falls instead: Frost damage that freezes everything it hits and leaves a frost field.' }],
-  desc: (rank, rune) => 'Raise the sword to the sky and call a meteor down on the cursor: ' + (rune === 'shower' ? (6 + Math.floor(rank / 3)) + ' small meteors each deal ' + SKS_pc(1.15, rank) : SKS_pc(3.2, rank)) + ' weapon damage as ' + (rune === 'comet' ? 'Frost' : 'Fire') + ' and hurl enemies into the air.' +
+  desc: (rank, rune) => 'Raise the sword to the sky and call a meteor down where you aim: ' + (rune === 'shower' ? (6 + Math.floor(rank / 3)) + ' small meteors each deal ' + SKS_pc(1.15, rank) : SKS_pc(3.2, rank)) + ' weapon damage as ' + (rune === 'comet' ? 'Frost' : 'Fire') + ' and hurl enemies into the air.' +
     (rune === 'comet' ? ' Everything struck freezes.' : ' The crater burns for a while.'),
   icon: (g, x, y, s) => SKS_ICON.meteor(g, x, y, s),
   cast(h, ctx) {
@@ -556,7 +556,7 @@ def('skills', 'voidrift', {
   name: 'Void Rift', kind: 'core', tags: ['spell', 'aoe'], el: 'void', cost: 26, cd: 8, unlock: 7, color: '#3a1a6a',
   runes: [{ id: 'maw', name: 'Hungering Maw', desc: 'The rift is larger, lasts longer and drifts toward the nearest enemies, swallowing the pack as it goes.' },
     { id: 'abyss', name: 'Abyssal Pool', desc: 'After the implosion a pool of void lingers for 4 seconds: it keeps dragging, slows and wounds whatever stands in it.' }],
-  desc: (rank, rune) => 'Tear the air open at the cursor. The rift drags enemies toward its heart for ' + (rune === 'maw' ? 2.4 : 1.6) + ' seconds (' + SKS_pc(.18, rank) + ' as Void every 0.3 s), then implodes for ' + SKS_pc(1.9, rank) + ' and flings them into the air.' +
+  desc: (rank, rune) => 'Tear the air open where you aim. The rift drags enemies toward its heart for ' + (rune === 'maw' ? 2.4 : 1.6) + ' seconds (' + SKS_pc(.18, rank) + ' as Void every 0.3 s), then implodes for ' + SKS_pc(1.9, rank) + ' and flings them into the air.' +
     (rune === 'maw' ? ' It hunts the nearest enemies.' : rune === 'abyss' ? ' A void pool lingers.' : ''),
   icon: (g, x, y, s) => SKS_ICON.rift(g, x, y, s),
   cast(h, ctx) {
@@ -897,8 +897,8 @@ function SKS_blinkPath(h, ctx, range) {
 def('skills', 'blink', {
   name: 'Shadow Step', kind: 'mobility', tags: ['spell', 'mobility', 'aoe'], el: 'void', cost: 12, cd: 3.5, unlock: 4, color: '#2a1440',
   runes: [{ id: 'trail', name: 'Rift Trail', desc: 'Everything on the path is cut as you pass, and shadow flames burn along it for a while.' },
-    { id: 'ambush', name: 'Ambush', desc: 'Step behind the enemy under the cursor. The cut out of the smoke always crits and stuns.' }],
-  desc: (rank, rune) => 'Vanish into smoke and step out of it at the cursor (up to 105 away, never into a wall), striking all around for ' + SKS_pc(1.3, rank) + ' weapon damage.' +
+    { id: 'ambush', name: 'Ambush', desc: 'Step behind the enemy you aim at. The cut out of the smoke always crits and stuns.' }],
+  desc: (rank, rune) => 'Vanish into smoke and step out of it where you aim (up to 105 away, never into a wall), striking all around for ' + SKS_pc(1.3, rank) + ' weapon damage.' +
     (rune === 'trail' ? ' The path is cut and burns.' : rune === 'ambush' ? ' Lands behind the target; the cut crits and stuns.' : ''),
   icon: (g, x, y, s) => SKS_ICON.blink(g, x, y, s),
   cast(h, ctx) {

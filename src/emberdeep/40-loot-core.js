@@ -536,7 +536,7 @@ function updateDrops(dt) {
       }
     } else if (d.rest && dd < pickupR(h) && labelShown(d) && !d.noAuto) {
       if (h.bag.length >= BAG_MAX) { if (!d.fullWarn) { d.fullWarn = true; notify('BAG FULL', '#ff8a7a', 1.5); } continue; }
-      h.bag.push(d.item); ED.drops.splice(i, 1); sfx('pickup', { vol: .6 }); BUS.emit('pickup', { item: d.item });
+      h.bag.push(d.item); ED.drops.splice(i, 1); padSfx('pickup', { vol: .6 }); BUS.emit('pickup', { item: d.item });   // (from a DualSense's speaker where it is on)
       if (d.item.rarity >= 1) notify(d.item.name, RARITY[d.item.rarity].color, 2.2);
     }
   }
@@ -548,7 +548,7 @@ function lootToGround(d, map) {
   for (let y = cy - 4; y <= cy + 4; y++) for (let x = cx - 4; x <= cx + 4; x++) if (map.walkable(x, y)) { const dd = (x - cx) * (x - cx) + (y - cy) * (y - cy); if (dd < bd) { bd = dd; best = [x, y]; } }
   if (best) { d.x = (best[0] + .3 + Math.random() * .4) * T16; d.y = (best[1] + .3 + Math.random() * .4) * T16; }
 }
-/** the loot filter: 0 shows everything, 1 hides commons, 2 shows rares and better (Z shows all) */
+/** the loot filter: 0 shows everything, 1 hides commons, 2 shows rares and better (labels held shows all: Z, Alt, d-pad ←) */
 const labelShown = d => d.kind !== 'item' || d.item.rarity >= OPT.labels || game.input.down('labels');
 function drawDrops(r) {
   const labels = [];

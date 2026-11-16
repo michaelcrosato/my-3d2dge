@@ -1,4 +1,6 @@
-/* Saved bindings, native settings dialogs, and multi-touch controls. */
+/* Saved bindings, native settings dialogs, and multi-touch controls. Every key or button a player reads comes from
+   the engine's input.label (keyLabel, keyText below), on the device used last: PlayStation glyphs for a controller by
+   default (Settings, Controls, Controller: Button symbols shows Xbox's), keys and mouse buttons for the keyboard. */
 const CONTROL_ACTIONS = [
 	["up", "Move up"],
 	["down", "Move down"],
@@ -26,12 +28,14 @@ const CONTROL_DEFAULT = {
 };
 const CONTROL = { bindings: {}, ...CONTROL_DEFAULT };
 const storedControls = E.store.get("ed:controls", {});
+// (Pad17 is a DualSense's touchpad click: bindable, always beside another button. Pad16, PS, is the 52in1 hub's: never)
 const bindingCode = (c) =>
 	typeof c === "string" &&
-	/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Enter|NumpadEnter|Backspace|Mouse[0-4]|Pad([0-9]|1[0-5]))$/.test(
+	/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Enter|NumpadEnter|Backspace|Mouse[0-4]|Pad([0-9]|1[0-5]|17))$/.test(
 		c,
 	);
 const RESERVED_KEYS = new Set(["KeyV", "KeyM", "KeyH", "Digit0", "Pad9"]);
+const MOVE_ACTS = ["up", "down", "left", "right"];
 if (storedControls && typeof storedControls === "object") {
 	for (const key of ["deadzone", "size", "opacity"])
 		if (Number.isFinite(storedControls[key]))
@@ -44,7 +48,11 @@ if (storedControls && typeof storedControls === "object") {
 	if (["left", "right"].includes(storedControls.handed))
 		CONTROL.handed = storedControls.handed;
 	for (const [a] of CONTROL_ACTIONS) {
-		const codes = storedControls.bindings && storedControls.bindings[a];
+		let codes = storedControls.bindings && storedControls.bindings[a];
+		// the d-pad left the moves for the map, the labels, the portal and the use (the left stick moves): a binding
+		// saved before keeps its keys, not the old d-pad
+		if (Array.isArray(codes) && MOVE_ACTS.includes(a))
+			codes = codes.filter((c) => !/^Pad1[2-5]$/.test(c));
 		if (
 			Array.isArray(codes) &&
 			codes.length <= 12 &&
@@ -56,67 +64,83 @@ if (storedControls && typeof storedControls === "object") {
 CONTROL.deadzone = clamp(CONTROL.deadzone, 0.05, 0.5);
 CONTROL.size = clamp(CONTROL.size, 44, 72);
 CONTROL.opacity = clamp(CONTROL.opacity, 0.3, 1);
-const PAD_LABELS = [
-	"A / Cross",
-	"B / Circle",
-	"X / Square",
-	"Y / Triangle",
-	"LB / L1",
-	"RB / R1",
-	"LT / L2",
-	"RT / R2",
-	"View / Share",
-	"Menu / Options",
-	"L stick",
-	"R stick",
-	"D-pad up",
-	"D-pad down",
-	"D-pad left",
-	"D-pad right",
-];
-function codeLabel(code) {
-	if (/^Pad\d+$/.test(code)) return PAD_LABELS[+code.slice(3)] || code;
-	return (
-		{
-			Mouse0: "LMB",
-			Mouse1: "MMB",
-			Mouse2: "RMB",
-			Mouse3: "Mouse 4",
-			Mouse4: "Mouse 5",
-			Space: "Space",
-			ShiftLeft: "L Shift",
-			ShiftRight: "R Shift",
-		}[code] || code.replace(/^Key|^Digit/, "").replace(/^Arrow/, "")
+/* ---------- what a prompt shows: the engine's labels ----------
+ * keyLabel(a): action a's key or button on the device used last (input.label: ✕ ○ □ △ L1 R1 L2 R2 Create Options
+ * Touchpad, or A B X Y LB RB with Button symbols: Xbox). Emberdeep aims with the mouse, so on the keyboard a mouse button
+ * comes first (LMB, not J). '' where that device has none (a controller has no Skills key: a line says where else to
+ * go), and on touch the touch button's own name (DODGE, USE, the skill in that slot) or ''. short: a badge's form
+ * ('LMB', '□', 'Spc', '↑'). keyText(s): a line's {key:action} tags filled at draw time (the device may change while it
+ * shows). A tag in brackets, ({key:a}), leaves with its brackets where there is nothing to show (on touch, or unbound);
+ * a segment of a notice ('  •  ' between them) whose bare tag has nothing leaves whole; one that starts {mouse}, {pad}
+ * or {touch} shows on that device only (a hover hint is the mouse's) */
+const ctlDevice = () => {
+	const d = game.input.lastDevice;
+	return d === "keyboard" ? "mouse" : d;
+};
+const TOUCH_NAMES = { dodge: "DODGE", potion: "POTION", interact: "USE", portal: "PORTAL", bag: "BAG", map: "MAP", pause: "MENU" };
+function touchName(a) {
+	const i = SLOT_ACTS.indexOf(a);
+	if (i < 0) return TOUCH_NAMES[a] || "";
+	const id = ED.hero && ED.hero.slots[i],
+		S = id && REG.skills[id];
+	return S ? S.name.toUpperCase() : "";
+}
+function keyLabel(a, short = false, dev = ctlDevice()) {
+	const I = game.input;
+	if (!I.map || !I.map[a]) return "";
+	if (dev === "touch") return touchName(a);
+	const pad = dev === "gamepad";
+	if (!I.bound(a, pad ? "gamepad" : "keyboard")) return "";
+	return I.label(a, pad ? "gamepad" : "mouse", short ? { short: true } : undefined);
+}
+/** a skill slot's badge: its key or button (LMB, □, 1), or its number where there is none */
+const slotKey = (i, short = true) => (ctlDevice() !== "touch" && keyLabel(SLOT_ACTS[i], short)) || String(i + 1);   // (on touch its number: the buttons name the skills)
+function keyText(s) {
+	s = String(s);
+	if (s.indexOf("{") < 0) return s;
+	const dev = ctlDevice(),
+		on = dev === "gamepad" ? "pad" : dev === "touch" ? "touch" : "mouse";
+	const out = [];
+	for (let q of s.split("  •  ")) {
+		const only = /^\{(mouse|pad|touch)\}/.exec(q);
+		if (only) {
+			if (only[1] !== on) continue;
+			q = q.slice(only[0].length);
+		}
+		let gone = false;
+		q = q
+			.replace(/\s*\(\{key:(\w+)\}\)/g, (t, a) => {
+				const k = dev === "touch" ? "" : keyLabel(a, false, dev);
+				return k ? " (" + k + ")" : "";
+			})
+			.replace(/\{key:(\w+)\}/g, (t, a) => {
+				const k = keyLabel(a, false, dev);
+				if (!k) gone = true;
+				return k;
+			});
+		if (!gone) out.push(q);
+	}
+	return out.join("  •  ");
+}
+/** an interaction prompt ('{key:interact} Talk to Bram'): the key in brackets ('[E] Talk to Bram', '[L3] ...'); on
+ *  touch none (the Use button says the verb) */
+function promptText(s) {
+	const touch = ctlDevice() === "touch";
+	return keyText(
+		String(s).replace(/^\{key:(\w+)\}\s*/, (t, a) => {
+			const k = touch ? "" : keyLabel(a);
+			return k ? "[" + k + "] " : "";
+		}),
 	);
 }
 function actionCodes(a) {
 	return CONTROL.bindings[a] || INPUT[a] || [];
 }
-function actionLabel(a, compact = false) {
-	const codes = actionCodes(a),
-		pad = game.input.lastDevice === "gamepad";
-	const code = codes.find((c) => c.startsWith("Pad") === pad) || codes[0];
-	if (compact && code && /^Pad\d+$/.test(code))
-		return [
-			"A",
-			"B",
-			"X",
-			"Y",
-			"LB",
-			"RB",
-			"LT",
-			"RT",
-			"View",
-			"Menu",
-			"L3",
-			"R3",
-			"Up",
-			"Down",
-			"Left",
-			"Right",
-		][+code.slice(3)];
-	return code ? codeLabel(code) : "—";
+/** the label tools and tests read (window.__ed.actionLabel): the engine's, '—' for none */
+function actionLabel(a) {
+	return keyLabel(a) || "—";
 }
+const codeLabel = (code) => game.input.codeLabel(code);
 function applyControls(save = true) {
 	const map = { ...INPUT };
 	for (const [a] of CONTROL_ACTIONS) map[a] = actionCodes(a);
@@ -184,6 +208,22 @@ function openForm(title, build) {
 	});
 	el.addEventListener("keydown", (e) => e.stopPropagation());
 	el.addEventListener("contextmenu", (e) => e.preventDefault());
+	// the mouse's hover moves the one focus a pad and the keys move (one highlight, and keys go on from it)
+	el.addEventListener("pointerover", (e) => {
+		if (e.pointerType !== "mouse") return;
+		const t = e.target.closest && e.target.closest("button, select, input[type=checkbox], input[type=range]");
+		if (t && !t.disabled && document.activeElement !== t) t.focus({ preventScroll: true });
+	});
+	// a flick sideways on a touch screen takes the window away (a binding being chosen is cancelled first); the page
+	// list and the sliders scroll and slide sideways, so a flick that starts on them is theirs
+	let flickFrom = null;
+	el.addEventListener("pointerdown", (e) => (flickFrom = e.target), true);
+	game.input.swipeOn(el, (dir) => {
+		if (dir !== "left" && dir !== "right") return;
+		if (flickFrom && flickFrom.closest && flickFrom.closest("input[type=range], .ed-menu-nav, .ed-seg-wrap")) return;
+		if (FORM.capture) cancelBinding();
+		else UI.close();
+	});
 	// the tap that opened this window lifts over it: a click whose press was not on the window (a pointer's click,
 	// detail > 0, with no press here since it opened) is the finger leaving the canvas, not a press of what lies under
 	// it now (it hit PLAY AS on the character window). Keys and a pad click with detail 0
@@ -229,14 +269,18 @@ function beginBinding(a, kind) {
 			(kind === "pad" ? "a controller button" : "a key or mouse button") +
 			" for " +
 			CONTROL_ACTIONS.find((x) => x[0] === a)[1] +
-			". Escape cancels.",
+			". " +
+			cancelKeys() +
+			" cancels.",
 	);
 }
+/** what cancels a binding being chosen: Esc, and the menu button on a pad (Options) */
+const cancelKeys = () => [game.input.codeLabel("Escape"), keyLabel("pause", false, "gamepad")].filter(Boolean).join(" or ");
 function setBinding(code) {
 	const c = FORM.capture;
 	if (!c) return;
 	if (!bindingCode(code) || RESERVED_KEYS.has(code)) {
-		formStatus("That input is reserved. Choose another; Escape cancels.");
+		formStatus("That input is reserved. Choose another; " + cancelKeys() + " cancels.");
 		return;
 	}
 	const conflict = CONTROL_ACTIONS.find(
@@ -251,9 +295,18 @@ function setBinding(code) {
 		);
 		return;
 	}
-	CONTROL.bindings[c.a] = actionCodes(c.a)
-		.filter((k) => k.startsWith("Pad") !== (c.kind === "pad"))
-		.concat(code);
+	// the touchpad is never an action's only button (a controller without one plays the whole game): it joins the pad
+	// buttons the action has
+	const pads = actionCodes(c.a).filter((k) => k.startsWith("Pad") && k !== "Pad17");
+	if (code === "Pad17" && !pads.length) {
+		formStatus("The touchpad goes beside another button. Give " + CONTROL_ACTIONS.find((x) => x[0] === c.a)[1] + " a button first.");
+		return;
+	}
+	CONTROL.bindings[c.a] = code === "Pad17"
+		? actionCodes(c.a).filter((k) => k !== "Pad17").concat(code)
+		: actionCodes(c.a)
+			.filter((k) => k.startsWith("Pad") !== (c.kind === "pad"))
+			.concat(code);
 	FORM.capture = null;
 	applyControls();
 	menuRender();
@@ -303,7 +356,7 @@ function updateForm() {
 			: "No controller detected. Press a button to connect.";
 	if (FORM.capture) {
 		const c = FORM.capture;
-		const i = inp.padPrev.findIndex((v, i) => v && !c.prev[i]);
+		const i = inp.padPrev.findIndex((v, i) => v && !c.prev[i] && i !== 16);   // (PS is the hub's)
 		c.prev = inp.padPrev.slice();
 		if (i === 9) cancelBinding();
 		else if (i >= 0 && c.kind === "pad") setBinding("Pad" + i);
@@ -313,8 +366,10 @@ function updateForm() {
 		UI.close();
 		return;
 	}
+	el.classList.toggle("ed-pad", inp.lastDevice === "gamepad");   // (a controller: each row's help shows only on the focused row)
+	// the search box is the keyboard's: a controller walks past it (a text field is a dead stop on a TV)
 	const all = [...el.querySelectorAll("button, input, select")].filter(
-			(e) => !e.disabled,
+			(e) => !e.disabled && e.offsetParent !== null && !(inp.lastDevice === "gamepad" && e.type === "search"),
 		),
 		cur = document.activeElement;
 	let ix = Math.max(0, all.indexOf(cur));
@@ -338,76 +393,81 @@ function updateForm() {
 	}
 	if (inp.pressed("confirm") && all[ix]) {
 		inp.consumeAll();
-		all[ix].click();
+		if (all[ix].type === "checkbox" || all[ix].tagName === "BUTTON") all[ix].click();
+		else if (all[ix].tagName === "SELECT") {   // ✕ on a choice steps it on, as the sides do
+			all[ix].selectedIndex = (all[ix].selectedIndex + 1) % all[ix].options.length;
+			all[ix].dispatchEvent(new Event("change"));
+		}
 	}
 }
-/** Settings > Controls: every action's keyboard and controller bindings, then the controller's and the touch
- *  buttons' settings. A binding is changed by choosing it and pressing the new key or button */
+/** Settings > Controls, a page for each way to play, the one in use first: Keyboard & mouse (each action's keys),
+ *  Controller (each action's buttons, Button symbols, the sticks, vibration, the aim assist, the DualSense's extras) and
+ *  Touch (the buttons, their side and size, Touch assists). A binding is changed by choosing it and pressing the new key
+ *  or button; changes save at once */
+const CTL_PAGES = [
+	["keys", "Keyboard & mouse"],
+	["pad", "Controller"],
+	["touch", "Touch"],
+];
 function controlsPage(el) {
-	{
+	const I = game.input;
+	if (!CTL_PAGES.some((p) => p[0] === FORM.ctl))
+		FORM.ctl = I.lastDevice === "gamepad" ? "pad" : I.lastDevice === "touch" ? "touch" : "keys";
+	const tabs = formElement("div", "", el, { class: "ed-seg ed-seg-wrap ed-ctl-tabs", role: "tablist", "aria-label": "Ways to play" });
+	for (const [id, name] of CTL_PAGES) {
+		const b = formButton(tabs, name, () => {
+			FORM.ctl = id;
+			menuRender();
+			const f = FORM.el && FORM.el.querySelector(".ed-ctl-tabs [aria-selected=true]");
+			if (f) f.focus();
+		});
+		b.setAttribute("role", "tab");
+		b.setAttribute("aria-selected", String(FORM.ctl === id));
+	}
+	const page = FORM.ctl,
+		pad = page === "pad";
+	const L = (a) => keyLabel(a, false, pad ? "gamepad" : "mouse") || "—";
+	if (page !== "touch") {
 		formElement(
 			"p",
-			"Choose a binding to change it; changes save at once. Menu navigation always works with arrows / D-pad / left stick, Enter / A, and Escape / Menu. Backspace / B performs secondary actions in inventory and skill panels.",
+			pad
+				? "In menus " + L("confirm") + " chooses, " + L("cancel") + " goes back, " + L("alt") + " drops, sells or takes back, " + L("pagePrev") + " " + L("pageNext") + " turn tabs and pages, " + L("panelPrev") + " " + L("panelNext") + " go between the bag, skills and passives. Skills and passives are in the menu too (" + L("pause") + ")."
+				: "The mouse aims. In menus " + L("confirm") + " chooses, " + L("cancel") + " goes back, " + L("alt") + " drops, sells or takes back, " + L("pageNext") + " turns tabs. Choose a binding to change it; changes save at once.",
 			el,
 			{ class: "ed-dev-intro" },
 		);
-		formElement(
-			"p",
-			"Mouse aims; left stick moves; right stick aims. Click either stick to interact or open a portal. View / Share opens inventory. Skills and passives are also in the pause menu.",
-			el,
-		);
-		formElement("p", "", el, { "data-pad": "", class: "ed-meter" });
+		if (pad) formElement("p", "", el, { "data-pad": "", class: "ed-meter" });
 		const table = formElement("div", "", el, { class: "ed-bindings" });
+		const kind = pad ? "pad" : "key";
+		if (pad) formElement("p", "The left stick moves and the right stick aims; the d-pad holds the map (↑, with the touchpad), the loot labels (←), opens a portal (↓) and uses (→).", table, { class: "ed-about" });
 		for (const [a, label] of CONTROL_ACTIONS) {
+			if (pad && MOVE_ACTS.includes(a) && !actionCodes(a).some((c) => c.startsWith("Pad"))) continue;   // (the stick moves: no rows of Unbound)
 			const row = formElement("div", "", table, { class: "ed-binding" });
 			formElement("strong", label, row);
-			for (const kind of ["key", "pad"]) {
-				const group = formElement("div", "", row);
-				const codes = actionCodes(a).filter(
-					(c) => c.startsWith("Pad") === (kind === "pad"),
-				);
-				const b = formButton(
-					group,
-					codes.map(codeLabel).join(" / ") || "Unbound",
-					() => beginBinding(a, kind),
-				);
-				b.setAttribute(
-					"aria-label",
-					label + (kind === "key" ? " keyboard / mouse" : " gamepad"),
-				);
-				b.dataset.bind = a + ":" + kind;
-				const clear = formButton(group, "Clear", () => {
-					CONTROL.bindings[a] = actionCodes(a).filter(
-						(c) => c.startsWith("Pad") !== (kind === "pad"),
-					);
-					applyControls();
-					menuRender();
-				});
-				clear.setAttribute("aria-label", "Clear " + label + " " + kind);
-			}
+			const group = formElement("div", "", row);
+			const codes = actionCodes(a).filter((c) => c.startsWith("Pad") === pad);
+			const b = formButton(group, codes.map(codeLabel).join(" / ") || "Unbound", () => beginBinding(a, kind));
+			b.setAttribute("aria-label", label + (pad ? " gamepad" : " keyboard / mouse"));
+			b.dataset.bind = a + ":" + kind;
+			const clear = formButton(group, "Clear", () => {
+				CONTROL.bindings[a] = actionCodes(a).filter((c) => c.startsWith("Pad") !== pad);
+				applyControls();
+				menuRender();
+			});
+			clear.setAttribute("aria-label", "Clear " + label + " " + kind);
 		}
-		formElement("h3", "Controller & touch", el);
-		formField(
-			el,
-			"Stick deadzone",
-			"range",
-			CONTROL.deadzone,
-			(v) => {
-				CONTROL.deadzone = v;
-				applyControls();
-			},
-			{ min: 0.05, max: 0.5, step: 0.01 },
-		);
-		formField(
-			el,
-			"Invert right-stick Y",
-			"checkbox",
-			CONTROL.invertAimY,
-			(v) => {
-				CONTROL.invertAimY = v;
-				applyControls();
-			},
-		);
+	}
+	if (pad) {
+		formElement("h3", "Controller", el);
+		settingField(el, "glyphs");
+		formField(el, "Stick deadzone", "range", CONTROL.deadzone, (v) => {
+			CONTROL.deadzone = v;
+			applyControls();
+		}, { min: 0.05, max: 0.5, step: 0.01 });
+		formField(el, "Invert right-stick Y", "checkbox", CONTROL.invertAimY, (v) => {
+			CONTROL.invertAimY = v;
+			applyControls();
+		});
 		formField(
 			el,
 			"Vibration",
@@ -416,77 +476,75 @@ function controlsPage(el) {
 			(v) => game.settings.set("rumble", v),   // the engine's setting (saved with the player's other choices): 0 turns it off
 			{ min: 0, max: 1, step: 0.05 },
 		);
-		formField(
-			el,
-			"Aim assist for sticks / touch",
-			"checkbox",
-			CONTROL.aimAssist,
-			(v) => {
-				CONTROL.aimAssist = v;
-				applyControls();
-			},
-		);
-		formField(
-			el,
-			"Touch controls",
-			"select",
-			CONTROL.touch,
-			(v) => {
-				CONTROL.touch = v;
-				applyControls();
-			},
-			{
-				options: [
-					["auto", "Automatic"],
-					["on", "Always show"],
-					["off", "Hidden"],
-				],
-			},
-		);
-		formField(
-			el,
-			"Action buttons on",
-			"select",
-			CONTROL.handed,
-			(v) => {
-				CONTROL.handed = v;
-				applyControls();
-			},
-			{
-				options: [
-					["right", "Right"],
-					["left", "Left"],
-				],
-			},
-		);
-		formField(
-			el,
-			"Touch button size",
-			"range",
-			CONTROL.size,
-			(v) => {
-				CONTROL.size = v;
-				applyControls();
-			},
-			{ min: 44, max: 72, step: 2 },
-		);
-		formField(
-			el,
-			"Touch opacity",
-			"range",
-			CONTROL.opacity,
-			(v) => {
-				CONTROL.opacity = v;
-				applyControls();
-			},
-			{ min: 0.3, max: 1, step: 0.05 },
-		);
-		formButton(el, "Reset all controls", () => {
-			Object.assign(CONTROL, CONTROL_DEFAULT, { bindings: {} });
+		formField(el, "Aim assist (controller and keyboard)", "checkbox", CONTROL.aimAssist, (v) => {
+			CONTROL.aimAssist = v;
 			applyControls();
-			menuRender();
 		});
+		const ds = ["padLight", "padTriggers", "gyro", "padSpeaker"].filter((k) => game.settings.spec(k));
+		if (ds.length) {
+			formElement("h3", "DualSense", el);
+			formElement(
+				"p",
+				"What a DualSense adds: the light bar shows your life, L2 clicks like a stopper while a potion is left, R2 pushes back while its skill waits, gyro aim fine-tunes the right stick, the speaker plays a potion and a pickup. Each works once the controller is allowed in 52in1 Settings.",
+				el,
+				{ class: "ed-about" },
+			);
+			for (const k of ds) settingField(el, k);
+		}
 	}
+	if (page === "touch") {
+		formField(el, "Touch controls", "select", CONTROL.touch, (v) => {
+			CONTROL.touch = v;
+			applyControls();
+		}, { options: [["auto", "Automatic"], ["on", "Always show"], ["off", "Hidden"]] });
+		formField(el, "Action buttons on", "select", CONTROL.handed, (v) => {
+			CONTROL.handed = v;
+			applyControls();
+		}, { options: [["right", "Right"], ["left", "Left"]] });
+		formField(el, "Touch button size", "range", CONTROL.size, (v) => {
+			CONTROL.size = v;
+			applyControls();
+		}, { min: 44, max: 72, step: 2 });
+		formField(el, "Touch opacity", "range", CONTROL.opacity, (v) => {
+			CONTROL.opacity = v;
+			applyControls();
+		}, { min: 0.3, max: 1, step: 0.05 });
+		settingField(el, "assists");
+		formElement(
+			"p",
+			"With Touch assists on, the basic attack swings by itself at a monster in reach (not while you pull away from it), and your aim leans onto the monster nearest the way you run. A controller, the keyboard and the mouse play as before. Swipe a window, a notice or a card away.",
+			el,
+			{ class: "ed-about" },
+		);
+	}
+	formButton(el, "Reset all controls", () => {
+		Object.assign(CONTROL, CONTROL_DEFAULT, { bindings: {} });
+		applyControls();
+		menuRender();
+	});
+}
+/** one of the engine's settings (game.settings: Button symbols, Touch assists, the DualSense's rows) as a field: a switch
+ *  or a choice. A row the player can't change yet (the DualSense not allowed in 52in1) shows disabled, with why */
+function settingField(el, key) {
+	const S = game.settings,
+		sp = S.spec(key);
+	if (!sp) return null;
+	const lock = typeof sp.locked === "function" ? sp.locked(game) : null;
+	const f =
+		sp.type === "toggle"
+			? formField(el, sp.label, "checkbox", !!S[key], (v) => {
+					S.set(key, v);
+					menuRender();
+				})
+			: formField(el, sp.label, "select", S[key], (v) => {
+					S.set(key, v);
+					menuRender();
+				}, { options: (sp.options || []).map((o) => (Array.isArray(o) ? o : [o, String(o)])) });
+	if (lock) {
+		f.disabled = true;
+		formElement("p", lock, el, { class: "ed-about ed-locked" });
+	} else if (sp.help) formElement("p", sp.help, el, { class: "ed-about" });
+	return f;
 }
 
 /* Touch taps hit the same canvas widgets as a mouse. Only open world space starts a stick. */
@@ -519,6 +577,7 @@ const endTouch = (e) => {
 		game.input.release("Act:click");
 		UI.mouse.down = false;
 		UI.drag = null;
+		UI.mouse.lift = true;   // a finger has no hover: once the step has taken its tap, the pointer leaves (updateUI), so no tooltip stays behind
 	}
 };
 addEventListener("pointerup", endTouch);
@@ -573,7 +632,10 @@ function syncTouchControls(force = false) {
 		CONTROL.opacity,
 		FS.on(),
 	].join(":");
-	if (!force && key === TOUCH.key) return;
+	if (!force && key === TOUCH.key) {
+		touchLook();
+		return;
+	}
 	TOUCH.key = key;
 	if (TOUCH.el) {
 		for (const b of TOUCH.el.querySelectorAll("[data-act]"))
@@ -601,6 +663,7 @@ function syncTouchControls(force = false) {
 			["interact", "Use"],
 		])
 			formElement("button", label, actions, { type: "button", "data-act": a });
+		TOUCH.look = {};
 	}
 	const bar = formElement("div", "", root, { class: "ed-touch-bar" });
 	if (!(ED.mode === "title" && !UI.modal))   // the title's menu is all on the canvas (FULL SCREEN too)
@@ -623,7 +686,47 @@ function syncTouchControls(force = false) {
 				])
 		formElement("button", label, bar, { type: "button", "data-act": a });
 	game.input.bindButtons(root);
+	TOUCH.look = {};
+	touchLook();
 	HUD_layout();
+}
+/** the touch buttons as the moment changes (each step; a button is touched only when what it shows changes): a skill
+ *  button names the skill in its slot (an empty slot's stays hidden, holding its place), dims while it cools or Ember is
+ *  short; Use pops up only where there is something to use, saying what (TRADE, TALK, TRAVEL, EXECUTE, PICK UP: UI.promptVerb);
+ *  Potion counts what is left; Portal shows only where one can open (a depth, the Proving Grounds) */
+function touchLook() {
+	const root = TOUCH.el,
+		h = ED.hero,
+		was = TOUCH.look || (TOUCH.look = {});
+	if (!root || !h) return;
+	for (const b of root.querySelectorAll("[data-act]")) {
+		const a = b.dataset.act,
+			i = SLOT_ACTS.indexOf(a);
+		let text = null, hide = false, gone = false, dim = false;
+		if (i >= 0) {
+			const id = h.slots[i], S = id && REG.skills[id];
+			hide = !S;
+			text = S ? S.name : "";
+			dim = !!S && (h.cds[id] > 0 || h.ember < skillCost(h, S));
+		} else if (a === "interact") {
+			hide = !UI.promptVerb || UI.modal;
+			text = UI.promptVerb || "Use";
+		} else if (a === "potion") {
+			text = "Potion " + h.potions;
+			dim = h.potions <= 0;
+		} else if (a === "portal" && b.parentElement.classList.contains("ed-touch-bar")) gone = ED.mode !== "level" && ED.mode !== "proving";
+		const k = [text, hide, gone, dim].join("|");
+		if (was[a] === k) continue;
+		was[a] = k;
+		if (text !== null && b.textContent !== text) b.textContent = text;
+		b.style.visibility = hide ? "hidden" : "";
+		b.style.display = gone ? "none" : "";
+		b.classList.toggle("dim", dim);
+		if ((hide || gone) && b.classList.contains("on")) {   // (gone from under a finger: let go)
+			b.classList.remove("on");
+			game.input.release("Act:" + a);
+		}
+	}
 }
 /* The HUD's frame (UI.frame, in screen pixels) on a phone. The safe areas first: the picture fills the whole screen,
    under the notch, the status bar and the home bar, and the HUD keeps out of them. Then the touch buttons: held
@@ -652,6 +755,7 @@ function HUD_layout() {
 		bar = TOUCH.el && TOUCH.el.querySelector(".ed-touch-bar"),
 		tall = rc.height > rc.width;
 	F.barB = bar && bar.childElementCount ? Math.max(0, Math.ceil(sy(bar.getBoundingClientRect().bottom))) : 0;
+	F.barL = bar && bar.childElementCount ? Math.floor(sx(bar.getBoundingClientRect().left)) : 0;   // (where they begin: a full-screen panel's top row ends before it)
 	if (acts) {
 		acts.style.removeProperty("--touch-size");
 		if (tall) {

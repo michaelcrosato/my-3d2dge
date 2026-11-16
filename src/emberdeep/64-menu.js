@@ -7,7 +7,10 @@
  *   Help      every key, where to change what, the version and the labs
  * The search box finds a setting on any page. The page last open comes back next time. Opened from the title and the
  * pause menu, or UI.open('settings', { tab }); menuGo(tab, knob) jumps to one setting. The pages are HTML (the form
- * helpers of 61-controls.js), driven by mouse, touch, keys and a pad (updateForm).
+ * helpers of 61-controls.js), driven by mouse, touch, keys and a pad (updateForm): L1 R1 turn the pages, ○ backs out,
+ * a flick sideways closes it on a touch screen. Opened from a controller or a finger, the Tuning pages fold
+ * into one entry (they are a playtester's), and each setting's help shows under the focused row only (ed-pad); at a
+ * TV's size the window's type and rows grow (the template's CSS). Every key named comes from the engine's labels.
  * ============================================================================= */
 const MENU_GROUPS = [
   ['Game', [['graphics', 'Graphics'], ['sound', 'Sound'], ['interface', 'Interface'], ['controls', 'Controls']]],
@@ -19,11 +22,13 @@ const MENU_TABS = MENU_GROUPS.flatMap(([, tabs]) => tabs);
 const menuTabName = id => (MENU_TABS.find(t => t[0] === id) || [id, id])[1];
 
 /* ---------- the pieces a page is made of ---------- */
-/** a setting: its name, the key that does it in play, what it does; the control goes in its head (a switch) or under it */
+/** a setting: its name, the key that does it in play (a function of the device in use: none where it has none), what
+ *  it does; the control goes in its head (a switch) or under it */
 function menuSetting(el, label, about, keys) {
   const row = formElement('div', '', el, { class: 'ed-set' }), head = formElement('div', '', row, { class: 'ed-set-head' });
   formElement('span', label, head, { class: 'ed-set-name' });
-  if (keys) formElement('kbd', keys, head, { title: 'In play' });
+  const kk = typeof keys === 'function' ? keys() : keys;
+  if (kk) formElement('kbd', kk, head, { title: 'In play' });
   if (about) formElement('p', typeof about === 'function' ? about() : about, row, { class: 'ed-about' });
   return row;
 }
@@ -75,10 +80,10 @@ const gpuState = () => { const s = game.gpu ? game.gpu.status() : null; return s
  * { page, group, label, keys, about (text or a function), ctl(row, label): the control, show(): whether it applies
  *   here } or { page, group, knob: a tuning knob's id (01-tune.js), drawn as the tuning pages draw it } */
 const MENU_SET = [
-  { page: 'graphics', group: 'Camera', label: 'View', keys: 'V', about: 'Where the camera looks from. Kept for your next visit.', ctl: (row, l) => menuSeg(row, l, VIEW_IDS.map(id => [id, E.VIEWS[id].label, VIEW_TIPS[id]]), game.baseView.id, chooseView) },
-  { page: 'graphics', group: 'Camera', label: 'Camera zoom', keys: '- and =, the wheel', about: 'Closer or farther; 1.25× is the game\'s own. Characters and objects redraw sharp at any zoom, but the floor and walls are scaled, so above 1.25× they look blockier. Kept for your next visit.', ctl: (row, l) => menuSeg(row, l, ZOOMS.map(z => [z, z + '×' + (z === CAM_ZOOM ? ' (default)' : '')]), OPT.zoom, setCamZoom) },
-  { page: 'graphics', group: 'Camera', label: 'Camera turn', keys: '[ and ]', about: 'Turns the camera around the hero in 45° steps. Not kept after a reload.', ctl: (row, l) => menuSeg(row, l, [0, 45, 90, 135, 180, 225, 270, 315].map(d => [d, d + '°']), game.yaw || 0, d => game.rotateView(d - (game.yaw || 0))) },
-  { page: 'graphics', group: 'Camera', label: 'Reset the camera', keys: '0', about: 'Back to the game\'s own camera: 1.25× zoom, no turn.', ctl: row => formButton(row, 'Reset the camera', () => { resetCamera(); formStatus('The camera is back to 1.25×, no turn.'); }) },
+  { page: 'graphics', group: 'Camera', label: 'View', keys: () => keyLabel('camView'), about: 'Where the camera looks from. Kept for your next visit.', ctl: (row, l) => menuSeg(row, l, VIEW_IDS.map(id => [id, E.VIEWS[id].label, VIEW_TIPS[id]]), game.baseView.id, chooseView) },
+  { page: 'graphics', group: 'Camera', label: 'Camera zoom', keys: () => ctlDevice() === 'touch' ? 'a pinch' : keyLabel('camOut') && keyLabel('camOut') + ' and ' + keyLabel('camIn') + ', the wheel', about: 'Closer or farther; 1.25× is the game\'s own. Characters and objects redraw sharp at any zoom, but the floor and walls are scaled, so above 1.25× they look blockier. Kept for your next visit.', ctl: (row, l) => menuSeg(row, l, ZOOMS.map(z => [z, z + '×' + (z === CAM_ZOOM ? ' (default)' : '')]), OPT.zoom, setCamZoom) },
+  { page: 'graphics', group: 'Camera', label: 'Camera turn', keys: () => keyLabel('camLeft') && keyLabel('camLeft') + ' and ' + keyLabel('camRight'), about: 'Turns the camera around the hero in 45° steps. Not kept after a reload.', ctl: (row, l) => menuSeg(row, l, [0, 45, 90, 135, 180, 225, 270, 315].map(d => [d, d + '°']), game.yaw || 0, d => game.rotateView(d - (game.yaw || 0))) },
+  { page: 'graphics', group: 'Camera', label: 'Reset the camera', keys: () => keyLabel('camReset'), about: 'Back to the game\'s own camera: 1.25× zoom, no turn.', ctl: row => formButton(row, 'Reset the camera', () => { resetCamera(); formStatus('The camera is back to 1.25×, no turn.'); }) },
   { page: 'graphics', group: 'Camera', knob: 'camSmooth' },
   { page: 'graphics', group: 'Camera', knob: 'camLead' },
   { page: 'graphics', group: 'Picture', label: 'Pixel size', about: () => 'How big a game pixel is on your screen. Large is the classic look; Medium and Small draw finer pixels and show more of the world, and cost more to draw. A phone keeps Large, so the text stays readable. ' + pixelsNow(), ctl: (row, l) => menuSeg(row, l, PIXELS.map(([t], i) => [i, t + (i ? '' : ' (default)')]), OPT.pixels || 0, v => { OPT.pixels = v; saveOpts(); applyPixels(); }) },
@@ -100,12 +105,12 @@ const MENU_SET = [
   { page: 'sound', group: 'Volume', label: 'Master volume', about: 'Everything at once; music and effects are mixed under it.', ctl: (row, l) => menuSlider(row, l, game.settings.volume, 0, 1, .05, v => Math.round(v * 100) + '%', v => game.settings.set('volume', v)) },
   { page: 'sound', group: 'Volume', label: 'Music', ctl: (row, l) => menuSlider(row, l, OPT.music, 0, 1, .1, v => Math.round(v * 10) + ' / 10', v => { OPT.music = v; saveOpts(); applyAudioOpts(); }) },
   { page: 'sound', group: 'Volume', label: 'Sound effects', ctl: (row, l) => menuSlider(row, l, OPT.sfx, 0, 1, .1, v => Math.round(v * 10) + ' / 10', v => { OPT.sfx = v; saveOpts(); applyAudioOpts(); }) },
-  { page: 'sound', group: 'Volume', label: 'Mute', keys: 'M', about: 'Silences everything. Not kept after a reload.', ctl: (row, l) => menuSwitch(row, l, A.muted, v => A.mute(v)) },
+  { page: 'sound', group: 'Volume', label: 'Mute', keys: () => keyLabel('mute'), about: 'Silences everything. Not kept after a reload.', ctl: (row, l) => menuSwitch(row, l, A.muted, v => A.mute(v)) },
   { page: 'sound', group: 'Volume', label: 'Sound in the background', about: 'Keep playing sound while the page is hidden (another tab, the phone locked).', ctl: (row, l) => menuSwitch(row, l, game.settings.background, v => game.settings.set('background', v)) },
   { page: 'interface', group: 'Combat', label: 'Damage numbers', about: 'The numbers that rise from every hit.', ctl: (row, l) => menuSwitch(row, l, OPT.numbers, v => { OPT.numbers = v; saveOpts(); }) },
   { page: 'interface', group: 'Combat', label: 'Health bars', about: 'Bars over hurt monsters and elites (a boss always has its own bar).', ctl: (row, l) => menuSwitch(row, l, OPT.bars, v => { OPT.bars = v; saveOpts(); }) },
-  { page: 'interface', group: 'Loot', label: 'Loot labels', keys: 'Z shows all while held', about: 'Which items on the ground show their names.', ctl: (row, l) => menuSeg(row, l, [[0, 'All'], [1, 'Magic and better'], [2, 'Rare and better']], OPT.labels, v => { OPT.labels = v; saveOpts(); }) },
-  { page: 'interface', group: 'Screen', label: 'Hide the HUD', keys: 'H', about: 'The orbs, the skill bar, the minimap and the notices go, for screenshots. Not kept after a reload.', ctl: (row, l) => menuSwitch(row, l, UI.hideHud, v => { UI.hideHud = v; }) },
+  { page: 'interface', group: 'Loot', label: 'Loot labels', keys: () => keyLabel('labels') && keyLabel('labels') + ' shows all while held', about: 'Which items on the ground show their names.', ctl: (row, l) => menuSeg(row, l, [[0, 'All'], [1, 'Magic and better'], [2, 'Rare and better']], OPT.labels, v => { OPT.labels = v; saveOpts(); }) },
+  { page: 'interface', group: 'Screen', label: 'Hide the HUD', keys: () => keyLabel('hud'), about: 'The orbs, the skill bar, the minimap and the notices go, for screenshots. Not kept after a reload.', ctl: (row, l) => menuSwitch(row, l, UI.hideHud, v => { UI.hideHud = v; }) },
   { page: 'interface', group: 'Screen', label: 'Tips', about: 'Each hint shows once per hero, at the moment it matters.', ctl: row => formButton(row, 'Show the tips again', () => { if (ED.hero) ED.hero.tips = []; formStatus('The tips will show again as they come up.'); }) }
 ];
 /** a page's settings, grouped under their headings */
@@ -118,7 +123,7 @@ function menuSettings(el, list) {
     it.ctl(menuSetting(el, it.label, it.about, it.keys), it.label);
   }
 }
-const menuSetText = it => it.knob ? (K => K ? K.label + ' ' + K.about : '')(tuneKnob(it.knob)) : it.label + ' ' + (typeof it.about === 'function' ? it.about() : it.about || '') + ' ' + (it.keys || '');
+const menuSetText = it => it.knob ? (K => K ? K.label + ' ' + K.about : '')(tuneKnob(it.knob)) : it.label + ' ' + (typeof it.about === 'function' ? it.about() : it.about || '') + ' ' + ((typeof it.keys === 'function' ? it.keys() : it.keys) || '');
 
 /* ---------- the pages ---------- */
 const MENU_INTRO = {
@@ -150,15 +155,20 @@ function difficultyPage(el) {
   }
   formButton(formElement('div', '', el, { class: 'ed-row' }), 'Reset difficulty', () => { settingsReset(); menuRender(); formStatus('Difficulty is back to the shipped game.'); });
 }
-/** every key, as bound now (Controls changes them), and the ones fixed to the keyboard */
+/** every key or button of the device in use, as bound now (Controls changes them); on the keyboard the fixed camera,
+ *  sound and screen keys too */
 function helpPage(el) {
-  devSection(el, 'Keys', 'As bound now; Controls changes them. The camera, sound and screen keys are fixed.');
+  const dev = ctlDevice(), pad = dev === 'gamepad', touch = dev === 'touch';
+  devSection(el, pad ? 'Buttons' : touch ? 'Touch' : 'Keys', touch ? 'Drag on the open side to move; the buttons fight. A flick sideways takes a window, a notice or a card away; two fingers pinch the zoom.' : 'As bound now; Controls changes them.' + (pad ? ' The left stick moves, the right stick aims.' : ' The camera, sound and screen keys are fixed.'));
   const t = formElement('div', '', el, { class: 'ed-keys' });
-  const key = (what, keys) => { formElement('span', what, t); formElement('kbd', keys, t); };
-  for (const [a, label] of CONTROL_ACTIONS) key(label, actionLabel(a) || 'Unbound');
-  key('Menu', 'Esc');
-  key('Settings: the next or previous page', 'LB / RB on a pad');
-  for (const [what, keys] of [['Change the view', 'V'], ['Zoom out / in', '- / ='], ['Turn the camera', '[ / ]'], ['Reset the camera', '0'], ['Mute', 'M'], ['Hide the HUD', 'H']]) key(what, keys);
+  const key = (what, keys) => { formElement('span', what, t); formElement('kbd', keys, t); }, both = (a, b) => [keyLabel(a), keyLabel(b)].filter(Boolean).join(' / ');
+  if (!touch) {
+    for (const [a, label] of CONTROL_ACTIONS) if (!(pad && MOVE_ACTS.includes(a))) key(label, keyLabel(a) || (pad ? 'the menu' : 'Unbound'));
+    key('Menu', keyLabel('pause'));
+    key('In a panel: back', keyLabel('cancel')); key('In a panel: drop, sell, take back', keyLabel('alt')); key('In a panel: tabs', pad ? both('pagePrev', 'pageNext') : keyLabel('pageNext'));
+    if (pad) { key('Bag, skills, passives', both('panelPrev', 'panelNext')); key('Settings: the next or previous page', both('pagePrev', 'pageNext')); }
+    else for (const [what, a, b] of [['Change the view', 'camView'], ['Zoom out / in', 'camOut', 'camIn'], ['Turn the camera', 'camLeft', 'camRight'], ['Reset the camera', 'camReset'], ['Mute', 'mute'], ['Hide the HUD', 'hud']]) key(what, b ? both(a, b) : keyLabel(a));
+  }
   devGuide(el);
   devSection(el, 'This build', null);
   formElement('p', 'Emberdeep on my-3D2dge ' + E.versionLabel(), el, { class: 'ed-meta ed-version' });   // the release and the commit it was built from
@@ -178,12 +188,19 @@ function menuSearch(el, q) {
 }
 
 /* ---------- the window ---------- */
+/** the pages the list shows: every one with a mouse and keys; opened from a controller or a finger, the Tuning pages
+ *  (a playtester's, a page per part) fold into one entry until it is chosen */
+const MENU_FOLD = { tune: false };
+const menuTabsShown = () => MENU_GROUPS.flatMap(([g, tabs]) => g === 'Tuning' && MENU_FOLD.tune ? [] : tabs);
 function menuOpen(data) {
   if (data && data.tab) DEV_UI.tab = data.tab;
   if (!MENU_TABS.some(t => t[0] === DEV_UI.tab)) DEV_UI.tab = 'graphics';
-  DEV_UI.find = '';
+  DEV_UI.find = ''; FORM.ctl = null;   // (Controls opens on the page of the device in use)
+  const I = game.input, far = I.lastDevice === 'gamepad' || I.lastDevice === 'touch';
+  MENU_FOLD.tune = far && !TUNE_SECTIONS.some(S => S.id === DEV_UI.tab);
   openForm('Settings', el => {
     el.classList.add('ed-menu');
+    if (I.lastDevice === 'gamepad') formElement('p', keyLabel('pagePrev', false, 'gamepad') + ' ' + keyLabel('pageNext', false, 'gamepad') + ' turn the pages  •  ' + keyLabel('cancel', false, 'gamepad') + ' goes back', el.querySelector('header'), { class: 'ed-pad-keys' });
     formElement('p', '', el, { 'data-status': '', role: 'status', class: 'ed-status' });
     const find = formElement('input', '', el, { type: 'search', placeholder: 'Find a setting…', 'aria-label': 'Find a setting', class: 'ed-find' });
     find.oninput = () => { DEV_UI.find = find.value; menuRender(); };
@@ -191,6 +208,7 @@ function menuOpen(data) {
     for (const [group, tabs] of MENU_GROUPS) {
       formElement('h4', group, nav);
       const list = formElement('div', '', nav, { role: 'tablist', 'aria-label': group, 'aria-orientation': 'vertical' });
+      if (group === 'Tuning' && MENU_FOLD.tune) { formButton(list, 'Tuning (' + tabs.length + ' pages)', () => { MENU_FOLD.tune = false; menuOpen({ tab: tabs[0][0] }); }).title = 'The game\'s rule numbers, a page per part: for playtesting'; continue; }
       for (const [id, name] of tabs) {
         const b = formButton(list, '', () => menuGo(id));
         b.dataset.tab = id; b.setAttribute('role', 'tab'); b.setAttribute('aria-label', name);
@@ -235,17 +253,16 @@ function menuGo(tab, knobId) {
   if (knobId && FORM.el) { const r = FORM.el.querySelector('[data-knob="' + knobId + '"]'); if (r) r.scrollIntoView({ block: 'center' }); }
   DEV_UI.flash = null;
 }
-/** the window's step: a pad's shoulder buttons (LB, RB) turn the page and put the focus on its first setting, so a
- *  pad needn't walk the list of pages; the rest is every window's (updateForm: up, down, change, confirm, back) */
-const MENU_PAD = { prev: [] };
+/** the window's step: a pad's shoulder buttons (L1, R1: pagePrev, pageNext; a flick on a DualSense's touchpad) turn the
+ *  page and put the focus on its first setting, so a pad needn't walk the list of pages; the rest is every window's
+ *  (updateForm: up, down, change, confirm, back) */
 function menuUpdate() {
-  const now = game.input.padPrev || [], was = MENU_PAD.prev;
-  if (!FORM.capture) for (const [b, d] of [[4, -1], [5, 1]]) if (now[b] && !was[b]) {
-    const i = MENU_TABS.findIndex(t => t[0] === DEV_UI.tab);
-    menuGo(MENU_TABS[(i + d + MENU_TABS.length) % MENU_TABS.length][0]);
+  const d = FORM.capture ? 0 : pageStep();
+  if (d) {
+    const shown = menuTabsShown(), i = Math.max(0, shown.findIndex(t => t[0] === DEV_UI.tab));
+    menuGo(shown[(i + d + shown.length) % shown.length][0]);
     const f = FORM.el && FORM.el.querySelector('.ed-tab-body button, .ed-tab-body input, .ed-tab-body select'); if (f) f.focus();
   }
-  MENU_PAD.prev = now.slice();
   updateForm();
 }
 UI.def('settings', { dom: true, captureKeys: true, open: menuOpen, close: closeForm, update: menuUpdate });

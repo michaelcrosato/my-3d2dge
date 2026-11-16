@@ -1753,7 +1753,7 @@ function dressOutskirts(Lv) {
 function dressTown(Lv) {
   const T = Lv.things, add = t => { T.push(t); t.dead = false; return t; }, prop = (name, x, y, o = {}, z = 0) => Lv.props.push({ name, x, y, z, o });
   add(forgeThing()); add(Lv.bellows = bellowsThing()); add(anvilThing()); add(Lv.quench = quenchThing()); add(stallThing()); add(wellThing());
-  const chest = add(stashThing()); Lv.uses = [{ x: chest.x, y: chest.y, r: 21, label: '[E] Open the stash', use: () => chest.use() }];   // the stash by Cobb's stall
+  const chest = add(stashThing()); Lv.uses = [{ x: chest.x, y: chest.y, r: 21, label: '{key:interact} Open the stash', verb: 'Stash', use: () => chest.use() }];   // the stash by Cobb's stall
   // the forge yard: a coal heap, a woodpile, a weapon rack, the smithy's sign
   add(piece('coal', 122, 334, 6, (r, g, x, y) => { const [cx, cy] = r.w(x, y, 0), s = r.view.scale; for (let i = 0; i < 14; i++) { const a = hs(i, 3) * TAU, d = hs(i, 5) * 6; px.disc(g, cx + Math.cos(a) * d * s, cy + Math.sin(a) * d * s * .5 - (6 - d) * s * .6, 2.2 * s, i % 4 ? '#2a2428' : '#4a4048'); } px.dot(g, cx - s, cy - 4 * s, '#8a8290'); }));
   add(piece('logs', 232, 318, 8, (r, g, x, y) => { for (let row = 0; row < 3; row++) for (let i = 0; i < 4 - row; i++) { const lx = x - 7 + i * 4.6 + row * 2.3, [cx, cy] = r.w(lx, y + 4, 3 + row * 4), s = r.view.scale; obox(r, g, lx, y, row * 4, row * 4 + 4, 2, 7, 0, null, '#7a5232', { edge: false }); px.disc(g, cx, cy, 2 * s, '#b08a5a'); px.dot(g, cx, cy, '#7a5a3a'); } }));

@@ -28,18 +28,30 @@ const qs = new URLSearchParams(location.search);
 const canvas = document.getElementById('screen');
 const BASE = { minH: 220, minW: 320, maxW: 640, maxH: 330, portrait: { maxH: 1000 } };   // wide enough for a phone on its side (about 2.2 : 1); held upright, its picture grows to fill the 9:16 screen
 /* keys (Diablo IV style): WASD moves, the mouse aims; LMB / RMB / 1-4 are the six skill slots, Space dodges,
-   Q drinks, E interacts, T opens a town portal, I bag, K skills, P passives, Tab map, Esc menu */
+   Q drinks, E interacts, T opens a town portal, I (B, C) bag, K skills, P passives, Tab map, Z or Alt loot labels, Esc menu.
+   A controller (PlayStation layout, docs/CONTROLS.md): the left stick moves, the right stick aims; □ △ ○ L1 R1 R2 the six
+   slots, ✕ dodges, L2 drinks, L3 or d-pad → interacts, R3 or d-pad ↓ opens a portal, d-pad ↑ or the touchpad holds the
+   map, d-pad ← holds the loot labels, Create the bag, Options the menu. Pad16 (PS) is the 52in1 hub's: never bound.
+   In a panel: ✕ chooses, ○ backs out one layer, □ the second action (drop, sell, salvage, undo), L1 R1 its tabs, L2 R2
+   the next panel (bag, skills, passives), △ the tree's totals, R3 recentres it, the right stick zooms it.
+   Prompts never name a key: they come from input.label (61-controls.js keyLabel, keyText) */
 const INPUT = {
-  up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
+  up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],   // (the left stick moves; the d-pad is the map, the labels, the portal and the use)
   s0: ['Mouse0', 'KeyJ', 'Pad2'], s1: ['Mouse2', 'KeyL', 'Pad3'], s2: ['Digit1', 'Pad1'], s3: ['Digit2', 'Pad4'], s4: ['Digit3', 'Pad5'], s5: ['Digit4', 'Pad7'],
-  dodge: ['Space', 'ShiftLeft', 'ShiftRight', 'Pad0'], potion: ['KeyQ', 'Pad6'], interact: ['KeyE', 'Enter', 'NumpadEnter', 'Pad10'], portal: ['KeyT', 'Pad11'],
-  bag: ['KeyI', 'KeyB', 'Pad8'], skills: ['KeyK'], tree: ['KeyP'], map: ['Tab'], labels: ['KeyZ'],
+  dodge: ['Space', 'ShiftLeft', 'ShiftRight', 'Pad0'], potion: ['KeyQ', 'Pad6'], interact: ['KeyE', 'Enter', 'NumpadEnter', 'Pad10', 'Pad15'], portal: ['KeyT', 'Pad11', 'Pad13'],
+  bag: ['KeyI', 'KeyB', 'KeyC', 'Pad8'], skills: ['KeyK'], tree: ['KeyP'], map: ['Tab', 'Pad12', 'Pad17'], labels: ['KeyZ', 'AltLeft', 'Pad14'],
   menuUp: ['ArrowUp', 'KeyW', 'Pad12', 'PadAxisUp'], menuDown: ['ArrowDown', 'KeyS', 'Pad13', 'PadAxisDown'],
   menuLeft: ['ArrowLeft', 'KeyA', 'Pad14', 'PadAxisLeft'], menuRight: ['ArrowRight', 'KeyD', 'Pad15', 'PadAxisRight'],
   click: ['Mouse0'], rclick: ['Mouse2'],
-  start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyJ', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1']
+  start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyJ', 'Pad0'], cancel: ['Escape', 'Pad1'],
+  // the panels' own (fixed, not on the Controls page): the second action, tabs, the next panel, the tree's totals,
+  // centre and zoom
+  alt: ['Backspace', 'Delete', 'Pad2'], pagePrev: ['Pad4'], pageNext: ['Tab', 'Pad5'], panelPrev: ['Pad6'], panelNext: ['Pad7'], totals: ['Tab', 'Pad3'],
+  centre: ['KeyR', 'Home', 'Digit0', 'Pad11'], zoomIn: ['Equal', 'NumpadAdd', 'KeyE', 'PageUp'], zoomOut: ['Minus', 'NumpadSubtract', 'KeyQ', 'PageDown'],
+  // the camera, the sound and the screen in play (fixed keyboard keys: Settings names them through these)
+  camView: ['KeyV'], camIn: ['Equal', 'NumpadAdd'], camOut: ['Minus', 'NumpadSubtract'], camLeft: ['BracketLeft'], camRight: ['BracketRight'], camReset: ['Digit0'], mute: ['KeyM'], hud: ['KeyH']
 };
-const SLOT_KEYS = ['LMB', 'RMB', '1', '2', '3', '4'], SLOT_ACTS = ['s0', 's1', 's2', 's3', 's4', 's5'];
+const SLOT_ACTS = ['s0', 's1', 's2', 's3', 's4', 's5'];
 const game = new E.Game(Object.assign({ canvas, menu: false, corner: false, fullscreen: 'button', view: qs.get('view') || 'iso', bg: '#05040a', input: INPUT }, BASE));
 const P = game.particles, L = game.lights, A = game.audio;
 L.enabled = true; L.ambient = .14;

@@ -832,7 +832,8 @@ function LOT_cell(g, x, y, S, it, st = {}) {
   px.rect(g, x, y, S, 1, bd); px.rect(g, x, y + S - 1, S, 1, E.shade(bd, -.3)); px.rect(g, x, y, 1, S, bd); px.rect(g, x + S - 1, y, 1, S, E.shade(bd, -.3));
   if (R && R.glow && it.rarity >= 3) { const k = .5 + .5 * Math.sin(game.real * 3 + (typeof it.uid === 'number' ? it.uid : 0)); px.blend(g, .15 + .15 * k, 'add', () => { px.rect(g, x + 1, y + S - 3, S - 2, 2, R.glow); }); }
   if (it && it.rarity === 4) for (const [cx, cy] of [[x + 1, y + 1], [x + S - 3, y + 1], [x + 1, y + S - 3], [x + S - 3, y + S - 3]]) { px.rect(g, cx, cy, 2, 2, '#fff0c8'); px.dot(g, cx + (cx > x + 2 ? 0 : 1), cy + (cy > y + 2 ? 0 : 1), '#a8804a'); }
-  if (it) drawItemIconEx(g, it, x + Math.floor((S - 16) / 2), y + Math.floor((S - 16) / 2), 1, { alpha: st.dim ? .35 : 1 });
+  const ik = S >= 40 ? 2 : 1;   // (a finger-wide cell, held upright: the icon twice the size)
+  if (it) drawItemIconEx(g, it, x + Math.floor((S - 16 * ik) / 2), y + Math.floor((S - 16 * ik) / 2), ik, { alpha: st.dim ? .35 : 1 });
   if (it && it.affixes && it.affixes.some(a => a.g)) LOT_star(g, x + 4, y + 4, LOT_GREAT);   // a greater line inside: worth a second look
   if (st.focus) { const t = Math.floor(game.real * 4) % 2; for (const [cx, cy, sx, sy] of [[x - 1 - t, y - 1 - t, 1, 1], [x + S - t, y - 1 - t, -1, 1], [x - 1 - t, y + S - t, 1, -1], [x + S - t, y + S - t, -1, -1]]) { px.rect(g, cx + (sx < 0 ? -2 : 0) + t, cy, 3, 1, '#fff6d8'); px.rect(g, cx + t, cy + (sy < 0 ? -2 : 0), 1, 3, '#fff6d8'); } }
 }
@@ -915,7 +916,8 @@ function LOT_legend(g, x, y, w, great, adv) {
   let tx = x + 22; const put = (t, c) => { E.font.text(g, t, tx, y, c, { font: 'tiny', outline: false }); tx += E.font.width(t, { font: 'tiny' }) + 6; };
   put(great ? 'QUALITY' : 'ROLL QUALITY', '#8a80a8');
   if (great) { LOT_star(g, tx + 2, y + 2, LOT_GREAT); tx += 7; put('GREATER', '#c8b060'); }
-  if (tx + E.font.width('ALT: TIERS', { font: 'tiny' }) <= x + w) put('ALT: TIERS', '#6a6488');
+  const at = ctlDevice() === 'mouse' ? game.input.codeLabel('AltLeft').toUpperCase() + ': TIERS' : '';   // (the advanced readout is the keyboard's: Alt or Shift held)
+  if (at && tx + E.font.width(at, { font: 'tiny' }) <= x + w) put(at, '#6a6488');
 }
 /**
  * LOT_drawTip(g, it, ax, ay, o): o { equipped: true, compare: true, hint: [{ t, c }], price: { t, c }, anchor: [x, y, w, h] (place beside it) }
@@ -1023,7 +1025,7 @@ function LOT_pickup(d) {
   if (Math.hypot(h.x - d.x, h.y - d.y) > LOT_PICK_R) { notify('TOO FAR AWAY', '#9a90b0', 1); sfx('cancel', { vol: .3 }); return; }
   if (h.bag.length >= BAG_MAX) { notify('BAG FULL', '#ff8a7a', 1.5); sfx('cancel', { vol: .4 }); return; }
   ED.drops.splice(ED.drops.indexOf(d), 1); h.bag.push(d.item); d.item._new = true;
-  sfx('pickup', { vol: .6 }); BUS.emit('pickup', { item: d.item }); if (d.item.rarity >= 1) notify(d.item.name, RARITY[d.item.rarity].color, 2.2);
+  padSfx('pickup', { vol: .6 }); BUS.emit('pickup', { item: d.item }); if (d.item.rarity >= 1) notify(d.item.name, RARITY[d.item.rarity].color, 2.2);
   const it = d.item, sx = d.x, sy = d.y, sz = d.z;   // it flies into his hands
   FX.visual(.28, (r, u) => { const k = E.ease.inQuad(u), x = lerp(sx, h.x, k), y = lerp(sy, h.y, k), z = lerp(sz, h.z + 14, k) + Math.sin(u * Math.PI) * 16; r.queue(x, y, z, g => { const [X, Y] = r.w(x, y, z); drawItemIconEx(g, it, X - 8, Y - 8, 1, { anim: false }); }, { bias: .5 }); });
   P.glints(sx, sy, 6, 4, RARITY[it.rarity].color, 8);
@@ -1031,8 +1033,8 @@ function LOT_pickup(d) {
 BUS.on('pickup', e => {
   const it = e.item; if (!it) return; it._new = true;
   if (typeof tip === 'function') {   // one-time hints (94-tips.js) the first time loot matters
-    if (it.rarity >= 3) tip('lot:legend', 'A ' + RARITY[it.rarity].name.toUpperCase() + '!  PRESS I: ITS POWER CHANGES HOW YOU FIGHT', RARITY[it.rarity].color, 6);
-    else if (it.rarity >= 1) tip('lot:bag', 'I OPENS THE BAG  •  HOVER LOOT TO COMPARE  •  CLICK A LABEL TO PICK IT UP', '#bff6ff', 5);
+    if (it.rarity >= 3) tip('lot:legend', 'A ' + RARITY[it.rarity].name.toUpperCase() + '!  WEAR IT FROM THE BAG ({key:bag}): ITS POWER CHANGES HOW YOU FIGHT', RARITY[it.rarity].color, 6);
+    else if (it.rarity >= 1) tip('lot:bag', 'THE BAG ({key:bag}) HOLDS WHAT YOU FIND  •  {mouse}HOVER LOOT TO COMPARE  •  {mouse}CLICK A LABEL TO PICK IT UP  •  {pad}WALK OVER LOOT TO PICK IT UP  •  {touch}WALK OVER LOOT TO PICK IT UP', '#bff6ff', 5);
   }
 });
 BUS.on('draw', e => {

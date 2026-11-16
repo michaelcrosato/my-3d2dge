@@ -374,7 +374,7 @@ def('skills', 'dan_reap', {
 def('skills', 'dan_pounce', {
   name: 'Pounce', kind: 'mobility', tags: ['melee', 'attack', 'movement'], el: 'phys', cost: 10, cd: 4, unlock: 1, color: '#3a2a4a', character: 'dan',
   runes: [{ id: 'rake', name: 'Rake', desc: 'The landing rakes everything around it, and they bleed.' }, { id: 'stalk', name: 'Stalker', desc: 'Leaps a third farther, and the cooldown is 1.5 s shorter.' }],
-  desc: (rank, rune) => 'Coil and leap at the cursor, then drive both scythes down where it lands: a heavy impaling blow that stuns. Untouchable in the air.' +
+  desc: (rank, rune) => 'Coil and leap where you aim, then drive both scythes down where it lands: a heavy impaling blow that stuns. Untouchable in the air.' +
     (rune === 'rake' ? ' The landing rakes all around.' : rune === 'stalk' ? ' Farther, and sooner again.' : ''),
   icon: (g, x, y, s) => { for (let i = 0; i <= 8; i++) { const u = i / 8; px.rect(g, x + (2 + u * 10) * s, y + (13 - Math.sin(u * Math.PI) * 9) * s, Math.max(1, s), Math.max(1, s), i > 5 ? '#ffffff' : '#a898b8'); } DAN_ICON.scythe(g, x + 3 * s, y + 2 * s, s * .8, false); },
   cast(h, ctx) {
