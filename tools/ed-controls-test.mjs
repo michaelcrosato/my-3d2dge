@@ -124,9 +124,8 @@ try {
 				.click();
 			await key(page, "KeyR");
 			assert.deepEqual(await page.evaluate(() => __ed.CONTROL.bindings.right), [
-				"Pad15",
 				"KeyR",
-			]);
+			]); // (the d-pad no longer moves: the left stick does, the d-pad holds the map, labels, portal and use)
 			await page
 				.getByRole("button", { name: "Move up keyboard / mouse", exact: true })
 				.click();
@@ -139,6 +138,7 @@ try {
 			assert.equal(await page.locator("dialog").count(), 1);
 			await key(page, "Escape");
 			await key(page, "Escape");
+			await page.waitForFunction(() => !__ed.ED.hero.act); // (the hero's drop-in done: it would eat the hold)
 			const before = await page.evaluate(() => [
 				__ed.ED.hero.x,
 				__ed.ED.hero.y,
@@ -262,6 +262,7 @@ try {
 			await padButton(9);
 			await key(page, "Escape");
 			await settingsPage(page, "Controls");
+			await page.getByRole("tab", { name: "Controller", exact: true }).click(); // (the pad's bindings are on the Controller page)
 			await page
 				.getByRole("button", { name: "Clear Interact pad", exact: true })
 				.click();

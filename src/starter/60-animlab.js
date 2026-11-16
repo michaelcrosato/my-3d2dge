@@ -440,7 +440,7 @@ const ANIMLAB = (() => {
     if (inp.repeat('left')) pick(skin - 1);
     if (inp.repeat('right')) pick(skin + 1);
     if (inp.pressed('replay')) { paused = false; play(ai); }
-    if (inp.pressed('freeze')) paused = !paused;
+    if (inp.pressed('still')) paused = !paused;
     inp.touchSet('step', null, paused); inp.touchSet('slow', null, !paused);   // (STEP only while paused, SLOW only while not)
     if (inp.pressed('slow')) { game.timeScale = game.timeScale < 1 ? 1 : .25; game.note(E.t(game.timeScale < 1 ? 'animlab.note.slow' : 'animlab.note.full')); }
     if (inp.pressed('trail')) { trail = !trail; game.note(E.t(trail ? 'animlab.note.trail_on' : 'animlab.note.trail_off')); }
@@ -463,8 +463,8 @@ const ANIMLAB = (() => {
   // THE KEYS AND BUTTONS: the lab's mnemonic keys, a pad's buttons for each, the menus' (Esc and Options open the menu:
   // pausable), the camera's view and turn (V, [ ], R3, the right stick) and the pad's zoom
   return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], start: 1.5, rotate: true }, pausable: true,
-    touch: { buttons: ['replay', 'slow', 'step', 'freeze', 'flip', 'lineup'], layout: 'grid' },   // the stick (or a swipe) picks (up, down) and dresses (left, right)
-    input: { up: ['ArrowUp', 'Pad12'], down: ['ArrowDown', 'Pad13'], left: ['ArrowLeft', 'Pad14'], right: ['ArrowRight', 'Pad15'], replay: ['KeyJ', 'Enter', 'Pad0'], freeze: ['Space', 'Pad2'], step: ['Period', 'Pad5'],
+    touch: { buttons: ['replay', 'slow', 'step', 'still', 'flip', 'lineup'], layout: 'grid' },   // the stick (or a swipe) picks (up, down) and dresses (left, right)
+    input: { up: ['ArrowUp', 'Pad12'], down: ['ArrowDown', 'Pad13'], left: ['ArrowLeft', 'Pad14'], right: ['ArrowRight', 'Pad15'], replay: ['KeyJ', 'Enter', 'Pad0'], still: ['Space', 'Pad2'], step: ['Period', 'Pad5'],
       slow: ['KeyS', 'Pad3'], trail: ['KeyT', 'Pad6'], bones: ['KeyB', 'Pad7'], lineup: ['KeyL', 'Pad4'], flip: ['KeyF', 'Pad1'], hud: ['KeyH', 'Pad10'], camView: ['KeyV', 'Pad11'], camL: ['BracketLeft', 'PadRAxisLeft'], camR: ['BracketRight', 'PadRAxisRight'],
       zoomIn: ['PadRAxisUp'], zoomOut: ['PadRAxisDown'], start: E.Input.DEFAULT.start, pause: E.Input.DEFAULT.pause, confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] },
     back() { game.go('title'); return true; },   // a phone's back gesture: the title (Esc and Options open the menu, Quit to title in it)

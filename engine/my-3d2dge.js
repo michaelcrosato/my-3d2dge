@@ -1182,7 +1182,7 @@ class Input {
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
   /** how far a finger that is not the stick's dragged this step, in screen pixels [dx, dy], or null: a camera's look on a
    *  touch screen (the left thumb on the stick, the right one turning the view) */
-  look() { return this._look || null; }
+  look() { return this._lookNow || null; }
   /** [x, y] (screen pixels) in the step after a second finger tapped while another stayed down (the stick, a drag): a
    *  puzzle's turn under one thumb while the other steers; else null */
   secondTap() { return this._secTapAt || null; }
@@ -1344,7 +1344,7 @@ class Input {
     this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._tap2nd = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
-    const la = this._lookAcc; this._look = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
+    const la = this._lookAcc; this._lookNow = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
   }
   // Create (button 8) is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (its
   // bar), so the game sees neither; let go sooner it is a tap; held, a press. Returns whether it is down for the game

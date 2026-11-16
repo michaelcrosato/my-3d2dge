@@ -817,7 +817,7 @@ if (want('rpg')) {
     check(`rpg ${label}: the title's rows are a thumb's height; a tap on New game starts the journey`, small >= 44 && s1.mode === 'walk', `rows ${Math.round(small)} CSS px, mode ${s1.mode}`);
     const sx = vp.width * .2, sy = vp.height * .75; await drag(cdp, line([sx, sy], [sx, sy - 50], 30), 30); const s2 = await st();
     check(`rpg ${label}: the stick walks the party`, s2.y < s1.y - 8, `from ${s1.x}, ${s1.y} to ${s2.x}, ${s2.y}`);
-    const menu = await btn('skill'); if (menu) { await page.touchscreen.tap(menu.x, menu.y); await wait(300); }
+    const menu = await btn('party'); if (menu) { await page.touchscreen.tap(menu.x, menu.y); await wait(300); }
     const s3 = await st(); await tapRow('Status'); const s4 = await st();
     const back = await btn('cancel'); if (back) { await page.touchscreen.tap(back.x, back.y); await wait(300); } const s5 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `rpg-journey-${label.replace(/ /g, '-')}.png`) });
