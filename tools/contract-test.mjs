@@ -1496,6 +1496,18 @@ function shellHeadless(E, ed) {
   game.input.tap('pause'); game.advance(2 / 120);
   const opened = ui.screen; ui.back();
   check(`${ed}: E.Shell headless: the pause screen follows game.paused, back() resumes`, opened === 'pause' && ui.screen === null && !game.paused && ui.root === null, opened + ' ' + ui.screen + ' ' + game.paused);
+  // a screen's own back() takes cancel; a shell.back() inside it closes the screen (it had called the screen's back()
+  // again until the stack overflowed: a builder's co-op setup screen, and the engine's own audio-offset calibration)
+  const cancel = () => { try { ui.back(); return 'ok'; } catch (e) { return e.message; } };
+  let tidy = 0; ui.show('together'); ui.show('setup', { back: () => { tidy++; ui.back(); } }); const r = cancel();
+  ui.show('setup', { back: () => { tidy++; ui.show('setup', { text: 'bye' }); ui.back(); } }); const r2 = cancel();   // (updated in place first)
+  check(`${ed}: E.Shell: a screen's own back() that calls shell.back() closes the screen, once (updated first too)`, r === 'ok' && r2 === 'ok' && ui.screen === 'together' && tidy === 2, r + ' ' + r2 + ' ' + ui.screen + ' ' + tidy);
+  ui.hide(); ui.show('settings'); ui._calibrate('audioOffset'); const c = cancel();
+  check(`${ed}: E.Shell: cancelling the audio offset's calibration goes back to the settings`, c === 'ok' && ui.screen === 'settings', c + ' ' + ui.screen);
+  let under = 0; ui.hide(); ui.show('a', { back: () => { under++; ui.back(); } }); ui.show('b', { back: () => { ui.back(); ui.back(); } }); cancel();
+  ui.show('edit', { back: () => ui.show('confirm') }); cancel();
+  check(`${ed}: E.Shell: closing two from an own back() runs the one under's own back(); one that asks first keeps its screen`, under === 1 && ui._stack.map(t => t.name).join() === 'edit,confirm', under + ' ' + ui._stack.map(t => t.name));
+  ui.hide();
 }
 
 // LANGUAGES (AI Hub Languages v1, section 6b): E.t's blanks, plural forms, numbers, control tags and the Critical
