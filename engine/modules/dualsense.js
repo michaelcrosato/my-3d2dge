@@ -8,7 +8,9 @@ rumble (input.rumble), the touchpad's click (Pad17). This module adds what only 
 a game plays the same without them (docs/CONTROLS.md).
 - const ds = E.DualSense.attach(game, { light, triggers, gyro, speaker, mic }): the extras the game uses (true each);
   each gets a row on the Controls screen's Controller tab: Light bar, Adaptive triggers, Gyro aim (off, low, medium,
-  high: off at first), Controller speaker, Microphone. attach again gives the same ds.
+  high: off at first), Controller speaker, Microphone. attach again gives the same ds, with the rows of any extra it
+  names now (a file of several games, each attaching its own). ds.clear(): the triggers free and the light bar back
+  to blue (a scene's exit, so the next one starts clean).
 - ds.light('#e8443a'): the light bar's colour, a meaning of the game's (health, danger, the team; null leaves it);
   ds.player(0..3): the player lights (-1 off).
 - ds.trigger('left' | 'right', effect): null (free), { resist: [start, force] } (a firm pull from start: a brake, a
@@ -30,7 +32,7 @@ const E = My3D2dge, game = new E.Game({ headless: true }), ds = E.DualSense.atta
 ds.light('#ff4040'); ds.trigger('right', { resist: [.3, .6] }); ds.player(0);
 const a = ds.gyroAim(1 / 120); if (a[0] !== 0 || a[1] !== 0 || ds.connected || ds.swipe() !== null) throw new Error('nothing without a DualSense');
 if (!game.settings.spec('padLight') || !game.settings.spec('gyro') || game.settings.spec('padTriggers')) throw new Error('a row for each extra named');
-if (E.DualSense.attach(game) !== ds || ds.micLevel() !== 0) throw new Error('one ds a game');
+if (E.DualSense.attach(game, { triggers: true }) !== ds || !game.settings.spec('padTriggers') || ds.micLevel() !== 0) throw new Error('one ds a game, more rows');
 ```
 Rules: every extra has another way in (a rumble for the triggers' feel, the stick for the gyro, a button for the
 touchpad): the game is whole on any controller. Gyro aim adds to the stick or the mouse, never replaces them.
@@ -85,15 +87,22 @@ class DualSense {
     this.game = game; this._o = o; this.connected = false; this.allowed = { hid: false, speaker: false, mic: false }; this.touches = [];
     this._dev = null; this._wire = 'usb'; this._seq = 0; this._want = { light: null, player: null, left: null, right: null }; this._sent = ''; this._busy = false;
     this._raw = [0, 0, 0]; this._bias = [0, 0, 0]; this._rate = [0, 0, 0]; this._still = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
-    const S = game.settings, lockHid = () => this.allowed.hid ? null : E.t('engine.dualsense.need_pad');
-    if (o.light) S.define({ key: 'padLight', group: 'Controller', label: 'Light bar', help: 'The DualSense\'s light shows what the game says: your health, danger, your team', type: 'toggle', value: true, locked: lockHid, apply: () => this._push() });
-    if (o.triggers) S.define({ key: 'padTriggers', group: 'Controller', label: 'Adaptive triggers', help: 'The DualSense\'s triggers push back: a brake, a bowstring, a gun\'s break', type: 'toggle', value: true, locked: lockHid, apply: () => this._push() });
-    if (o.gyro) S.define({ key: 'gyro', group: 'Controller', label: 'Gyro aim', help: 'Turn and tilt the DualSense to fine-tune your aim, on top of the stick', type: 'select', value: 'off', options: [['off', 'Off'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], locked: lockHid });
-    if (o.speaker) S.define({ key: 'padSpeaker', group: 'Controller', label: 'Controller speaker', help: 'Small sounds of the game play from the DualSense in your hands', type: 'toggle', value: false, locked: () => this.allowed.speaker ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._speakerOn(v) });
-    if (o.mic) S.define({ key: 'mic', group: 'Controller', label: 'Microphone', help: 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent', type: 'toggle', value: false, locked: () => this.allowed.mic ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._micOn(v) });
+    this.extras(o);
     game.hook('input', dt => this._tick(dt));
     if (!game.headless && typeof navigator !== 'undefined') this._find();
   }
+  /** name more extras this game uses ({ light, triggers, gyro, speaker, mic }: attach does it): their rows are added */
+  extras(o = {}) {
+    for (const k in o) if (o[k] && k in this._o) this._o[k] = true;
+    const game = this.game, S = game.settings, lockHid = () => this.allowed.hid ? null : E.t('engine.dualsense.need_pad');
+    if (o.light && !S.spec('padLight')) S.define({ key: 'padLight', group: 'Controller', label: 'Light bar', help: 'The DualSense\'s light shows what the game says: your health, danger, your team', type: 'toggle', value: true, locked: lockHid, apply: () => this._push() });
+    if (o.triggers && !S.spec('padTriggers')) S.define({ key: 'padTriggers', group: 'Controller', label: 'Adaptive triggers', help: 'The DualSense\'s triggers push back: a brake, a bowstring, a gun\'s break', type: 'toggle', value: true, locked: lockHid, apply: () => this._push() });
+    if (o.gyro && !S.spec('gyro')) S.define({ key: 'gyro', group: 'Controller', label: 'Gyro aim', help: 'Turn and tilt the DualSense to fine-tune your aim, on top of the stick', type: 'select', value: 'off', options: [['off', 'Off'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], locked: lockHid });
+    if (o.speaker && !S.spec('padSpeaker')) S.define({ key: 'padSpeaker', group: 'Controller', label: 'Controller speaker', help: 'Small sounds of the game play from the DualSense in your hands', type: 'toggle', value: false, locked: () => this.allowed.speaker ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._speakerOn(v) });
+    if (o.mic && !S.spec('mic')) S.define({ key: 'mic', group: 'Controller', label: 'Microphone', help: 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent', type: 'toggle', value: false, locked: () => this.allowed.mic ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._micOn(v) });
+  }
+  /** the triggers free and the light bar back to blue: a scene's exit, so the next starts clean */
+  clear() { this._want.left = this._want.right = null; this._want.light = '#3050ff'; this._push(); return this; }
   /** the light bar's colour ('#rrggbb'; null leaves it as it is) */
   light(color) { this._want.light = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : null; this._push(); return this; }
   /** the player lights: 0..3 for players 1 to 4, -1 off */
@@ -201,7 +210,7 @@ class DualSense {
 /** E.DualSense: attach(game, o) gives a game its DualSense extras (the manual above); effect(e) a trigger effect's bytes */
 E.DualSense = {
   /** the extras a game uses: one DualSense object per game, its rows in the settings (the manual above) */
-  attach(game, o = {}) { let ds = ONCE.get(game); if (!ds) { ds = new DualSense(game, Object.assign({ light: false, triggers: false, gyro: false, speaker: false, mic: false }, o)); ONCE.set(game, ds); } return ds; },
+  attach(game, o = {}) { let ds = ONCE.get(game); if (!ds) { ds = new DualSense(game, Object.assign({ light: false, triggers: false, gyro: false, speaker: false, mic: false }, o)); ONCE.set(game, ds); } else ds.extras(o); return ds; },
   /** a trigger effect's 11 bytes (null, { resist }, { weapon }, { pulse }), as the output report carries it: for a tool or a test */
   effect(e) { return effect(e); }
 };
