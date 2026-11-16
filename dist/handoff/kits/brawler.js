@@ -1,5 +1,5 @@
 // The BRAWLER kit's game (a beat-'em-up: a city block at dusk, combos, grabs and kicks, waves that lock the screen, a second player who drops in; Final Fight, Streets of Rage), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/50-brawler.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/50-brawler.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. brawler.html plays it; node kits/test.mjs brawler runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page

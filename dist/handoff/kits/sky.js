@@ -1,5 +1,5 @@
 // The SKY kit's game (Mode 7 flight, six ways: a light plane through rings onto a runway, a skydive onto a target, a rocket belt through low rings onto a pad, a hang glider climbing in thermals, an attack helicopter against flak turrets, an airship over a world that curves away; the camera pitched and rolled; Pilotwings, Final Fantasy VI's airship), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/64-sky.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/64-sky.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. sky.html plays it; node kits/test.mjs sky runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,7 +171,7 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 23  SKY  (Pilotwings; Final Fantasy VI's airship, Secret of Mana's Flammie). @modules mode7 mesh
+ * SLICE 23  SKY  (Pilotwings; Final Fantasy VI's airship, Secret of Mana's Flammie). @modules mode7 mesh dualsense
  * Flight over a Mode 7 world, six ways. LIGHT PLANE: ten rings round an island, then down onto its runway (lined up,
  * slow and level: flare it). SKYDIVE: out over the island, through the hoops of a free fall, the chute opened in its
  * band, down onto the target's bullseye. ROCKET BELT: up off the ground on a jet pack (GAS climbs, let go and it sinks,
@@ -179,20 +184,36 @@ scenes.over = {
  * down), then back onto the pad. Each scored out of 100 for a medal. VOYAGE: an airship over a world that
  * curves away below it, the horizon bending with your height: light the three beacons (land beside each), then home.
  * Deep links: #sky/plane, #sky/dive, #sky/belt, #sky/glider, #sky/heli, #sky/voyage.
- * KEYS: left / right bank and turn, down climbs and up dives (the stick of a plane and the glider; the belt's and the
- * helicopter's: up flies forward), Z / J more throttle (the helicopter climbs), X / K less (the glider's air brake; the
- * helicopter comes down), Space opens the chute (lands the airship by a beacon, fires the helicopter's missile). A pad:
- * the stick, A and X the throttle, B the chute.
- * TOUCH: the stick, GAS, SLOW and ACT, each where it acts (the glider SLOW alone; the helicopter's ACT is FIRE).
+ * KEYS: left / right (A / D) bank and turn, down climbs and up dives (the stick of a plane and the glider; the belt's and
+ * the helicopter's: up flies forward), Shift / Z / J more throttle (the helicopter climbs), X / K less (the glider's air
+ * brake; the helicopter comes down), Space or a left click opens the chute (lands the airship by a beacon, fires the
+ * helicopter's missile). A pad (PlayStation names): the stick, R2 more throttle and L2 less (as far as they are pulled:
+ * the throttle moves as fast, the belt and the helicopter climb as hard), ✕ and □ too, R1 or ○ the chute (the landing,
+ * the missile); ○ back in the menus. Any pad rumbles on a ring, the chute's jolt, a landing, a crash, the flak and a
+ * missile; a DualSense's triggers push back (the throttle and the brake; the glider's air brake, the chute's lines), its
+ * light bar shows the moment (the chute's band green, amber, red as you fall; the helicopter's damage; the belt's fuel;
+ * the glider's stall and lift) and with gyro aim on (Settings, Controller) turning it fine-tunes the helicopter's aim.
+ * TOUCH: the stick, GAS, SLOW, and ACT where it acts: CHUTE in the free fall, LAND by a beacon, FIRE in the helicopter (the
+ * glider SLOW alone); the touch assists (Settings, on at first) turn the helicopter onto a turret it nearly faces and fire
+ * when a missile would hit. A swipe up clears a banner; a swipe goes back from the menus.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the island and the world below, its camera pitched and rolled with the
  * plane (cam.roll), the voyage's world a globe (curve); E.Mesh (the mesh module) the plane, the glider, the helicopter,
  * the turrets, the rings, the airship, the chute and the towers as low-poly models; this file the flying, the courses,
  * the thermals, the flak, the scoring and the HUD.
  * ===================================================================================== */
 const SKY = (() => {
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['KeyZ', 'KeyJ', 'Pad0', 'Pad7'], slow: ['KeyX', 'KeyK', 'Pad2', 'Pad6'], act: ['Space', 'KeyC', 'Pad1', 'Pad5'] });
+  // (R2 and L2 first, the analog pair read as far as each is pulled, R1 first for the act: prompts name them; a left click
+  // acts, as Space does)
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ShiftLeft', 'ShiftRight', 'KeyZ', 'KeyJ', 'Pad7', 'Pad0'], slow: ['KeyX', 'KeyK', 'Pad6', 'Pad2'], act: ['Space', 'KeyC', 'Mouse0', 'Pad5', 'Pad1'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
   const TX = 4, ISLE = 4096, M = 2048, hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
+  // a DualSense's extras (the dualsense module: the one controller it addresses): the light bar and the triggers, told
+  // only when they change, and gyro aim; nothing at all without one
+  const ds = E.DualSense.attach(game, { light: true, triggers: true, gyro: true });
+  let dsWas = '';
+  const dsSet = (light, right, left) => { const k = light + JSON.stringify([right, left]); if (k === dsWas) return; dsWas = k; ds.light(light); ds.trigger('right', right); ds.trigger('left', left); };
+  const dsOff = () => { if (dsWas !== 'off') { dsWas = 'off'; ds.clear(); } };
+  const THROTTLE = { resist: [.1, .3] }, SLOWS = { resist: [.2, .5] }, AIRBRAKE = { resist: [.1, .7] }, LINES = { resist: [.1, .5] };   // (the throttle's spring, the brake, the glider's air brake, the chute's lines)
   /* ---- THE ISLAND: a canvas a texel to 4 units, painted once (sea, reef, beaches, fields, woods, a peak, a lake, a
    * town, the runway north-south and the dive's target) ---- */
   const RUNWAY = { x: 1920, y0: 2400, y1: 3120, w: 40, aim: 3020 }, TARGET = [2600, 2700], PAD = [2120, 2600];   // (PAD: the rocket belt's)
@@ -312,8 +333,8 @@ const SKY = (() => {
     { wave: 'triangle', vol: .24, notes: 'A2 . E3 . A2 . E3 . | A2 . E3 . A2 . E3 . | F2 . C3 . F2 . C3 . | E2 . B2 . E2 . B2 . | A2 . E3 . A2 . E3 . | D2 . A2 . D2 . A2 . | F2 . C3 . E2 . B2 . | A2 . E3 . A2 . . .' },
     { wave: 'drums', vol: .04, notes: 'k . . . s . . . k . k . s . . h' }] };
   let mode = 'menu', ev = null, t = 0, S = null, banner = null, bannerT = 0, pilot = null, res = null;
-  const EVENTS = ['plane', 'dive', 'belt', 'glider', 'heli', 'voyage'], menu = new E.Menu(game, EVENTS.map(e => E.t('sky.menu.' + e)).concat(E.t('sky.menu.back')), { onPick: i => i === EVENTS.length ? game.go('title') : start(EVENTS[i]) });
-  const after = new E.Menu(game, [E.t('sky.menu.again'), E.t('sky.menu.menu')], { onPick: i => i === 0 ? start(ev) : toMenu() });
+  const EVENTS = ['plane', 'dive', 'belt', 'glider', 'heli', 'voyage'], menu = new E.Menu(game, EVENTS.map(e => E.t('sky.menu.' + e)).concat(E.t('sky.menu.back')), { onPick: i => i === EVENTS.length ? game.go('title') : start(EVENTS[i]), onCancel: () => game.go('title') });   // (○, Backspace or a sideways swipe: back)
+  const after = new E.Menu(game, [E.t('sky.menu.again'), E.t('sky.menu.menu')], { onPick: i => i === 0 ? start(ev) : toMenu(), onCancel: () => toMenu() });
   function toMenu() { mode = 'menu'; ev = null; S = null; A.music('title'); }
   const say = (s, secs = 2.2) => { banner = s; bannerT = secs; };
   /** an event from its start: the plane south of the island heading north; the diver at 600 m over the bay; the glider
@@ -330,12 +351,15 @@ const SKY = (() => {
     say(E.t('sky.goal.' + which), 3); A.music(which === 'voyage' ? VOYAGE_SONG : SONG); game.input.consumeAll();
   }
   // the player's stick: [x, y] (down climbs: a plane's), the throttle up or down, the act; or the autopilot's (the bot)
-  const stick = () => { const I = game.input, [x, y] = I.move(); return { x, y, gas: I.down('gas'), brake: I.down('slow'), act: I.pressed('act') }; };
+  // (gas and brake as far as they are pulled, 0..1: R2 and L2; a key, all of it)
+  const stick = () => { const I = game.input, [x, y] = I.move(); return { x, y, gas: I.value('gas'), brake: I.value('slow'), act: I.pressed('act') }; };
+  /** the player's pad shaken (any controller; not the autopilot's flights) */
+  const buzz = (s, t) => { if (!pilot) game.input.rumble(s, t); };
   /** the plane: the stick banks it and pitches it, the bank turns it, a dive gains speed and a climb loses it, too slow it
    *  stalls; at the ground it lands on the runway (lined up, slow, level, not sinking hard) or crashes */
   function plane(P, dt, k) {
     if (P.down) { P.speed = Math.max(0, P.speed - (P.landed ? 70 : 200) * dt); P.x += Math.cos(P.yaw) * P.speed * dt; P.y += Math.sin(P.yaw) * P.speed * dt; P.roll *= .9; P.pitch *= .9; return; }
-    P.thr += ((k.gas ? 1 : k.brake ? 0 : P.thr) - P.thr) * Math.min(1, dt * 1.5);
+    const g = +k.gas || 0, b = +k.brake || 0; P.thr += ((g ? 1 : b ? 0 : P.thr) - P.thr) * Math.min(1, dt * 1.5 * Math.max(g, b));   // (the throttle moves as fast as the trigger is pulled; a key, at once as before)
     P.roll += (clamp(k.x, -1, 1) * .95 - P.roll) * Math.min(1, dt * 2.6);
     P.pitch += (clamp(k.y, -1, 1) * .55 - P.pitch) * Math.min(1, dt * 1.7);
     if (P.speed < 72) P.pitch -= (72 - P.speed) * .02 * dt;
@@ -345,8 +369,8 @@ const SKY = (() => {
     if (P.z > 0) return;
     const R = RUNWAY, on = Math.abs(P.x - R.x) < R.w && P.y > R.y0 && P.y < R.y1, sink = P.speed * Math.sin(P.pitch), lined = Math.abs(E.angDiff(P.yaw, -Math.PI / 2)) < .4;
     P.z = 0; P.down = true; P.touch = { y: P.y, sink, speed: P.speed };
-    if (on && lined && Math.abs(P.roll) < .32 && sink > -42 && P.speed < 175) { P.landed = true; say(E.t('sky.landed')); A.sfx('land'); A.sfx('confirm'); }
-    else { P.crash = 1; say(E.t(on ? 'sky.hard' : 'sky.crash')); A.sfx('explode'); game.shake(6); }
+    if (on && lined && Math.abs(P.roll) < .32 && sink > -42 && P.speed < 175) { P.landed = true; say(E.t('sky.landed')); A.sfx('land'); A.sfx('confirm'); buzz(.4, .2); }
+    else { P.crash = 1; say(E.t(on ? 'sky.hard' : 'sky.crash')); A.sfx('explode'); game.shake(6); buzz(.9, .6); }
   }
   /** a ring is flown through when the plane crosses its plane within its radius */
   function through(P, L, i, from, r, was) {
@@ -359,24 +383,24 @@ const SKY = (() => {
     if (P.down) return;
     if (!P.canopy) {
       P.vz = Math.max(-200, P.vz - 160 * dt); P.x += k.x * 70 * dt; P.y += k.y * 70 * dt; P.z += P.vz * dt;
-      if ((k.act && P.z < 1150) || P.z < 300) { P.canopy = true; P.opened = P.z; P.chute = 0; A.sfx('whoosh'); if (P.z < 300) say(E.t('sky.late')); }
+      if ((k.act && P.z < 1150) || P.z < 300) { P.canopy = true; P.opened = P.z; P.chute = 0; A.sfx('whoosh'); buzz(.6, .25); if (P.z < 300) say(E.t('sky.late')); }   // (the canopy's jolt)
     } else {
-      P.chute = Math.min(1, P.chute + dt * 1.6); P.brake = k.brake || k.y > .6; const fwd = P.brake ? 18 : 44;
+      P.chute = Math.min(1, P.chute + dt * 1.6); P.brake = k.brake > .5 || k.y > .6; const fwd = P.brake ? 18 : 44;
       P.yaw += clamp(k.x, -1, 1) * 1.1 * dt; P.x += Math.cos(P.yaw) * fwd * P.chute * dt; P.y += Math.sin(P.yaw) * fwd * P.chute * dt;
       P.z += Math.min(P.vz, 0) * dt; P.vz += ((P.brake ? -14 : -26) - P.vz) * Math.min(1, dt * 2.2);
     }
-    if (P.z <= 0) { P.z = 0; P.down = true; P.dist = Math.hypot(P.x - TARGET[0], P.y - TARGET[1]); P.soft = P.canopy && P.vz > -20; say(E.t(P.dist < 20 ? 'sky.bull' : P.dist < 120 ? 'sky.landed' : 'sky.miss')); A.sfx(P.dist < 40 ? 'secret' : 'land'); }
+    if (P.z <= 0) { P.z = 0; P.down = true; P.dist = Math.hypot(P.x - TARGET[0], P.y - TARGET[1]); P.soft = P.canopy && P.vz > -20; say(E.t(P.dist < 20 ? 'sky.bull' : P.dist < 120 ? 'sky.landed' : 'sky.miss')); A.sfx(P.dist < 40 ? 'secret' : 'land'); buzz(P.soft ? .25 : .6, P.soft ? .1 : .3); }
   }
   /** the rocket belt: GAS climbs, SLOW drops, neither and it sinks slowly; the stick leans it forward or back (it flies
    *  that way) and turns it; the fuel runs down (faster on GAS), and when it's gone it falls; down again on the ground
    *  (once up), the landing judged by the pad and how hard */
   function belt(P, dt, k) {
     if (P.down) { P.v *= .9; P.roll *= .9; return; }   // (down: it stops, and stands up straight)
-    const idle = P.z <= 0 && !k.gas, lift = P.fuel <= 0 ? -1.3 : k.gas ? 1 : k.brake ? -1 : -.3; P.thrust = !idle && lift > -.5 ? 1 : 0;   // (on the ground it stands, its jets off, till GAS)
-    if (!idle) P.fuel = Math.max(0, P.fuel - (1 + (k.gas ? 2 : 0)) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
+    const g = +k.gas || 0, b = +k.brake || 0, idle = P.z <= 0 && !(g > .05), lift = P.fuel <= 0 ? -1.3 : g > .05 ? g : b > .05 ? -b : -.3; P.thrust = !idle && lift > -.5 ? 1 : 0;   // (on the ground it stands, its jets off, till GAS; it climbs and drops as hard as the trigger is pulled)
+    if (!idle) P.fuel = Math.max(0, P.fuel - (1 + 2 * g) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
     P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += ((P.z > 0 ? -clamp(k.y, -1, 1) * 120 : 0) - P.v) * Math.min(1, dt * (P.z > 0 ? 1.1 : 6)); P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;   // (the lean flies it only off the ground)
     P.x += Math.cos(P.yaw) * P.v * dt; P.y += Math.sin(P.yaw) * P.v * dt; P.z = Math.max(0, P.z + P.vz * dt); if (P.z > 15) P.up = true;
-    if (P.z <= 0 && (P.up || P.fuel <= 0)) { P.down = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); P.soft = P.vz > -32; say(E.t(P.dist < 15 ? 'sky.bull' : P.dist < 90 ? 'sky.landed' : 'sky.miss')); A.sfx(P.soft ? 'land' : 'hurt'); if (!P.soft) game.shake(4); }
+    if (P.z <= 0 && (P.up || P.fuel <= 0)) { P.down = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); P.soft = P.vz > -32; say(E.t(P.dist < 15 ? 'sky.bull' : P.dist < 90 ? 'sky.landed' : 'sky.miss')); A.sfx(P.soft ? 'land' : 'hurt'); if (!P.soft) game.shake(4); buzz(P.soft ? .25 : .6, P.soft ? .1 : .3); }
   }
   /** the hang glider: no engine. The stick banks it (the bank turns it) and pitches it: nose down it dives, faster and
    *  lower; nose up it slows, and too slow it stalls, its nose dropping till it has the speed again. It always sinks a
@@ -384,17 +408,17 @@ const SKY = (() => {
    *  judged by the target, soft if slow, level and not sinking hard */
   function glider(P, dt, k) {
     if (P.down) { P.speed = Math.max(0, P.speed - 70 * dt); P.x += Math.cos(P.yaw) * P.speed * dt; P.y += Math.sin(P.yaw) * P.speed * dt; P.roll *= .9; P.pitch *= .9; return; }
-    P.brake = !!k.brake; P.stall = P.speed < (P.stall ? 46 : 38);   // (it stalls under 38, and flies again over 46)
+    const b = +k.brake || 0; P.brake = b > .5; P.stall = P.speed < (P.stall ? 46 : 38);   // (it stalls under 38, and flies again over 46; the air brake as far as it is pulled)
     P.roll += (clamp(k.x, -1, 1) * .8 - P.roll) * Math.min(1, dt * 2.2);
     P.pitch += ((P.stall ? -.4 : clamp(k.y, -1, 1) * .45) - P.pitch) * Math.min(1, dt * (P.stall ? 3 : 1.6));
     P.yaw += Math.sin(P.roll) * 1.1 * dt;
-    P.speed = clamp(P.speed + (((P.brake ? 46 : 64) - P.speed) * (P.brake ? .8 : .3) - Math.sin(P.pitch) * 60) * dt, 20, 150);
+    P.speed = clamp(P.speed + (((64 - 18 * b) - P.speed) * (.3 + .5 * b) - Math.sin(P.pitch) * 60) * dt, 20, 150);
     P.lift = lift(P.x, P.y, P.z);
-    P.vz = P.speed * Math.sin(P.pitch) - (6 + .0012 * (P.speed - 64) ** 2) / Math.cos(P.roll) - (P.brake ? 6 : 0) - (P.stall ? 12 : 0) + P.lift;   // (the brake's sink: braked and level it still lands soft, as the HUD's flare hint says)
+    P.vz = P.speed * Math.sin(P.pitch) - (6 + .0012 * (P.speed - 64) ** 2) / Math.cos(P.roll) - 6 * b - (P.stall ? 12 : 0) + P.lift;   // (the brake's sink: braked and level it still lands soft, as the HUD's flare hint says)
     const h = P.speed * Math.cos(P.pitch); P.x += Math.cos(P.yaw) * h * dt; P.y += Math.sin(P.yaw) * h * dt; P.z += P.vz * dt;
     if (P.z > 0) return;
     P.z = 0; P.down = true; P.dist = Math.hypot(P.x - TARGET[0], P.y - TARGET[1]); P.soft = P.vz > -16 && Math.abs(P.roll) < .35 && P.speed < 80;
-    say(E.t(!P.soft ? 'sky.hard' : P.dist < 20 ? 'sky.bull' : P.dist < 120 ? 'sky.landed' : 'sky.miss')); A.sfx(!P.soft ? 'hurt' : P.dist < 40 ? 'secret' : 'land'); if (!P.soft) game.shake(4);
+    say(E.t(!P.soft ? 'sky.hard' : P.dist < 20 ? 'sky.bull' : P.dist < 120 ? 'sky.landed' : 'sky.miss')); A.sfx(!P.soft ? 'hurt' : P.dist < 40 ? 'secret' : 'land'); if (!P.soft) game.shake(4); buzz(P.soft ? .25 : .6, P.soft ? .1 : .3);
   }
   /** the helicopter: GAS climbs, SLOW comes down (gently near the ground), neither and it holds its height (a hover); the
    *  stick tilts it forward or back (it flies that way, its nose down going forward) and turns it. Set down softly
@@ -404,9 +428,9 @@ const SKY = (() => {
     if (P.down) { P.v *= .9; P.speed = Math.abs(P.v); return; }
     if (P.hits >= 3) {   // shot down: it falls, spinning, and burns where it lands
       P.vz -= 110 * dt; P.yaw += 4 * dt; P.roll += (.5 - P.roll) * dt; P.x += Math.cos(P.yaw) * P.v * dt; P.y += Math.sin(P.yaw) * P.v * dt; P.z += P.vz * dt;
-      if (P.z <= 0) { P.z = 0; P.down = true; puff(P, P.x, P.y, 8, 2); A.sfx('explode'); game.shake(8); } return;
+      if (P.z <= 0) { P.z = 0; P.down = true; puff(P, P.x, P.y, 8, 2); A.sfx('explode'); game.shake(8); buzz(.9, .6); } return;
     }
-    const ground = P.z <= 0, want = k.gas ? 70 : k.brake ? -clamp(P.z * 1.2, 16, 60) : 0;
+    const g = +k.gas || 0, b = +k.brake || 0, ground = P.z <= 0, want = g > .05 ? 70 * g : b > .05 ? -clamp(P.z * 1.2, 16, 60) * b : 0;   // (it climbs and comes down as hard as the trigger is pulled)
     P.vz += (want - P.vz) * Math.min(1, dt * 2.5); P.yaw += clamp(k.x, -1, 1) * 1.3 * dt;
     P.v += ((ground ? 0 : -clamp(k.y, -1, 1) * 170) - P.v) * Math.min(1, dt * (ground ? 6 : 1.1)); P.speed = Math.abs(P.v);
     P.roll += ((ground ? 0 : clamp(k.x, -1, 1) * .3) - P.roll) * Math.min(1, dt * 4); P.lean += (-P.v / 170 * .28 - P.lean) * Math.min(1, dt * 4);
@@ -420,6 +444,11 @@ const SKY = (() => {
   function missile(P) { const c = Math.cos(P.yaw), s = Math.sin(P.yaw), h = MS * Math.cos(DIP) + P.v; return { x: P.x + c * 12, y: P.y + s * 12, z: P.z + 5, vx: c * h, vy: s * h, vz: -MS * Math.sin(DIP), t: 0 }; }
   const puff = (P, x, y, z, kind) => P.puffs.push({ x, y, z, kind, t: 0 });   // (kind 0 a flak burst, 1 a hit, 2 a blast)
   const target = P => P.tur.reduce((a, T) => !T.dead && (!a || Math.hypot(T.x - P.x, T.y - P.y) < Math.hypot(a.x - P.x, a.y - P.y)) ? T : a, null);   // (the nearest turret standing)
+  /** the nearest turret standing and how a missile fired now meets it: d its distance, turn the heading off it, pass the
+   *  missile's height as it arrives (4..26: through its guns), or null with none left */
+  function aimAt(P) { const T = target(P); if (!T) return null; const dx = T.x - P.x, dy = T.y - P.y, d = Math.hypot(dx, dy), m = missile(P); return { T, d, turn: E.angDiff(P.yaw, Math.atan2(dy, dx)), pass: m.z + m.vz * (d - 12) / Math.hypot(m.vx, m.vy) }; }
+  /** a missile fired now would hit (the autopilot fires then, and so do the touch assists) */
+  const onTarget = q => !!q && Math.abs(q.turn) < .035 && q.pass > 4 && q.pass < 26;
   /** the helicopter's fight: each turret turns its guns on it and, while it's up and in range, fires a slow flak shot at
    *  it now and then; its missiles fly straight on and destroy a turret they reach (or burst on the ground beside one);
    *  a flak shot that reaches it is a hit */
@@ -436,13 +465,13 @@ const SKY = (() => {
     }
     for (const f of P.flak) {
       f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
-      if (alive && Math.hypot(f.x - P.x, f.y - P.y, f.z - P.z - 8) < 12) { f.t = 9; P.hits++; puff(P, f.x, f.y, f.z, 1); A.sfx('hurt'); game.shake(5); say(E.t(P.hits >= 3 ? 'sky.heli.down' : 'sky.heli.hit'), P.hits >= 3 ? 3 : 1.2); }
+      if (alive && Math.hypot(f.x - P.x, f.y - P.y, f.z - P.z - 8) < 12) { f.t = 9; P.hits++; puff(P, f.x, f.y, f.z, 1); A.sfx('hurt'); game.shake(5); buzz(.6, .25); say(E.t(P.hits >= 3 ? 'sky.heli.down' : 'sky.heli.hit'), P.hits >= 3 ? 3 : 1.2); }
       else if (f.t > 4.5 || f.z < 0) { f.t = 9; puff(P, f.x, f.y, Math.max(0, f.z), 0); }
     }
     for (const m of P.mis) {
       m.t += dt; m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
       const T = P.tur.find(q => !q.dead && m.z < 34 && Math.hypot(m.x - q.x, m.y - q.y) < (m.z <= 0 ? 38 : 24));   // (through its guns, or a burst on the ground beside it)
-      if (T) { m.t = 9; T.dead = true; P.kills++; puff(P, T.x, T.y, 16, 2); A.sfx('explode'); game.shake(4); const all = P.kills === TURRETS.length; say(E.t(all ? 'sky.heli.pad' : 'sky.heli.boom'), all ? 3 : 1.4); if (all) A.sfx('powerup'); }
+      if (T) { m.t = 9; T.dead = true; P.kills++; puff(P, T.x, T.y, 16, 2); A.sfx('explode'); game.shake(4); buzz(.4, .2); const all = P.kills === TURRETS.length; say(E.t(all ? 'sky.heli.pad' : 'sky.heli.boom'), all ? 3 : 1.4); if (all) A.sfx('powerup'); }
       else if (m.z <= 0) { m.t = 9; puff(P, m.x, m.y, 0, 1); }
       else if (m.t > 3) m.t = 9;
     }
@@ -519,12 +548,9 @@ const SKY = (() => {
       return Object.assign({ x: clamp(E.angDiff(P.yaw, to + (high && d < 300 ? 1.4 : 0)) * 2.4, -1, 1) }, glide(0, d));
     }
     if (ev === 'heli') {   // at the nearest turret, 60 up, at speed, firing once a missile would come down onto it (backing off if too close); up out of the way of a flak shot that would hit; then to the pad, slowing over it, and down
-      const T = target(P), vx = Math.cos(P.yaw) * P.v, vy = Math.sin(P.yaw) * P.v;
+      const q = aimAt(P), vx = Math.cos(P.yaw) * P.v, vy = Math.sin(P.yaw) * P.v;
       const F = P.flak.some(f => { const rx = f.x - P.x, ry = f.y - P.y, rz = f.z - P.z - 8, wx = f.vx - vx, wy = f.vy - vy, s = -(rx * wx + ry * wy + rz * f.vz) / (wx * wx + wy * wy + f.vz * f.vz); return s > 0 && s < 1.6 && Math.hypot(rx + wx * s, ry + wy * s, rz + f.vz * s) < 22; });   // (its nearest pass, were it to hold its height)
-      if (T) {
-        const dx = T.x - P.x, dy = T.y - P.y, d = Math.hypot(dx, dy), turn = E.angDiff(P.yaw, Math.atan2(dy, dx)), m = missile(P), pass = m.z + m.vz * (d - 12) / Math.hypot(m.vx, m.vy);
-        return { x: clamp(turn * 3, -1, 1), y: Math.abs(turn) > .5 ? 0 : d < 260 ? .5 : -1, gas: F || P.z < 54, brake: !F && P.z > 66, act: Math.abs(turn) < .035 && pass > 4 && pass < 26 };
-      }
+      if (q) { const { d, turn } = q; return { x: clamp(turn * 3, -1, 1), y: Math.abs(turn) > .5 ? 0 : d < 260 ? .5 : -1, gas: F || P.z < 54, brake: !F && P.z > 66, act: onTarget(q) }; }
       const dx = PAD[0] - P.x, dy = PAD[1] - P.y, d = Math.hypot(dx, dy), along = dx * Math.cos(P.yaw) + dy * Math.sin(P.yaw), turn = E.angDiff(P.yaw, Math.atan2(dy, dx)), v = Math.abs(turn) > .5 && d > 40 ? 0 : clamp(along * 1.1, -40, 170), h = d > 150 ? 50 : 20, down = d < 12 && Math.abs(P.v) < 10;
       return { x: d > 30 ? clamp(turn * 3, -1, 1) : 0, y: clamp(-(2 * v - P.v) / 170, -1, 1), gas: !down && P.z < h - 6, brake: down || P.z > h + 6 };
     }
@@ -535,39 +561,66 @@ const SKY = (() => {
   /* ---- each step ---- */
   function update(dt) {
     const I = game.input;
-    I.touchSet('gas', null, mode === 'fly' && ev !== 'dive' && ev !== 'glider'); I.touchSet('slow', null, mode === 'fly'); I.touchSet('act', ev === 'heli' ? E.t('sky.touch.fire') : null, mode === 'fly' && (ev === 'dive' || ev === 'voyage' || ev === 'heli'));   // (the glider: SLOW alone, its air brake)
+    // touch's buttons, each where it acts: GAS (not the dive's or the glider's: no engine), SLOW, and ACT named for what
+    // it does: CHUTE through the free fall, LAND by a beacon low enough, FIRE all through the helicopter's flight
+    const fly = mode === 'fly' && !!S, by = fly && ev === 'voyage' && !S.land && !S.home && goal(S), lands = !!by && by.d < 280 && S.z < 260;
+    I.touchSet('gas', null, fly && ev !== 'dive' && ev !== 'glider'); I.touchSet('slow', null, fly);
+    I.touchSet('act', ev === 'heli' ? E.t('sky.touch.fire') : ev === 'dive' ? E.t('sky.touch.chute') : ev === 'voyage' ? E.t('sky.touch.land') : null, fly && (ev === 'dive' ? !S.canopy && !S.down : ev === 'voyage' ? lands : ev === 'heli'));
     t += dt; if (bannerT > 0) bannerT -= dt;
+    if (bannerT > 0) { const sw = I.swipe(); if (sw && sw.dir === 'up') { I.swipe(true); bannerT = 0; } }   // (a banner flicked up and away: up only, a sideways flick is the stick's)
+    sense();
     if (mode === 'menu') { menu.update(dt); return; }
     if (mode === 'results') { after.update(dt); return; }
     const k = pilot ? auto(S) : stick(), was = [S.x, S.y, S.z];
     if (ev === 'plane') {
       plane(S, dt, k);
-      if (S.next < COURSE.length && through(S, COURSE, S.next, [2048, 3900], 40, was)) { S.rings++; A.sfx('coin'); if (S.next === COURSE.length - 1) say(E.t('sky.final')); }
+      if (S.next < COURSE.length && through(S, COURSE, S.next, [2048, 3900], 40, was)) { S.rings++; A.sfx('coin'); buzz(.12, .04); if (S.next === COURSE.length - 1) say(E.t('sky.final')); }
       if (S.next < COURSE.length) { const [x, y] = COURSE[S.next], a = yawOf(COURSE, S.next, [2048, 3900]); if ((S.x - x) * Math.cos(a) + (S.y - y) * Math.sin(a) > 0) S.next++; }   // (past it, through or not)
       if (S.down && S.speed < 4) finish();
     } else if (ev === 'belt') {
       belt(S, dt, k);
-      if (S.next < BELT.length && through(S, BELT, S.next, BELT0, 40, was)) { S.rings++; A.sfx('coin'); if (S.next === BELT.length - 1) say(E.t('sky.belt.pad')); }
+      if (S.next < BELT.length && through(S, BELT, S.next, BELT0, 40, was)) { S.rings++; A.sfx('coin'); buzz(.12, .04); if (S.next === BELT.length - 1) say(E.t('sky.belt.pad')); }
       if (S.next < BELT.length) { const [x, y] = BELT[S.next], a = yawOf(BELT, S.next, BELT0); if ((S.x - x) * Math.cos(a) + (S.y - y) * Math.sin(a) > 0) S.next++; }
       if (S.down) { S.after = (S.after || 0) + dt; if (S.after > 1.6) finish(); }
     } else if (ev === 'dive') {
       dive(S, dt, k);
-      const h = HOOPS[S.next]; if (h && S.z <= h[2]) { if (Math.hypot(S.x - h[0], S.y - h[1]) < 70) { S.rings++; A.sfx('coin'); } S.next++; }
+      const h = HOOPS[S.next]; if (h && S.z <= h[2]) { if (Math.hypot(S.x - h[0], S.y - h[1]) < 70) { S.rings++; A.sfx('coin'); buzz(.12, .04); } S.next++; }
       if (S.down) { S.after = (S.after || 0) + dt; if (S.after > 1.6) finish(); }
     } else if (ev === 'glider') {   // (its rings in any order, each its own way through; the next the first not yet flown)
       glider(S, dt, k);
-      GLIDE.forEach((c, i) => { if (!S.got[i] && through(S, GLIDE, i, GLIDE0, 40, was)) { S.got[i] = true; S.rings++; A.sfx('coin'); if (S.rings === GLIDE.length) say(E.t('sky.glider.target'), 3); } });
+      GLIDE.forEach((c, i) => { if (!S.got[i] && through(S, GLIDE, i, GLIDE0, 40, was)) { S.got[i] = true; S.rings++; A.sfx('coin'); buzz(.12, .04); if (S.rings === GLIDE.length) say(E.t('sky.glider.target'), 3); } });
       S.next = S.got.indexOf(false); if (S.next < 0) S.next = GLIDE.length;
       if (S.down && S.speed < 4) finish();
     } else if (ev === 'heli') {
       heli(S, dt, k); S.cool -= dt;
-      if (k.act && S.cool <= 0 && S.hits < 3 && !S.down && S.z > HUP) { S.mis.push(missile(S)); S.cool = .45; S.fired++; A.sfx('whoosh'); }
+      if (!pilot) S.yaw += ds.gyroAim(dt)[0] * .003;   // (a DualSense turned, with gyro aim on: the missile's line fine-tuned on top of the stick)
+      // the touch assists, up in the air: turned onto the turret it nearly faces while the stick isn't turning it (the
+      // owner's aim assist), and a missile fired by itself once one would hit (the autopilot's own test)
+      const q = !pilot && game.input.assist && S.z > HUP && S.hits < 3 && !S.down ? aimAt(S) : null;
+      if (q && Math.abs(k.x) < .2 && Math.abs(q.turn) < .25) S.yaw += clamp(q.turn, -.6 * dt, .6 * dt);
+      if ((k.act || onTarget(q)) && S.cool <= 0 && S.hits < 3 && !S.down && S.z > HUP) { S.mis.push(missile(S)); S.cool = .45; S.fired++; A.sfx('whoosh'); buzz(.2, .06); }
       battle(S, dt);
       if (S.down) { S.after = (S.after || 0) + dt; if (S.after > 1.6) finish(); }
     } else {
       ship(S, dt, k);
       if (S.home && S.land && S.land.t > 3) finish();
     }
+  }
+  /** the DualSense: the light bar the moment (the chute's band green, amber, red as the diver falls; the helicopter's
+   *  damage; the belt's fuel; the glider's stall, and its lift in a thermal; the plane's landing), the triggers the
+   *  throttle and the brake (the glider's air brake alone, the chute's lines once open; free on the ground); free off a
+   *  flight and in the autopilot's */
+  function sense() {
+    if (mode !== 'fly' || !S || pilot) { dsOff(); return; }
+    const P = S; let light = '#4a9ae8', right = THROTTLE, left = SLOWS;
+    if (ev === 'plane') light = P.down ? (P.landed ? '#40c060' : '#e84030') : '#f0c030';
+    else if (ev === 'dive') { light = P.canopy ? '#e8402a' : P.z < 300 ? '#e84030' : P.z < 600 ? '#e0a030' : P.z < 1150 ? '#40c060' : '#4a9ae8'; right = null; left = P.canopy ? LINES : null; }
+    else if (ev === 'belt') { light = P.fuel < 20 ? '#ff6040' : '#60d0ff'; if (P.fuel <= 0) right = null; }
+    else if (ev === 'glider') { light = P.stall ? '#ff6040' : P.lift > 6 ? '#ffe9a0' : '#e8402a'; right = null; left = AIRBRAKE; }
+    else if (ev === 'heli') light = ['#40c060', '#e0a030', '#e84030', '#e84030'][Math.min(3, P.hits)];
+    else light = P.land ? '#ffd040' : '#d8c8a0';
+    if (P.down) right = left = null;
+    dsSet(light, right, left);
   }
   function finish() { if (mode !== 'fly') return; res = score(); mode = 'results'; after.i = 0; bannerT = 0; if (res.medal) A.sfx('powerup'); }   // (the banner gone: the results box stands where it was)
 
@@ -688,13 +741,13 @@ const SKY = (() => {
       if (ev === 'dive' && !P.canopy && !P.down) {   // the altimeter's band: open the chute while the needle is in the green
         const x = right - 8, y0 = 8 + lh * 2, h = Math.min(90, H / 2), z2y = z => y0 + h - clamp(z / 2400, 0, 1) * h;
         px.rect(g, x - 1, y0 - 1, 8, h + 2, '#0a1020'); px.rect(g, x, z2y(1150), 6, z2y(600) - z2y(1150), '#40c060'); px.rect(g, x, z2y(600), 6, z2y(300) - z2y(600), '#e0a030'); px.rect(g, x - 3, Math.round(z2y(P.z)), 12, 2, '#ffffff');
-        if (P.z < 1150) txt(E.t('sky.hud.open', { key: game.input.label('act') }), W / 2, H * .7, '#ffffff', { align: 'center' });
+        if (P.z < 1150) txt(game.input.lastDevice === 'touch' ? E.t('sky.hud.open.touch') : E.t('sky.hud.open', { key: game.input.label('act') }), W / 2, H * .7, '#ffffff', { align: 'center' });   // (on touch, beside its CHUTE button: no key to name)
       }
       if (ev === 'voyage' && !P.home) {   // the compass: an arrow to the next goal, and how far
         const q = goal(P), a = Math.atan2(q.y - P.y, q.x - P.x) - P.yaw - Math.PI / 2, cx = W / 2, cy = 22, R = 10;
         px.disc(g, cx, cy, R + 3, '#0a1020'); px.poly(g, [[cx + Math.cos(a) * R, cy + Math.sin(a) * R], [cx + Math.cos(a + 2.5) * R * .6, cy + Math.sin(a + 2.5) * R * .6], [cx + Math.cos(a - 2.5) * R * .6, cy + Math.sin(a - 2.5) * R * .6]], q.i < 0 ? '#80c0ff' : '#ffd040');
         txt(E.t(q.i < 0 ? 'sky.hud.home' : 'sky.hud.beacon', { m: Math.round(q.d / 4) }), cx, cy + R + 6, '#ffffff', { align: 'center' });
-        if (q.d < 280 && P.z < 260 && !P.land) txt(E.t('sky.hud.land', { key: game.input.label('act') }), W / 2, H * .7, '#ffe890', { align: 'center' });
+        if (q.d < 280 && P.z < 260 && !P.land) txt(game.input.lastDevice === 'touch' ? E.t('sky.hud.land.touch') : E.t('sky.hud.land', { key: game.input.label('act') }), W / 2, H * .7, '#ffe890', { align: 'center' });
         else if (q.d < 600 && P.z >= 260 && !P.land) txt(E.t('sky.hud.lower'), W / 2, H * .7, '#ffffff', { align: 'center' });
       }
       const T = ev === 'heli' && target(S), c = ev === 'plane' ? COURSE[S.next] : ev === 'belt' ? BELT[S.next] || [PAD[0], PAD[1], 0] : ev === 'glider' ? GLIDE[S.next] || [TARGET[0], TARGET[1], 0] : ev === 'heli' ? T ? [T.x, T.y, 16] : [PAD[0], PAD[1], 0] : null;
@@ -751,7 +804,10 @@ const SKY = (() => {
     enter(d) {
       game.allowJoin(false); while (game.players.length > 1) game.removePlayer(game.players.length);   // (flown alone: those who joined another game let go, the whole keyboard player 1's again)
       mode = 'menu'; S = null; ev = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); if (d && d.part) start(EVENTS.includes(d.part) ? d.part : 'plane'); },
-    back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'results') { toMenu(); return true; } return false; },
+    exit() { dsOff(); },   // (the DualSense clean for the next scene)
+    escape: 'back',   // (Esc, as a phone's back gesture: the results to the menu, the menu to the title; in flight it pauses)
+    back() { const away = f => { f(); game.players.forEach(q => q.consumeAll()); return true; };   // (the key that went back is used up: the menu it lands on doesn't read it again)
+      if (mode === 'menu') return away(() => game.go('title')); if (mode === 'results') return away(toMenu); return false; },
     update, draw, bot,
     /** an event flown by the autopilot (a demo; the bot's) */
     demo(e) { start(e); pilot = true; },

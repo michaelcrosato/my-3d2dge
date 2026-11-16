@@ -1,5 +1,5 @@
 // The KART kit's game (Mode 7 karts: six on a circuit, three laps, items, two players in a split screen), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/65-kart.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/65-kart.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. kart.html plays it; node kits/test.mjs kart runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,25 +171,38 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 13  KART  (Super Mario Kart, F-Zero, Mario Kart 64). @modules mode7 drive
+ * SLICE 13  KART  (Super Mario Kart, F-Zero, Mario Kart 64). @modules mode7 drive dualsense
  * A meadow circuit in Mode 7: the floor drawn a row at a time under a sky that turns with you, six karts, three laps. Kerbs, grass that slows you, sand inside the tight bends, boost pads on the straights,
  * walls round the edge, item boxes in rows across the track: a BOOST, a SHELL that flies ahead and spins out whoever it
  * hits, or a PEEL dropped behind. Hop into a bend and hold the drift: sparks blue, then orange; let go for a boost.
  * MODES: RACE (you against five), VS (two players in a split screen, against four: player 2 joins with 2 on the
- * keyboard or Start on a pad). Deep links: #kart/race, #kart/vs, #kart/gba (240 x 160).
- * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift hop and drift, E / J the item (two on one
- * keyboard: W / up gas, S / down brake, F / . hop, G / slash the item). A pad: the stick, A gas, X brake, R hop and drift,
- * L the item. TOUCH: the stick steers (down brakes and backs up), DRIFT, ITEM; gas by itself. Past the line the CPU
- * drives your kart.
+ * keyboard or Options on a pad). Deep links: #kart/race, #kart/vs, #kart/gba (240 x 160).
+ * KEYS: left / right (A / D) steer, up / W / Z gas, down / S / X brake, Space / Shift hop and drift, E / J the item (two on
+ * one keyboard: W / up gas, S / down brake, F / . hop, G / slash the item). A pad (PlayStation names): the stick steers,
+ * R2 gas and L2 brake (as far as they are pulled), ✕ gas too, □ brake, R1 hop and drift, L1 the item; ○ back in the
+ * menus. Any pad rumbles on a bump, a spin-out and a boost; a DualSense's triggers push back (the brake firm, the
+ * throttle buzzing on a boost, on the grass and as a drift charges) and its light bar is your kart's, blue then orange
+ * as a drift charges. TOUCH: the stick steers (down brakes and backs up), DRIFT once the race is on, ITEM (named for it)
+ * while you hold one; the touch assists (Settings, on at first) hold the gas and use the item when it would hit or help;
+ * with them off, a GAS button. A swipe goes back from the join screen and the menus. Past the line the CPU drives your
+ * kart.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floor, the sky and the karts far to near; E.Car and E.Race (the
  * drive module) the karts, the laps, the drivers and the items; this file the track, the karts' look (HD rigs in
  * karts), the HUD's map and the menus.
  * ===================================================================================== */
 const KART = (() => {
   const A = game.audio, T = 16, N = 64, SIZE = N * T, HALF = 44;   // the floor: 64 x 64 cells of 16 units; the road's half width
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2', 'Act:down'], drift: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5', 'Pad7'], item: ['KeyE', 'KeyJ', 'Pad4', 'Pad6'] });
+  // (R2 and L2 first, the analog pair: the drive module reads how far each is pulled, and a prompt names them)
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad7', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad6', 'Pad2', 'Act:down'], drift: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5'], item: ['KeyE', 'KeyJ', 'Pad4'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
   KEYS.halves = { left: { gas: ['KeyW'], brake: ['KeyS', 'Act:down'] }, right: { gas: ['ArrowUp'], brake: ['ArrowDown'] } };   // (two on one keyboard: W and up the gas; the touch stick's down brakes)
+  // a DualSense's extras (the dualsense module: player 1's pad, the one it addresses): the light bar and the triggers,
+  // told only when they change; nothing at all without one
+  const ds = E.DualSense.attach(game, { light: true, triggers: true });
+  let dsWas = '';
+  const dsSet = (light, right, left) => { const k = light + JSON.stringify([right, left]); if (k === dsWas) return; dsWas = k; ds.light(light); ds.trigger('right', right); ds.trigger('left', left); };
+  const dsOff = () => { if (dsWas !== 'off') { dsWas = 'off'; ds.clear(); } };
+  const PULL = { resist: [.1, .25] }, BRAKE = { resist: [.2, .6] }, THRUST = { pulse: [.05, 40, .5] }, ROUGH = { pulse: [.1, 18, .35] }, CHARGE = { pulse: [.1, 30, .3] };   // (the throttle's spring, a firm brake, a boost's thrust, the grass, a drift charging)
   /* ---- THE TRACK: its line (the racing line, the start at its first point, heading north), then every cell from its
    * distance to the line: road, kerb, grass, sand, wall ---- */
   const LINE = new E.Path([[160, 600], [160, 380], [175, 220], [230, 140], [360, 120], [520, 125], [680, 140], [760, 240], [720, 370], [580, 420], [480, 510], [530, 630], [680, 690], [820, 650], [890, 770], [830, 880], [640, 890], [420, 890], [240, 880], [165, 800]], { closed: true, smooth: 'catmull' });
@@ -242,8 +260,8 @@ const KART = (() => {
     { wave: 'drums', vol: .07, notes: 'k . h k s . h . k . h k s . h h' }] };
 
   let mode = 'menu', vs = false, race = null, players = [], cams = [], over = 0, t = 0;
-  const menu = new E.Menu(game, [E.t('kart.menu.race'), E.t('kart.menu.vs'), E.t('kart.menu.back')], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
-  const after = new E.Menu(game, [E.t('kart.menu.again'), E.t('kart.menu.menu')], { onPick: i => i === 0 ? start(vs) : toMenu() });
+  const menu = new E.Menu(game, [E.t('kart.menu.race'), E.t('kart.menu.vs'), E.t('kart.menu.back')], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false), onCancel: () => game.go('title') });   // (○, Backspace or a sideways swipe: back)
+  const after = new E.Menu(game, [E.t('kart.menu.again'), E.t('kart.menu.menu')], { onPick: i => i === 0 ? start(vs) : toMenu(), onCancel: () => toMenu() });
   function toMenu() { mode = 'menu'; race = null; game.splitScreen(0); game.allowJoin({ max: 2 }); A.music('title'); }
   function versus() { if (game.players.length >= 2) start(true); else { mode = 'join'; A.sfx('select'); } }
   /** a race: six karts on the grid (the players' at the back, as Super Mario Kart starts you), items in rows */
@@ -261,22 +279,42 @@ const KART = (() => {
     });
     for (const d of BOXES) { const p = LINE.at(d); for (const u of [-.6, -.2, .2, .6]) race.box(p.x - Math.sin(p.angle) * u * HALF, p.y + Math.cos(p.angle) * u * HALF); }
     cams = players.map(R => ({ x: R.car.x, y: R.car.y, h: 24, angle: R.car.angle, pitch: 9, fov: 62 }));
-    game.splitScreen(two ? 2 : 0, { layout: 'rows' }); A.music(SONG); game.input.consumeAll();
+    game.splitScreen(two ? 2 : 0, { layout: 'rows' }); A.music(SONG); game.input.consumeAll(); if (two) ds.player(0);   // (the DualSense's player light: player 1's, the top screen)
+  }
+  /** a racer's pad shaken (any controller; its own player's, so in VS each feels their own kart) as a bump, a spin-out
+   *  and a boost begin */
+  function feel(R, dt) {
+    const c = R.car, I = R.input; R._rb = Math.max(0, (R._rb || 0) - dt);
+    if (c.bumped && !R.finished && R._rb <= 0) { I.rumble(.25, .08); R._rb = .15; }   // (along a wall: a knock every .15 s, not each step)
+    if (c.spinT > 0 && !R._spun) I.rumble(.7, .35); R._spun = c.spinT > 0;
+    if (c.boostT > 0 && !R._boosted) I.rumble(.4, .25); R._boosted = c.boostT > 0;
+  }
+  /** player 1's DualSense in a race: the throttle's spring (buzzing on a boost, on the grass and as a drift charges), a
+   *  firm brake, the light bar the kart's colour (blue, then orange, as a drift charges); free off the race */
+  function sense() {
+    const R = players[0]; if (mode !== 'race' || !race || !R) { dsOff(); return; }
+    const c = R.car, right = c.boostT > 0 ? THRUST : c.drifting && c.charge >= 1 ? CHARGE : c.offroad && c.speed > 20 ? ROUGH : PULL;
+    dsSet(c.drifting && c.charge >= 2 ? '#ff9a2a' : c.drifting && c.charge >= 1 ? '#58b8ff' : CAST[0].kart, R.finished ? null : right, R.finished ? null : BRAKE);
   }
 
   /* ---- each step ---- */
   function update(dt) {
-    const I = game.input;
-    for (const k of ['drift', 'item']) I.touchSet(k, null, mode === 'race');
+    const I = game.input, me = players[0], racing = mode === 'race' && !!race && race.go && !!me && !me.finished;
+    // touch's buttons, each where it acts: DRIFT in the race, ITEM named for the one held, GAS with the touch assists off
+    I.touchSet('drift', null, racing); I.touchSet('item', me && me.item ? E.t('kart.item.' + me.item) : null, racing && !!me.item); I.touchSet('gas', null, mode === 'race' && !I.assist);
+    sense();
     if (mode === 'menu' || mode === 'join') t += dt;   // (the title's camera rides the line)
     if (mode === 'menu') { menu.update(dt); return; }
-    if (mode === 'join') { if (game.players.length >= 2) start(true); else if (I.pressed('cancel')) mode = 'menu'; return; }
+    if (mode === 'join') { if (game.players.length >= 2) start(true); else if (I.pressed('cancel') || I.swipe(true)) mode = 'menu'; return; }   // (a swipe sends it away too)
     t += dt;
-    const was = race.t; for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch' && !R.input.down('brake');   // (a phone: the gas by itself, but not while the stick held down brakes)
+    const was = race.t; for (const R of players) if (R.input) R.car.o.auto = R.input.assist && !R.input.down('brake');   // (the touch assists: the gas by itself, but not while the stick held down brakes)
     race.update(dt, map);
     if (was < 0 && Math.floor(was) !== Math.floor(race.t)) A.sfx(race.t >= 0 ? 'confirm' : 'select');
     for (const R of players) {
-      if (R.input && R.input.pressed('item') && race.go) { const had = R.item; race.use(R); if (had) A.sfx(had === 'shot' ? 'shoot' : had === 'boost' ? 'powerup' : 'whoosh'); }
+      // the item: its button, or with the touch assists by itself when the CPU would use it (a shell with a kart in reach
+      // ahead, a peel with one close behind, a boost on a straight)
+      if (R.input && race.go && !R.finished && (R.input.pressed('item') || R.input.assist && race.wantsItem(R))) { const had = R.item; race.use(R); if (had) A.sfx(had === 'shot' ? 'shoot' : had === 'boost' ? 'powerup' : 'whoosh'); }
+      if (R.input) feel(R, dt);
       if (R.finished) { if (!R.ai) R.ai = { skill: .9, rubber: 0, grip: 520, lane: 0 }; R.item = null; }   // (past the line the CPU drives it, as in Super Mario Kart, and fires nothing)
       if (R.car.bumped && !R.finished) A.sfx('bump', { vol: .4 });
       if (R.lap !== R._lap) { if (R._lap !== undefined && !R.finished) A.sfx('oneup'); if (R.finished && !R._fin) { A.sfx('secret'); R._fin = true; } R._lap = R.lap; }
@@ -323,7 +361,7 @@ const KART = (() => {
       m7.draw(r);
       r.overlay(g => {
         E.font.title(g, E.t('kart.title'), W / 2, 30, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
-        if (mode === 'join') E.font.text(g, E.t('kart.join'), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        if (mode === 'join') E.font.text(g, E.t('kart.join', { how: E.lang.upper(game.joinPrompt()) }), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false, wrap: W - 16 });   // (Options or Menu, and 2: in the player's own symbols)
       });
       if (mode === 'menu') { menu.y = Math.round(H / 2) - 6; menu.draw(r); }
       return;
@@ -336,6 +374,7 @@ const KART = (() => {
     for (const h of race.hazards) m7.add(h.x, h.y, 0, (g, sx, sy, k) => { E.px.poly(g, [[sx - 5 * k, sy], [sx, sy - 6 * k], [sx + 5 * k, sy], [sx, sy - 2 * k]], '#f0d030'); });
     m7.draw(r, cam);
     if (me) race.hud(r, me, { color: vs ? (i ? '#ffd080' : '#a0d8ff') : '#ffffff', right: r.viewport && r.viewport.y > 0 ? null : cornerX() });
+    const mi = me && me.input; if (me && me.item && !me.finished && mi && mi.lastDevice !== 'touch') r.overlay(g => { const vp = r.viewport || { x: 0, y: 0 }; E.font.text(g, mi.label('item'), vp.x + 17, vp.y + 50, '#ffe060', { align: 'center', shadow: '#000', outline: false }); });   // (the item's key or button under its slot; on touch its button says so)
     if (!vs && me) r.overlay(g => {   // the map: the track, every kart a dot (yours blinking)
       const S = Math.max(40, Math.min(64, Math.round(H / 4))), X = 4, Y = H - S - 4, ta = game.input.touchArea && game.input.touchArea();
       if (ta) return;   // (a phone: the buttons sit there)
@@ -376,15 +415,17 @@ const KART = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['drift', 'item'], camera: { zoom: false },
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['drift', 'item', 'gas'], camera: { zoom: false },
     enter(d) {
       mode = 'menu'; race = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false;
       game.allowJoin({ max: 2 }); A.music('title');
       const gba = !!d && d.part === 'gba'; game.screen.setOptions({ res: gba ? 'gba' : 'ps1', expand: !gba });   // (Super Circuit's screen, exactly)
       if (d && d.part) d.part === 'vs' ? versus() : start(false);
     },
-    exit() { game.splitScreen(0); game.allowJoin(false); game.screen.setOptions({ res: 'ps1', expand: true }); },
-    back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
+    exit() { game.splitScreen(0); game.allowJoin(false); game.screen.setOptions({ res: 'ps1', expand: true }); dsOff(); },   // (the DualSense clean for the next scene)
+    escape: 'back',   // (Esc, as a phone's back gesture: the join screen and the results to the menu, the menu to the title; in a race it pauses)
+    back() { const away = f => { f(); game.players.forEach(q => q.consumeAll()); return true; };   // (the key that went back is used up: the menu it lands on doesn't read it again)
+      if (mode === 'menu') return away(() => game.go('title')); if (mode === 'join' || mode === 'results') return away(toMenu); return false; },
     update, draw, bot, hud: board,
     state: () => race && { mode, t: +race.t.toFixed(2), you: players[0] && { x: players[0].car.x, y: players[0].car.y, angle: players[0].car.angle, speed: players[0].car.speed, auto: players[0].car.o.auto }, racers: race.racers.map(R => ({ name: R.name, lap: R.lap, place: R.place, x: Math.round(R.car.x), y: Math.round(R.car.y), speed: Math.round(R.car.speed), item: R.item })) },   // for tests
     race: () => race,   // (for tests)
