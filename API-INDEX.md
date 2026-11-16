@@ -110,7 +110,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 1760 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
 - 1768 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
 - 1797 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1843 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 1844 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -576,7 +576,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.tween(target, to, seconds, o)` †: ease target's numbers to new values over seconds of game time: game.tween(door, { y: 40 }, .5, { ease: 'outBack', delay, repeat (more plays; -1 forever), yoyo (every other play runs back), onDone(target), keep (outlive the scene) }). ease: a name in E.ease ('outQuad' by default) or a function of u 0..1. It starts from the values the target has once its delay is over. Returns the Tween: tween.done, tween.cancel()
 - `game.upright`: true while the game's screen (r.W x r.H) is upright, taller than 1.3 times its width: a phone held upright, with expand: true (a fixed res keeps its own shape on any phone, so it is never upright there). A scene's camera.tall zoom applies then: it zooms a tall picture in to fill it
 - `game.viewports` †: a split screen's viewports ({ i, x, y, w, h, cam, focus(x, y, z), follow(target, { z }): game.splitScreen), or [] on one screen
-- `game.zoomBy(k)` †: the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does nothing where the scene doesn't let the player zoom. Returns the zoom
+- `game.zoomBy(k, at = null)` †: the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does nothing where the scene doesn't let the player zoom. at: the screen point [x, y] a free camera keeps still (the wheel's pointer, a pinch's middle), the screen's middle when left out (a pad's trigger, a button). Returns the zoom
 - `game.zoomRange()` †: the zooms the player may take the camera to here, [min, max] (the scene's camera.zoom, or the game's; a function of the game gives one per screen shape or level), or null where they can't (camera.zoom false or none)
 - `game.alpha = .5`: the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count
 - `game.audio`: chip-sound synthesizer: game.audio.sfx('jump'), game.audio.music(song)
@@ -1433,7 +1433,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `fightai.level` †: how well it fights (1 to 8)
 - `fightai.react` †: seconds before it sees what its foe does
 - `fightai.rng` †: its own randomness (the seed's: the same match each time)
-- `new E.FightSelect(game, o = {}) → fightselect` †: new E.FightSelect(game, { roster: [{ id, name, rig, about }], inputs: [p1, p2 or null], cpu: [false, true], seed, onDone: ids => {} }): a character select
+- `new E.FightSelect(game, o = {}) → fightselect` †: new E.FightSelect(game, { roster: [{ id, name, rig, about }], inputs: [p1, p2 or null], cpu: [false, true], seed, onDone: ids => {}, onBack }): a character select (onBack: on a sideways swipe)
 - `fightselect.draw(r)` †: draw the roster, the cursors and each side's fighter large
 - `fightselect.update(dt)` †: move the cursors, take the picks; onDone(ids) once both have one
 - `fightselect.at` †: each side's cursor
@@ -1741,7 +1741,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 ## Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js)
 
 - `new E.RPG(o = {}) → rpg`: new E.RPG({ items, monsters, status, curve }): the rules of a role-playing game (the manual above)
-- `rpg.card(g, x, y, m, o = {})`: a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; → { w, h }
+- `rpg.card(g, x, y, m, o = {})`: a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; o.big: the ten-foot card (a Status page: 176 x 92, the labels and stats in the normal font, two stats a row); → { w, h }
 - `rpg.damage(a, b, o = {})`: a hit: { hp, crit } (a's attack, or its magic with kind 'mag', less half b's defense or magic; a tenth either way; a critical hit, physical only, ignores armor; guard halves it)
 - `rpg.encounters(zones, o)`: random encounters by zone: { zone: { every: [min, max], troops: [[weight, ids]] } }
 - `rpg.icon(id)`: item id's icon: its own sprite, or one for its kind (a flask red for HP, blue for MP)
@@ -1811,9 +1811,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `strategy.ai(side, plan)` †: run side by plan ({ build: [[kind, n]], waves: { first, every, min }, script }): see the manual
 - `strategy.canPlace(kind, cx, cy, by = null)` †: can a building of kind stand on cells cx, cy (its corner)? On the map, walkable, no unit there (but by, its builder), seen by the player (when it is theirs)
 - `strategy.cancel(b)` †: take back the last in building's queue (refunded)
-- `strategy.draw(r)` †: after the world: a ring under each selected unit, health bars over the selected and the hurt, the box being drawn
+- `strategy.draw(r)` †: after the world: a ring under each selected unit (a dashed one under the hovered: green the player's, red a foe's, gold a resource's), health bars over the selected and the hurt, the box being drawn
 - `strategy.ghost(r, kind, cx, cy)` †: the placement ghost: kind's cells at cx, cy, green where it fits, red where it doesn't
-- `strategy.input(o = {})` †: the player's pointer and keys, each step (see the manual): selection, groups, orders. o.order: the action that orders (Mouse2 by default where it is bound); o.at(sx, sy) -> the world point under a screen point (map.pick's, by default)
+- `strategy.input(o = {})` †: the player's pointer and keys, each step (see the manual): selection, groups, orders. o.order: the action that orders (Mouse2 by default where it is bound); o.kind: the action that takes every one of the kind under the pointer on the screen ('kind' where it is bound: a pad's double click); o.at(sx, sy) -> the world point under a screen point (map.pick's, by default)
 - `strategy.minimap(colors = {})` †: E.Shell's minimap spec: the map, the fog, the camera's view, the units seen as dots by side, a click moving the camera
 - `strategy.of(side, kind)` †: the side's standing units of a kind (or all of them, without kind)
 - `strategy.order(units, kind, target, o = {})` †: give units an order: kind 'move' | 'attack' | 'amove' | 'gather' | 'build' | 'patrol' | 'stop', target ({ x, y }, a unit, or { kind, cx, cy } to build), o.queue: after the orders they have
@@ -1828,6 +1828,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `strategy.fog` †: an E.Fog of the player's sight (walls block it, buildings don't), or null with fog: false
 - `strategy.game` †: the game it runs in
 - `strategy.groups` †: control groups: groups[1..9], kept with Ctrl and a digit
+- `strategy.hover = null` †: the unit under the pointer (a mouse's or a pad's cursor, not a finger's), or null: draw() rings it, dashed
 - `strategy.kinds` †: the kinds by id (units, buildings, resources: see the manual)
 - `strategy.map` †: the TileMap it stands on (a building blocks its cells)
 - `strategy.on` †: its events: { attack, death, made, built, gathered, ordered }

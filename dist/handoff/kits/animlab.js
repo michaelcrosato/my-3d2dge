@@ -173,10 +173,15 @@ scenes.over = {
 /* =====================================================================================
  * SLICE 6  ANIMATION LAB. Every animation the rigs can do, on every skin, from every view: locomotion, every E.MOVES
  * attack (with its wind / hit / recover timeline and frozen key poses), combos, poses, reactions, stances and gun aims.
- * Up / Down pick the animation, Left / Right the skin, L lines every skin up, F turns them round, B shows the skeleton,
- * T the weapon trail, Space pauses, . steps one frame, S plays at quarter speed, J (or Enter) replays, H hides the HUD,
- * Esc goes back to the title. The shell's camera keys work: V view, - = zoom, [ ] turn, 0 reset. TOUCH: the stick picks
- * (up, down) and changes the skin (left, right); REPLAY, SLOW, HOLD (pause).
+ * KEYS: ↑ ↓ pick the animation, ← → the skin, L lines every skin up, F turns them round, B shows the skeleton, T the
+ * weapon trail, Space pauses, . steps one frame, S plays at quarter speed, J (or Enter) replays, H hides the HUD, V the
+ * camera's view and [ ] turn it (the lab's own: the shell's stand aside), - = or the wheel zoom, 0 resets; Esc opens the
+ * menu (Settings, Controls, Quit to title). THE MOUSE: over the animation list it lights a row, a click plays it; a click
+ * on ← or → beside the skin's name changes it, on the name lines them up. PAD: the d-pad or stick picks, ✕ replay, □
+ * pause, △ slow, ○ flip, L1 lineup, R1 step, L2 trail, R2 bones, L3 HUD, R3 view, the right stick turns (← →) and zooms
+ * (↑ ↓), Options the menu. The legend names the most used for the device in use; the Controls screen has them all. TOUCH:
+ * the stick, or a swipe (↕ animation, ↔ skin); REPLAY, SLOW, PAUSE, FLIP, LINEUP (STEP while paused); a tap on a list row
+ * or a skin arrow, as a click.
  * HOW IT WORKS: one clock drives every subject, so the lineup stays in sync. A move is an E.Attack, a combo an E.Combo,
  * and a straw dummy takes the hits with hit-stop. Everything else is a list of timed phases whose fields go straight
  * into rig.update. Blobs turn every move into their own attack: a bite, a leap, a pounce (the bat darts and dives) or a spit.
@@ -523,42 +528,51 @@ const ANIMLAB = (() => {
    * The top line stays free for the shell's notes (ZOOM 2x, SIDE VIEW) ---- */
   const WIN = { bg: ['#2c2458', '#0e0a20'], border: '#b0a0e8' }, SEE = Object.assign({ alpha: .75 }, WIN);
   const TXT = { outline: false, shadow: '#07050e' }, TINY = Object.assign({ font: 'tiny' }, TXT), RIGHT = o => Object.assign({ align: 'right' }, o);
-  // the keys: two rows of hints, each a line (animlab.legend.<hint>: the lab's own keys as control tags, the shell's camera
-  // keys by name); on a phone, two lines of their own
-  const LEGEND = [['animation', 'skin', 'view', 'zoom', 'turn', 'reset', 'flip'], ['pause', 'step', 'slow', 'trail', 'bones', 'lineup', 'replay', 'hud']];
-  const legend = () => touch() ? [E.t('animlab.legend.touch_pick'), E.t('animlab.legend.touch_buttons')] : LEGEND.map(row => row.map(h => E.t('animlab.legend.' + h)).join('  '));
+  // the keys: two rows of the hints used most, each a line (animlab.legend.<hint>: the player's own keys or buttons, a
+  // pair of them as one: ↑↓, [ ], 'R stick ←→'; the engine's zoom keys by their names); the rest are on the Controls
+  // screen. On a phone, two lines of their own
+  const LEGEND = [['animation', 'skin', 'replay', 'pause', 'slow'], ['lineup', 'flip', 'view', 'turn', 'zoom']];
+  const pair = (a, b) => { const I = game.input, x = I.label(a, undefined, { short: true }), y = I.label(b, undefined, { short: true }); return x.slice(0, -1) === y.slice(0, -1) && x.length > 1 ? x + y.slice(-1) : x.length === 1 && y.length === 1 && x !== '[' ? x + y : x + ' ' + y; };
+  const PAIRS = { animation: ['up', 'down'], skin: ['left', 'right'], turn: ['camL', 'camR'] };
+  const hint = h => h === 'zoom' ? (game.input.lastDevice === 'gamepad' ? E.t('animlab.legend.zoom', { keys: pair('zoomIn', 'zoomOut') }) : E.t('animlab.legend.zoom', { keys: game.input.codeLabel('Minus') + ' ' + game.input.codeLabel('Equal') })) : PAIRS[h] ? E.t('animlab.legend.' + h, { keys: pair(...PAIRS[h]) }) : E.t('animlab.legend.' + h);
+  const legend = () => touch() ? [E.t('animlab.legend.touch_pick'), E.t('animlab.legend.touch_swipe')] : LEGEND.map(row => row.map(hint).join('  '));
+  // the mouse's places on the HUD (set as it draws): the list's rows (an animation each), the skin's arrows and name
+  let rows = [], skinAt = null, lit = -1, mt = -1;
   function hud(g, r) {
     const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = word('group', anim.group) + ' ▸ ', T0 = Math.max(0, Math.round(corner()[1]) - 9);   // T0: under the corner's buttons (they stay up in a lab)
-    E.ui.box(g, 4, T0 + 11, W - 8, 34, WIN);
+    E.ui.box(g, 4, T0 + 11, W - 8, 38, WIN);
     E.font.title(g, E.t('animlab.title'), 10, T0 + 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
-    E.font.text(g, lineup ? E.t('animlab.hud.lineup', { count: actors.length }) : E.t('animlab.hud.skin', { skin: word('skin', a.s.name) }), W - 10, T0 + 15, '#ffffff', RIGHT(TXT));
+    const sk = lineup ? E.t('animlab.hud.lineup', { count: actors.length }) : E.t('animlab.hud.skin', { skin: word('skin', a.s.name) }), skw = E.font.width(sk);
+    E.font.text(g, sk, W - 10, T0 + 15, '#ffffff', RIGHT(TXT)); skinAt = { x: W - 10 - skw, y: T0 + 12, w: skw, h: 14 };
     E.font.text(g, lead, 10, T0 + 26, '#a8a0d8', TXT);
     E.font.text(g, named(anim), 10 + E.font.width(lead), T0 + 26, '#ffe070', TXT);
     const cam = [E.t('animlab.cam.view', { view: game.view.label }), E.t('animlab.cam.zoom', { zoom: +game.zoom.toFixed(2) }), game.yaw ? E.t('animlab.cam.turn', { angle: game.yaw }) : '',
       E.t(paused ? 'animlab.cam.paused' : game.timeScale < 1 ? 'animlab.cam.slow' : 'animlab.cam.speed')];
-    E.font.text(g, cam.filter(Boolean).join('    '), 10, T0 + 37, paused ? '#ff9a7a' : '#c8c0f0', TINY);
+    E.font.text(g, cam.filter(Boolean).join('   '), 10, T0 + 37, paused ? '#ff9a7a' : '#c8c0f0', TXT);
+    rows = [];
     if (!lineup) {
-      // the animation list: the neighbours of the current one, groups in alternating tints
-      E.ui.box(g, 4, T0 + 48, 100, 61, SEE);
-      for (let k = -3; k <= 3; k++) {
-        const n = ANIMS[(ai + k + N) % N], odd = GROUPS.indexOf(n.group) % 2;
-        E.font.text(g, (k ? '  ' : '> ') + named(n), 8, T0 + 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
+      // the animation list: the neighbours of the current one, groups in alternating tints, the one under the mouse lit
+      E.ui.box(g, 4, T0 + 52, 124, 64, SEE);
+      for (let k = -2; k <= 2; k++) {
+        const i = (ai + k + N) % N, n = ANIMS[i], odd = GROUPS.indexOf(n.group) % 2, y = T0 + 55 + (k + 2) * 10;
+        if (i === lit && k) px.rect(g, 6, y - 1, 120, 10, '#3a3070');
+        E.font.text(g, (k ? '  ' : '> ') + named(n), 8, y, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TXT); rows.push({ x: 4, y: y - 1, w: 124, h: 10, i });
       }
-      E.font.text(g, (ai + 1) + '/' + N, 100, T0 + 101, '#8a82b0', RIGHT(TINY));
+      E.font.text(g, (ai + 1) + '/' + N, 124, T0 + 105, '#8a82b0', RIGHT(TXT));
       // key poses of a move; the one playing now is lit
       const cur = attack ? ['wind', 'active', 'recover'].indexOf(attack.phase) : combo && combo.busy ? combo.step : -1;
       keyPoses().forEach((k, i) => {
-        const y = T0 + 48 + i * 39, lit = i === cur;
+        const y = T0 + 52 + i * 39, lit = i === cur;
         E.ui.box(g, W - 46, y, 42, 38, lit ? { bg: ['#5a4a2a', '#1a1208'], border: '#ffe070' } : SEE);
         g.drawImage(k.cv, W - 45, y + 1);
         E.font.text(g, k.label, W - 25, y + 31, lit ? '#ffe070' : '#c8c0f0', Object.assign({ align: 'center' }, TINY));
       });
     }
     // the timeline: one bar per phase (the current one lit), the clock as a white mark, the phase's name and the time; clear
-    // of the touch buttons when they show: beside them where there is room, else above them
-    const ta = game.input.touchArea(), side = ta && ta.x0 > 200, B = ta && !side ? Math.floor(ta.y0) - 2 : H, BW = side ? Math.floor(ta.x0) - 8 : W - 8;
-    E.ui.box(g, 4, B - 36, BW, 33, WIN);
-    const bx = 10, bw = BW - 116, by = B - 31;
+    // of the touch buttons when they show: beside them where there is room (300 px), else above them
+    const ta = game.input.touchArea(), side = ta && ta.x0 > 310, B = ta && !side ? Math.floor(ta.y0) - 2 : H, BW = side ? Math.floor(ta.x0) - 8 : W - 8;   // (beside: room for the legend's rows)
+    E.ui.box(g, 4, B - 46, BW, 43, WIN);
+    const bx = 10, bw = BW - 116, by = B - 41;
     let t0 = 0, label = '';
     for (const [name, secs, c] of anim.segs) {
       const x0 = bx + Math.round(t0 / anim.len * bw), x1 = bx + Math.round((t0 + secs) / anim.len * bw), on = t > t0 && t <= t0 + secs;
@@ -567,28 +581,45 @@ const ANIMLAB = (() => {
       t0 += secs;
     }
     px.rect(g, bx + Math.round(Math.min(1, t / anim.len) * bw), by - 2, 1, 11, '#ffffff');
-    E.font.text(g, E.t('animlab.hud.time', { phase: label, t: t.toFixed(2), len: anim.len.toFixed(2) }), BW - 2, by + 1, '#ffe8b0', RIGHT(TINY));
-    legend().forEach((s, i) => E.font.text(g, s, 10, B - 21 + i * 8, '#b8b0e0', TINY));
+    E.font.text(g, E.t('animlab.hud.time', { phase: label, t: t.toFixed(2), len: anim.len.toFixed(2) }), BW - 2, by - 1, '#ffe8b0', RIGHT(TXT));
+    legend().forEach((s, i) => E.font.text(g, s, 10, B - 30 + i * 11, '#b8b0e0', TXT));
   }
+  // THE MOUSE (and a tap): over the list a row lights (the clock doesn't restart as the mouse passes), a click plays it; a
+  // click on the skin's ← or → changes it, on its name lines them up (or back to one)
+  function pointer(inp) {
+    const inside = (p, b) => p && b && p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
+    if (inp.mouse.t !== mt) { mt = inp.mouse.t; const p = inp.pointer(), row = rows.find(b => inside(p, b)); lit = row ? row.i : -1; }
+    const c = inp.clicked(); if (!c) return;
+    const row = rows.find(b => inside(c, b)); if (row) { paused = false; play(row.i); A.sfx('select'); return; }
+    if (inside(c, skinAt)) { const k = (c[0] - skinAt.x) / skinAt.w; if (lineup || (k > .15 && k < .85)) toggleLineup(); else pick(skin + (k <= .15 ? -1 : 1)); A.sfx('select'); }
+  }
+  function toggleLineup() { lineup = !lineup; if (lineup) fit(); else game.setZoom(1.5); play(ai); game.note(E.t(lineup ? 'animlab.note.lineup' : 'animlab.note.one')); }
 
   /* ---- UPDATE: keys, then the clock (paused: . steps one 60th of a second) ---- */
   function update(dt) {
     const inp = game.input, vk = game.view.id + game.view.yawDeg;
     if (vk !== viewKey) { viewKey = vk; if (lineup) fit(); play(ai); }   // a new view or turn: moves pick their swing plane again
-    if (inp.pressed('turn')) game.note(E.t('animlab.note.turn', { angle: game.yaw }));     // the pixel font has no degree sign
+    // the camera: its view and its turn are the lab's own keys and buttons (the shell's V and [ ] stand aside), the pad's
+    // right stick turns and zooms
+    if (inp.pressed('camView')) { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+    for (const [a, d] of [['camL', -45], ['camR', 45]]) if (inp.pressed(a)) { game.rotateView(d); game.note(E.t('animlab.note.turn', { angle: game.yaw })); }   // the pixel font has no degree sign
+    if (inp.repeat('zoomIn', .3, .08)) game.zoomBy(1.1); if (inp.repeat('zoomOut', .3, .08)) game.zoomBy(1 / 1.1);
+    // a swipe on a touch screen picks as the stick does: up and down the animation, sideways the skin
+    const sw = inp.swipe(true); if (sw) { if (sw.dir === 'up' || sw.dir === 'down') play(ai + (sw.dir === 'up' ? -1 : 1)); else pick(skin + (sw.dir === 'left' ? -1 : 1)); }
+    pointer(inp);
     if (inp.repeat('up')) play(ai - 1);
     if (inp.repeat('down')) play(ai + 1);
     if (inp.repeat('left')) pick(skin - 1);
     if (inp.repeat('right')) pick(skin + 1);
     if (inp.pressed('replay')) { paused = false; play(ai); }
-    if (inp.pressed('hold')) paused = !paused;
+    if (inp.pressed('still')) paused = !paused;
+    inp.touchSet('step', null, paused); inp.touchSet('slow', null, !paused);   // (STEP only while paused, SLOW only while not)
     if (inp.pressed('slow')) { game.timeScale = game.timeScale < 1 ? 1 : .25; game.note(E.t(game.timeScale < 1 ? 'animlab.note.slow' : 'animlab.note.full')); }
     if (inp.pressed('trail')) { trail = !trail; game.note(E.t(trail ? 'animlab.note.trail_on' : 'animlab.note.trail_off')); }
     if (inp.pressed('bones')) { bones = !bones; game.note(E.t(bones ? 'animlab.note.bones_on' : 'animlab.note.bones_off')); }
     if (inp.pressed('flip')) { face = Math.PI - face; play(ai); game.note(E.t(Math.cos(face) > 0 ? 'animlab.note.right' : 'animlab.note.left')); }
     if (inp.pressed('hud')) hidden = !hidden;
-    if (inp.pressed('lineup')) { lineup = !lineup; if (lineup) fit(); else game.setZoom(1.5); play(ai); game.note(E.t(lineup ? 'animlab.note.lineup' : 'animlab.note.one')); }
-    if (inp.pressed('back')) game.go('title');
+    if (inp.pressed('lineup')) toggleLineup();
     dum.x = CX + Math.cos(face) * dum.d; dum.y = CY + Math.sin(face) * dum.d;
     if (!paused) tick(dt); else if (inp.pressed('step')) tick(1 / 60);
     // look at the spot (between the subject and the dummy, or after a knocked-back subject), up with a climber;
@@ -601,9 +632,14 @@ const ANIMLAB = (() => {
     game.cam.bounds = null; game.cam.room = null; game.timeScale = 1; L.enabled = false; A.music(null);
     game.resetCamera(); lineup = false; paused = false; viewKey = ''; play(ai);
   }
-  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], start: 1.5, rotate: true }, touch: ['replay', 'slow', 'hold'],   // the stick picks (up, down) and dresses (left, right)
-    input: { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], replay: ['KeyJ', 'Enter'], hold: ['Space'], step: ['Period'],
-      slow: ['KeyS'], trail: ['KeyT'], bones: ['KeyB'], lineup: ['KeyL'], flip: ['KeyF'], hud: ['KeyH'], turn: ['BracketLeft', 'BracketRight'], back: ['Escape'] },
+  // THE KEYS AND BUTTONS: the lab's mnemonic keys, a pad's buttons for each, the menus' (Esc and Options open the menu:
+  // pausable), the camera's view and turn (V, [ ], R3, the right stick) and the pad's zoom
+  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], start: 1.5, rotate: true }, pausable: true,
+    touch: { buttons: ['replay', 'slow', 'step', 'still', 'flip', 'lineup'], layout: 'grid' },   // the stick (or a swipe) picks (up, down) and dresses (left, right)
+    input: { up: ['ArrowUp', 'Pad12'], down: ['ArrowDown', 'Pad13'], left: ['ArrowLeft', 'Pad14'], right: ['ArrowRight', 'Pad15'], replay: ['KeyJ', 'Enter', 'Pad0'], still: ['Space', 'Pad2'], step: ['Period', 'Pad5'],
+      slow: ['KeyS', 'Pad3'], trail: ['KeyT', 'Pad6'], bones: ['KeyB', 'Pad7'], lineup: ['KeyL', 'Pad4'], flip: ['KeyF', 'Pad1'], hud: ['KeyH', 'Pad10'], camView: ['KeyV', 'Pad11'], camL: ['BracketLeft', 'PadRAxisLeft'], camR: ['BracketRight', 'PadRAxisRight'],
+      zoomIn: ['PadRAxisUp'], zoomOut: ['PadRAxisDown'], start: E.Input.DEFAULT.start, pause: E.Input.DEFAULT.pause, confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] },
+    back() { game.go('title'); return true; },   // a phone's back gesture: the title (Esc and Options open the menu, Quit to title in it)
     enter, exit() { game.timeScale = 1; game.resetCamera(); }, update, draw,
     // for tools and tests: __game.scenes.animlab.select('overhead', 'mage') or select('poses-cast') (spaces and dashes ignored)
     select(name, skinName) {

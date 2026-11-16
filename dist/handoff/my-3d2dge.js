@@ -845,7 +845,7 @@ class Input {
       if (typing(e)) return;
       const share = this.keysTo && this.keysTo.filter(q => q._codes[e.code]);   // (players sharing the keyboard: each answers to its half)
       if (this._codes[e.code] || (share && share.length)) { e.preventDefault(); if (!e.repeat) { if (this._codes[e.code]) this.press(e.code); if (share) for (const q of share) q.press(e.code); } }
-      else if (this._zoomOn && ZOOM_KEYS[e.code] && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (!e.repeat) this._zoomAcc *= ZOOM_KEYS[e.code]; }   // - and =, where no action uses them
+      else if (this._zoomOn && ZOOM_KEYS[e.code] && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (!e.repeat) { this._zoomAcc *= ZOOM_KEYS[e.code]; this._zoomPt = null; } }   // - and =, where no action uses them (about the screen's middle)
     });
     // the wheel zooms where the game lets it (a mouse's notch 10%; a trackpad's pinch comes as the wheel with ctrlKey);
     // not over a menu, which scrolls
@@ -1182,7 +1182,7 @@ class Input {
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
   /** how far a finger that is not the stick's dragged this step, in screen pixels [dx, dy], or null: a camera's look on a
    *  touch screen (the left thumb on the stick, the right one turning the view) */
-  look() { return this._look || null; }
+  look() { return this._lookNow || null; }
   /** [x, y] (screen pixels) in the step after a second finger tapped while another stayed down (the stick, a drag): a
    *  puzzle's turn under one thumb while the other steers; else null */
   secondTap() { return this._secTapAt || null; }
@@ -1344,7 +1344,7 @@ class Input {
     this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._tap2nd = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
-    const la = this._lookAcc; this._look = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
+    const la = this._lookAcc; this._lookNow = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
   }
   // Create (button 8) is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (its
   // bar), so the game sees neither; let go sooner it is a tap; held, a press. Returns whether it is down for the game
@@ -3028,10 +3028,12 @@ class Game {
    * the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom
    * button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of
    * the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does
-   * nothing where the scene doesn't let the player zoom. Returns the zoom
+   * nothing where the scene doesn't let the player zoom. at: the screen point [x, y] a free camera keeps still (the
+   * wheel's pointer, a pinch's middle), the screen's middle when left out (a pad's trigger, a button). Returns the zoom
    */
-  zoomBy(k) {
+  zoomBy(k, at = null) {
     const R = this.zoomRange(), b = this._zoomBase; if (!R || !(k > 0) || !this._zoomStd()) return this.zoom;
+    this.input._zoomPt = at;   // (the point _freeCam zooms toward: one left from an old wheel turn would drag a trigger's zoom aside)
     const lo = Math.max(ZOOM_PLAYER[0], R[0] / b), hi = Math.min(ZOOM_PLAYER[1], R[1] / b); if (lo > hi) return this.zoom;
     const f = clamp(clamp(+this.settings.zoom || 1, lo, hi) * k, lo, hi); this.settings.set('zoom', f);   // (one carried from a scene with more room starts at this one's end: every step moves it)
     const z = this._zoomTo || this.zoom; this.note(E.lang.upper(ENG(f <= lo + 1e-9 && k < 1 ? 'note.zoom_min' : f >= hi - 1e-9 && k > 1 ? 'note.zoom_max' : 'note.zoom', { zoom: z })), 1);
@@ -3424,9 +3426,9 @@ class Game {
       while (this._acc > step - 1e-9) {   // (the tolerance absorbs the rounding in frame times: 1/60 s is two steps)
         this._acc -= step; this._wall += step;   // (_wall: seconds stepped through, unscaled: slow motion or a stop doesn't hold up the player's zoom)
         const k = this.timeScale > 1 ? Math.ceil(this.timeScale - 1e-9) : 1, h = step * Math.max(0, this.timeScale) / k;
-        for (let i = 0; i < k; i++, n++) this._step(h);
+        for (let i = 0; i < k; i++, n++) { this._uDt = step / k; this._step(h); }   // (_uDt: the step unscaled, the player's own time)
       }
-      if (!n && !this._stepped) { n++; this._step(0); }   // the first frame updates before it draws, even when its time is short
+      if (!n && !this._stepped) { n++; this._uDt = 0; this._step(0); }   // the first frame updates before it draws, even when its time is short
     } catch (e) { this._acc %= step; this.fail('update', e); }   // an error drops the frame's other steps, as before
     if (n) this._stepped = true;
     if (this._acc < 0) this._acc = 0;
@@ -3472,7 +3474,7 @@ class Game {
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (ok('touch')) this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch);
     else if (!s.pausable && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus)
-    if (ok('cursor')) this.input.padCursor = s.cursor;
+    if (ok('cursor')) { this.input.padCursor = s.cursor; this._sceneCursor = true; } else if (this._sceneCursor) { this.input.padCursor = false; this._sceneCursor = false; }   // (a scene's cursor ends with it)
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
     this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
@@ -3494,7 +3496,8 @@ class Game {
   }
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(dt);   // (the other players: section 10j)
+    const u = this._uDt != null ? this._uDt : dt; this._uDt = null;   // u: this step in the player's own time, which slow motion and timeScale 0 don't touch: input's clock (double taps, long presses), the pad's cursor and a free camera run on it
+    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(u); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(u);   // (the other players: section 10j)
     this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
     this._ownRun('input', dt);
@@ -3514,7 +3517,7 @@ class Game {
     I._zoomOn = zr; I._wheelOn = zr && (this._camera() || {}).wheel !== false;
     if (this._zoomTo && !I._pinching && this._wall - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
     if (this.paused && !this.live && !this._goOn) return;   // (live: the world steps on under the menu)
-    if (!this.paused) { this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk); }
+    if (!this.paused) { this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk, I.zoomPoint()); }
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     this.time += dt;
     this.audio._tick(true);   // (a synced song: on game.time, it waits with the game)
@@ -3532,7 +3535,7 @@ class Game {
       this.focus(t.x + dir[0] * f.lead, (t.y || 0) + dir[1] * f.lead, (t.z || 0) + f.z);
     }
     this.particles.update(dt);
-    if (this.cam.free) this._freeCam(dt);
+    if (this.cam.free) this._freeCam(u);   // (the player's time: a stopped sim's camera still pans)
     this._camStep(dt);
   }
   // a screen-pixel move [dx, dy] as the ground's (world x, y) at the zoom the player sees (during a zoom's preview, the goal)
@@ -10001,7 +10004,7 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh kbd{font:700 12px var(--font);border:1px solid var(--accent);border-bottom-width:2px;border-radius:4px;padding:2px 7px;color:var(--accent)}
 .esh-tip{position:absolute;left:50%;bottom:calc(var(--pb) + 100px);transform:translateX(-50%);text-align:center;border-color:var(--danger)}
 .esh-col{position:absolute;right:var(--pr);top:var(--pt);display:flex;flex-direction:column;align-items:flex-end;gap:8px}.esh-place{text-align:right;font:italic 13px var(--title);color:var(--muted)}
-.esh-mini{position:absolute;right:var(--pr);bottom:var(--pb);width:min(176px,28vw);border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}
+.esh-mini{position:absolute;right:var(--pr);bottom:var(--pb);width:min(176px,28vw);border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}.esh-mini.esh-under{opacity:.55}
 .esh-keys{position:absolute;left:50%;bottom:var(--pb);transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap;background:rgba(8,6,14,.62);padding:5px 12px;border-radius:8px}.esh-keys kbd{margin-right:4px}
 @media (pointer:coarse){.esh-keys{display:none}}@media (max-width:640px){.esh-obj{max-width:calc(100vw - 214px)}.esh-toast{left:var(--pl);right:var(--pr);top:auto;bottom:calc(var(--pb) + 124px);max-width:none;transform:translateY(calc(100% + 160px))}.esh-toast.on{transform:none}
 .esh-pr{bottom:calc(var(--pb) + 196px)}.esh-tip{bottom:calc(var(--pb) + 262px)}}
@@ -10099,7 +10102,13 @@ class Shell {
     away(this._els.toast, () => { this._els.toast.classList.remove('on'); this._toastEnd = 0; });
     away(this._els.tut, d => { if (d > 40) this.tutorial(null); });
     const mini = this._els.mini; mini.width = 176; mini.height = 158;
-    mini.onclick = e => { const m = this._miniLast, X = mini._xf; if (!m || !m.onClick) return; const rc = mini.getBoundingClientRect(), u = (e.clientX - rc.left) * mini.width / (rc.width || 1), v = (e.clientY - rc.top) * mini.height / (rc.height || 1); m.onClick(X ? (u - X.ox) / X.k : 0, X ? (v - X.oy) / X.k : 0); };   // (the world point clicked: a strategy game's camera goes there)
+    mini.onclick = e => this._miniClick(e.clientX, e.clientY);   // (the world point clicked: a strategy game's camera goes there)
+  }
+  // the minimap clicked at browser client coords: its onClick gets the world point. True when it took the click
+  _miniClick(cx, cy) {
+    const m = this._miniLast, mini = this._els && this._els.mini, X = mini && mini._xf; if (!m || !m.onClick || mini.hidden) return false;
+    const rc = mini.getBoundingClientRect(); if (cx < rc.left || cy < rc.top || cx > rc.right || cy > rc.bottom) return false;
+    const u = (cx - rc.left) * mini.width / (rc.width || 1), v = (cy - rc.top) * mini.height / (rc.height || 1); m.onClick(X ? (u - X.ox) / X.k : 0, X ? (v - X.oy) / X.k : 0); return true;
   }
   /** the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays */
   get screen() { const t = this._stack[this._stack.length - 1]; return t ? t.name : null; }
@@ -10512,6 +10521,12 @@ class Shell {
       this.root.classList.toggle('esh-still', !!g.reduceMotion);
     }
     const pb = I.padPrev || [], l1 = !!pb[4] && !this._l1, r1 = !!pb[5] && !this._r1; this._l1 = !!pb[4]; this._r1 = !!pb[5];   // (L1 and R1 this step: a screen's tabs)
+    const mini = this._els && this._els.mini; if (mini && !this._stack.length) {   // the pad's cursor (drawn on the canvas, under the HTML) shows through the minimap, and ✕ on it is a click there
+      const pc = I.padCursor && I.lastDevice === 'gamepad' && !mini.hidden && I._padPt, S = g.screen, rc = pc && S.canvas && S.canvas.getBoundingClientRect();
+      const cl = rc ? [rc.left + (I._padPt[0] * S.S + S.OX) / S.dpr, rc.top + (I._padPt[1] * S.S + S.OY) / S.dpr] : null, mr = cl && mini.getBoundingClientRect();
+      mini.classList.toggle('esh-under', !!(mr && cl[0] >= mr.left && cl[0] <= mr.right && cl[1] >= mr.top && cl[1] <= mr.bottom));
+      if (cl && I._clickAt && this._miniClick(cl[0], cl[1])) I._clickAt = null;   // (the game doesn't also read it as a click on the ground beneath)
+    }
     if (!this._stack.length) return;
     const keep = this._held; this._held = new Set();
     const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), closeAll = has('pause') && I.pressed('pause'), mv = I.move();
@@ -11559,36 +11574,35 @@ Loads after: the full engine only. Needs: no other module.
 Monkey Island's, Day of the Tentacle's and Broken Sword's rooms: a picture the hero walks about by clicks and taps (talk
 through story's E.Story when one is given).
 - new E.Walkbox(outline, holes = []) (polygons of [x, y], room pixels): wb.inside(x, y), wb.nearest(x, y) (the closest
-  point you can stand on), wb.path(a, b) -> [a, ..., b] (the shortest way round the holes: A* over the corners, then
-  straight where nothing is in the way).
+  point you can stand on), wb.path(a, b) -> [a, ..., b] (the shortest way round the holes, by A*).
 - const pc = new E.Click(game, { rooms, items, rules, hero: { rig, speed: 60 }, ui: 'verbs' | 'icons' | 'coin' | 'two',
   story, room: 'dock', at: [x, y], on: { enter(pc, room), done(pc, verb, item, target) } }).
   rooms[id]: { w, h (room pixels; wider than the screen scrolls), paint(g) (the backdrop, painted once), pad: pixels
-  painted past each side, or [x, y] (past the sides, above and below: a bigger screen shows them; a tall one zooms the
-  room), walk: [outline, ...holes] or a Walkbox, depth: [yFar, kFar, yNear, kNear] (a body's scale by its feet's y),
+  painted past each side, or [x, y] (above and below too: a bigger screen shows them; a tall one zooms the room), walk:
+  [outline, ...holes] or a Walkbox, depth: [yFar, kFar, yNear, kNear] (a body's scale by its feet's y),
   hotspots: [...], things: [{ y, draw(g, x, y) }] (drawn by depth, not clicked), front(g, x, y) (over it all) }.
   A hotspot: { id, name, rect: [x, y, w, h] | poly | actor (anything with x, y, rig: drawn by depth), at: [x, y]
   (where the hero stands), face: 'left' | 'right' | 'up' | 'down', y (its baseline: drawn over the hero behind it),
-  draw(g, x, y) (a thing in the room: its picture at its place), exit: 'room' (and enter: [x, y] there), if (shown
-  while it holds), look / talk / use / pickup / open / close / push / pull / give: a line the hero says, a function
-  (pc, item), or a rule's actions, default: the verb a plain click does (two buttons: talk for people, pick up what can
-  be, else use) }.
+  draw(g, x, y) (its picture), exit: 'room' (and enter: [x, y] there), if (shown while it holds), look / talk / use /
+  pickup / open / close / push / pull / give: a line the hero says, a function (pc, item), or a rule's actions,
+  default: the verb a plain click does (two buttons: talk for people, pick up what can be, else use) }.
   items[id]: { name, look, icon: a sprite or (g, x, y, size) }. rules: [{ verb, item, on (a hotspot or an item), if,
   say: 'line' | [lines], give, take, set (story vars), talk (a story node), go: [room, x, y], do(pc) }]: the first that
-  matches runs; else the hotspot's own verb; else a line ("I can't pick that up.").
-- pc.update(dt) each step; pc.draw(r) after the scene (the room, bodies and things by depth, the hero's line over him,
-  the sentence line, the verbs or the coin, the inventory). pc.busy: true while a fade, a line, a talk or a walk is
-  under way. pc.room, pc.hero ({ x, y, k, face, path }), pc.inv (item ids), pc.give(id), pc.take(id), pc.has(id),
-  pc.say(lines, who), pc.go(room, [x, y]), pc.walkTo(x, y, then), pc.act(verb, target, item) (what a click does),
-  pc.panel = false (the verbs hidden: a cutscene), pc.state() / pc.restore(s), pc.end() (on leaving: the cursor back).
-  For tests and bots: pc.where(id) and pc.screen(x, y) (screen points), pc.boxes (the buttons drawn last frame).
+  matches runs; else the hotspot's own verb; else a line.
+- pc.update(dt) each step; pc.draw(r) after the scene (the room, bodies and things by depth, the hero's line, the
+  sentence line, the verbs or the coin, the inventory). pc.busy: true while a fade, a line, a talk or a walk is on.
+  pc.room, pc.hero ({ x, y, k, face, path }), pc.inv (item ids), pc.give(id), pc.take(id), pc.has(id), pc.say(lines,
+  who), pc.go(room, [x, y]), pc.walkTo(x, y, then), pc.act(verb, target, item) (what a click does), pc.panel = false
+  (the verbs hidden: a cutscene), pc.state() / pc.restore(s), pc.end() (on leaving). For tests and
+  bots: pc.where(id) and pc.screen(x, y) (screen points), pc.boxes (the buttons drawn last frame).
 - The interfaces: 'verbs' (SCUMM's nine: a verb, then what; USE and GIVE take an item first), 'icons' (Sierra's: WALK,
-  LOOK, HAND, TALK; a right click turns the cursor), 'coin' (a click, or a long press, on a hotspot opens its verbs over
-  the pointer), 'two' (a click does the default, a right click looks). The right click is the input's look action:
-  bind look: ['Mouse2']. The cursor is a hand over a hotspot, its name beside it. An item in the inventory goes on the
-  cursor: "Use rope with hook" (an item on an item works either way round; on someone, a give rule). A double click
-  runs. Touch: a tap walks; a tap on a hotspot opens its verbs; the inventory by taps, a thumb's size; a long press
-  looks.
+  LOOK, HAND, TALK; a right click turns the cursor), 'coin' (a click on a hotspot opens its verbs), 'two' (a click
+  does the default, a right click looks). The cursor is a hand over a hotspot, its name beside it. An item from the
+  inventory goes on the cursor: "Use rope with hook" (either way round; on someone, a give rule). A double click runs.
+  Touch: a tap walks; a tap on (input.assist: or near) a hotspot opens its verbs; the inventory by taps, DROP while an
+  item is held; a long press looks; a swipe closes the verbs or drops the item.
+- A pad (the scene's cursor: true) plays as two buttons: the cursor eases onto things; a click does a hotspot's default.
+  Actions read where bound: look (a right click: ['Mouse2']), verbs (the coin at the cursor), prevSpot, nextSpot.
 
 ```js click
 const E = My3D2dge, game = new E.Game({ headless: true });
@@ -11680,7 +11694,8 @@ const LINES = {
   'engine.click.do.walk': 'Walk to {what}', 'engine.click.give_to': 'Give {item} to {what}', 'engine.click.use_with': 'Use {item} with {what}',
   'engine.click.no.look': 'It\'s {name}.', 'engine.click.no.look_item': 'It\'s a {name}.', 'engine.click.no.pickup': 'I can\'t pick that up.', 'engine.click.no.use': 'I can\'t use that.',
   'engine.click.no.talk': 'It doesn\'t say much.', 'engine.click.no.give': 'I\'d rather keep it.', 'engine.click.no.open': 'It doesn\'t open.', 'engine.click.no.close': 'It doesn\'t close.',
-  'engine.click.no.push': 'It won\'t budge.', 'engine.click.no.pull': 'It won\'t budge.', 'engine.click.no.with': 'That doesn\'t work.'
+  'engine.click.no.push': 'It won\'t budge.', 'engine.click.no.pull': 'It won\'t budge.', 'engine.click.no.with': 'That doesn\'t work.',
+  'engine.click.drop': 'DROP'
 };
 const sentence = s => s[0] + s.slice(1).toLowerCase() + ' {what}';   // ('PICK UP' -> 'Pick up {what}')
 for (const [v, s] of VERBS) { LINES['engine.click.verb.' + v] = s; LINES['engine.click.do.' + v] = sentence(s); }
@@ -11693,6 +11708,7 @@ const low = s => { try { return String(s).toLocaleLowerCase(E.lang.test ? 'en' :
 const PICS = { walk: ['..KK...', '.KSSK..', '.KSSK..', '..KK.KK', '....KSSK', '....KSSK', '.....KK'], look: ['..KKKKK..', '.KWWWWWK.', 'KWWBBBWWK', 'KWWBKBWWK', '.KWWWWWK.', '..KKKKK..'],
   hand: ['..K.K.K..', '.KSKSKSK.', '.KSKSKSKK', '.KSSSSSKS', 'KKSSSSSSK', 'KSSSSSSK.', '.KSSSSK..', '..KKKK...'], talk: ['.KKKKKK.', 'KRRRRRRK', 'KRWWWWRK', 'KRKKKKRK', 'KRRRRRRK', '.KKKKKK.'] };
 const PAINTED = new WeakMap();   // each room's picture, painted once (a room kept between games keeps it)
+const mid = b => [b.x + b.w / 2, b.y + b.h / 2];   // (a button's middle)
 const PAL = { K: '#1a1420', S: '#f0c8a0', W: '#ffffff', B: '#3a6ad8', R: '#c83a4a' };
 const NO = ['look', 'pickup', 'use', 'talk', 'give', 'open', 'close', 'push', 'pull'];   // (the verbs with a line of their own when nothing answers; others: use's)
 class Click {
@@ -11794,7 +11810,8 @@ class Click {
   update(dt) {
     const G = this.game, I = G.input, R = this.rooms[this.room], H = this.hero;
     if (this._fade) { this._fade += dt * 4; if (this._fade >= 1 && this._swap) { this._swap(); this._swap = null; } if (this._fade >= 2) this._fade = 0; return true; }
-    if (this.line) { const L = this.line; L.t += dt; if (L.t > 1 + L.lines[L.i].length * .05 || (L.t > .3 && (I.clicked() || I.pressed('confirm')))) { L.i++; L.t = 0; if (L.i >= L.lines.length) this.line = null; } }
+    let ate = false;   // (the click, press or swipe that turns a line does only that)
+    if (this.line) { const L = this.line; L.t += dt; ate = L.t > .3 && !!(I.clicked() || I.pressed('confirm') || (I.swipe && I.swipe(true))); if (L.t > 1 + L.lines[L.i].length * .05 || ate) { L.i++; L.t = 0; if (L.i >= L.lines.length) this.line = null; } }
     const talking = this.story && this.story.running && this.story.update(dt);
     // the hero's walk
     H.k = this.scaleAt(H.y); H.moving = false;
@@ -11808,14 +11825,40 @@ class Click {
     this._scroll = this._scroll === null ? this._want() : this._scroll + (this._want() - this._scroll) * (1 - Math.pow(.88, dt * 60));   // (the view follows him, eased)
     if (H.rig) H.rig.update(dt, { x: H.x, y: H.y * 2, vx: H.moving ? Math.cos(H.face) * 40 * (H.run ? 2 : 1) : 0, vy: H.moving ? Math.sin(H.face) * 40 * (H.run ? 2 : 1) : 0, facing: H.face });
     for (const h of R.hotspots || []) if (h.actor && h.actor.rig) h.actor.rig.update(dt, { x: h.actor.x, y: h.actor.y * 2, facing: h.actor.face !== undefined ? h.actor.face : Math.PI / 2, pose: h.actor.pose, expr: h.actor.expr });
-    if (talking || this.line) return true;
+    if (this.panel && I.padCursor && I.cursorSnap) I.cursorSnap(this._coin ? this.boxes.filter(b => b.id.startsWith('coin:')).map(mid) : this._spots().concat(this.boxes.map(mid)), 16);   // (the pad's cursor eases onto what it can point at)
+    if (talking || this.line || ate) return true;
     if (this.panel) this._input(I);
     return !!this._then;
   }
+  // the room's hotspots on the screen now, as points left to right (their middles: where(id))
+  _spots() { const L = this._layout(); return (this.rooms[this.room].hotspots || []).filter(h => !h.if || this._test(h.if)).map(h => this.where(h.id)).filter(q => q && q[0] >= 0 && q[0] < L.W && q[1] >= 0 && q[1] < L.py).sort((a, b) => a[0] - b[0]); }
+  // the hotspot whose box (its rect, its poly's or its actor's) is nearest room point (x, y), within r room pixels, or
+  // null (a thumb's tap that just missed: input.assist)
+  _near(x, y, r) {
+    let best = null, bd = Infinity;
+    for (const h of this.rooms[this.room].hotspots || []) {
+      if (h.if && !this._test(h.if)) continue;
+      const a = h.actor, k = a && this.scaleAt(a.y), P = h.rect ? [[h.rect[0], h.rect[1]], [h.rect[0] + h.rect[2], h.rect[1] + h.rect[3]]] : h.poly || (a ? [[a.x - 10 * k, a.y - (a.h || 48) * k], [a.x + 10 * k, a.y + 3]] : null);
+      if (!P) continue;
+      const xs = P.map(q => q[0]), ys = P.map(q => q[1]), d = hyp(x - clamp(x, Math.min(...xs), Math.max(...xs)), y - clamp(y, Math.min(...ys), Math.max(...ys)));   // (to its box's nearest edge)
+      if (d <= r && d < bd) { bd = d; best = h; }
+    }
+    return best;
+  }
+  // L1 and R1 (prevSpot, nextSpot): the pad's cursor to the next thing to point at: the coin's verbs while it is open,
+  // the panel's buttons (in their order) while it is on the panel, else the room's hotspots left to right; first the one
+  // nearest it
+  _cycle(I, p, dir, L) {
+    const q = p || [L.W / 2, L.py / 2], pts = this._coin ? this.boxes.filter(b => b.id.startsWith('coin:')).map(mid) : q[1] >= L.py ? this.boxes.map(mid) : this._spots();
+    if (!pts.length) return;
+    let k = 0, bd = Infinity; pts.forEach((t, i) => { const d = hyp(t[0] - q[0], t[1] - q[1]); if (d < bd) { bd = d; k = i; } });
+    I.setPointer(...pts[bd < 6 ? (k + dir + pts.length) % pts.length : k]);
+  }
   // how far a wide room scrolls to keep the hero in the middle
   _want() { const R = this.rooms[this.room], W = this.game.W / this._zoom(); return clamp(this.hero.x - W / 2, 0, Math.max(0, R.w - W)); }
-  // a tall screen (a phone held upright) shows the room at a whole zoom, keeping at least 180 room pixels across
-  _zoom() { const G = this.game; return Math.max(1, Math.min(Math.floor((G.H - this._panelH()) / this.rooms[this.room].h), Math.floor(G.W / 180))); }
+  // a tall screen (a phone held upright) shows the room at a whole zoom, keeping at least 160 room pixels across (a phone
+  // 320 wide: twice the size, things a thumb can tap; the room scrolls with the hero)
+  _zoom() { const G = this.game; return Math.max(1, Math.min(Math.floor((G.H - this._panelH()) / this.rooms[this.room].h), Math.floor(G.W / 160))); }
   _panelH() { return this.game.input.lastDevice === 'touch' ? this._thumb() + 14 : this.ui === 'verbs' ? 56 : 30; }
   // the screen's layout: the panel along the bottom, the room over it (scrolled to the hero, or centred)
   _layout() {
@@ -11826,7 +11869,8 @@ class Click {
   }
   // the pointer: hover labels; clicks on the room, the verbs, the inventory, the coin
   _input(I) {
-    const L = this._layout(), touch = I.lastDevice === 'touch', p = I.pointer(), c = I.clicked(), right = !!(I.map.look && I.pressed('look')), drop = I.pressed('cancel'), lp = I.longPress(), d2 = I.doubleTap();
+    const L = this._layout(), touch = I.lastDevice === 'touch', pad = I.lastDevice === 'gamepad' && I.padCursor, p = I.pointer(), c = I.clicked(), right = !!(I.map.look && I.pressed('look')), drop = I.pressed('cancel'), lp = I.longPress(), d2 = I.doubleTap();
+    const on = (q, b) => q && q[0] >= b.x && q[0] < b.x + b.w && q[1] >= b.y && q[1] < b.y + b.h;
     const toRoom = q => q && q[1] >= L.oy && q[1] < L.py ? [(q[0] - L.ox) / L.z, (q[1] - L.oy) / L.z] : null;
     const hp = toRoom(p); this._hover = hp && !touch ? this.at(...hp) : null;
     const cv = this.game.screen.canvas; if (cv && cv.style) cv.style.cursor = touch ? '' : this._hover ? 'pointer' : 'crosshair';
@@ -11834,18 +11878,25 @@ class Click {
     if (lp) this._lp = lp; else if (I.box() || I.pan()) this._lp = null;
     if (c && this._lp) { const was = this._lp; this._lp = null; if (hyp(c[0] - was[0], c[1] - was[1]) < 12) return; }
     // a click on a box (a verb, an inventory slot, a coin's verb, a scroll arrow)
-    if (c) { const b = this.boxes.find(b => c[0] >= b.x && c[0] < b.x + b.w && c[1] >= b.y && c[1] < b.y + b.h); if (b) { this._coin = null; b.fn(); return; } }
-    if (this._coin && c) { this._coin = null; return; }   // (a click away closes the coin)
+    if (c) { const b = this.boxes.find(b => on(c, b)); if (b) { this._coin = null; b.fn(); return; } }
+    if (this._coin && (c || drop)) { this._coin = null; return; }   // (a click away, or cancel, closes the coin)
+    if ((this._coin || this.item) && I.swipe && I.swipe(true)) { if (this._coin) this._coin = null; else this.item = null; return; }   // (a swipe: the coin closes, the item goes back)
     if ((right || drop) && this.item) { this.item = null; return; }
+    const step = (I.map.nextSpot && I.pressed('nextSpot') ? 1 : 0) - (I.map.prevSpot && I.pressed('prevSpot') ? 1 : 0);
+    if (step && I.setPointer) { this._cycle(I, p, step, L); return; }
+    if (I.map.verbs && I.pressed('verbs')) { if (this._coin) { this._coin = null; return; } const q = toRoom(p), h = q && this.at(...q); if (h) { this._coin = { h, x: p[0], y: p[1] }; return; } }   // (the coin at the cursor, every verb; again: it closes)
     if (right && this.ui === 'icons') { const i = ICONS.findIndex(v => v[0] === this.verb); this.verb = ICONS[(i + 1) % ICONS.length][0]; return; }   // (Sierra's: a right click turns the cursor)
+    if (right && p) { const b = this.boxes.find(b => b.id.startsWith('item:') && on(p, b)); if (b) { this.act('look', b.id.slice(5)); return; } }   // (a right click on an item in the inventory looks at it)
+    const spotAt = q => this.at(...q) || (touch && I.assist ? this._near(q[0], q[1], this._thumb() / 2.5 / L.z) : null);   // (a thumb that just missed, by under half its width: the nearest)
     const rc = toRoom(c) || toRoom(lp), lookAt = toRoom(right ? p : null);
     if (lookAt) { const h = this.at(...lookAt); if (h) this.act('look', h.id); return; }
-    if (lp && rc) { const h = this.at(...rc); if (h) { this.act('look', h.id); return; } }
+    if (lp && rc) { const h = spotAt(rc); if (h) { this.act('look', h.id); return; } }
     if (!rc) return;
-    const h = this.at(...rc), run = !!d2;
+    const h = spotAt(rc), run = !!d2;
     if (!h) { if (!this.item) { this.verb = 'walk'; this.walkTo(rc[0], rc[1], null, run); } return; }
     if (this.item) { this.act(this.verb === 'give' ? 'give' : 'use', h.id, this.item); return; }
     if (h.exit && (this.verb === 'walk' || run)) { if (run) this.go(h.exit, h.enter); else this.act('walk', h.id); return; }
+    if (pad && this.verb === 'walk') { this.act(this._def(h), h.id); return; }   // (a controller: ✕ does what the thing is for, as two buttons do)
     if ((this.ui === 'verbs' || this.ui === 'icons') && !touch) { if (this.verb === 'walk') this.walkTo(...(h.at || rc), null, run); else this.act(this.verb === 'hand' ? this._hand(h) : this.verb, h.id); return; }
     if (this.ui === 'two' && !touch) { this.act(this._def(h), h.id); return; }
     this._coin = { h, x: c ? c[0] : lp[0], y: c ? c[1] : lp[1] };   // the coin: its verbs round the pointer
@@ -11856,7 +11907,7 @@ class Click {
   draw(r) {
     const R = this.rooms[this.room], L = this._layout(), G = this.game, touch = G.input.lastDevice === 'touch', z = L.z, pad = [].concat(R.pad || 0), px0 = pad[0], py0 = pad[1] || 0;
     let cv = PAINTED.get(R); if (!cv && R.paint) { cv = E.mkCanvas(R.w + px0 * 2, R.h + py0 * 2); const g = E.ctx2d(cv); g.translate(px0, py0); R.paint(g); PAINTED.set(R, cv); }   // (painted once, with its margins)
-    this.boxes = [];
+    this._was = this.boxes; this.boxes = [];   // (last frame's, for what the pointer is over before the panel is drawn)
     r.overlay(g => {
       g.save(); g.fillStyle = '#05040a'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g); g.imageSmoothingEnabled = false;
       const x0 = L.ox - px0 * z, top = L.oy - py0 * z, bot = L.oy + (R.h + py0) * z;
@@ -11890,15 +11941,20 @@ class Click {
   // the sentence line; the verbs (SCUMM's nine) or the icons (Sierra's), not on a touch screen; the inventory; the coin
   _panel(g, L, touch) {
     const y0 = L.py + 1, h = this._hover, it = this.item && this.items[this.item], verbs = this.ui === 'verbs' && !touch, icons = this.ui === 'icons' && !touch, th = this._thumb();
-    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? low(h.name) : '';
-    const words = it ? E.t(this.verb === 'give' ? 'engine.click.give_to' : 'engine.click.use_with', { item: low(it.name), what: name }) : touch ? '' : vb ? E.t('engine.click.' + (verbs ? 'do.' : 'do_icon.') + this.verb, { what: name }) : h ? name : E.t('engine.click.do.walk', { what: '' });
+    // what the pointer is over (no touch screen): its button lights; a verb's or an item's shows in the sentence first
+    const P = this.game.input.pointer(), over = (x, y, w, hh) => !touch && !!P && P[0] >= x && P[0] < x + w && P[1] >= y && P[1] < y + hh, ob = (this._was || []).find(b => over(b.x, b.y, b.w, b.h));
+    const vNow = this.verb !== 'walk' ? this.verb : ob && /^(verb|icon):/.test(ob.id) ? ob.id.slice(5) : 'walk', oi = !h && ob && ob.id.startsWith('item:') && this.items[ob.id.slice(5)];
+    const vb = vNow !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[vNow], name = h ? low(h.name) : oi ? low(oi.name) : '';
+    const words = it ? E.t(this.verb === 'give' ? 'engine.click.give_to' : 'engine.click.use_with', { item: low(it.name), what: name }) : touch ? '' : vb ? E.t('engine.click.' + (verbs ? 'do.' : 'do_icon.') + vNow, { what: name }) : h || oi ? name : E.t('engine.click.do.walk', { what: '' });
     E.font.text(g, words, L.W / 2, y0 + 1, '#c8e8ff', { align: 'center', outline: false });
-    const box = (id, x, y, w, hh, label, on, fn, small) => { this.boxes.push({ id, x, y, w, h: hh, fn }); E.ui.box(g, x, y, w, hh, { alpha: .9, bg: on ? '#3a4a9a' : '#141428' }); if (label) E.font.text(g, label, x + w / 2, y + hh / 2 - 3, on ? '#ffffff' : '#9ab0ff', { align: 'center', outline: false, font: small ? 'tiny' : undefined }); };
+    const box = (id, x, y, w, hh, label, on, fn) => { const lit = on || over(x, y, w, hh); this.boxes.push({ id, x, y, w, h: hh, fn }); E.ui.box(g, x, y, w, hh, { alpha: .9, bg: lit ? '#3a4a9a' : '#141428' }); if (label) E.font.text(g, label, x + w / 2, Math.floor(y + (hh - 7) / 2), on ? '#ffffff' : lit ? '#d8e0ff' : '#9ab0ff', { align: 'center', outline: false }); };
     let ix = 4;
-    if (verbs) { const bw = Math.max(52, ...VERBS.map(([v]) => E.font.width(E.t('engine.click.verb.' + v), { font: 'tiny' }) + 6)), bh = 14; VERBS.forEach(([v], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, E.t('engine.click.verb.' + v), this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
+    if (verbs) { const bw = Math.max(52, ...VERBS.map(([v]) => E.font.width(E.t('engine.click.verb.' + v)) + 6)), bh = 14; VERBS.forEach(([v], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, E.t('engine.click.verb.' + v), this.verb === v, () => { this.verb = v; this.item = null; })); ix = 4 + 3 * (bw + 2) + 6; }   // (the 5x7 font: read from across a room)
     if (icons) { ICONS.forEach(([v], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, E.t('engine.click.icon.' + v), x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
     // the inventory: icons in a row (two in the verbs' panel; a thumb's size on a touch screen), arrows when it is longer
-    const S = touch ? th : verbs ? 20 : 24, rows = verbs ? 2 : 1, aw = touch ? th : 14, cols = Math.max(1, Math.floor((L.W - ix - aw - 8) / (S + 2))), per = cols * rows, iy = verbs ? y0 + 11 : touch ? y0 + 10 : y0 + 4;
+    const dropW = touch && this.item ? Math.max(th, E.font.width(E.t('engine.click.drop')) + 10) : 0;   // (a touch screen holding an item: DROP at the row's end)
+    const S = touch ? th : verbs ? 20 : 24, rows = verbs ? 2 : 1, aw = touch ? th : 14, cols = Math.max(1, Math.floor((L.W - ix - aw - 8 - (dropW && dropW + 4)) / (S + 2))), per = cols * rows, iy = verbs ? y0 + 11 : touch ? y0 + 10 : y0 + 4;
+    if (dropW) box('inv:drop', L.W - aw - 8 - dropW, iy, dropW, S, E.t('engine.click.drop'), false, () => { this.item = null; });
     this._invAt = clamp(this._invAt, 0, Math.max(0, Math.ceil(this.inv.length / cols) - rows) * cols);
     this.inv.slice(this._invAt, this._invAt + per).forEach((id, i) => {
       const x = ix + (i % cols) * (S + 2), y = iy + Math.floor(i / cols) * (S + 2), I = this.items[id];
@@ -11910,8 +11966,8 @@ class Click {
     // the coin: the hotspot's verbs round where it was clicked (a thumb's size on a touch screen)
     if (this._coin) {
       const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v === 'talk' ? C.h.actor || C.h.talk : v === 'pickup' ? C.h.pickup : v === 'walk' ? C.h.exit : true);
-      const bw = sz + 14, all = vs.length * (bw + 3) - 3, x0 = clamp(C.x - all / 2, 2, L.W - all - 2), up = C.y - sz - 12 >= 2, y = up ? C.y - sz - 12 : Math.min(C.y + 12, L.py - sz - 2);   // (a row over the point, or under it near the top)
-      vs.forEach(([v], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, E.t('engine.click.coin.' + v), false, () => this.act(v, C.h.id), true));
+      const bw = Math.max(sz + 14, ...vs.map(([v]) => E.font.width(E.t('engine.click.coin.' + v)) + 6)), all = vs.length * (bw + 3) - 3, x0 = clamp(C.x - all / 2, 2, L.W - all - 2), up = C.y - sz - 12 >= 2, y = up ? C.y - sz - 12 : Math.min(C.y + 12, L.py - sz - 2);   // (a row over the point, or under it near the top)
+      vs.forEach(([v], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, E.t('engine.click.coin.' + v), false, () => this.act(v, C.h.id)));
       E.font.text(g, C.h.name, clamp(C.x, 40, L.W - 40), up ? Math.max(2, y - 10) : y + sz + 3, '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
     }
   }
@@ -12426,7 +12482,10 @@ Street Fighter II's rules, in the side view: for fighting games, and a boss duel
   range, guards, answers jumps with an anti-air (a move with aa: true), throws, confirms hits into specials. Its
   randomness is its own E.rng, so the same seed fights the same match.
 - new E.FightSelect(game, { roster: [{ id, name, rig, about }], inputs: [p1, p2 or null], cpu: [false, true], onDone:
-  ids => {} }): pick a fighter each (left, right, confirm; a tap on a portrait); update(dt), draw(r).
+  ids => {}, onBack }): pick a fighter each (left, right, confirm; the mouse over a portrait, a click or tap on one);
+  onBack() on a sideways swipe; update(dt), draw(r).
+- Each player's own pad shakes: the one hit, the one who hit it (lighter), both on a block, a throw and a K.O. On touch
+  (input.assist) a motion's diagonals may be skipped (236 reads as 26) and its window is half as long again.
 
 ```js fight
 const E = My3D2dge, game = new E.Game({ headless: true });
@@ -12456,6 +12515,8 @@ const D = E.Input.DEFAULT;
  *  pad's X, Y), light and heavy kick (J, K; A, B) */
 E.FIGHT_KEYS = { up: D.up, down: D.down, left: D.left, right: D.right, lp: ['KeyU', 'Pad2'], hp: ['KeyI', 'Pad3'], lk: ['KeyJ', 'Pad0'], hk: ['KeyK', 'Pad1'], start: D.start, pause: D.pause, confirm: D.confirm, cancel: D.cancel };
 const BTN = ['lp', 'hp', 'lk', 'hk'];
+// the E.Input a fighter is played with this step (a CPU's: none), and a shake of that pad (a gamepad only)
+const padOf = f => (f._c && f._c.input) || f.input || null, buzz = (I, s, t) => { if (I && I.lastDevice === 'gamepad') I.rumble(s, t); };
 // what a move does by its button when the spec doesn't say: [dmg, stun, block, push]
 const BASE = { lp: [30, 13, 9, 70], hp: [80, 20, 15, 120], lk: [35, 14, 10, 80], hk: [90, 21, 16, 130] };
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.h && b.z < a.z + a.h;
@@ -12557,7 +12618,10 @@ class Fighter {
       if (m.shot && this.shots.list.length) continue;
       let ok = false;
       if (c.do) ok = c.do === id;
-      else if (m.motion && c.input) ok = c.input.motion(m.motion, m.btn, { facing: this.facing, window: m.window || (m.motion.length > 4 ? .8 : .45) });
+      else if (m.motion && c.input) {   // (on touch, input.assist: a diagonal between its two neighbours may be skipped, the window half as long again)
+        const lax = c.input.assist, mo = lax ? m.motion.replace(/([24])1(?=[24])|([26])3(?=[26])/g, '$1$2') : m.motion;
+        ok = c.input.motion(mo, m.btn, { facing: this.facing, window: (m.window || (m.motion.length > 4 ? .8 : .45)) * (lax ? 1.5 : 1) });
+      }
       else if (m.charge && c.press.includes(m.btn)) ok = m.charge === '46' ? this._chB >= (m.time || .7) && c.x > .5 : this._chD >= (m.time || .7) && c.y < -.5;
       if (ok && (!best || (m.meter || 0) > (best.meter || 0) || (m.motion || '').length > (best.motion || '').length)) best = m;
     }
@@ -12650,7 +12714,7 @@ class Fighter {
     b.x = lerp(T.x0, x1, u); b.z = Math.sin(u * PI) * 50; b.vx = b.vz = 0;
     if (u >= 1) {
       this.thrown = null; b.z = 0; this.life -= T.dmg; this.down = .7; this.inv = .3; this.facing = by.x > b.x ? 1 : -1;
-      this.game.hitFx(b.x, 0, 8, { power: 2, color: '#ffe070', sound: 'kick' }); this.game.shake(4);
+      this.game.hitFx(b.x, 0, 8, { power: 2, color: '#ffe070', sound: 'kick', rumble: padOf(this) || false }); this.game.shake(4); buzz(padOf(by), .4, .15);   // (the thrown one's pad, the thrower's lighter)
       by.meter = Math.min(100 * (by.o.bars || 1), by.meter + 15);
       if (this.life <= 0) { this.life = 0; this.ko = true; }
     }
@@ -12700,7 +12764,7 @@ class Fighter {
       if (a && a.m === m) { a.blocked = true; a.hit = false; }
       foe.stun = sec(m.block); foe.kind = 'block'; foe.life = Math.max(1, foe.life - Math.round(m.dmg * m.chip)); foe.body.vx = dir * m.push * .8; foe.body.stun = foe.stun;
       this.meter = Math.min(bars, this.meter + m.dmg * .06); foe.meter = Math.min(100 * (foe.o.bars || 1), foe.meter + m.dmg * .04);
-      g.particles.impact(x, 0, z, 6, '#a0d8ff'); g.particles.sparks(x, 0, z, 5, null, { color: '#a0d8ff' }); g.audio.sfx('bump'); g.freeze(.04);
+      g.particles.impact(x, 0, z, 6, '#a0d8ff'); g.particles.sparks(x, 0, z, 5, null, { color: '#a0d8ff' }); g.audio.sfx('bump'); g.freeze(.04); buzz(padOf(foe), .2, .05); buzz(padOf(this), .12, .04);   // (a tick in both hands)
       this.last = { id: m.id, startup: m.frames[0], active: m.frames[1], recovery: m.frames[2], adv: m.block - rec, on: 'block' };
       return;
     }
@@ -12711,7 +12775,7 @@ class Fighter {
     if (lift) { foe.air = true; foe.juggle++; foe.body.knock(dir, foe.life <= 0 ? 150 : 70, lift, 1); foe.stun = 0; foe.kind = 'hit'; }
     else { foe.stun = sec(m.stun); foe.kind = 'hit'; foe.body.vx = dir * m.push; foe.body.stun = foe.stun; }
     if (foe.life <= 0) { foe.life = 0; foe.ko = true; }
-    const heavy = m.dmg >= 70; g.hitFx(x, 0, z, { power: heavy ? 1.8 : 1.1, angle: dir > 0 ? 0 : PI, color: '#ffe070', sound: heavy ? 'kick' : 'punch' });
+    const heavy = m.dmg >= 70; g.hitFx(x, 0, z, { power: heavy ? 1.8 : 1.1, angle: dir > 0 ? 0 : PI, color: '#ffe070', sound: heavy ? 'kick' : 'punch', rumble: padOf(foe) || false }); buzz(padOf(this), heavy ? .35 : .2, .06);   // (the one hit shakes, the hitter lighter)
     this.last = { id: m.id, startup: m.frames[0], active: m.frames[1], recovery: m.frames[2], adv: lift ? null : m.stun - rec, on: 'hit' };
   }
   /** draw it (and its shots) in the scene: r.actor with its rig */
@@ -12857,7 +12921,7 @@ class Match {
       if (a.ko || b.ko || this.clock <= 0) {
         this.phase = 'ko'; this._t = 0; this.call = E.t(a.ko || b.ko ? 'engine.fight.ko' : 'engine.fight.time');
         this.winner = a.ko && b.ko ? null : a.ko ? 1 : b.ko ? 0 : a.life === b.life ? null : a.life > b.life ? 0 : 1;
-        if (a.ko || b.ko) { this.game.timeScale = .35; this._slow = .9; this.game.flash('#ffffff', .2); this.game.audio.sfx('boom'); }
+        if (a.ko || b.ko) { this.game.timeScale = .35; this._slow = .9; this.game.flash('#ffffff', .2); this.game.audio.sfx('boom'); for (const f of this.f) buzz(padOf(f), .7, .6); }
       }
     } else if (this.phase === 'ko') {
       if (this._slow > 0 && (this._slow -= dt / Math.max(.01, this.game.timeScale)) <= 0) this.game.timeScale = 1;
@@ -12878,8 +12942,8 @@ class Match {
     if (this.o.training) { a.drawBoxes(r); b.drawBoxes(r); }
     r.overlay(g => this._hud(g, r.W, r.H));
   }
-  _hud(g, W, H) {   // (below a phone's corner button when it sits on top)
-    const font = E.font, bw = Math.floor(W / 2) - 34, ca = this.game.input.lastDevice === 'touch' && this.game.cornerArea ? this.game.cornerArea() : null, y = ca && ca.y0 < 40 ? Math.ceil(ca.y1) + 6 : 10;
+  _hud(g, W, H) {   // (below a touch screen's corner button, where it stays in play on top)
+    const font = E.font, bw = Math.floor(W / 2) - 34, ca = this.game.cornerArea ? this.game.cornerArea({ pinned: true }) : null, y = ca && ca.y0 < 40 ? Math.ceil(ca.y1) + 6 : 10;
     this.f.forEach((f, i) => {
       const x = i ? W - 12 - bw : 12, k = f.life / f.o.life, lag = f._lag, flip = i === 1;
       px.rect(g, x - 1, y - 1, bw + 2, 10, '#140b12'); px.rect(g, x, y, bw, 8, '#3a1a26');
@@ -12893,10 +12957,10 @@ class Match {
     });
     if (!this.o.training) { const box = Math.round(W / 2); E.ui.box(g, box - 15, y - 6, 30, 22, { bg: ['#2a1a4a', '#120a28'] }); font.title(g, String(Math.ceil(this.clock)).padStart(2, '0'), box, y - 3, { scale: 2, align: 'center', colors: ['#ffffff', '#c8d8ff'] }); }
     if (this.call) font.title(g, this.call, W / 2, H / 2 - 30, { scale: 4, align: 'center', colors: CALL, depth: 3 });
-    if (this.o.training) {   // frame data and player 1's last second of inputs
-      const L = this.f[0].last; if (L) font.text(g, E.t('engine.fight.frames.' + (L.adv === null ? 'down' : L.on), { move: E.lang.upper(L.id), startup: L.startup, active: L.active, recovery: L.recovery, adv: L.adv === null ? '' : E.lang.num(L.adv, { signDisplay: 'exceptZero' }) }), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false, font: 'tiny' });
-      const I = this.inputs[0], hist = I && I.history ? I.history.slice(-12) : [], mir = { 1: 3, 3: 1, 4: 6, 6: 4, 7: 9, 9: 7 };   // (numpad digits, as the fighter faces)
-      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).map(p => E.t('engine.fight.button.' + p)).join('+'), 12, y + 36 + k * 8, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' }));
+    if (this.o.training) {   // frame data and player 1's last inputs, in the 5x7 font (read from across a room)
+      const L = this.f[0].last; if (L) font.text(g, E.t('engine.fight.frames.' + (L.adv === null ? 'down' : L.on), { move: E.lang.upper(L.id), startup: L.startup, active: L.active, recovery: L.recovery, adv: L.adv === null ? '' : E.lang.num(L.adv, { signDisplay: 'exceptZero' }) }), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false });
+      const I = this.inputs[0], hist = I && I.history ? I.history.slice(-6) : [], mir = { 1: 3, 3: 1, 4: 6, 6: 4, 7: 9, 9: 7 };   // (numpad digits, as the fighter faces)
+      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).map(p => E.t('engine.fight.button.' + p)).join('+'), 12, y + 36 + k * 10, '#ffffff', { shadow: '#000', outline: false }));
     }
   }
 }
@@ -12904,7 +12968,8 @@ E.Match = Match;
 
 class FightSelect {
   /** new E.FightSelect(game, { roster: [{ id, name, rig, about }], inputs: [p1, p2 or null], cpu: [false, true],
-   *  seed, onDone: ids => {} }): a character select. picks: each side's id once chosen; at: each side's cursor */
+   *  seed, onDone: ids => {}, onBack }): a character select (onBack: on a sideways swipe). picks: each side's id once
+   *  chosen; at: each side's cursor */
   constructor(game, o = {}) {
     /** game: the game it runs in; o: its options; roster: the fighters to pick from; inputs: each side's E.Input; cpu: which
      *  sides the CPU picks for */
@@ -12917,13 +12982,16 @@ class FightSelect {
   }
   /** move the cursors, take the picks; onDone(ids) once both have one */
   update(dt) {
-    this._t += dt; const n = this.roster.length;
+    this._t += dt; const n = this.roster.length, I0 = this.inputs[0];
+    const sw = this.o.onBack && I0 && I0.swipe && I0.swipe(); if (sw && (sw.dir === 'left' || sw.dir === 'right')) { I0.swipe(true); this.game.audio.sfx('cancel'); this.o.onBack(); return; }   // (a sideways swipe goes back, as E.Menu's)
     for (let i = 0; i < 2; i++) {
       if (this.picks[i]) continue;
       if (this.cpu[i]) { if ((this._cpuT[i] += dt) > .8 && this.picks[0]) this.picks[i] = this.roster[this.at[i] = Math.floor(this._rng() * n)].id; continue; }
       const I = this.inputs[i]; if (!I) continue;
-      const tap = i === 0 && this.rects && I.clicked ? I.clicked() : null, k = tap ? this.rects.findIndex(([x, y, w, h]) => tap[0] >= x && tap[0] < x + w && tap[1] >= y && tap[1] < y + h) : -1;
-      if (k >= 0) { this.at[0] = k; this.picks[0] = this.roster[k].id; this.game.audio.sfx('confirm'); continue; }   // a tap on a portrait picks it
+      const on = q => q && this.rects ? this.rects.findIndex(([x, y, w, h]) => q[0] >= x && q[0] < x + w && q[1] >= y && q[1] < y + h) : -1;
+      if (i === 0 && I.mouse && I.mouse.t !== this._mt) { this._mt = I.mouse.t; const k = on(I.pointer()); if (k >= 0 && k !== this.at[0]) { this.at[0] = k; this.game.audio.sfx('select'); } }   // the mouse over a portrait moves player 1's cursor
+      const tap = i === 0 && I.clicked ? I.clicked() : null, k = on(tap);
+      if (k >= 0) { this.at[0] = k; this.picks[0] = this.roster[k].id; this.game.audio.sfx('confirm'); continue; }   // a click or tap on a portrait picks it
       if (I.repeat('left')) { this.at[i] = (this.at[i] + n - 1) % n; this.game.audio.sfx('select'); }
       if (I.repeat('right')) { this.at[i] = (this.at[i] + 1) % n; this.game.audio.sfx('select'); }
       if (BTN.some(k => I.map[k] && I.pressed(k)) || I.pressed('confirm') || I.pressed('start')) { this.picks[i] = this.roster[this.at[i]].id; this.game.audio.sfx('confirm'); I.consumeAll(); }
@@ -12940,14 +13008,14 @@ class FightSelect {
         const e = this.roster[this.at[i]], big = Math.min(96, Math.round(H * .42)), bx = i ? W - 16 - big : 16;
         this.rigs[this.at[i]].drawPortrait(g, bx, 36, big, { zoom: 2.4, turn: i ? -.6 : .6, bg: i ? ['#ff8a6a', '#5a1a2a'] : ['#6ab0ff', '#1a2a5a'], border: E.PLAYER_COLORS[i] });
         E.font.text(g, e.name, bx + big / 2, 40 + big, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        if (e.about) E.font.text(g, e.about, bx + big / 2, 50 + big, '#c8b8e8', { align: 'center', outline: false, font: 'tiny' });
+        if (e.about) E.font.text(g, e.about, bx + big / 2, 50 + big, '#c8b8e8', { align: 'center', outline: false });
         if (this.picks[i]) E.font.text(g, E.t('engine.fight.ready'), bx + big / 2, 30, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
       }
       E.font.title(g, E.t('engine.fight.vs'), W / 2, 70, { scale: 3, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] });
       this.rects = this.roster.map((e, k) => [x0 + k * (s + 6), y, s, s]);   // (where a tap picks)
       this.roster.forEach((e, k) => {
         const x = x0 + k * (s + 6); this.rigs[k].drawPortrait(g, x, y, s, { zoom: 2, turn: .5 });
-        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? E.t('engine.fight.cpu') : E.t('engine.fight.player', { player: i + 1 }), x + s / 2, y + s + 6, c, { align: 'center', outline: false, font: 'tiny' }); }
+        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? E.t('engine.fight.cpu') : E.t('engine.fight.player', { player: i + 1 }), x + s / 2, y + s + 6 + i * 9, c, { align: 'center', outline: false }); }
       });
     });
   }
@@ -15194,8 +15262,8 @@ The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger) and a Res
   enc.walk(zone, units) each step → a troop when the count runs out (it starts again), else null.
 - party.state() → JSON for a save; rpg.restore(state) → that party.
 - Windows (in r.overlay): rpg.list(g, x, y, w, rows, { cursor, title, top, show, rowH, bg }) (rows: [{ label, note,
-  icon, off }]; → { x, y, w, h, row(px, py): the row under a tap, at(i) }), rpg.card(g, x, y, member, { portrait } (full engine)),
-  rpg.icon(id).
+  icon, off }]; → { x, y, w, h, row(px, py): the row there, at(i) }), rpg.card(g, x, y, member, { portrait, big }
+  (full engine)), rpg.icon(id).
 
 ```js rpg
 const E = My3D2dge, rpg = new E.RPG({ items: { potion: { name: 'Potion', kind: 'use', heal: 30, price: 10 }, sword: { name: 'Sword', kind: 'weapon', stats: { atk: 5 }, price: 60 } },
@@ -15480,16 +15548,18 @@ class RPG {
     return { x, y, w, h, rowH: rh, top, show, row: (qx, qy) => { const k = Math.floor((qy - y - 5 - ty + (rh > 11 ? 0 : 2)) / rh); return qx >= x && qx < x + w && k >= 0 && k < show ? top + k : -1; },
       at: k => [x + w / 2, y + 5 + ty + (k - top + .5) * rh] };   // (a row's middle on screen: a tap's target)
   }
-  /** a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; → { w, h } */
+  /** a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; o.big: the
+   *  ten-foot card (a Status page: 176 x 92, the labels and stats in the normal font, two stats a row); → { w, h } */
   card(g, x, y, m, o = {}) {
-    const w = o.w || 150, h = 62, P = o.portrait, tx = x + (P ? 34 : 7), t = (s, a, b, c, al) => E.font.text(g, String(s), a, b, c, { outline: false, shadow: '#0a0820', align: al });
+    const big = !!o.big, w = o.w || (big ? 176 : 150), h = big ? 92 : 62, P = o.portrait, ps = big ? 30 : 26, tx = x + (P ? ps + 8 : 7), t = (s, a, b, c, al) => E.font.text(g, String(s), a, b, c, { outline: false, shadow: '#0a0820', align: al });
+    const sm = big ? { outline: false, shadow: '#0a0820' } : { font: 'tiny', outline: false };   // (labels and stats: the tiny font, or the normal one on a big card)
     E.ui.box(g, x, y, w, h, { bg: o.bg || ['#6c8cff', '#0a0a48'] });
-    if (P) P.drawPortrait(g, x + 4, y + 4, 26, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: m.dead ? '#808080' : undefined });
+    if (P) P.drawPortrait(g, x + 4, y + 4, ps, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: m.dead ? '#808080' : undefined });
     t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t(E.t('engine.rpg.level', { level: m.level }), x + w - 7, y + 5, '#ffe08a', 'right');
-    const bar = (lab, v, mx, by, c) => { E.font.text(g, lab, tx, by, '#9ad0ff', { font: 'tiny', outline: false }); t(v + '/' + mx, x + w - 7, by - 2, '#ffffff', 'right'); E.ui.bar(g, tx + 12, by + 7, x + w - tx - 19, 3, mx ? v / mx : 0, c, { bg: '#2a2650' }); };
-    bar(E.t('engine.rpg.hp'), m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar(E.t('engine.rpg.mp'), m.mp, m.max('mp'), y + 30, '#5aa0ff');
-    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, E.t('engine.rpg.stat.' + k, { value: Math.round(m.stat(k)) }), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
-    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.map(k => E.lang.has('engine.rpg.status.' + k) ? E.t('engine.rpg.status.' + k) : E.lang.upper(k)).join(' '), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
+    const bar = (lab, v, mx, by, c) => { const bx = big ? tx : tx + 12; E.font.text(g, lab, tx, by, '#9ad0ff', sm); t(v + '/' + mx, x + w - 7, big ? by : by - 2, '#ffffff', 'right'); E.ui.bar(g, bx, by + (big ? 11 : 7), x + w - 7 - bx, 3, mx ? v / mx : 0, c, { bg: '#2a2650' }); };
+    bar(E.t('engine.rpg.hp'), m.hp, m.max('hp'), y + (big ? 19 : 17), m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar(E.t('engine.rpg.mp'), m.mp, m.max('mp'), y + (big ? 36 : 30), '#5aa0ff');
+    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, E.t('engine.rpg.stat.' + k, { value: Math.round(m.stat(k)) }), big ? x + 7 + (i % 2) * ((w - 14) / 2) : x + 7 + i * ((w - 14) / 4), big ? y + 53 + (i >> 1) * 11 : y + 46, '#c8d0ff', sm));
+    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.map(k => E.lang.has('engine.rpg.status.' + k) ? E.t('engine.rpg.status.' + k) : E.lang.upper(k)).join(' '), x + 7, y + (big ? 77 : 54), (this.status[fx[0]] || {}).color || '#ffffff', sm);
     return { w, h };
   }
 }
@@ -15880,10 +15950,13 @@ Park, RollerCoaster Tycoon). It keeps the rules; the game draws (units are plain
   gather a resource, else move (a right click).
 - rts.train(building, kind) (paid now, made after its time, sent to building.rally), rts.cancel(building),
   rts.afford(side, cost); rts.canPlace(kind, cx, cy) (free, walkable, seen); rts.ghost(r, kind, cx, cy) draws it.
-- Selection, rts.input({ order: 'order' }) each step: a click or tap picks the player's unit under it (r.pick: draw them
-  with { pick: u }) or none; input.box() selects the units inside; Shift adds; a double tap selects that kind on screen;
-  Ctrl+1..9 keeps a group, 1..9 calls it; the order action (Mouse2) or a tap with a selection on ground, a foe or a
-  resource gives rts.smart. rts.selected; rts.draw(r) after the world: rings, health bars, the box.
+- Selection, rts.input({ order: 'order', kind: 'kind' }) each step: a click or tap picks the player's unit under it (r.pick:
+  draw them with { pick: u }) or none; input.box() selects the units inside; Shift adds; a double tap, or the kind action
+  (a pad's), selects that kind on screen; Ctrl+1..9 keeps a group, 1..9 calls it; the order action (Mouse2) or a tap with
+  a selection on ground, a foe or a resource gives rts.smart. A pad plays it by the engine's cursor (a scene's cursor:
+  true): ✕ clicks, held and moved draws the box, twice is the double tap. rts.selected; rts.hover (the unit under the
+  mouse or the cursor); rts.draw(r) after the world: rings (a dashed one under rts.hover), health bars, the box. Touch
+  assists (input.assist): a tap within 16 pixels of a unit is on it.
 - rts.fog (E.Fog: the player's sight; walls block it), rts.visible(u); rts.minimap() is E.Shell's hud({ minimap }) (the
   fog, the camera's view, dots; a click moves the camera there).
 - rts.ai(side, { build: [['worker', 5], ['barracks'], ['soldier', 6]], waves: { first: 90, every: 75, min: 4 }, script })
@@ -15938,6 +16011,8 @@ class Strategy {
     this.units = [];
     /** the player's selection */
     this.selected = [];
+    /** the unit under the pointer (a mouse's or a pad's cursor, not a finger's), or null: draw() rings it, dashed */
+    this.hover = null;
     /** control groups: groups[1..9], kept with Ctrl and a digit */
     this.groups = {};
     /** its events: { attack, death, made, built, gathered, ordered } */
@@ -16164,17 +16239,23 @@ class Strategy {
       markers: () => this.units.filter(u => this.visible(u)).map(u => ({ x: u.x, y: u.y, kind: u.building ? 'diamond' : 'dot', size: u.building ? 3 : 1.6, color: u.resource ? '#ffd860' : colors[u.side] || (u.side === this.player ? '#60c0ff' : '#ff5a4a') })) };
   }
   /** the player's pointer and keys, each step (see the manual): selection, groups, orders. o.order: the action that orders
-   *  (Mouse2 by default where it is bound); o.at(sx, sy) -> the world point under a screen point (map.pick's, by default) */
+   *  (Mouse2 by default where it is bound); o.kind: the action that takes every one of the kind under the pointer on the
+   *  screen ('kind' where it is bound: a pad's double click); o.at(sx, sy) -> the world point under a screen point
+   *  (map.pick's, by default) */
   input(o = {}) {
     const G = this.game, I = G.input, r = G.r, sh = I.held.has('ShiftLeft') || I.held.has('ShiftRight'), ctrl = I.held.has('ControlLeft') || I.held.has('ControlRight') || I.held.has('MetaLeft');
     const cam = { view: G.view, ix: Math.floor(G.cam.x), iy: Math.floor(G.cam.y) }, at = o.at || ((sx, sy) => { const h = this.map.pick(sx, sy, cam); return h ? [h.x, h.y] : G.view.toGround(sx + cam.ix, sy + cam.iy); });   // (the camera as drawn: headless too)
     const mine = u => u.side === this.player && !u.resource, onScreen = u => { const q = this._screen(u); return q[0] >= 0 && q[1] >= 0 && q[0] < G.screen.W && q[1] < G.screen.H; };
-    const under = p => { const hit = r ? r.pick(p[0], p[1]).filter(u => u && u.K && !u.dead && this.visible(u)) : []; return hit[0] || this.units.filter(u => !u.dead && this.visible(u)).map(u => [u, hyp(...this._screen(u).map((v, i) => v - p[i]))]).filter(e => e[1] < 10).sort((a, b) => a[1] - b[1]).map(e => e[0])[0] || null; };
-    const b = I.box();
+    const near = I.assist ? 16 : 10;   // (a touch assist: a tap a little off a small unit is on it)
+    const under = p => { const hit = r ? r.pick(p[0], p[1]).filter(u => u && u.K && !u.dead && this.visible(u)) : []; return hit[0] || this.units.filter(u => !u.dead && this.visible(u)).map(u => [u, hyp(...this._screen(u).map((v, i) => v - p[i]))]).filter(e => e[1] < near).sort((a, b) => a[1] - b[1]).map(e => e[0])[0] || null; };
+    const kindOf = p => { const u = p && under(p); if (u && mine(u)) this.selected = this.units.filter(v => mine(v) && v.kind === u.kind && onScreen(v)); };
+    const b = I.box(), pt = I.pointer();
+    this.hover = pt && I.lastDevice !== 'touch' ? under(pt) : null;
     if (b && b.done) { const inside = this.units.filter(u => mine(u) && !u.building && (q => q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.y0 && q[1] <= b.y1)(this._screen(u))); this.selected = sh ? [...new Set([...this.selected, ...inside])] : inside; }
     this._box = b && !b.done ? b : null;
-    const d2 = I.doubleTap(), c = I.clicked(), ord = o.order === undefined ? 'order' : o.order;
-    if (d2) { const u = under(d2); if (u && mine(u)) this.selected = this.units.filter(v => mine(v) && v.kind === u.kind && onScreen(v)); }
+    const d2 = I.doubleTap(), c = I.clicked(), ord = o.order === undefined ? 'order' : o.order, kd = o.kind === undefined ? 'kind' : o.kind;
+    if (kd && I.map[kd] && I.pressed(kd)) kindOf(pt);
+    if (d2) kindOf(d2);
     else if (c && !(b && b.done)) {
       const u = under(c);
       if (u && mine(u)) this.selected = sh ? (this.selected.includes(u) ? this.selected.filter(s => s !== u) : [...this.selected, u]) : [u];
@@ -16189,12 +16270,14 @@ class Strategy {
   }
   // a unit's foot on the screen (the HUD's pixels)
   _screen(u) { const G = this.game, q = G.view.p(u.x, u.y, u.z || 0); return [q[0] - Math.floor(G.cam.x), q[1] - Math.floor(G.cam.y)]; }
-  /** after the world: a ring under each selected unit, health bars over the selected and the hurt, the box being drawn */
+  /** after the world: a ring under each selected unit (a dashed one under the hovered: green the player's, red a foe's,
+   *  gold a resource's), health bars over the selected and the hurt, the box being drawn */
   draw(r) {
-    for (const u of this.selected) {
-      const R = (u.building ? u.r * 1.2 : u.r + 2), col = u.side === this.player ? '#60ff90' : '#ff6060', pts = [];
+    const hv = this.hover && !this.hover.dead && !this.selected.includes(this.hover) ? this.hover : null;
+    for (const u of hv ? [...this.selected, hv] : this.selected) {
+      const R = (u.building || u.resource ? u.r * 1.2 : u.r + 2), col = u.resource ? '#ffd860' : u.side === this.player ? '#60ff90' : '#ff6060', pts = [], faint = u === hv;
       for (let i = 0; i <= 16; i++) { const a = i / 16 * Math.PI * 2; pts.push([u.x + Math.cos(a) * R, u.y + Math.sin(a) * R]); }
-      r.decal(g => { for (let i = 0; i < 16; i++) { const [a, b] = r.w(pts[i][0], pts[i][1], 0), [c, d] = r.w(pts[i + 1][0], pts[i + 1][1], 0); px.line(g, a, b, c, d, col); } });
+      r.decal(g => { for (let i = 0; i < 16; i += faint ? 2 : 1) { const [a, b] = r.w(pts[i][0], pts[i][1], 0), [c, d] = r.w(pts[i + 1][0], pts[i + 1][1], 0); px.line(g, a, b, c, d, col); } });   // (the hovered: every other piece, a dashed ring)
     }
     r.overlay(g => {
       for (const u of this.units) {

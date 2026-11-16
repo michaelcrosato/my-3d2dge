@@ -171,15 +171,21 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 8  ROGUELIKE  (Rogue, Torneko's / Mystery Dungeon, Shiren the Wanderer). @modules grid gen
+ * SLICE 8  ROGUELIKE  (Rogue, Torneko's / Mystery Dungeon, Shiren the Wanderer). @modules grid gen dualsense
  * Ten floors of a torch-lit crypt, each generated from the run's seed (E.gen: rooms, then split halls, then caves), the
  * Amulet of Embers at the bottom. A turn-based dungeon: every step, swing or sip is a turn, and the monsters take theirs
  * by speed (E.Turns: a bat flits twice to your once, a slime oozes once to your twice). Walk into a monster to strike it.
  * Potions heal, scrolls of mapping show the floor and its stairs, a better blade waits on most floors; the stairs (>)
  * take you down. Fall and the crypt keeps a tombstone; escape with the Amulet and the results tell the tale.
- * Keys: arrows / WASD step (two at once: diagonals, as do numpad-style corners in iso), J wait a turn, L drink a potion,
- * K read a scroll. TOUCH: tap a cell to walk there (the hero stops when a monster comes into sight), hold the stick to
- * step, WAIT, POTION and SCROLL buttons.
+ * KEYS (a PC roguelike's): arrows / WASD or the numpad step (two arrows at once, or 7 9 1 3, the diagonals), Space, .
+ * or 5 wait a turn (J too), Q quaff a potion (L), R read a scroll (K), G walk to the stairs once seen, Esc pauses (each
+ * named along the bottom). THE MOUSE: a click on a seen cell walks there by path (Brogue's travel), the path previewed
+ * under the pointer and a monster's name over it; a right click does nothing. PAD: the stick (eight ways) or d-pad step,
+ * ✕ wait, □ potion, △ scroll, R1 the stairs, Options pauses. DUALSENSE: the light bar is the hero's health (green, amber,
+ * red; white for a level); any pad rumbles on the blows (game.hitFx), down the stairs and at the end. TOUCH: tap a cell
+ * to walk there (the hero stops when a monster comes into sight), hold the stick to step; WAIT, and POTION and SCROLL
+ * while there is one to use; with Touch assists on (Settings), STAIRS once the stairs are seen walks there. A sideways
+ * swipe clears the messages and leaves the end's menu.
  * HOW IT WORKS: the floor is a TileMap from E.gen's ASCII rows, the grid (E.Grid.from(map)) gives paths, fields of view
  * (symmetric shadowcasting: you see a monster exactly when it sees you) and E.Fog (unseen black, seen dim); E.Turns
  * orders the turns; each step between cells is a tween (game.tween) the rigs walk through, so the game is turn-based
@@ -216,7 +222,17 @@ const ROGUE = (() => {
   let R = Math.random, seed = 1, depth = 1, level = null, map = null, grid = null, fog = null, turns = null;
   let hero = null, foes = [], items = [], braziers = [], log = [], travel = null, busy = 0, mode = 'play', over = null, dirWait = 0, lastDir = null, repeatT = 0, held = 0, going = false;
   let stats = { kills: 0, gold: 0, turns: 0, killer: null };
-  const menu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('roguelike', null, { fade: 'iris' }) : game.go('title') });
+  const menu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('roguelike', null, { fade: 'iris' }) : game.go('title'), onCancel: () => game.go('title') });
+  // THE KEYS: its own (no borrowed attack, skill or dash: a click only travels, a right click drinks nothing): the moves
+  // with the numpad's, its corners the diagonals; wait, quaff and read on the keys a roguelike's player reaches for (the
+  // old J, L, K too); G or R1 travels to the stairs once they are seen (Brogue's and DCSS's travel); the menus' keys
+  const KEYS = { up: ['KeyW', 'ArrowUp', 'Numpad8', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Numpad2', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Numpad4', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Numpad6', 'Pad15'],
+    ul: ['Numpad7'], ur: ['Numpad9'], dl: ['Numpad1'], dr: ['Numpad3'], wait: ['Space', 'Period', 'Numpad5', 'KeyJ', 'Pad0'], potion: ['KeyQ', 'KeyL', 'Pad2'], scroll: ['KeyR', 'KeyK', 'Pad3'], stairs: ['KeyG', 'Pad5'],
+    start: E.Input.DEFAULT.start, pause: E.Input.DEFAULT.pause, confirm: ['Enter', 'NumpadEnter', 'Space', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
+  // the DUALSENSE (the dualsense module): the light bar is the hero's health, white for a moment on a level; sent as it
+  // changes. buzz: a rumble on any pad, while a pad is what the player plays with
+  let ds = null, padLight = null, lvT = 0, hover = null;
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
   const say = (s, c = '#e8e0d0') => { log.push({ s, c, t: game.real }); if (log.length > 4) log.shift(); };
   const at = (x, y) => [x, y].join();
   const occupied = (cx, cy) => (hero && hero.cx === cx && hero.cy === cy) || foes.some(f => !f.dead && f.cx === cx && f.cy === cy);
@@ -282,7 +298,7 @@ const ROGUE = (() => {
     if (d.hp <= 0) {
       d.dead = true; turns.remove(d); stats.kills++; P.dust(d.x, d.y, 4, 10); P.bits(d.x, d.y, 6, 6, d.K.blob ? [d.K.blob.colors.base, d.K.blob.colors.dk] : ['#6a6070', '#a8a0b0']);
       hero.xp += d.K.xp; say(E.t('roguelike.say.dies', { monster: d.K.name }), '#a8e0a0');
-      if (hero.xp >= hero.next) { hero.lv++; hero.next = Math.round(hero.next * 1.7); hero.max += 5; hero.hp = hero.max; hero.atk += 1; say(E.t('roguelike.say.level', { level: hero.lv }), '#ffe070'); A.sfx('powerup'); }
+      if (hero.xp >= hero.next) { hero.lv++; hero.next = Math.round(hero.next * 1.7); hero.max += 5; hero.hp = hero.max; hero.atk += 1; say(E.t('roguelike.say.level', { level: hero.lv }), '#ffe070'); A.sfx('powerup'); lvT = .6; }
     }
   }
   function foeTurn(f) {
@@ -303,7 +319,7 @@ const ROGUE = (() => {
       else return false;
     } else if (act.potion) {
       if (!hero.potions) { say(E.t('roguelike.say.no_potions')); return false; }
-      hero.potions--; const h = Math.min(hero.max - hero.hp, Math.ceil(hero.max * .6)); hero.hp += h; say(E.t('roguelike.say.better', { hp: h }), '#ff9aa0'); A.sfx('heal'); P.glints(hero.x, hero.y, 16, 8, '#ff9ab0');
+      hero.potions--; const h = Math.min(hero.max - hero.hp, Math.ceil(hero.max * .6)); hero.hp += h; say(E.t('roguelike.say.better', { hp: h }), '#ff9aa0'); if (ds) ds.speaker('heal'); else A.sfx('heal'); P.glints(hero.x, hero.y, 16, 8, '#ff9ab0');
     } else if (act.scroll) {
       if (!hero.scrolls) { say(E.t('roguelike.say.no_scrolls')); return false; }
       hero.scrolls--; for (let i = 0; i < fog.state.length; i++) if (!fog.state[i] && map.walkable(i % map.w, Math.floor(i / map.w))) fog.state[i] = 1;
@@ -320,12 +336,12 @@ const ROGUE = (() => {
     items.splice(i, 1);
     if (t.kind === 'potion') { hero.potions++; say(E.t('roguelike.say.potion'), '#ff9aa0'); }
     else if (t.kind === 'scroll') { hero.scrolls++; say(E.t('roguelike.say.scroll'), '#a8c8ff'); }
-    else if (t.kind === 'gold') { const g = 5 + Math.floor(R() * 10 * depth); stats.gold += g; say(E.t('roguelike.say.gold', { gold: g }), '#ffe070'); A.sfx('coin'); }
+    else if (t.kind === 'gold') { const g = 5 + Math.floor(R() * 10 * depth); stats.gold += g; say(E.t('roguelike.say.gold', { gold: g }), '#ffe070'); if (ds) ds.speaker('coin'); else A.sfx('coin'); }
     else if (t.kind === 'blade') { const b = BLADES[Math.min(BLADES.length - 1, Math.floor(depth / 3) + 1)]; if (b[1] > hero.blade[1]) { hero.atk += b[1] - hero.blade[1]; hero.blade = b; say(E.t('roguelike.say.blade', { blade: b[0] }), '#c8e0ff'); } else say(E.t('roguelike.say.rusty')); A.sfx('powerup'); }
     else if (t.kind === 'amulet') { stats.gold += 500; finish('won'); }
   }
-  function descend() { depth++; going = true; game.go('roguelike', { depth, keep: true }, { fade: 'iris', seconds: .35, at: hero }); }
-  function die() { say(E.t('roguelike.say.die'), '#ff6a6a'); A.sfx('die'); finish('dead'); }
+  function descend() { depth++; going = true; buzz(.4, .25); game.go('roguelike', { depth, keep: true }, { fade: 'iris', seconds: .35, at: hero }); }
+  function die() { say(E.t('roguelike.say.die'), '#ff6a6a'); A.sfx('die'); buzz(.6, .4); finish('dead'); }
   function finish(how) {
     mode = how; travel = null; menu.i = 0;
     const score = stats.gold + stats.kills * 10 + depth * 100 + (how === 'won' ? 1000 : 0);
@@ -341,12 +357,12 @@ const ROGUE = (() => {
     stats = { kills: 0, gold: 0, turns: 0, killer: null };
     hero = { cx: 0, cy: 0, x: 0, y: 0, hp: 20, max: 20, atk: 3, def: 1, speed: 100, lv: 1, xp: 0, next: 10, potions: 1, scrolls: 0, blade: BLADES[0], face: Math.PI / 2, hit: 0,
       rig: new E.Humanoid({ size: 1, outfit: 'tunic', hair: 'short', weapon: 'sword', cape: { len: 5, width: 5, seg: 2.4 }, colors: { cloth: '#2a5ab0', cape: '#8a2a2a', hair: '#c8a050', trim: '#e0c060' } }), swing: new E.Attack('slash') };
-    A.music(CRYPT); game.input.touchSet('attack', E.t('roguelike.touch.wait')); game.input.touchSet('skill', E.t('roguelike.touch.potion')); game.input.touchSet('dash', E.t('roguelike.touch.scroll'));
-    build();
+    A.music(CRYPT); build();
   }
-  // the step the keys or the stick ask for: [dx, dy] on the grid (in iso, turned from the screen), or null
+  // the step the keys, the numpad or the stick ask for: [dx, dy] on the grid (in iso, turned from the screen), or null.
+  // The numpad's corners are the screen's diagonals, as two keys together are
   function wantDir() {
-    const I = game.input, m = I.move(); if (Math.hypot(m[0], m[1]) < .4) return null;
+    const I = game.input, c = [['ul', -1, -1], ['ur', 1, -1], ['dl', -1, 1], ['dr', 1, 1]].find(([a]) => I.down(a)), m = c ? [c[1], c[2]] : I.move(); if (Math.hypot(m[0], m[1]) < .4) return null;
     let [x, y] = game.view.pitchDeg > 70 || game.view.id === 'threequarter' ? m : game.view.screenDirToGround(m[0], m[1]);
     const a = Math.round(Math.atan2(y, x) / (Math.PI / 4)) * Math.PI / 4; return [Math.round(Math.cos(a)), Math.round(Math.sin(a))];
   }
@@ -354,14 +370,25 @@ const ROGUE = (() => {
     const I = game.input;
     hero.rig.update(dt, rigState(hero, dt)); hero.swing.update(dt); hero.hit = Math.max(0, hero.hit - dt);
     for (const f of foes) { f.swing.update(dt); f.hit = Math.max(0, f.hit - dt); if (f.dead) f.die += dt; f.rig.update(dt, f.K.blob ? { look: [Math.cos(f.face), Math.sin(f.face)], walk: f.tw && !f.tw.done ? 1 : 0, flap: 1 } : rigState(f, dt)); }
+    padExtras(dt);
     if (mode !== 'play') { if (over) over.t += dt; if (over && over.t > 1.2) menu.update(dt); return; }
+    // the buttons a touch screen shows: WAIT; POTION and SCROLL while there is one; STAIRS (a touch assist: Settings, Touch
+    // assists) once the stairs are seen. stairs: seen, so the stairs key (G, R1) can walk there
+    const st = items.find(t => t.kind === 'stairs'), stairs = !!st && fog.seen([st.cx, st.cy]) && !going;
+    I.touchSet('wait', E.t('roguelike.touch.wait')); I.touchSet('potion', E.t('roguelike.touch.potion'), hero.potions > 0); I.touchSet('scroll', E.t('roguelike.touch.scroll'), hero.scrolls > 0); I.touchSet('stairs', E.t('roguelike.touch.stairs'), stairs && I.assist);
+    if (log.length && I.swipe() && (I.swipe().dir === 'left' || I.swipe().dir === 'right')) { I.swipe(true); log = []; }   // a sideways swipe clears the messages
+    if (I.mouse.t !== hover.mt) { hover.mt = I.mouse.t; hover.cell = cellAt(I.pointer()); }   // the mouse: the cell under it (its path drawn below)
     busy -= dt; if (busy > 0) return;
-    // touch: a tap on a cell walks there; keys and the stick: a step (two keys pressed together: a diagonal)
-    const tap = I.clicked();
-    if (tap && game.r) { const [wx, wy] = game.view.toGround(tap[0] + game.r.ix, tap[1] + game.r.iy) || [0, 0], c = map.toCell(wx, wy); if (fog.seen(c) && grid.walk(c)) { const p = grid.path([hero.cx, hero.cy], c, { blocked: (x, y) => !!foeAt(x, y) && !(x === c[0] && y === c[1]), ends: true }); travel = p.length > 1 ? p.slice(1) : null; } }
-    if (I.pressed('attack')) { travel = null; heroAct({ wait: true }); return; }
-    if (I.pressed('skill')) { travel = null; heroAct({ potion: true }); return; }
-    if (I.pressed('dash')) { travel = null; heroAct({ scroll: true }); return; }
+    // a click or tap on a cell walks there; keys and the stick: a step (two keys pressed together: a diagonal)
+    const tap = I.clicked(), c = cellAt(tap);
+    if (c && fog.seen(c) && grid.walk(c)) { const p = pathTo(c); travel = p.length > 1 ? p.slice(1) : null; }
+    if (stairs && I.pressed('stairs')) {   // travel there (a monster coming into sight stops it, as a click's walk); with monsters in every way, up to the first
+      const to = [st.cx, st.cy], p = grid.path([hero.cx, hero.cy], to, { blocked: (x, y) => !!foeAt(x, y) }).slice(1), q = p.length ? p : grid.path([hero.cx, hero.cy], to).slice(1), k = q.findIndex(c => foeAt(c[0], c[1]));
+      travel = k < 0 ? q : q.slice(0, k); if (!travel.length) travel = null;
+    }
+    if (I.pressed('wait')) { travel = null; heroAct({ wait: true }); return; }
+    if (I.pressed('potion')) { travel = null; heroAct({ potion: true }); return; }
+    if (I.pressed('scroll')) { travel = null; heroAct({ scroll: true }); return; }
     const d = wantDir();
     if (d) {
       travel = null;
@@ -373,6 +400,16 @@ const ROGUE = (() => {
     lastDir = null; repeatT = 0;
     if (travel && travel.length) { const [cx, cy] = travel.shift(); if (!heroAct({ move: [cx - hero.cx, cy - hero.cy] })) travel = null; }
   }
+  // the cell under a screen point (a click, a tap, the mouse), or null; the path there (a monster on the way blocks it,
+  // one on the cell itself is the goal: walking into it strikes)
+  const cellAt = p => { if (!p || !game.r) return null; const q = game.view.toGround(p[0] + game.r.ix, p[1] + game.r.iy); return q ? map.toCell(q[0], q[1]) : null; };
+  const pathTo = c => grid.path([hero.cx, hero.cy], c, { blocked: (x, y) => !!foeAt(x, y) && !(x === c[0] && y === c[1]), ends: true });
+  // the light bar: green over 60% health, amber to 30%, red under it, white a moment on a level, dark at the end
+  function padExtras(dt) {
+    if (!ds) return; lvT = Math.max(0, lvT - dt);
+    const k = hero.hp / hero.max, c = mode === 'won' ? '#ffd060' : mode === 'dead' ? '#400808' : lvT > 0 ? '#ffffff' : k > .6 ? '#3ad06a' : k > .3 ? '#ffb030' : '#ff2a2a';
+    if (c !== padLight) ds.light(padLight = c);
+  }
   function rigState(a, dt) {
     const tw = a.tw && !a.tw.done, sp = tw ? T / STEP : 0;
     return { x: a.x, y: a.y, z: 0, vx: tw ? Math.cos(a.face) * sp : 0, vy: tw ? Math.sin(a.face) * sp : 0, facing: a.face, hurt: a.hit > 0 ? a.hit * 4 : 0,
@@ -380,8 +417,6 @@ const ROGUE = (() => {
   }
 
   /* ---- 4. DRAWING: floor, stairs, things seen, actors in sight, the fog over it all, torchlight, the HUD ---- */
-  // a key the help names (J, L, K: the keyboard's, whatever the device), or the action's own once the player rebinds it
-  const keyOf = (a, code) => (game.input.map[a] || []).includes(code) ? game.input.codeLabel(code) : game.input.label(a);
   const NUM = n => E.lang.num(n, { useGrouping: false });   // (a score or a count of turns past 999, without a thousands mark, as always)
   function draw(r) {
     map.drawFloor(r); map.queueWalls(r);
@@ -404,23 +439,32 @@ const ROGUE = (() => {
     r.shadow(hero.x, hero.y, 6, .45);
     r.actor(hero.x, hero.y, 0, (g, ox, oy) => hero.rig.draw(g, ox, oy, r.view), { flash: hero.hit > .1 && '#ff6060', xray: true });
     if (travel && travel.length) E.tint(r, travel, '#ffd890', .35, T);
+    // the mouse's preview: the path to the seen cell under it (made again only as that cell changes), and a monster's name
+    // over it. Only while the mouse is what the player uses (moved in the last two seconds; not a pad, not touch)
+    const I = game.input, hc = mode === 'play' && !travel && I.aimSource === 'mouse' && I.mouse.t > I.clock - 2 && I.lastDevice !== 'gamepad' && I.lastDevice !== 'touch' && hover.cell;
+    if (hc && fog.seen(hc) && grid.walk(hc)) {
+      const key = hc.join() + ':' + hero.cx + ',' + hero.cy; if (hover.key !== key) { hover.key = key; hover.path = pathTo(hc).slice(1); }
+      if (hover.path.length) E.tint(r, hover.path, '#ffd890', .18, T);
+      const f = foeAt(hc[0], hc[1]); if (f && fog.visible(hc)) r.overlay(g => { const [sx, sy] = r.w(f.x, f.y, 26); E.font.text(g, f.K.name, Math.round(sx), Math.round(sy) - 8, '#ffb070', { align: 'center', shadow: '#000', outline: false }); });
+    }
     fog.draw(r, T, { height: (x, y) => map.height(x, y) });
     hud(r);
   }
   function hud(r) {
     r.overlay(g => {
-      const W = r.W, H = r.H, x0 = 4, w = 108;
-      E.ui.box(g, x0, 4, w, 34, { alpha: .75 });
+      const W = r.W, H = r.H, x0 = 4, w = 112;
+      E.ui.box(g, x0, 4, w, 40, { alpha: .75 });
       E.font.text(g, depth === LAST ? E.t('roguelike.hud.deepest', { level: hero.lv }) : E.t('roguelike.hud.floor', { floor: depth, level: hero.lv }), x0 + 5, 8, '#ffe8b0', { outline: false });
       E.ui.bar(g, x0 + 5, 19, w - 10, 5, hero.hp / hero.max, hero.hp > hero.max * .3 ? '#e04a4a' : '#ff2a6a');
-      E.font.text(g, E.t('roguelike.hud.hp', { hp: hero.hp, max: hero.max, blade: hero.blade[0] }), x0 + 5, 27, '#d8d0e8', { outline: false, font: 'tiny' });
+      E.font.text(g, E.t('roguelike.hud.hp', { hp: hero.hp, max: hero.max, blade: hero.blade[0] }), x0 + 5, 28, '#d8d0e8', { outline: false });
       const cx = (touch() ? cornerX() : W) - 74;
       E.ui.box(g, cx, 4, 70, 22, { alpha: .75 });
       px.sprite(g, SPR.potion, cx + 5, 9); E.font.text(g, E.t('roguelike.hud.count', { count: hero.potions }), cx + 12, 10, '#ffb0b0', { outline: false });
       px.sprite(g, SPR.scroll, cx + 34, 10); E.font.text(g, E.t('roguelike.hud.count', { count: hero.scrolls }), cx + 42, 10, '#c8d8ff', { outline: false });
-      const ly = H - (touch() ? 96 : 12) - log.length * 9;
-      log.forEach((m, i) => { const a = Math.min(1, 6 - (game.real - m.t)); if (a > 0) E.font.text(g, m.s, 6, ly + i * 9, m.c, { shadow: '#000', outline: false }); });
-      if (!touch() && mode === 'play') E.font.text(g, E.t('roguelike.hud.keys', { wait: keyOf('attack', 'KeyJ'), potion: keyOf('skill', 'KeyL'), scroll: keyOf('dash', 'KeyK') }), W - 4, H - 10, '#8a82a8', { align: 'right', outline: false, font: 'tiny' });
+      const ly = H - (touch() ? 96 : 28) - log.length * 10;
+      log.forEach((m, i) => { const a = Math.min(1, 6 - (game.real - m.t)); if (a > 0) E.font.text(g, m.s, 6, ly + i * 10, m.c, { shadow: '#000', outline: false }); });
+      const st = items.find(t => t.kind === 'stairs');
+      if (!touch() && mode === 'play') E.font.text(g, E.t(st && fog.seen([st.cx, st.cy]) ? 'roguelike.hud.keys_stairs' : 'roguelike.hud.keys'), W - 6, H - 14, '#b8b0d8', { align: 'right', shadow: '#000', outline: false });   // the player's own keys or buttons
       if (over) {
         const k = Math.min(1, over.t / .8), cy = Math.round(H / 2);
         g.fillStyle = 'rgba(4,2,10,' + (.75 * k).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
@@ -471,12 +515,13 @@ const ROGUE = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'threequarter', views: ['threequarter', 'iso'], input: 'DEFAULT', res: 'ps1', pausable: true, propSize: 1.1, touch: ['attack', 'skill', 'dash'],
-    camera: { zoom: [.75, 2], start: 1, tall: 1.25 }, enter: start, update, draw, bot,
-    exit() { L.enabled = false; game.cam.bounds = null; },
+  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: ['wait', 'potion', 'scroll', 'stairs'],
+    camera: { zoom: [.75, 2], start: 1, tall: 1.25 }, update, draw, bot,
+    enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hover = { mt: game.input.mouse.t, cell: null, key: '', path: [] }; start(data); },
+    exit() { L.enabled = false; game.cam.bounds = null; if (ds) ds.clear(); },
     state: () => ({ depth, hero, foes, items, mode, turns, grid, fog }),   // for tests
     /** the proof: steps about the first floor, a wait, a potion; the monsters on their turns; a hash of the run */
-    run: (n = 600) => proof('roguelike', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 45); if (i % 70 === 30) k.tap('attack'); if (i === 300) k.tap('skill'); },
+    run: (n = 600) => proof('roguelike', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 45); if (i % 70 === 30) k.tap('wait'); if (i === 300) k.tap('potion'); },
       () => [depth, hero.cx, hero.cy, hero.hp, hero.potions, stats.turns, foes.map(f => [f.cx, f.cy, f.hp, f.dead])]) };
 })();
 scenes.roguelike = ROGUE;

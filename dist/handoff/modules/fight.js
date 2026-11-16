@@ -31,7 +31,10 @@ Street Fighter II's rules, in the side view: for fighting games, and a boss duel
   range, guards, answers jumps with an anti-air (a move with aa: true), throws, confirms hits into specials. Its
   randomness is its own E.rng, so the same seed fights the same match.
 - new E.FightSelect(game, { roster: [{ id, name, rig, about }], inputs: [p1, p2 or null], cpu: [false, true], onDone:
-  ids => {} }): pick a fighter each (left, right, confirm; a tap on a portrait); update(dt), draw(r).
+  ids => {}, onBack }): pick a fighter each (left, right, confirm; the mouse over a portrait, a click or tap on one);
+  onBack() on a sideways swipe; update(dt), draw(r).
+- Each player's own pad shakes: the one hit, the one who hit it (lighter), both on a block, a throw and a K.O. On touch
+  (input.assist) a motion's diagonals may be skipped (236 reads as 26) and its window is half as long again.
 
 ```js fight
 const E = My3D2dge, game = new E.Game({ headless: true });
@@ -61,6 +64,8 @@ const D = E.Input.DEFAULT;
  *  pad's X, Y), light and heavy kick (J, K; A, B) */
 E.FIGHT_KEYS = { up: D.up, down: D.down, left: D.left, right: D.right, lp: ['KeyU', 'Pad2'], hp: ['KeyI', 'Pad3'], lk: ['KeyJ', 'Pad0'], hk: ['KeyK', 'Pad1'], start: D.start, pause: D.pause, confirm: D.confirm, cancel: D.cancel };
 const BTN = ['lp', 'hp', 'lk', 'hk'];
+// the E.Input a fighter is played with this step (a CPU's: none), and a shake of that pad (a gamepad only)
+const padOf = f => (f._c && f._c.input) || f.input || null, buzz = (I, s, t) => { if (I && I.lastDevice === 'gamepad') I.rumble(s, t); };
 // what a move does by its button when the spec doesn't say: [dmg, stun, block, push]
 const BASE = { lp: [30, 13, 9, 70], hp: [80, 20, 15, 120], lk: [35, 14, 10, 80], hk: [90, 21, 16, 130] };
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.h && b.z < a.z + a.h;
@@ -162,7 +167,10 @@ class Fighter {
       if (m.shot && this.shots.list.length) continue;
       let ok = false;
       if (c.do) ok = c.do === id;
-      else if (m.motion && c.input) ok = c.input.motion(m.motion, m.btn, { facing: this.facing, window: m.window || (m.motion.length > 4 ? .8 : .45) });
+      else if (m.motion && c.input) {   // (on touch, input.assist: a diagonal between its two neighbours may be skipped, the window half as long again)
+        const lax = c.input.assist, mo = lax ? m.motion.replace(/([24])1(?=[24])|([26])3(?=[26])/g, '$1$2') : m.motion;
+        ok = c.input.motion(mo, m.btn, { facing: this.facing, window: (m.window || (m.motion.length > 4 ? .8 : .45)) * (lax ? 1.5 : 1) });
+      }
       else if (m.charge && c.press.includes(m.btn)) ok = m.charge === '46' ? this._chB >= (m.time || .7) && c.x > .5 : this._chD >= (m.time || .7) && c.y < -.5;
       if (ok && (!best || (m.meter || 0) > (best.meter || 0) || (m.motion || '').length > (best.motion || '').length)) best = m;
     }
@@ -255,7 +263,7 @@ class Fighter {
     b.x = lerp(T.x0, x1, u); b.z = Math.sin(u * PI) * 50; b.vx = b.vz = 0;
     if (u >= 1) {
       this.thrown = null; b.z = 0; this.life -= T.dmg; this.down = .7; this.inv = .3; this.facing = by.x > b.x ? 1 : -1;
-      this.game.hitFx(b.x, 0, 8, { power: 2, color: '#ffe070', sound: 'kick' }); this.game.shake(4);
+      this.game.hitFx(b.x, 0, 8, { power: 2, color: '#ffe070', sound: 'kick', rumble: padOf(this) || false }); this.game.shake(4); buzz(padOf(by), .4, .15);   // (the thrown one's pad, the thrower's lighter)
       by.meter = Math.min(100 * (by.o.bars || 1), by.meter + 15);
       if (this.life <= 0) { this.life = 0; this.ko = true; }
     }
@@ -305,7 +313,7 @@ class Fighter {
       if (a && a.m === m) { a.blocked = true; a.hit = false; }
       foe.stun = sec(m.block); foe.kind = 'block'; foe.life = Math.max(1, foe.life - Math.round(m.dmg * m.chip)); foe.body.vx = dir * m.push * .8; foe.body.stun = foe.stun;
       this.meter = Math.min(bars, this.meter + m.dmg * .06); foe.meter = Math.min(100 * (foe.o.bars || 1), foe.meter + m.dmg * .04);
-      g.particles.impact(x, 0, z, 6, '#a0d8ff'); g.particles.sparks(x, 0, z, 5, null, { color: '#a0d8ff' }); g.audio.sfx('bump'); g.freeze(.04);
+      g.particles.impact(x, 0, z, 6, '#a0d8ff'); g.particles.sparks(x, 0, z, 5, null, { color: '#a0d8ff' }); g.audio.sfx('bump'); g.freeze(.04); buzz(padOf(foe), .2, .05); buzz(padOf(this), .12, .04);   // (a tick in both hands)
       this.last = { id: m.id, startup: m.frames[0], active: m.frames[1], recovery: m.frames[2], adv: m.block - rec, on: 'block' };
       return;
     }
@@ -316,7 +324,7 @@ class Fighter {
     if (lift) { foe.air = true; foe.juggle++; foe.body.knock(dir, foe.life <= 0 ? 150 : 70, lift, 1); foe.stun = 0; foe.kind = 'hit'; }
     else { foe.stun = sec(m.stun); foe.kind = 'hit'; foe.body.vx = dir * m.push; foe.body.stun = foe.stun; }
     if (foe.life <= 0) { foe.life = 0; foe.ko = true; }
-    const heavy = m.dmg >= 70; g.hitFx(x, 0, z, { power: heavy ? 1.8 : 1.1, angle: dir > 0 ? 0 : PI, color: '#ffe070', sound: heavy ? 'kick' : 'punch' });
+    const heavy = m.dmg >= 70; g.hitFx(x, 0, z, { power: heavy ? 1.8 : 1.1, angle: dir > 0 ? 0 : PI, color: '#ffe070', sound: heavy ? 'kick' : 'punch', rumble: padOf(foe) || false }); buzz(padOf(this), heavy ? .35 : .2, .06);   // (the one hit shakes, the hitter lighter)
     this.last = { id: m.id, startup: m.frames[0], active: m.frames[1], recovery: m.frames[2], adv: lift ? null : m.stun - rec, on: 'hit' };
   }
   /** draw it (and its shots) in the scene: r.actor with its rig */
@@ -462,7 +470,7 @@ class Match {
       if (a.ko || b.ko || this.clock <= 0) {
         this.phase = 'ko'; this._t = 0; this.call = E.t(a.ko || b.ko ? 'engine.fight.ko' : 'engine.fight.time');
         this.winner = a.ko && b.ko ? null : a.ko ? 1 : b.ko ? 0 : a.life === b.life ? null : a.life > b.life ? 0 : 1;
-        if (a.ko || b.ko) { this.game.timeScale = .35; this._slow = .9; this.game.flash('#ffffff', .2); this.game.audio.sfx('boom'); }
+        if (a.ko || b.ko) { this.game.timeScale = .35; this._slow = .9; this.game.flash('#ffffff', .2); this.game.audio.sfx('boom'); for (const f of this.f) buzz(padOf(f), .7, .6); }
       }
     } else if (this.phase === 'ko') {
       if (this._slow > 0 && (this._slow -= dt / Math.max(.01, this.game.timeScale)) <= 0) this.game.timeScale = 1;
@@ -483,8 +491,8 @@ class Match {
     if (this.o.training) { a.drawBoxes(r); b.drawBoxes(r); }
     r.overlay(g => this._hud(g, r.W, r.H));
   }
-  _hud(g, W, H) {   // (below a phone's corner button when it sits on top)
-    const font = E.font, bw = Math.floor(W / 2) - 34, ca = this.game.input.lastDevice === 'touch' && this.game.cornerArea ? this.game.cornerArea() : null, y = ca && ca.y0 < 40 ? Math.ceil(ca.y1) + 6 : 10;
+  _hud(g, W, H) {   // (below a touch screen's corner button, where it stays in play on top)
+    const font = E.font, bw = Math.floor(W / 2) - 34, ca = this.game.cornerArea ? this.game.cornerArea({ pinned: true }) : null, y = ca && ca.y0 < 40 ? Math.ceil(ca.y1) + 6 : 10;
     this.f.forEach((f, i) => {
       const x = i ? W - 12 - bw : 12, k = f.life / f.o.life, lag = f._lag, flip = i === 1;
       px.rect(g, x - 1, y - 1, bw + 2, 10, '#140b12'); px.rect(g, x, y, bw, 8, '#3a1a26');
@@ -498,10 +506,10 @@ class Match {
     });
     if (!this.o.training) { const box = Math.round(W / 2); E.ui.box(g, box - 15, y - 6, 30, 22, { bg: ['#2a1a4a', '#120a28'] }); font.title(g, String(Math.ceil(this.clock)).padStart(2, '0'), box, y - 3, { scale: 2, align: 'center', colors: ['#ffffff', '#c8d8ff'] }); }
     if (this.call) font.title(g, this.call, W / 2, H / 2 - 30, { scale: 4, align: 'center', colors: CALL, depth: 3 });
-    if (this.o.training) {   // frame data and player 1's last second of inputs
-      const L = this.f[0].last; if (L) font.text(g, E.t('engine.fight.frames.' + (L.adv === null ? 'down' : L.on), { move: E.lang.upper(L.id), startup: L.startup, active: L.active, recovery: L.recovery, adv: L.adv === null ? '' : E.lang.num(L.adv, { signDisplay: 'exceptZero' }) }), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false, font: 'tiny' });
-      const I = this.inputs[0], hist = I && I.history ? I.history.slice(-12) : [], mir = { 1: 3, 3: 1, 4: 6, 6: 4, 7: 9, 9: 7 };   // (numpad digits, as the fighter faces)
-      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).map(p => E.t('engine.fight.button.' + p)).join('+'), 12, y + 36 + k * 8, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' }));
+    if (this.o.training) {   // frame data and player 1's last inputs, in the 5x7 font (read from across a room)
+      const L = this.f[0].last; if (L) font.text(g, E.t('engine.fight.frames.' + (L.adv === null ? 'down' : L.on), { move: E.lang.upper(L.id), startup: L.startup, active: L.active, recovery: L.recovery, adv: L.adv === null ? '' : E.lang.num(L.adv, { signDisplay: 'exceptZero' }) }), 12, y + 24, '#c8f0ff', { shadow: '#000', outline: false });
+      const I = this.inputs[0], hist = I && I.history ? I.history.slice(-6) : [], mir = { 1: 3, 3: 1, 4: 6, 6: 4, 7: 9, 9: 7 };   // (numpad digits, as the fighter faces)
+      hist.forEach((h, k) => font.text(g, (this.f[0].facing < 0 ? mir[h.dir] || h.dir : h.dir) + ' ' + h.pressed.filter(p => BTN.includes(p)).map(p => E.t('engine.fight.button.' + p)).join('+'), 12, y + 36 + k * 10, '#ffffff', { shadow: '#000', outline: false }));
     }
   }
 }
@@ -509,7 +517,8 @@ E.Match = Match;
 
 class FightSelect {
   /** new E.FightSelect(game, { roster: [{ id, name, rig, about }], inputs: [p1, p2 or null], cpu: [false, true],
-   *  seed, onDone: ids => {} }): a character select. picks: each side's id once chosen; at: each side's cursor */
+   *  seed, onDone: ids => {}, onBack }): a character select (onBack: on a sideways swipe). picks: each side's id once
+   *  chosen; at: each side's cursor */
   constructor(game, o = {}) {
     /** game: the game it runs in; o: its options; roster: the fighters to pick from; inputs: each side's E.Input; cpu: which
      *  sides the CPU picks for */
@@ -522,13 +531,16 @@ class FightSelect {
   }
   /** move the cursors, take the picks; onDone(ids) once both have one */
   update(dt) {
-    this._t += dt; const n = this.roster.length;
+    this._t += dt; const n = this.roster.length, I0 = this.inputs[0];
+    const sw = this.o.onBack && I0 && I0.swipe && I0.swipe(); if (sw && (sw.dir === 'left' || sw.dir === 'right')) { I0.swipe(true); this.game.audio.sfx('cancel'); this.o.onBack(); return; }   // (a sideways swipe goes back, as E.Menu's)
     for (let i = 0; i < 2; i++) {
       if (this.picks[i]) continue;
       if (this.cpu[i]) { if ((this._cpuT[i] += dt) > .8 && this.picks[0]) this.picks[i] = this.roster[this.at[i] = Math.floor(this._rng() * n)].id; continue; }
       const I = this.inputs[i]; if (!I) continue;
-      const tap = i === 0 && this.rects && I.clicked ? I.clicked() : null, k = tap ? this.rects.findIndex(([x, y, w, h]) => tap[0] >= x && tap[0] < x + w && tap[1] >= y && tap[1] < y + h) : -1;
-      if (k >= 0) { this.at[0] = k; this.picks[0] = this.roster[k].id; this.game.audio.sfx('confirm'); continue; }   // a tap on a portrait picks it
+      const on = q => q && this.rects ? this.rects.findIndex(([x, y, w, h]) => q[0] >= x && q[0] < x + w && q[1] >= y && q[1] < y + h) : -1;
+      if (i === 0 && I.mouse && I.mouse.t !== this._mt) { this._mt = I.mouse.t; const k = on(I.pointer()); if (k >= 0 && k !== this.at[0]) { this.at[0] = k; this.game.audio.sfx('select'); } }   // the mouse over a portrait moves player 1's cursor
+      const tap = i === 0 && I.clicked ? I.clicked() : null, k = on(tap);
+      if (k >= 0) { this.at[0] = k; this.picks[0] = this.roster[k].id; this.game.audio.sfx('confirm'); continue; }   // a click or tap on a portrait picks it
       if (I.repeat('left')) { this.at[i] = (this.at[i] + n - 1) % n; this.game.audio.sfx('select'); }
       if (I.repeat('right')) { this.at[i] = (this.at[i] + 1) % n; this.game.audio.sfx('select'); }
       if (BTN.some(k => I.map[k] && I.pressed(k)) || I.pressed('confirm') || I.pressed('start')) { this.picks[i] = this.roster[this.at[i]].id; this.game.audio.sfx('confirm'); I.consumeAll(); }
@@ -545,14 +557,14 @@ class FightSelect {
         const e = this.roster[this.at[i]], big = Math.min(96, Math.round(H * .42)), bx = i ? W - 16 - big : 16;
         this.rigs[this.at[i]].drawPortrait(g, bx, 36, big, { zoom: 2.4, turn: i ? -.6 : .6, bg: i ? ['#ff8a6a', '#5a1a2a'] : ['#6ab0ff', '#1a2a5a'], border: E.PLAYER_COLORS[i] });
         E.font.text(g, e.name, bx + big / 2, 40 + big, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        if (e.about) E.font.text(g, e.about, bx + big / 2, 50 + big, '#c8b8e8', { align: 'center', outline: false, font: 'tiny' });
+        if (e.about) E.font.text(g, e.about, bx + big / 2, 50 + big, '#c8b8e8', { align: 'center', outline: false });
         if (this.picks[i]) E.font.text(g, E.t('engine.fight.ready'), bx + big / 2, 30, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
       }
       E.font.title(g, E.t('engine.fight.vs'), W / 2, 70, { scale: 3, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] });
       this.rects = this.roster.map((e, k) => [x0 + k * (s + 6), y, s, s]);   // (where a tap picks)
       this.roster.forEach((e, k) => {
         const x = x0 + k * (s + 6); this.rigs[k].drawPortrait(g, x, y, s, { zoom: 2, turn: .5 });
-        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? E.t('engine.fight.cpu') : E.t('engine.fight.player', { player: i + 1 }), x + s / 2, y + s + 6, c, { align: 'center', outline: false, font: 'tiny' }); }
+        for (let i = 0; i < 2; i++) if (this.at[i] === k && (!this.cpu[i] || this.picks[0])) { const c = E.PLAYER_COLORS[i], o = i * 2; px.rect(g, x - 2 - o, y - 2 - o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y + s + o, s + 4 + o * 2, 2, c); px.rect(g, x - 2 - o, y - 2 - o, 2, s + 4 + o * 2, c); px.rect(g, x + s + o, y - 2 - o, 2, s + 4 + o * 2, c); E.font.text(g, this.cpu[i] ? E.t('engine.fight.cpu') : E.t('engine.fight.player', { player: i + 1 }), x + s / 2, y + s + 6 + i * 9, c, { align: 'center', outline: false }); }
       });
     });
   }

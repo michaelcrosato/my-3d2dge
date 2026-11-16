@@ -29,8 +29,8 @@ The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger) and a Res
   enc.walk(zone, units) each step → a troop when the count runs out (it starts again), else null.
 - party.state() → JSON for a save; rpg.restore(state) → that party.
 - Windows (in r.overlay): rpg.list(g, x, y, w, rows, { cursor, title, top, show, rowH, bg }) (rows: [{ label, note,
-  icon, off }]; → { x, y, w, h, row(px, py): the row under a tap, at(i) }), rpg.card(g, x, y, member, { portrait } (full engine)),
-  rpg.icon(id).
+  icon, off }]; → { x, y, w, h, row(px, py): the row there, at(i) }), rpg.card(g, x, y, member, { portrait, big }
+  (full engine)), rpg.icon(id).
 
 ```js rpg
 const E = My3D2dge, rpg = new E.RPG({ items: { potion: { name: 'Potion', kind: 'use', heal: 30, price: 10 }, sword: { name: 'Sword', kind: 'weapon', stats: { atk: 5 }, price: 60 } },
@@ -315,16 +315,18 @@ class RPG {
     return { x, y, w, h, rowH: rh, top, show, row: (qx, qy) => { const k = Math.floor((qy - y - 5 - ty + (rh > 11 ? 0 : 2)) / rh); return qx >= x && qx < x + w && k >= 0 && k < show ? top + k : -1; },
       at: k => [x + w / 2, y + 5 + ty + (k - top + .5) * rh] };   // (a row's middle on screen: a tap's target)
   }
-  /** a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; → { w, h } */
+  /** a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; o.big: the
+   *  ten-foot card (a Status page: 176 x 92, the labels and stats in the normal font, two stats a row); → { w, h } */
   card(g, x, y, m, o = {}) {
-    const w = o.w || 150, h = 62, P = o.portrait, tx = x + (P ? 34 : 7), t = (s, a, b, c, al) => E.font.text(g, String(s), a, b, c, { outline: false, shadow: '#0a0820', align: al });
+    const big = !!o.big, w = o.w || (big ? 176 : 150), h = big ? 92 : 62, P = o.portrait, ps = big ? 30 : 26, tx = x + (P ? ps + 8 : 7), t = (s, a, b, c, al) => E.font.text(g, String(s), a, b, c, { outline: false, shadow: '#0a0820', align: al });
+    const sm = big ? { outline: false, shadow: '#0a0820' } : { font: 'tiny', outline: false };   // (labels and stats: the tiny font, or the normal one on a big card)
     E.ui.box(g, x, y, w, h, { bg: o.bg || ['#6c8cff', '#0a0a48'] });
-    if (P) P.drawPortrait(g, x + 4, y + 4, 26, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: m.dead ? '#808080' : undefined });
+    if (P) P.drawPortrait(g, x + 4, y + 4, ps, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: m.dead ? '#808080' : undefined });
     t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t(E.t('engine.rpg.level', { level: m.level }), x + w - 7, y + 5, '#ffe08a', 'right');
-    const bar = (lab, v, mx, by, c) => { E.font.text(g, lab, tx, by, '#9ad0ff', { font: 'tiny', outline: false }); t(v + '/' + mx, x + w - 7, by - 2, '#ffffff', 'right'); E.ui.bar(g, tx + 12, by + 7, x + w - tx - 19, 3, mx ? v / mx : 0, c, { bg: '#2a2650' }); };
-    bar(E.t('engine.rpg.hp'), m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar(E.t('engine.rpg.mp'), m.mp, m.max('mp'), y + 30, '#5aa0ff');
-    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, E.t('engine.rpg.stat.' + k, { value: Math.round(m.stat(k)) }), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
-    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.map(k => E.lang.has('engine.rpg.status.' + k) ? E.t('engine.rpg.status.' + k) : E.lang.upper(k)).join(' '), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
+    const bar = (lab, v, mx, by, c) => { const bx = big ? tx : tx + 12; E.font.text(g, lab, tx, by, '#9ad0ff', sm); t(v + '/' + mx, x + w - 7, big ? by : by - 2, '#ffffff', 'right'); E.ui.bar(g, bx, by + (big ? 11 : 7), x + w - 7 - bx, 3, mx ? v / mx : 0, c, { bg: '#2a2650' }); };
+    bar(E.t('engine.rpg.hp'), m.hp, m.max('hp'), y + (big ? 19 : 17), m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar(E.t('engine.rpg.mp'), m.mp, m.max('mp'), y + (big ? 36 : 30), '#5aa0ff');
+    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, E.t('engine.rpg.stat.' + k, { value: Math.round(m.stat(k)) }), big ? x + 7 + (i % 2) * ((w - 14) / 2) : x + 7 + i * ((w - 14) / 4), big ? y + 53 + (i >> 1) * 11 : y + 46, '#c8d0ff', sm));
+    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.map(k => E.lang.has('engine.rpg.status.' + k) ? E.t('engine.rpg.status.' + k) : E.lang.upper(k)).join(' '), x + 7, y + (big ? 77 : 54), (this.status[fx[0]] || {}).color || '#ffffff', sm);
     return { w, h };
   }
 }

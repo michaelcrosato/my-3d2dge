@@ -171,7 +171,7 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 15  TACTICS  (Final Fantasy Tactics, Tactics Ogre, Shining Force, Fire Emblem). @modules grid story
+ * SLICE 15  TACTICS  (Final Fantasy Tactics, Tactics Ogre, Shining Force, Fire Emblem). @modules grid story dualsense
  * THE TAKING OF THORNWATCH: four heroes storm a hill fort held by the Ash Legion's five (Grimwald, the knight who leads
  * them, at the gate; an archer on the wall; a mage on the tower; a priest in the yard; a thief out on the hills). An
  * isometric map of heights (E.HEIGHTS.level, 8, a level): a unit walks MOVE cells, climbs and drops what its JUMP allows,
@@ -183,11 +183,19 @@ scenes.over = {
  * BASH knocks a foe back a cell, CLEAVE cuts the three cells ahead. The Legion scores every place it can stand and every
  * blow it can strike from there (the damage, a kill, a heal, the danger of the place: grid.threat). Win: the Legion falls.
  * Lose: every hero falls.
- * Keys: arrows / WASD move the cursor (the camera follows), Enter / Z confirm, Esc / X back (before acting, back undoes a
- * move), Q and E turn the view a quarter, the wheel or - and = zoom. The mouse: the cursor follows the pointer
- * (map.pick, the cell under it in every view and turn); a click confirms. TOUCH: a tap selects a unit, a tap on a blue
- * cell moves there, a tap on a foe in range strikes; the command list's rows are a thumb's height; a finger dragging
- * pans the camera, two pinch it; TURN turns the view.
+ * KEYS (its own, KEYS: the moves and the menus' keys, no action it doesn't read): arrows / WASD move the cursor (the
+ * camera follows), Enter / Space / Z confirm, Backspace / X back (before acting, back undoes a move; Esc steps out of a
+ * move, an aim or a facing first, else pauses), 1-5 pick a command's row, Tab the next hero (by phases: who goes next;
+ * else back to the one whose turn it is), Q and E turn the view a quarter, the wheel or - and = zoom, X skips the scene.
+ * The MOUSE: the cursor follows the pointer (map.pick, the cell under it in every view and turn), a click confirms on a
+ * cell or a command (hover moves the command list's focus), a right click goes back, the screen's edge or a middle drag
+ * pans. PAD: the d-pad or left stick moves the cursor, ✕ confirms, ○ back, △ (or the touchpad's click) the next hero,
+ * L1 R1 turn the view, L2 R2 zoom, the right stick looks about, Create skips the scene, Options pauses. DUALSENSE: the
+ * light bar is whose turn it is (blue the heroes', red the Legion's; gold, dark red at the end), a swipe on the touchpad
+ * turns the view. TOUCH: a tap selects a unit, a tap on a blue cell moves there, a tap on a foe in range strikes; the
+ * command list's rows are a thumb's height; a finger dragging pans the camera, two pinch it; TURN turns the view, BACK
+ * (while moving, aiming or facing) goes back, SKIP skips the scene; a swipe takes the banner or the message away, a
+ * sideways one on the command list goes back as a menu's does.
  * HOW IT WORKS: the map is a TileMap whose cells all stand on a base (the earth shows at its edges) at their heights; the
  * grid is E.Grid.from(map, { tops: true }) with the shallows' cost; E.Turns ('ct') orders the turns, grid.reach the
  * moves (allies passed through), grid.shape the areas, grid.side where a blow lands, grid.threat the AI's danger; E.Story
@@ -276,6 +284,12 @@ const TACTICS = (() => {
 
   let map = null, grid = null, story = null, turns = null, units = [], active = null, mode = 'scene', order = 'ct', cursor = [11, 10], look = [0, 0, 0], menuI = 0;
   let sel = null, pending = null, cells = null, queue = [], wait = 0, banner = null, msg = null, over = null, round = 1, phase = 'hero', left = [], auto = false, stats = null, hold = 0, held = null, ptr = null, base = null;
+  let ds = null, padLight = null;   // the DualSense's extras (the dualsense module), and the light bar's colour now
+  // THE KEYS (docs/CONTROLS.md, strategy): the moves and the menus' (E.Input.MENU), a right click back as well; Q E (L1 R1)
+  // turn the view, Tab (△, the touchpad's click) the next hero, 1-5 a command's row, X (Create) skips the scene, L2 R2 zoom
+  // on a pad (the wheel and - = are the engine's)
+  const KEYS = { ...E.Input.MENU, cancel: [...E.Input.MENU.cancel, 'Mouse2'], turnL: ['KeyQ', 'Pad4'], turnR: ['KeyE', 'Pad5'], skip: ['KeyX', 'Pad8'],
+    next: ['Tab', 'Pad3', 'Pad17'], zoomIn: ['Pad7'], zoomOut: ['Pad6'], row1: ['Digit1'], row2: ['Digit2'], row3: ['Digit3'], row4: ['Digit4'], row5: ['Digit5'] };
   const endMenu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title') });
   const top = (cx, cy) => map.height(cx, cy), key = c => c[0] + ',' + c[1], same = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
   const living = side => units.filter(u => !u.dead && (!side || u.side === side)), unitAt = c => units.find(u => !u.dead && u.cx === c[0] && u.cy === c[1]) || null;
@@ -437,7 +451,9 @@ const TACTICS = (() => {
     units.forEach(u => { if (u.side === 'foe') u.facing = grid.face(cell(u), [12, 11]); });
     turns = new E.Turns(units, { mode: 'ct' }); active = null; over = null; queue = []; wait = 0; banner = null; msg = null; round = 0; phase = 'foe'; left = []; cells = null; sel = null; arrows.length = 0;
     stats = { turns: 0, dealt: {} }; base = null; acting = 0;
-    const g = units.find(u => u.lead); cursor = cell(g); aimLook(cursor); game.cam.snap = true; game.cam.bounds = null; L.enabled = false; A.music(SONG); game.input.steer = 'drag';
+    const g = units.find(u => u.lead); cursor = cell(g); aimLook(cursor); game.cam.snap = true; game.cam.bounds = null; L.enabled = false; A.music(SONG);
+    game.input.touchEnabled = false;   // (no touch stick: a finger pans the camera by input.pan(), a tap is a click, a flick a swipe)
+    ds = E.DualSense ? E.DualSense.attach(game, { light: true }) : null; padLight = null;
     const people = {}; for (const k of PEOPLE) { const u = units.find(o => o.who === k); people[k] = { name: u.name, portrait: u.rig, at: Object.assign(u, { h: 32 }) }; }
     story = new E.Story(game, { people, nodes: NODES, vars: { order: 'ct' }, on: { look(s, st) { const u = people[st.at].at; cursor = cell(u); aimLook(cursor); } } });
     if (part) begin(); else { mode = 'scene'; story.run('intro', { onDone: () => { order = story.get('order') || 'ct'; begin(); } }); }
@@ -488,6 +504,13 @@ const TACTICS = (() => {
       const [x, y] = map.center(...u.at0); u.cx = u.at0[0]; u.cy = u.at0[1]; u.x = x; u.y = y; u.z = top(...u.at0); u.moved = false; cursor = cell(u); A.sfx('cancel'); menuI = 0;
     }
   }
+  // the next hero (Tab, △, the touchpad's click): by phases, before this one moves or acts, the next who hasn't gone
+  // takes the turn (as a tap on one does); else the cursor and the camera go back to the one whose turn it is
+  function nextHero() {
+    const u = active, i = left.indexOf(u), o = order === 'phase' && !u.moved && !u.acted ? [...left.slice(i + 1), ...left.slice(0, Math.max(0, i))].find(h => h !== u && h.side === 'hero' && !h.dead) : null;
+    if (o) { active = o; o.moved = o.acted = false; o.at0 = cell(o); mode = 'command'; cells = null; menuI = 0; A.sfx('blip'); } else A.sfx('select');
+    cursor = cell(active); aimLook(cursor);
+  }
   // the step the keys ask for, on the grid: turned from the screen (a small bias splits iso's diagonals the same way each time)
   const tapped = () => { const I = game.input, x = (I.pressed('right') ? 1 : 0) - (I.pressed('left') ? 1 : 0), y = (I.pressed('down') ? 1 : 0) - (I.pressed('up') ? 1 : 0); return x || y ? [x, y] : null; };
   function keyDir() {
@@ -496,14 +519,16 @@ const TACTICS = (() => {
     const g = game.view.screenDirToGround(m[0], m[1]), a = Math.atan2(g[1], g[0]) + .01, k = Math.round(a / (Math.PI / 2));
     return [Math.round(Math.cos(k * Math.PI / 2)), Math.round(Math.sin(k * Math.PI / 2))];
   }
-  // the HUD's boxes this frame (taps and clicks hit them): the command list's rows, TURN
-  let ui = { rows: [], turn: null };
+  // the HUD's boxes this frame (taps and clicks hit them): the command list's rows; TURN, BACK and SKIP (touch)
+  let ui = { rows: [], turn: null, back: null, skip: null };
   const hitBox = (b, p) => b && p && p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
   function playerInput(dt) {
-    const I = game.input, u = active, tap = I.clicked(), p = I.pointer();
-    if (I.pressed('turnL') || I.pressed('turnR') || (tap && hitBox(ui.turn, tap))) { game.rotateView(I.pressed('turnL') ? -90 : 90); A.sfx('select'); return; }
+    const I = game.input, u = active, tap = I.clicked(), p = I.pointer(), pad = ds && ds.swipe();   // (a swipe on the DualSense's touchpad turns the view)
+    if (I.pressed('turnL') || I.pressed('turnR') || (tap && hitBox(ui.turn, tap)) || pad === 'left' || pad === 'right') { game.rotateView(I.pressed('turnL') || pad === 'left' ? -90 : 90); A.sfx('select'); return; }
+    if (tap && hitBox(ui.back, tap)) { back(); return; }   // BACK (touch, while moving, aiming or facing)
+    if (I.pressed('next')) { nextHero(); return; }
     if (mode === 'command') {
-      const rs = rows(u), k = tap ? ui.rows.findIndex(b => hitBox(b, tap)) : -1;
+      const rs = rows(u), k = tap ? ui.rows.findIndex(b => hitBox(b, tap)) : rs.findIndex((r, i) => I.pressed('row' + (i + 1)));   // (a click or tap on a row; 1-5 the rows)
       if (k >= 0) { menuI = k; command(rs[k]); return; }
       if (p && !same(p, ptr)) { const h = ui.rows.findIndex(b => hitBox(b, p)); if (h >= 0) menuI = h; }
       const t = tapped(), m = t || I.move(), dy = Math.abs(m[1]) > .5 ? Math.sign(m[1]) : 0; if (t) hold = 0;
@@ -531,6 +556,13 @@ const TACTICS = (() => {
   }
 
   /* ---- 7. EACH STEP: the rigs, the walks, the arrows, the queue of beats, the player or the scene ---- */
+  // the DUALSENSE's light bar: whose turn it is (the heroes' blue, the Legion's red), gold for a victory, dark red for a
+  // defeat; sent as it changes
+  function padExtras() {
+    if (!ds) return;
+    const c = over ? (over.won ? '#ffc040' : '#6a0c18') : active && !active.dead ? (active.side === 'hero' ? '#2a78ff' : '#ff2a2a') : null;
+    if (c && c !== padLight) ds.light(padLight = c);
+  }
   function update(dt) {
     const I = game.input;
     for (const u of units) {
@@ -551,10 +583,24 @@ const TACTICS = (() => {
     }
     for (let i = arrows.length - 1; i >= 0; i--) { const a = arrows[i]; a.t += dt / a.dur; if (a.t >= 1) { arrows.splice(i, 1); a.then(); } }
     if (banner) banner.t += dt; if (msg) msg.t += dt;
-    // the camera: toward what it looks at, a drag panning it (touch)
-    const dr = I.drag(); if (dr && (Math.abs(dr[0]) + Math.abs(dr[1]) > 0)) { const g = game.view.screenDirToGround(-dr[0], -dr[1]), l = Math.hypot(dr[0], dr[1]) / (game.view.scale || 1); look[0] += g[0] * l; look[1] += g[1] * l; }
+    padExtras();
+    // a swipe (touch) takes what is temporary away: the banner, the message (a flick that began at the top); a sideways one
+    // on the command list goes back, as a menu's does
+    const sw = I.swipe();
+    if (sw && banner && banner.t < 1.4) { banner = null; I.swipe(true); }
+    else if (sw && msg && msg.t < 2.2 && sw.y < game.H * .25) { msg = null; I.swipe(true); }
+    else if (sw && mode === 'command' && (sw.dir === 'left' || sw.dir === 'right') && I.hit(ui.rows, [sw.x, sw.y]) >= 0) { I.swipe(true); back(); }
+    // the camera: toward what it looks at; a finger's drag (or a mouse's middle button) pans it, so do the right stick and
+    // the mouse at the screen's edge; the next move of the cursor brings it back
+    const pan = I.pan(), mp = I.pointer(), rs = I.padAim, look0 = look[0], look1 = look[1], by = (dx, dy, k) => { const g = game.view.screenDirToGround(dx, dy); look[0] += g[0] * k; look[1] += g[1] * k; };
+    if (pan && (I.lastDevice === 'touch' || I.held.has('Mouse1'))) by(-pan[0], -pan[1], Math.hypot(pan[0], pan[1]) / (game.view.scale || 1));
+    if (rs) by(rs[0], rs[1], 200 * dt);
+    if (mp && I.lastDevice === 'mouse' && mode !== 'scene') { const e = 6, ex = mp[0] < e ? -1 : mp[0] > game.W - e ? 1 : 0, ey = mp[1] < e ? -1 : mp[1] > game.H - e ? 1 : 0; if (ex || ey) by(ex, ey, 220 * dt); }
+    if (map && (look[0] !== look0 || look[1] !== look1)) { look[0] = clamp(look[0], -T * 2, (map.w + 2) * T); look[1] = clamp(look[1], -T * 2, (map.h + 2) * T); }   // (not off into the sky)
     game.focus(look[0], look[1], look[2]);
-    if (mode === 'scene') { if (I.pressed('skip')) { story.stop(); order = 'ct'; begin(); } else story.update(dt); ptr = I.pointer(); return; }
+    // L2 and R2 zoom on a pad, by how far they are pulled (the wheel and - = are the engine's)
+    const zi = I.value('zoomIn'), zo = I.value('zoomOut'); if (zi > .1 || zo > .1) game.zoomBy(Math.pow(1.8, dt * (zi > zo ? zi : -zo)));   // (1.8 times a second, pulled all the way)
+    if (mode === 'scene') { if (I.pressed('skip') || hitBox(ui.skip, I.clicked())) { story.stop(); order = 'ct'; begin(); } else story.update(dt); ptr = I.pointer(); return; }
     if (mode === 'over') { over.t += dt; if (over.t > 1.6) endMenu.update(dt); return; }
     if (queue.length && !units.some(u => u.path) && !arrows.length && !acting) { wait += dt; if (wait >= queue[0][0]) { wait = 0; queue.shift()[1](); } }
     if (!auto && active && active.side === 'hero' && (mode === 'command' || mode === 'move' || mode === 'target' || mode === 'face')) playerInput(dt);
@@ -603,16 +649,29 @@ const TACTICS = (() => {
       if (o) { const [x, y] = r.w(o.x, o.y, o.z + 40 + Math.sin(game.real * 6) * 2); px.poly(g, [[x - 4, y - 4], [x + 4, y - 4], [x, y + 1]], '#ffe070'); px.line(g, x - 4, y - 5, x + 4, y - 5, '#fff8d0'); }
     });
   }
-  // a key the help names (Z, X, Q, E: the keyboard's, whatever the device), or the action's own once the player rebinds it
-  const keyOf = (a, code) => (game.input.map[a] || []).includes(code) ? game.input.codeLabel(code) : game.input.label(a);
   const NUM = n => E.lang.num(n, { useGrouping: false });   // (a count past 999 without a thousands mark, as always)
+  // a box of the touch screen's own, top right left of the corner's menu (TURN; BACK beside it; SKIP in the scene): a
+  // thumb's height, its label in the middle
+  function tbox(g, k, s) {
+    const bw = 40, bh = Math.max(16, Math.ceil(44 * game.screen.dpr / game.screen.S)), b = { x: cornerX() - (bw + 2) * (k + 1), y: 4, w: bw, h: bh };
+    E.ui.box(g, b.x, b.y, bw, bh, { alpha: .8 }); E.font.text(g, s, b.x + bw / 2, b.y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false }); return b;
+  }
   function hud(r) {
-    const W = r.W, H = r.H, tc = touch(), u = active;
+    const W = r.W, H = r.H, tc = touch(), u = active, I = game.input;
+    ui.turn = ui.back = ui.skip = null;
     r.overlay(g => {
       // small HP bars over every unit
       for (const o of units) { if (o.dead || mode === 'scene') continue; const [x, y] = r.w(o.x, o.y, o.z + 36); px.rect(g, x - 8, y, 16, 3, '#140c18'); px.rect(g, x - 7, y + 1, Math.max(1, Math.round(14 * o.hp / o.max)), 1, o.side === 'hero' ? '#5ad86a' : '#ff5a4a'); }
       if (over) return;   // (the results alone)
-      if (mode === 'scene') { if (!tc) E.font.text(g, prompt('skip', E.t('tactics.skips')), W - 4, 4, '#a8a0c0', { align: 'right', outline: false, font: 'tiny' }); return; }
+      if (mode === 'scene') {   // the key that skips it (its button on a touch screen)
+        if (tc) ui.skip = tbox(g, 0, E.t('tactics.touch.skip')); else E.font.text(g, prompt('skip', E.t('tactics.skips')), W - 4, 4, '#e8e0f0', { align: 'right', outline: false, shadow: '#000' });
+        return;
+      }
+      // the keys for this moment, on the device used last (keys, the mouse, a pad; none on a touch screen: its taps are
+      // its boxes), on a box: between the two cards at the bottom where it fits, else above them
+      const ask = !tc && u && u.side === 'hero' && (mode === 'command' || mode === 'move' || mode === 'target' || mode === 'face');
+      const hint = ask && E.lang.upper(E.t('tactics.keys.' + (I.lastDevice === 'mouse' ? 'mouse' : mode === 'command' ? (order === 'phase' ? 'phase' : 'command') : mode === 'face' ? 'face' : 'move')));
+      const hw = hint ? E.font.width(hint) + 10 : 0, lh = E.font.lineHeight() + 4, hy = W - 2 * 122 >= hw ? H - lh - 3 : H - 50 - lh;
       // the order ahead (charge time) or who is left this phase
       const list = order === 'ct' ? (turns && u ? turns.order(7) : []) : left;
       E.ui.box(g, 4, 4, 74, 12 + list.length * 10, { alpha: .78 });
@@ -627,15 +686,14 @@ const TACTICS = (() => {
       if (mode === 'target' && cells && cells.some(c => same(c, cursor))) {
         const a = ACTS[pending], hit = hitCells(a, cell(u), cursor).map(unitAt).filter(o => o && (o !== u || a.kind === 'heal'));
         const lines = hit.slice(0, 3).map(o => { const b = blow(u, a, cell(u), o); return [E.t(b.heal ? 'tactics.forecast.heal' : b.side === 'front' ? 'tactics.forecast.hit' : 'tactics.forecast.hit_' + b.side, { name: o.name, amount: b.amount }), o.side === u.side ? '#8affc0' : '#ffd0a0']; });
-        if (lines.length) { const w = Math.max(...lines.map(l => E.font.width(l[0]))) + 12, x = Math.round(W / 2 - w / 2); E.ui.box(g, x, H - 64, w, 8 + lines.length * 10, { alpha: .85 }); lines.forEach((l, i) => E.font.text(g, l[0], x + 6, H - 60 + i * 10, l[1], { outline: false })); }
+        if (lines.length) { const w = Math.max(...lines.map(l => E.font.width(l[0]))) + 12, x = Math.round(W / 2 - w / 2), fy = Math.min(H - 64, hint ? hy - 10 - lines.length * 10 : H); E.ui.box(g, x, fy, w, 8 + lines.length * 10, { alpha: .85 }); lines.forEach((l, i) => E.font.text(g, l[0], x + 6, fy + 4 + i * 10, l[1], { outline: false })); }
       }
-      // the banner, the message, the hint
+      // the banner, the message, the keys
       if (banner && banner.t < 1.4) { const a = banner.t < .2 ? banner.t / .2 : banner.t > 1.1 ? (1.4 - banner.t) / .3 : 1; px.blend(g, a * .75, 'normal', () => px.rect(g, 0, H / 2 - 22, W, 26, '#0a0816')); E.font.title(g, banner.s, W / 2, H / 2 - 18, { align: 'center', scale: 2, colors: ['#ffffff', banner.c, E.mix(banner.c, '#000000', .4)] }); }
       if (msg && msg.t < 2.2) E.font.text(g, msg.s, W / 2, 6, msg.c, { align: 'center', shadow: '#000', outline: false });
-      if (!tc && u && u.side === 'hero' && mode !== 'busy' && mode !== 'anim' && mode !== 'ai') E.font.text(g, E.t(mode === 'command' ? 'tactics.keys.command' : mode === 'face' ? 'tactics.keys.face' : 'tactics.keys.move', { ok: keyOf('confirm', 'KeyZ'), back: keyOf('cancel', 'KeyX'), turn_l: keyOf('turnL', 'KeyQ'), turn_r: keyOf('turnR', 'KeyE') }), W / 2, H - 9, '#a8a0c0', { align: 'center', outline: false, font: 'tiny' });
-      // TURN (touch)
-      ui.turn = null;
-      if (tc) { const bw = 40, bh = Math.max(16, Math.ceil(44 * game.screen.dpr / game.screen.S)), x = cornerX() - bw - 2, y = 4; ui.turn = { x, y, w: bw, h: bh }; E.ui.box(g, x, y, bw, bh, { alpha: .8 }); E.font.text(g, E.t('tactics.turn_view'), x + bw / 2, y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false }); }
+      if (hint) { E.ui.box(g, Math.round(W / 2 - hw / 2), hy, hw, lh, { alpha: .8 }); E.font.text(g, hint, W / 2, hy + 3, '#e8e0f0', { align: 'center', outline: false }); }
+      // TURN, and BACK while moving, aiming or facing (touch)
+      if (tc) { ui.turn = tbox(g, 0, E.t('tactics.turn_view')); if (u && u.side === 'hero' && !auto && (mode === 'move' || mode === 'target' || mode === 'face')) ui.back = tbox(g, 1, E.t('tactics.touch.back')); }
     });
     commandDraw(r);
     if (over) overDraw(r);
@@ -693,10 +751,12 @@ const TACTICS = (() => {
   }
 
   return { view: 'iso', views: ['iso'], res: 'ps1', pausable: true, propSize: 1, touch: [], camera: { zoom: [.75, 2], start: 1, tall: 1.35 },
-    input: { ...E.Input.DEFAULT, turnL: ['KeyQ', 'Pad4'], turnR: ['KeyE', 'Pad5'], skip: ['KeyX', 'Pad8'], skill: ['KeyL', 'Mouse2', 'Pad2'] },
+    input: KEYS, escape: 'back',
     enter: start, update, draw, bot,
-    exit() { game.input.steer = 'stick'; game.resetCamera(); },
-    back() { if (mode === 'move' || mode === 'target' || mode === 'face') { back(); return true; } return false; },   // a phone's back: aiming goes back to the commands
+    exit() { game.input.touchEnabled = true; game.resetCamera(); if (ds) ds.clear(); },
+    // a phone's back, and a PC's Esc (escape: 'back'): moving, aiming or facing goes back to the commands (the press is
+    // spent: the step's back key does no more); else false, and Esc pauses
+    back() { if (mode === 'move' || mode === 'target' || mode === 'face') { back(); game.input.suppress('cancel'); return true; } return false; },
     /** for tests: the state, and helpers to find a cell or a row on the screen and to place a unit */
     state: () => ({ mode, order, phase, round, active, cursor, sel, units, cells, over, stats, map, grid, turns, rows: active ? rows(active) : [], ui,
       at: (cx, cy) => { const v = game.view, [x, y] = map.center(cx, cy), q = v.p(x, y, top(cx, cy)); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; },

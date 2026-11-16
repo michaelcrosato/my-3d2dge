@@ -171,13 +171,19 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 21  RHYTHM  (PaRappa the Rapper, Beatmania, Dance Dance Revolution, Space Channel 5). @modules songs rhythm
+ * SLICE 21  RHYTHM  (PaRappa the Rapper, Beatmania, Dance Dance Revolution, Space Channel 5). @modules songs rhythm dualsense
  * STEP UP!: two songs on four lanes, a dancer who dances to the beat and to every note you hit, a crowd that bobs and
  * cheers. STEP UP (DDR's arrows: notes, jumps, holds) and RAP SCHOOL (PaRappa's: Master Beat raps a line on the top
  * row, you answer it, bar for bar). Judgments in ms of the music clock (PERFECT 45, GREAT 90, GOOD 135), the combo,
  * the score, a life gauge (empty: FAILED), a grade; CALIBRATE sets the audio offset by tapping on the clicks (Settings,
- * Sound has it too). Keys: D F J K or the arrows (left, down, up, right) or a pad's d-pad and face buttons are the four
- * lanes; Enter picks; Escape pauses. TOUCH: the four columns of the screen's lower part are the lanes, a thumb each.
+ * Sound has it too). KEYS: D F J K or the arrows (left, down, up, right) are the four lanes; ↑ ↓ and Enter (or a click:
+ * the mouse over a button lights it) pick in the menus, Backspace goes back, Esc pauses. PAD: □ ✕ △ ○ (where the
+ * highway's arrows point) or the d-pad are the lanes, ✕ picks, ○ goes back, Options pauses. DUALSENSE: the light bar
+ * flashes each hit's lane colour (dark on a miss) and shows the grade at the end; any pad rumbles on a miss only (a
+ * rumble's lag would feel off the beat on a hit). TOUCH: the screen's lower part is the lanes, a thumb each: four
+ * columns upright, on its side a column round each lane as drawn (the highway spread wider); a sideways swipe leaves
+ * the calibration (keeping the offset) and the results. With Touch assists on (Settings), the judgment windows are
+ * wider (60 / 110 / 160 ms) for the glass's lag.
  * HOW IT WORKS: the songbook's songs (the songs module) play on the music clock (game.audio: game time); E.Rhythm (the
  * rhythm module) holds the charts (parts in an order), judges each press by its distance from its note on that clock,
  * sounds the teacher's calls on their steps and draws the highways; game.audio.onBeat moves the dancer, the lights and
@@ -187,7 +193,10 @@ scenes.over = {
 const RHYTHM = (() => {
   const px = E.px, SB = E.Songbook, LANES = ['l0', 'l1', 'l2', 'l3'], NAMES = ['LEFT', 'DOWN', 'UP', 'RIGHT'];
   const COLS = ['#ff4a8a', '#4ac8ff', '#6aff6a', '#ffd040'], MOVES = ['jab', 'kick', 'uppercut', 'cross'];
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { l0: ['KeyD', 'ArrowLeft', 'Pad14', 'Pad2'], l1: ['KeyF', 'ArrowDown', 'Pad13', 'Pad0'], l2: ['KeyJ', 'ArrowUp', 'Pad12', 'Pad3'], l3: ['KeyK', 'ArrowRight', 'Pad15', 'Pad1'] });
+  // THE KEYS: the moves and the menus' keys of DEFAULT (confirm and cancel without the lane keys: J no longer picks, K no
+  // longer backs out), and the lanes: a pad's face button first (prompts read □ ✕ △ ○; the d-pad plays them too)
+  const D = E.Input.DEFAULT, KEYS = { up: D.up, down: D.down, left: D.left, right: D.right, start: D.start, pause: D.pause, confirm: ['Enter', 'NumpadEnter', 'Space', 'Pad0'], cancel: ['Backspace', 'Escape', 'Pad1'],
+    l0: ['KeyD', 'ArrowLeft', 'Pad2', 'Pad14'], l1: ['KeyF', 'ArrowDown', 'Pad0', 'Pad13'], l2: ['KeyJ', 'ArrowUp', 'Pad3', 'Pad12'], l3: ['KeyK', 'ArrowRight', 'Pad1', 'Pad15'] };
   const b16 = '................', I = [b16, b16, b16, b16];
   // STEP UP: a bar a part, its four lanes (left, down, up, right): notes (x), jumps (two at once), holds (h===)
   const STEPUP = { parts: { I,
@@ -219,21 +228,28 @@ const RHYTHM = (() => {
   }
 
   /* ---- 2. THE GAME: the menu (two songs, calibrate), play, the results; the calibration screen ---- */
-  let mode = 'menu', modeT = 0, song = null, rh = null, menuI = 0, cal = null, bot = null, beatOn = null;
+  let mode = 'menu', modeT = 0, song = null, rh = null, menuI = 0, cal = null, bot = null, beatOn = null, mt = -1;
+  // the DUALSENSE (the dualsense module): the light bar flashes each hit's lane colour, goes dark on a miss, shows the
+  // grade at the end. buzz: a rumble on a miss (any pad, while a pad is what the player plays with)
+  let ds = null;
+  const light = c => { if (ds) ds.light(c); }, buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
   const MENU = () => [...SONGS.map(s => [s.name, s.about]), [E.t('rhythm.calibrate'), E.t('rhythm.calibrate.about', { ms: Math.round(game.settings.audioOffset) })]];
   const AFTER = [[E.t('rhythm.after.retry'), ''], [E.t('rhythm.after.songs'), ''], [E.t('rhythm.after.title'), '']];
   function begin(i) {
     song = SONGS[i]; mode = 'play'; modeT = 0; cheer = 0;
-    rh = new E.Rhythm(game, { song: SB.get(song.id), chart: song.chart, lanes: LANES, windows: { perfect: 45, great: 90, good: 135 }, life: .6, lead: 1.5, voice: { wave: 'square', vol: .22, dur: .11 },
+    // TOUCH ASSIST (input.assist: touch play, Settings' Touch assists on): wider windows for the glass's lag, read once a song
+    const wide = game.input.assist && !bot;
+    rh = new E.Rhythm(game, { song: SB.get(song.id), chart: song.chart, lanes: LANES, windows: wide ? { perfect: 60, great: 110, good: 160 } : { perfect: 45, great: 90, good: 135 }, life: .6, lead: 1.5, voice: { wave: 'square', vol: .22, dur: .11 },
       on: { judge, fail() { A.sfx('die'); A.stopMusic(.6); end(); }, done: end } });
     rh.start(); game.input.consumeAll();
   }
   function judge(j, n) {
-    if (j === 'miss') { dancer.hurt = .3; if (rh.counts.miss % 3 === 1) A.sfx('cancel', { vol: .3 }); return; }
-    dancer.move = MOVES[n.lane]; dancer.mt = 0;
+    if (j === 'miss') { dancer.hurt = .3; if (rh.counts.miss % 3 === 1) A.sfx('cancel', { vol: .3 }); light('#2a0a3a'); buzz(.3, .08); return; }
+    dancer.move = MOVES[n.lane]; dancer.mt = 0; light(COLS[n.lane]);
     if (rh.combo > 0 && rh.combo % 25 === 0) { cheer = 2; A.sfx('powerup', { vol: .4 }); for (const c of crowd) c.up = .4; }
   }
-  function end() { mode = 'results'; modeT = 0; menuI = 0; if (!rh.failed) A.sting(SB.get(rh.grade === 'S' || rh.grade === 'A' ? 'fanfare' : 'clear')); }
+  function end() { mode = 'results'; modeT = 0; menuI = 0; light(GRADE[rh.failed ? 'F' : rh.grade]); if (!rh.failed) A.sting(SB.get(rh.grade === 'S' || rh.grade === 'A' ? 'fanfare' : 'clear')); }
+  const GRADE = { S: '#ffd040', A: '#6aff6a', B: '#4ac8ff', C: '#ffffff', D: '#a8a8b8', F: '#ff4a4a' };   // (each grade's colour)
   function calibrate() { mode = 'calibrate'; modeT = 0; cal = A.calibrate(); }
   function start(data) {
     mode = 'menu'; modeT = 0; menuI = 0; rh = null; cal = null; bot = null; A.music(SB.get('stepup')); A.layer('lead', 0, .01);
@@ -247,23 +263,28 @@ const RHYTHM = (() => {
     return list.map((b, i) => ({ x: Math.round((W - w) / 2), y: y0 + i * (h + gap), w, h, label: b[0], sub: b[1], i }));
   }
   function menu(I, list, pick) {
-    const B = buttons(list, game.W, game.H), ck = I.clicked(), hit = ck && B.find(b => ck[0] >= b.x && ck[0] < b.x + b.w && ck[1] >= b.y && ck[1] < b.y + b.h);
+    const B = buttons(list, game.W, game.H), on = p => p && B.find(b => p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h), ck = I.clicked(), hit = on(ck);
+    if (I.mouse.t !== mt) { mt = I.mouse.t; const hb = on(I.pointer()); if (hb && hb.i !== menuI) { menuI = hb.i; A.sfx('select'); } }   // the mouse over a button lights it (E.Menu's rule)
     if (I.pressed('up')) { menuI = (menuI + list.length - 1) % list.length; A.sfx('select'); }
     if (I.pressed('down')) { menuI = (menuI + 1) % list.length; A.sfx('select'); }
     if (hit || I.pressed('confirm') || I.pressed('start')) { if (hit) menuI = hit.i; A.sfx('confirm'); I.consumeAll(); pick(menuI); }
   }
-  // the lanes for thumbs: four columns of the screen below its top, where the highway's lanes are
-  const zones = () => LANES.map((act, i) => ({ x0: i / 4, y0: .3, x1: (i + 1) / 4, y1: 1, act }));
+  // the lanes for thumbs: columns of the screen below its top round each lane as the highway draws it (from the halfway
+  // points between lanes; the outer two run to the edges): upright, the screen's quarters
+  const zones = () => { const W = game.W, Lo = layout(W, game.H), mid = i => (Lo.hx + (i - 2) * Lo.gap) / W;   // (between lanes i - 1 and i)
+    return LANES.map((act, i) => ({ x0: i ? mid(i) : 0, y0: .3, x1: i < 3 ? mid(i + 1) : 1, y1: 1, act })); };
   function update(dt) {
     const I = game.input; modeT += dt; game.focus(0, 0, 0);
     const touch = I.lastDevice === 'touch';
     I.zones = (mode === 'play' && !bot) ? zones() : mode === 'calibrate' ? [{ x0: 0, y0: .25, x1: 1, y1: 1, act: 'l1' }] : null;
     animate(dt);
     if (mode === 'menu') { menu(I, MENU(), i => i < SONGS.length ? begin(i) : calibrate()); return; }
-    if (mode === 'results') { if (modeT > 1) menu(I, AFTER, i => i === 0 ? begin(SONGS.indexOf(song)) : i === 1 ? start() : game.go('title')); return; }
-    if (mode === 'calibrate') {
-      if (LANES.some(a => I.pressed(a)) || I.pressed('confirm')) cal.tap();
-      if (I.pressed('cancel') || (cal.done && cal.taps >= 12)) { if (cal.done) game.settings.set('audioOffset', cal.result); cal.stop(); start(); }
+    const sw = mode !== 'play' && I.swipe(), away = !!sw && (sw.dir === 'left' || sw.dir === 'right') && !!I.swipe(true);   // (a sideways swipe: back)
+    if (mode === 'results') { if (away) { A.sfx('cancel'); start(); return; } if (modeT > 1) menu(I, AFTER, i => i === 0 ? begin(SONGS.indexOf(song)) : i === 1 ? start() : game.go('title')); return; }
+    if (mode === 'calibrate') {   // back (○, Backspace, a swipe) leaves with the old offset, and is never a tap too (○ is a lane)
+      const back = I.pressed('cancel') || away;
+      if (!back && (LANES.some(a => I.pressed(a)) || I.pressed('confirm'))) cal.tap();
+      if (back || (cal.done && cal.taps >= 12)) { if (cal.done && !back) game.settings.set('audioOffset', cal.result); cal.stop(); start(); }
       return;
     }
     if (bot) botLanes();
@@ -293,7 +314,7 @@ const RHYTHM = (() => {
   /* ---- 3. DRAWING: the club (its wall of lights pulsing on the beat, spotlights, the floor), the dancer and Master
    * Beat, the crowd, the highways, the score, the combo, the life gauge, the judgments; the menu and the results ---- */
   const layout = (W, H) => {
-    const tall = H > W * 1.1, gap = tall ? W / 4 : Math.min(40, Math.max(28, W / 12)), hx = tall ? W / 2 : Math.round(W * .5), ty = Math.round(H - (tall ? 52 : 34));
+    const tall = H > W * 1.1, gap = tall ? W / 4 : game.input.lastDevice === 'touch' ? Math.round(Math.min(80, W / 5)) : Math.min(40, Math.max(28, W / 12)), hx = tall ? W / 2 : Math.round(W * .5), ty = Math.round(H - (tall ? 52 : 34));   // (on its side by touch: lanes spread a thumb apart)
     return { tall, gap, hx, ty, len: Math.round(tall ? H * .5 : H * .62), dx: tall ? W / 2 : Math.round(Math.min(W * .82, hx + gap * 2 + 70)), dy: tall ? Math.round(H * .3) : Math.round(H * .66), mx: tall ? Math.round(W * .2) : Math.round(Math.max(40, hx - gap * 2 - 70)) };
   };
   function draw(r) {
@@ -334,13 +355,13 @@ const RHYTHM = (() => {
         E.font.title(g, E.t('rhythm.calibrate'), W / 2, 16, { align: 'center', scale: 3, colors: ['#ffffff', '#4ac8ff', '#2a5ac0'], depth: 3 });
         const b = Math.floor(A.pos.beat), on = A.pos.beat - b < .15;
         px.disc(g, W / 2, H * .45, 22, '#000000'); px.disc(g, W / 2, H * .45, 20, on ? (b % 4 === 0 ? '#ffd040' : '#ffffff') : '#2a2a4a');
-        E.font.text(g, E.t(touch ? 'rhythm.calibrate.how.touch' : 'rhythm.calibrate.how.keys'), W / 2, H * .45 + 34, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, E.lang.upper(E.t(touch ? 'rhythm.calibrate.how.touch' : 'rhythm.calibrate.how.keys')), W / 2, H * .45 + 34, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         E.font.text(g, cal.done ? E.t('rhythm.calibrate.done', { ms: String(cal.result), taps: cal.taps }) : E.t('rhythm.calibrate.taps', { taps: cal.taps }), W / 2, H * .45 + 48, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
-        E.font.text(g, E.t(touch ? 'rhythm.calibrate.keep.touch' : 'rhythm.calibrate.keep.keys', { ms: Math.round(game.settings.audioOffset) }), W / 2, H - 50, '#a8b0d8', { align: 'center', outline: false });
+        E.font.text(g, E.lang.upper(E.t(touch ? 'rhythm.calibrate.keep.touch' : 'rhythm.calibrate.keep.keys', { ms: Math.round(game.settings.audioOffset) })), W / 2, H - 50, '#a8b0d8', { align: 'center', outline: false });
         return;
       }
       if (mode === 'results') {
-        const R = rh, gr = R.failed ? 'F' : R.grade, col = { S: '#ffd040', A: '#6aff6a', B: '#4ac8ff', C: '#ffffff', D: '#a8a8b8', F: '#ff4a4a' }[gr];
+        const R = rh, gr = R.failed ? 'F' : R.grade, col = GRADE[gr];
         E.font.text(g, E.t(R.failed ? 'rhythm.result.failed' : 'rhythm.result.clear', { song: song.name }), W / 2, 12, '#ffffff', { align: 'center', shadow: '#000', outline: false });
         E.font.title(g, gr, W / 2, 24, { align: 'center', scale: 6, colors: ['#ffffff', col, E.shade(col, .5)], depth: 4 });
         const c = R.counts, lines = [E.t('rhythm.result.counts1', { perfect: c.perfect, great: c.great }), E.t('rhythm.result.counts2', { good: c.good, miss: c.miss }), E.t('rhythm.result.combo', { combo: R.maxCombo, score: R.score })];   // (the score in the player's language: 12,500 or 12.500)
@@ -353,7 +374,7 @@ const RHYTHM = (() => {
       E.font.text(g, E.lang.num(rh.score), 8, 8, '#ffffff', { shadow: '#000', outline: false, scale: 2 });
       E.font.text(g, song.name, 8, 26, '#ffb8e0', { shadow: '#000', outline: false });
       const gw = Math.min(110, W * .3), gx = Math.min(W - gw - 8, cornerX() - gw - 8); px.rect(g, gx - 1, 9, gw + 2, 9, '#ffffff'); px.rect(g, gx, 10, gw, 7, '#1a0a2a'); px.rect(g, gx, 10, Math.round(gw * rh.life), 7, rh.life < .25 ? '#ff4a4a' : rh.life > .8 ? '#6aff6a' : '#ffd040');
-      E.font.text(g, E.t('rhythm.life'), gx - 4, 10, '#ffffff', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
+      E.font.text(g, E.t('rhythm.life'), gx - 4, 9, '#ffffff', { align: 'right', shadow: '#000', outline: false });
       if (rh.combo >= 5) E.font.title(g, String(rh.combo), Lo.hx, Lo.ty - Lo.len * .55, { align: 'center', scale: 3, colors: ['#ffffff', '#ff8ac8', '#8a2a5a'], depth: 2 });
       const L0 = rh.last;
       if (L0 && game.time - L0.t < .45) { const word = E.t('rhythm.judge.' + L0.j), cl = { perfect: '#ffd040', great: '#6aff6a', good: '#4ac8ff', miss: '#ff4a4a' }[L0.j]; E.font.text(g, word, Lo.hx, Lo.ty - 30 - (game.time - L0.t) * 20, cl, { align: 'center', shadow: '#000', outline: false, scale: 2 }); }
@@ -385,8 +406,8 @@ const RHYTHM = (() => {
   }
 
   return { view: 'side', views: ['side'], res: 'ps1', pausable: true, touch: [], camera: { zoom: false }, input: KEYS,
-    enter: start, update, draw, bot: botRun,
-    exit() { game.input.zones = null; game.input.touchEnabled = true; game.cam.smooth = .18; if (cal) cal.stop(); A.stopMusic(); if (beatOn) beatOn.cancel(); beatOn = null; },
+    enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true }) : null; start(data); }, update, draw, bot: botRun,
+    exit() { game.input.zones = null; game.input.touchEnabled = true; game.cam.smooth = .18; if (cal) cal.stop(); A.stopMusic(); if (beatOn) beatOn.cancel(); beatOn = null; if (ds) ds.clear(); },
     back() { if (mode === 'menu') return false; if (cal) cal.stop(); start(); return true; },
     /** for tests: the mode, the song and its E.Rhythm, the menu's buttons, where each lane's target is on the screen */
     state: () => ({ mode, song: song && song.id, rh, cal, buttons: () => buttons(mode === 'results' ? AFTER : MENU(), game.W, game.H), lanes: () => { const Lo = layout(game.W, game.H); return LANES.map((a, i) => [Lo.hx + (i - 1.5) * Lo.gap, Lo.ty]); }, pos: A.pos }),

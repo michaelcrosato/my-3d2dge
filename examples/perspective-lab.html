@@ -942,7 +942,7 @@ class Input {
       if (typing(e)) return;
       const share = this.keysTo && this.keysTo.filter(q => q._codes[e.code]);   // (players sharing the keyboard: each answers to its half)
       if (this._codes[e.code] || (share && share.length)) { e.preventDefault(); if (!e.repeat) { if (this._codes[e.code]) this.press(e.code); if (share) for (const q of share) q.press(e.code); } }
-      else if (this._zoomOn && ZOOM_KEYS[e.code] && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (!e.repeat) this._zoomAcc *= ZOOM_KEYS[e.code]; }   // - and =, where no action uses them
+      else if (this._zoomOn && ZOOM_KEYS[e.code] && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (!e.repeat) { this._zoomAcc *= ZOOM_KEYS[e.code]; this._zoomPt = null; } }   // - and =, where no action uses them (about the screen's middle)
     });
     // the wheel zooms where the game lets it (a mouse's notch 10%; a trackpad's pinch comes as the wheel with ctrlKey);
     // not over a menu, which scrolls
@@ -1279,7 +1279,7 @@ class Input {
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
   /** how far a finger that is not the stick's dragged this step, in screen pixels [dx, dy], or null: a camera's look on a
    *  touch screen (the left thumb on the stick, the right one turning the view) */
-  look() { return this._look || null; }
+  look() { return this._lookNow || null; }
   /** [x, y] (screen pixels) in the step after a second finger tapped while another stayed down (the stick, a drag): a
    *  puzzle's turn under one thumb while the other steers; else null */
   secondTap() { return this._secTapAt || null; }
@@ -1441,7 +1441,7 @@ class Input {
     this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._tap2nd = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
-    const la = this._lookAcc; this._look = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
+    const la = this._lookAcc; this._lookNow = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
   }
   // Create (button 8) is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (its
   // bar), so the game sees neither; let go sooner it is a tap; held, a press. Returns whether it is down for the game
@@ -3125,10 +3125,12 @@ class Game {
    * the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom
    * button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of
    * the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does
-   * nothing where the scene doesn't let the player zoom. Returns the zoom
+   * nothing where the scene doesn't let the player zoom. at: the screen point [x, y] a free camera keeps still (the
+   * wheel's pointer, a pinch's middle), the screen's middle when left out (a pad's trigger, a button). Returns the zoom
    */
-  zoomBy(k) {
+  zoomBy(k, at = null) {
     const R = this.zoomRange(), b = this._zoomBase; if (!R || !(k > 0) || !this._zoomStd()) return this.zoom;
+    this.input._zoomPt = at;   // (the point _freeCam zooms toward: one left from an old wheel turn would drag a trigger's zoom aside)
     const lo = Math.max(ZOOM_PLAYER[0], R[0] / b), hi = Math.min(ZOOM_PLAYER[1], R[1] / b); if (lo > hi) return this.zoom;
     const f = clamp(clamp(+this.settings.zoom || 1, lo, hi) * k, lo, hi); this.settings.set('zoom', f);   // (one carried from a scene with more room starts at this one's end: every step moves it)
     const z = this._zoomTo || this.zoom; this.note(E.lang.upper(ENG(f <= lo + 1e-9 && k < 1 ? 'note.zoom_min' : f >= hi - 1e-9 && k > 1 ? 'note.zoom_max' : 'note.zoom', { zoom: z })), 1);
@@ -3521,9 +3523,9 @@ class Game {
       while (this._acc > step - 1e-9) {   // (the tolerance absorbs the rounding in frame times: 1/60 s is two steps)
         this._acc -= step; this._wall += step;   // (_wall: seconds stepped through, unscaled: slow motion or a stop doesn't hold up the player's zoom)
         const k = this.timeScale > 1 ? Math.ceil(this.timeScale - 1e-9) : 1, h = step * Math.max(0, this.timeScale) / k;
-        for (let i = 0; i < k; i++, n++) this._step(h);
+        for (let i = 0; i < k; i++, n++) { this._uDt = step / k; this._step(h); }   // (_uDt: the step unscaled, the player's own time)
       }
-      if (!n && !this._stepped) { n++; this._step(0); }   // the first frame updates before it draws, even when its time is short
+      if (!n && !this._stepped) { n++; this._uDt = 0; this._step(0); }   // the first frame updates before it draws, even when its time is short
     } catch (e) { this._acc %= step; this.fail('update', e); }   // an error drops the frame's other steps, as before
     if (n) this._stepped = true;
     if (this._acc < 0) this._acc = 0;
@@ -3569,7 +3571,7 @@ class Game {
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (ok('touch')) this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch);
     else if (!s.pausable && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus)
-    if (ok('cursor')) this.input.padCursor = s.cursor;
+    if (ok('cursor')) { this.input.padCursor = s.cursor; this._sceneCursor = true; } else if (this._sceneCursor) { this.input.padCursor = false; this._sceneCursor = false; }   // (a scene's cursor ends with it)
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
     this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
@@ -3591,7 +3593,8 @@ class Game {
   }
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(dt);   // (the other players: section 10j)
+    const u = this._uDt != null ? this._uDt : dt; this._uDt = null;   // u: this step in the player's own time, which slow motion and timeScale 0 don't touch: input's clock (double taps, long presses), the pad's cursor and a free camera run on it
+    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(u); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(u);   // (the other players: section 10j)
     this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
     this._ownRun('input', dt);
@@ -3611,7 +3614,7 @@ class Game {
     I._zoomOn = zr; I._wheelOn = zr && (this._camera() || {}).wheel !== false;
     if (this._zoomTo && !I._pinching && this._wall - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
     if (this.paused && !this.live && !this._goOn) return;   // (live: the world steps on under the menu)
-    if (!this.paused) { this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk); }
+    if (!this.paused) { this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk, I.zoomPoint()); }
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     this.time += dt;
     this.audio._tick(true);   // (a synced song: on game.time, it waits with the game)
@@ -3629,7 +3632,7 @@ class Game {
       this.focus(t.x + dir[0] * f.lead, (t.y || 0) + dir[1] * f.lead, (t.z || 0) + f.z);
     }
     this.particles.update(dt);
-    if (this.cam.free) this._freeCam(dt);
+    if (this.cam.free) this._freeCam(u);   // (the player's time: a stopped sim's camera still pans)
     this._camStep(dt);
   }
   // a screen-pixel move [dx, dy] as the ground's (world x, y) at the zoom the player sees (during a zoom's preview, the goal)
@@ -10098,7 +10101,7 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh kbd{font:700 12px var(--font);border:1px solid var(--accent);border-bottom-width:2px;border-radius:4px;padding:2px 7px;color:var(--accent)}
 .esh-tip{position:absolute;left:50%;bottom:calc(var(--pb) + 100px);transform:translateX(-50%);text-align:center;border-color:var(--danger)}
 .esh-col{position:absolute;right:var(--pr);top:var(--pt);display:flex;flex-direction:column;align-items:flex-end;gap:8px}.esh-place{text-align:right;font:italic 13px var(--title);color:var(--muted)}
-.esh-mini{position:absolute;right:var(--pr);bottom:var(--pb);width:min(176px,28vw);border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}
+.esh-mini{position:absolute;right:var(--pr);bottom:var(--pb);width:min(176px,28vw);border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}.esh-mini.esh-under{opacity:.55}
 .esh-keys{position:absolute;left:50%;bottom:var(--pb);transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap;background:rgba(8,6,14,.62);padding:5px 12px;border-radius:8px}.esh-keys kbd{margin-right:4px}
 @media (pointer:coarse){.esh-keys{display:none}}@media (max-width:640px){.esh-obj{max-width:calc(100vw - 214px)}.esh-toast{left:var(--pl);right:var(--pr);top:auto;bottom:calc(var(--pb) + 124px);max-width:none;transform:translateY(calc(100% + 160px))}.esh-toast.on{transform:none}
 .esh-pr{bottom:calc(var(--pb) + 196px)}.esh-tip{bottom:calc(var(--pb) + 262px)}}
@@ -10196,7 +10199,13 @@ class Shell {
     away(this._els.toast, () => { this._els.toast.classList.remove('on'); this._toastEnd = 0; });
     away(this._els.tut, d => { if (d > 40) this.tutorial(null); });
     const mini = this._els.mini; mini.width = 176; mini.height = 158;
-    mini.onclick = e => { const m = this._miniLast, X = mini._xf; if (!m || !m.onClick) return; const rc = mini.getBoundingClientRect(), u = (e.clientX - rc.left) * mini.width / (rc.width || 1), v = (e.clientY - rc.top) * mini.height / (rc.height || 1); m.onClick(X ? (u - X.ox) / X.k : 0, X ? (v - X.oy) / X.k : 0); };   // (the world point clicked: a strategy game's camera goes there)
+    mini.onclick = e => this._miniClick(e.clientX, e.clientY);   // (the world point clicked: a strategy game's camera goes there)
+  }
+  // the minimap clicked at browser client coords: its onClick gets the world point. True when it took the click
+  _miniClick(cx, cy) {
+    const m = this._miniLast, mini = this._els && this._els.mini, X = mini && mini._xf; if (!m || !m.onClick || mini.hidden) return false;
+    const rc = mini.getBoundingClientRect(); if (cx < rc.left || cy < rc.top || cx > rc.right || cy > rc.bottom) return false;
+    const u = (cx - rc.left) * mini.width / (rc.width || 1), v = (cy - rc.top) * mini.height / (rc.height || 1); m.onClick(X ? (u - X.ox) / X.k : 0, X ? (v - X.oy) / X.k : 0); return true;
   }
   /** the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays */
   get screen() { const t = this._stack[this._stack.length - 1]; return t ? t.name : null; }
@@ -10609,6 +10618,12 @@ class Shell {
       this.root.classList.toggle('esh-still', !!g.reduceMotion);
     }
     const pb = I.padPrev || [], l1 = !!pb[4] && !this._l1, r1 = !!pb[5] && !this._r1; this._l1 = !!pb[4]; this._r1 = !!pb[5];   // (L1 and R1 this step: a screen's tabs)
+    const mini = this._els && this._els.mini; if (mini && !this._stack.length) {   // the pad's cursor (drawn on the canvas, under the HTML) shows through the minimap, and ✕ on it is a click there
+      const pc = I.padCursor && I.lastDevice === 'gamepad' && !mini.hidden && I._padPt, S = g.screen, rc = pc && S.canvas && S.canvas.getBoundingClientRect();
+      const cl = rc ? [rc.left + (I._padPt[0] * S.S + S.OX) / S.dpr, rc.top + (I._padPt[1] * S.S + S.OY) / S.dpr] : null, mr = cl && mini.getBoundingClientRect();
+      mini.classList.toggle('esh-under', !!(mr && cl[0] >= mr.left && cl[0] <= mr.right && cl[1] >= mr.top && cl[1] <= mr.bottom));
+      if (cl && I._clickAt && this._miniClick(cl[0], cl[1])) I._clickAt = null;   // (the game doesn't also read it as a click on the ground beneath)
+    }
     if (!this._stack.length) return;
     const keep = this._held; this._held = new Set();
     const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), closeAll = has('pause') && I.pressed('pause'), mv = I.move();

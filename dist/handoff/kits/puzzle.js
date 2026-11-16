@@ -171,16 +171,21 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 9  PUZZLE  (Tetris, Puyo Puyo, Columns). @modules grid
+ * SLICE 9  PUZZLE  (Tetris, Puyo Puyo, Columns). @modules grid dualsense
  * Two games on one neon stage. BLOCKS: falling tetrominoes by today's rules: a bag of seven (E.rng), the next five shown,
  * hold, a ghost, rotation with wall kicks (SRS), delayed auto-shift (input.repeat), lock delay that a move resets (up to
  * 15 times), soft and hard drops; lines that flash and burst, a level every ten lines and a faster fall. PAIRS: falling
  * pairs of four colours; four or more joined (E.Grid's groups) pop, what is above falls, and pops that cause pops are a
  * chain, each worth more. A mascot beside the field cheers a clear and winces at a tall stack. VERSUS joins the list
- * once a second player is in (2, or Start on a pad): two fields from one seed, cleared rows sent across, a rematch.
- * Keys: left / right move (held: auto-shift), down soft drop, Space hard drop, up or X rotate, Z rotate back, C or Shift
- * hold. TOUCH: drag sideways to move (a cell for each step of the thumb), tap to rotate, flick down to drop, flick up to
- * hold, hold the thumb down to soft drop.
+ * once a second player is in (the menu says how: game.joinPrompt()): two fields from one seed, cleared rows sent across,
+ * a rematch. KEYS (the guideline's): ← → move (held: auto-shift), ↓ soft drop, ↑ or X rotate, Z rotate back, Space hard
+ * drop, C or Shift hold, Esc pauses (WASD, K and J as well). The mouse picks in the menus only. PAD: the d-pad or stick
+ * moves and soft-drops, d-pad ↑ hard drop, ○ rotate, ✕ or □ rotate back, △ (or L1 / R1) hold, Options pauses.
+ * DUALSENSE: the light bar is the falling piece's colour, red while the stack is tall; a flick down the touchpad drops,
+ * up holds; any pad rumbles on a drop, a clear and rows sent across. TOUCH: drag sideways to move (a cell for each step
+ * of the thumb), tap the field's right half to rotate and its left half to rotate back (or tap with a second finger while
+ * the first drags), flick down to drop, flick up to hold, hold the thumb down to soft drop; a sideways swipe leaves the
+ * menus. Held upright, the field fills the width, HOLD and NEXT above it, the score below.
  * HOW IT WORKS: the field is an array of cells (0 empty, or a colour), drawn in screen pixels over a painted stage; every
  * rule is a few lines below (spawn, fits, kicks, lock, clear, gravity), so a variant is a change to one of them.
  * bot(n) places n pieces by itself (a placement search: holes, height, bumps, lines), as tools/kits-test.mjs checks.
@@ -191,8 +196,14 @@ const PUZZLE = (() => {
     { wave: 'square', vol: .11, notes: 'E5 . G5 . C6 - B5 . A5 . G5 . E5 - D5 . | C5 . D5 . E5 - G5 . F5 - E5 . D5 - - . | A4 . C5 . F5 - E5 . D5 . C5 . A4 - G4 . | B4 . D5 . G5 - F5 . E5 . D5 . C5 - - .' },
     { wave: 'triangle', vol: .3, notes: 'C3 . G3 . C3 . G3 . A2 . E3 . A2 . E3 . | F2 . C3 . F2 . C3 . G2 . D3 . G2 . D3 . | F2 . C3 . F2 . C3 . C3 . G3 . C3 . G3 . | G2 . D3 . G2 . D3 . C3 . G3 . C3 . . .' },
     { wave: 'drums', vol: .12, notes: 'k . h . s . h . k . h k s . h h' }] };
-  const D = E.Input.DEFAULT, KEYS = { up: D.up, down: D.down, left: D.left, right: D.right, start: D.start, pause: D.pause, confirm: D.confirm, cancel: D.cancel,
-    rotate: ['KeyX', 'KeyK', 'Pad1'], ccw: ['KeyZ', 'KeyJ', 'Pad0'], drop: ['Space', 'Pad3'], hold: ['KeyC', 'ShiftLeft', 'ShiftRight', 'Pad4', 'Pad5'] };
+  // THE KEYS: the moves arrows first (prompts read ← →); up stays for the menus, the arrow ↑ and W rotate as rotate's
+  // own; the d-pad's ↑ hard-drops (the guideline's, a pad's stick pushed up does nothing in play); △ holds. The menus'
+  // confirm and cancel without the play keys (J, Z, X, K). VERSUS on one keyboard: each half's keys (halves), W and ↑
+  // turning too
+  const D = E.Input.DEFAULT, KEYS = { up: D.up, down: ['ArrowDown', 'KeyS', 'Pad13'], left: ['ArrowLeft', 'KeyA', 'Pad14'], right: ['ArrowRight', 'KeyD', 'Pad15'], start: D.start, pause: D.pause,
+    confirm: ['Enter', 'NumpadEnter', 'Space', 'Pad0'], cancel: ['Backspace', 'Escape', 'Pad1'],
+    rotate: ['ArrowUp', 'KeyX', 'KeyW', 'KeyK', 'Pad1'], ccw: ['KeyZ', 'KeyJ', 'Pad0', 'Pad2'], drop: ['Space', 'Pad12'], hold: ['KeyC', 'ShiftLeft', 'ShiftRight', 'Pad3', 'Pad4', 'Pad5'],
+    halves: { left: { rotate: ['KeyF', 'KeyW'], ccw: ['KeyG'], drop: ['KeyH'], hold: ['KeyR'] }, right: { rotate: ['Period', 'Numpad1', 'ArrowUp'], ccw: ['Slash', 'Numpad2'], drop: ['Comma', 'Numpad3'], hold: ['KeyL', 'Numpad4'] } } };
   /* ---- 1. THE PIECES: SRS shapes in their spawn state, colours, and the wall kicks (y down) ---- */
   const SHAPES = { I: [[0, 1], [1, 1], [2, 1], [3, 1]], J: [[0, 0], [0, 1], [1, 1], [2, 1]], L: [[2, 0], [0, 1], [1, 1], [2, 1]], O: [[1, 0], [2, 0], [1, 1], [2, 1]],
     S: [[1, 0], [2, 0], [0, 1], [1, 1]], T: [[1, 0], [0, 1], [1, 1], [2, 1]], Z: [[0, 0], [1, 0], [1, 1], [2, 1]] };
@@ -210,15 +221,23 @@ const PUZZLE = (() => {
   let mode = 'menu', R = Math.random, field = null, W = 10, H = 22, cur = null, hold = null, held = false, queue = [], bag = [], fallT = 0, lockT = 0, resets = 0, softT = 0;
   let score = 0, lines = 0, level = 1, chain = 0, clearing = null, popping = null, over = null, flash = 0, mood = 0, moodT = 0, time = 0, popped = 0;
   let touchX = 0, touchY = 0, downT = 0, swept = false;
+  // the DUALSENSE (the dualsense module, player 1's field): the light bar is the falling piece's colour, red while the
+  // stack is tall; sent as it changes. buzz: a rumble on the pad of whoever plays this field, while a pad is what they
+  // play with; sound: a big moment's sound from the controller's speaker (player 1's), else the game's
+  let ds = null, padLight = null;
+  const buzz = (s, t) => { const I = IN || game.input; if (!(VS && VS.cpu[VS.at]) && I.lastDevice === 'gamepad') I.rumble(s, t); };
+  const sound = (n, o) => ds && (!VS || VS.at === 0) ? ds.speaker(n, o) : A.sfx(n, o);
   // VERSUS (two players: game.players): each field's state is the variables above, swapped in to step or draw it (save,
   // load); IN: the input the controls read (player 1's when null), CX: the field's centre (the screen's when null)
   let VS = null, IN = null, CX = null;
   const save = () => ({ mode, R, field, W, H, cur, hold, held, queue, bag, fallT, lockT, resets, softT, score, lines, level, chain, clearing, popping, over, flash, time, popped, touchX, touchY, downT, swept });
   const load = b => { ({ mode, R, field, W, H, cur, hold, held, queue, bag, fallT, lockT, resets, softT, score, lines, level, chain, clearing, popping, over, flash, time, popped, touchX, touchY, downT, swept } = b); };
   const G = () => new E.Grid(W, H);
-  const VERSUS = E.t('puzzle.menu.versus'), pick = new E.Menu(game, [E.t('puzzle.menu.blocks'), E.t('puzzle.menu.pairs')], { y: 0, onPick: i => i === 2 ? versus() : begin(i ? 'pairs' : 'blocks') });   // (VERSUS joins the list once a second player is in)
-  const after = new E.Menu(game, [E.t('puzzle.menu.retry'), E.t('puzzle.menu.other'), E.t('puzzle.menu.title')], { y: 0, onPick: i => i === 0 ? begin(over.kind) : i === 1 ? begin(over.kind === 'blocks' ? 'pairs' : 'blocks') : game.go('title') });
-  const rematch = new E.Menu(game, [E.t('puzzle.menu.rematch'), E.t('puzzle.menu.title')], { y: 0, onPick: i => i ? game.go('title') : versus(VS.cpu) });
+  // the menus: back (○, Backspace, a sideways swipe on a touch screen) goes to the title
+  const toTitle = () => game.go('title');
+  const VERSUS = E.t('puzzle.menu.versus'), pick = new E.Menu(game, [E.t('puzzle.menu.blocks'), E.t('puzzle.menu.pairs')], { y: 0, onPick: i => i === 2 ? versus() : begin(i ? 'pairs' : 'blocks'), onCancel: toTitle });   // (VERSUS joins the list once a second player is in)
+  const after = new E.Menu(game, [E.t('puzzle.menu.retry'), E.t('puzzle.menu.other'), E.t('puzzle.menu.title')], { y: 0, onPick: i => i === 0 ? begin(over.kind) : i === 1 ? begin(over.kind === 'blocks' ? 'pairs' : 'blocks') : game.go('title'), onCancel: toTitle });
+  const rematch = new E.Menu(game, [E.t('puzzle.menu.rematch'), E.t('puzzle.menu.title')], { y: 0, onPick: i => i ? game.go('title') : versus(VS.cpu), onCancel: toTitle });
   const mascot = new E.Humanoid({ size: 1.3, outfit: 'robe', hair: 'ponytail', weapon: null, sleeves: 'long', colors: { cloth: '#e04a8a', hair: '#3a2a6a', trim: '#f0d060', skin: '#f0c8a0' } });
 
   /* ---- 3. BLOCKS: spawn, fits, move, rotate (kicks), lock, clear ---- */
@@ -239,7 +258,7 @@ const PUZZLE = (() => {
     return false;
   }
   function touched() { if (grounded() && resets < 15) { lockT = 0; resets++; } }   // a move on the ground starts the lock again (15 times at most)
-  function hardDrop() { let n = 0; while (fits(cur.x, cur.y + 1, cur.r)) { cur.y++; n++; } score += n * 2; lock(); A.sfx('land'); game.shake(1); }
+  function hardDrop() { let n = 0; while (fits(cur.x, cur.y + 1, cur.r)) { cur.y++; n++; } score += n * 2; buzz(.2, .05); lock(); A.sfx('land'); game.shake(1); }
   function holdPiece() {
     if (held) return; held = true; A.sfx('whoosh');
     const k = cur.k; if (hold) spawn(hold); else spawn(); hold = k;
@@ -248,7 +267,7 @@ const PUZZLE = (() => {
     for (const [a, b] of cellsOf(cur.k, cur.r)) { const cy = cur.y + b; if (cy < 0) { end(); return; } field[cy * W + cur.x + a] = cur.k; }
     held = false;
     const full = []; for (let y = 0; y < H; y++) { let ok = true; for (let x = 0; x < W; x++) if (!field[y * W + x]) { ok = false; break; } if (ok) full.push(y); }
-    if (full.length) { clearing = { rows: full, t: 0 }; const n = full.length; score += [0, 100, 300, 500, 800][n] * level; lines += n; if (VS) VS.out += [0, 0, 1, 2, 4][n]; A.sfx(n === 4 ? 'oneup' : 'coin'); flash = .3; cheer(n === 4 ? 2 : 1);
+    if (full.length) { clearing = { rows: full, t: 0 }; const n = full.length; score += [0, 100, 300, 500, 800][n] * level; lines += n; if (VS) VS.out += [0, 0, 1, 2, 4][n]; if (n === 4) sound('oneup'); else A.sfx('coin'); buzz(n === 4 ? .8 : .35, n === 4 ? .25 : .1); flash = .3; cheer(n === 4 ? 2 : 1);
       for (const y of full) for (let x = 0; x < W; x += 2) burst(x, y, COLOR[field[y * W + x]] || '#fff'); cur = null; return; }
     spawn();
   }
@@ -278,7 +297,7 @@ const PUZZLE = (() => {
     if (!groups.length) { pairSpawn(); return; }
     chain++; const n = groups.reduce((s, g) => s + g.length, 0);
     score += 10 * n * Math.max(1, CHAIN[Math.min(chain - 1, CHAIN.length - 1)] + (groups.length > 1 ? 3 * groups.length : 0)); popped += n;
-    popping = { cells: groups.flat(), t: 0 }; A.sfx(chain > 1 ? 'oneup' : 'coin', { pitch: 1 + chain * .1 }); cheer(chain > 1 ? 2 : 1);
+    popping = { cells: groups.flat(), t: 0 }; (chain > 1 ? sound : A.sfx)(chain > 1 ? 'oneup' : 'coin', { pitch: 1 + chain * .1 }); buzz(chain > 1 ? .6 : .3, chain > 1 ? .2 : .08); cheer(chain > 1 ? 2 : 1);
     for (const [x, y] of popping.cells) burst(x, y, PCOL[field[y * W + x] - 1]);
     lines = popped; level = 1 + Math.floor(popped / 40);   // (the results show blobs popped; a level every 40)
   }
@@ -306,7 +325,7 @@ const PUZZLE = (() => {
   function garbage(n) {   // n grey rows rise from the bottom, one hole through them
     const hole = Math.floor(Math.random() * W);
     field.copyWithin(0, n * W); for (let y = H - n; y < H; y++) for (let x = 0; x < W; x++) field[y * W + x] = x === hole ? 0 : 'G';
-    A.sfx('bump'); flash = .15;
+    A.sfx('bump'); flash = .15; buzz(.5, .2);
   }
   function vsUpdate(dt) {
     if (VS.loser !== undefined) { VS.t += dt; if (VS.t > 1 && !rematch.update(dt)) pickOnStart(rematch); return; }
@@ -335,15 +354,17 @@ const PUZZLE = (() => {
     if (VS.loser !== undefined && VS.t > 1) { rematch.y = Math.round(r.H / 2) + 24; rematch.draw(r); }
   }
   function burst(cx, cy, color) { if (!game.r) return; const [x, y] = cellPx(cx + .5, cy + .5); const [wx, wz] = toWorld(x, y); P.sparks(wx, 0, wz, 3, null, { color }); }
-  /* ---- 6. INPUT: keys (auto-shift from input.repeat) and touch (drag, tap, flicks) ---- */
+  /* ---- 6. INPUT: keys and the pad (auto-shift from input.repeat), the DualSense's touchpad, and touch (drag, taps,
+   * flicks) ---- */
   function controls(dt) {
     const I = IN || game.input, blocks = mode === 'blocks', mv = blocks ? shift : pshift, rot = blocks ? rotate : protate;
+    const pad = ds && I === game.input ? ds.swipe() : null;   // (a flick on player 1's touchpad: down drops, up holds)
     if (I.repeat('left', .17, .05)) mv(-1);
     if (I.repeat('right', .17, .05)) mv(1);
-    if (I.pressed('up') || I.pressed('rotate')) rot(1);
+    if (I.pressed('rotate')) rot(1);   // (up is the menus': a pad's stick pushed up never turns the piece)
     if (I.pressed('ccw')) rot(-1);
-    if (blocks && I.pressed('hold')) { holdPiece(); return; }
-    if (I.pressed('drop')) { if (blocks) hardDrop(); else { while (pfits(cur.x, cur.y + 1, cur.r)) cur.y++; plock(); } return; }
+    if (blocks && (I.pressed('hold') || pad === 'up')) { holdPiece(); return; }
+    if (I.pressed('drop') || pad === 'down') { if (blocks) hardDrop(); else { while (pfits(cur.x, cur.y + 1, cur.r)) cur.y++; plock(); } return; }
     let soft = I.down('down');
     // touch: the finger's drag (input.drag(): screen pixels this step) moves a cell a step, a quick flick drops or holds
     const d = I.drag();
@@ -354,7 +375,10 @@ const PUZZLE = (() => {
       if (touchY < -cs * 3 && downT < .3 && !swept && blocks) { swept = true; holdPiece(); downT = 0; return; }
       if (touchY > cs * 1.2 && downT > .25) soft = true;
     }
-    if (I.clicked() && !swept) rot(1);   // a tap (lifted where it landed: the engine's clicked()) turns it
+    // a tap (lifted where it landed: the engine's clicked()) turns it: on the field's right half clockwise, on its left
+    // half back; a second finger's tap while the first drags turns it the same way. Touch only: a mouse's click does nothing
+    const tap = I.lastDevice === 'touch' && ((!swept && I.clicked()) || I.secondTap());
+    if (tap) { const b = fieldBox(); rot(tap[0] < b.x + b.w / 2 ? -1 : 1); }
     if (!d) { downT = 0; swept = false; }
     return soft;
   }
@@ -363,10 +387,18 @@ const PUZZLE = (() => {
     flash = Math.max(0, flash - dt); moodT -= dt; if (moodT < 0 && mood > 0) mood = 0;
     const tall = field && field.findIndex(v => v) < W * (H * .35);
     mascot.update(dt, { x: 0, y: 0, z: 0, facing: 0, vx: 0, vy: 0, pose: mood > 0 ? 'cheer' : mood < 0 ? 'down' : null, expr: mood > 0 ? 'smile' : tall ? 'wince' : null, run: 0 });
-    if (mode === 'menu') { if (!pick.update(dt)) pickOnStart(pick); return; }
-    if (mode === 'over') { over.t += dt; if (over.t > 1) { if (!after.update(dt)) pickOnStart(after); } return; }
-    if (VS) { vsUpdate(dt); return; }
-    stepField(dt);
+    pick.scale = after.scale = rematch.scale = I.lastDevice === 'touch' ? 2 : 1;   // (a thumb's rows on a touch screen)
+    if (mode === 'menu') { if (!pick.update(dt)) pickOnStart(pick); }
+    else if (mode === 'over') { over.t += dt; if (over.t > 1) { if (!after.update(dt)) pickOnStart(after); } }
+    else if (VS) vsUpdate(dt);
+    else stepField(dt);
+    padExtras(tall);
+  }
+  // the light bar: player 1's piece, red over a tall stack, dark at the end (it changes only as they do)
+  function padExtras(tall) {
+    if (!ds || game.sceneName !== 'puzzle') return;
+    const c = mode === 'menu' ? null : over || mode === 'lost' ? '#401020' : tall ? '#ff2a2a' : !cur ? padLight : mode === 'pairs' ? PCOL[cur.a - 1] : COLOR[cur.k];
+    if (c && c !== padLight) ds.light(padLight = c);
   }
   // one field's step: a clear or a pop playing out, the controls, the fall and the lock
   function stepField(dt) {
@@ -387,8 +419,13 @@ const PUZZLE = (() => {
   }
 
   /* ---- 7. DRAWING: the stage, the field in screen pixels, the panels, the mascot ---- */
-  const cell = () => VS ? Math.max(6, Math.min(Math.floor((game.H - 34) / 20), Math.floor(game.W / 2 / 18))) : mode === 'blocks' || (over && over.kind === 'blocks') ? Math.max(8, Math.floor((game.H - 24) / 20)) : Math.max(10, Math.floor((game.H - 28) / 12));
-  const fieldBox = () => { const c = cell(), vis = W === 10 ? 20 : PH, w = W * c, h = vis * c; return { c, x: Math.round((CX === null ? game.W / 2 : CX) - w / 2), y: Math.round(game.H / 2 - h / 2) + 2, w, h, top: H - vis }; };
+  // a cell's size: from the height, beside the panels; on a screen held upright (one field) from the width too, the field
+  // under a strip for HOLD and NEXT (TOP) with the score's row under it
+  const TOP = 60, upright = () => !VS && game.H > game.W * 1.2;
+  const cell = () => VS ? Math.max(6, Math.min(Math.floor((game.H - 34) / 20), Math.floor(game.W / 2 / 18)))
+    : upright() ? Math.max(8, Math.min(Math.floor((game.W - 16) / W), Math.floor((game.H - TOP - 26) / (W === 10 ? 20 : PH))))
+    : mode === 'blocks' || (over && over.kind === 'blocks') ? Math.max(8, Math.floor((game.H - 24) / 20)) : Math.max(10, Math.floor((game.H - 28) / 12));
+  const fieldBox = () => { const c = cell(), vis = W === 10 ? 20 : PH, w = W * c, h = vis * c; return { c, x: Math.round((CX === null ? game.W / 2 : CX) - w / 2), y: upright() ? TOP : Math.round(game.H / 2 - h / 2) + 2, w, h, top: H - vis }; };
   const cellPx = (cx, cy) => { const b = fieldBox(); return [b.x + cx * b.c, b.y + (cy - b.top) * b.c]; };
   const toWorld = (sx, sy) => { const v = game.view; return [(sx + game.r.ix) / v.ax, (sy + game.r.iy) / v.bz]; };
   function block(g, x, y, c, color, a = 1) {   // a bevelled block: light top and left, dark bottom and right
@@ -443,28 +480,48 @@ const PUZZLE = (() => {
       if (st) { load(back); CX = bcx; }
     });
   }
+  // NEXT, HOLD and the score, in the normal font (readable from the sofa): beside the field, or held upright in the strip
+  // over it (HOLD, then the NEXT queue in a row, left of the corner's menu button) and a row under it
   function panels(g, b, kind) {
-    const c = Math.max(6, Math.floor(b.c * .6)), rx = b.x + b.w + 10, lx = b.x - 10, mini = (k, x, y, sz) => { for (const [a, bb] of cellsOf(k, 0)) block(g, x + a * sz, y + bb * sz, sz, COLOR[k]); };
-    E.font.text(g, E.t('puzzle.next'), rx, b.y, '#c8b8ff', { outline: false, font: 'tiny' });
-    if (kind === 'blocks') {
-      queue.slice(0, 5).forEach((k, i) => mini(k, rx, b.y + 9 + i * c * 2.6, i ? Math.max(4, c - 2) : c));
-      E.font.text(g, E.t('puzzle.hold'), lx, b.y, '#c8b8ff', { outline: false, font: 'tiny', align: 'right' });
-      if (hold) mini(hold, lx - c * 4, b.y + 9, c);
-    } else queue.slice(0, 2).forEach(([p, q], i) => { blob(g, rx, b.y + 10 + i * 30, c * 1.6, q, 0); blob(g, rx, b.y + 10 + i * 30 + c * 1.6, c * 1.6, p, 0); });
-    const sy = b.y + b.h - 50, tx = rx;
-    [[E.t('puzzle.score'), score], [E.t(kind === 'blocks' ? 'puzzle.lines' : 'puzzle.popped'), lines], [E.t('puzzle.level'), level]].forEach(([k, v], i) => {
-      E.font.text(g, k, tx, sy + i * 17, '#a898e0', { outline: false, font: 'tiny' }); E.font.text(g, String(v), tx, sy + i * 17 + 7, '#ffffff', { outline: false });
-    });
+    const LAB = { outline: false, shadow: '#05040a' }, mini = (k, x, y, sz) => { for (const [a, bb] of cellsOf(k, 0)) block(g, x + a * sz, y + bb * sz, sz, COLOR[k]); };
+    const stats = [[E.t('puzzle.score'), score], [E.t(kind === 'blocks' ? 'puzzle.lines' : 'puzzle.popped'), lines], [E.t('puzzle.level'), level]];
+    if (upright()) {
+      const s = clamp(Math.floor((cornerX() - 42) / 24), 3, 9), nx = kind === 'blocks' ? 8 + s * 4 + 10 : 8, y = 8;
+      E.font.text(g, E.t('puzzle.next'), nx, y, '#c8b8ff', LAB);
+      if (kind === 'blocks') {
+        E.font.text(g, E.t('puzzle.hold'), 8, y, '#c8b8ff', LAB); if (hold) mini(hold, 8, y + 13, s);
+        queue.slice(0, 5).forEach((k, i) => mini(k, nx + i * (s * 4 + 4), y + 13, s));
+      } else { const bs = Math.min(18, (TOP - y - 17) >> 1); queue.slice(0, 2).forEach(([p, q], i) => { blob(g, nx + i * (bs + 6), y + 13, bs, q, 0); blob(g, nx + i * (bs + 6), y + 13 + bs, bs, p, 0); }); }
+      stats.forEach(([k, v], i) => { const x = b.x + Math.round(i * b.w / 3), kw = E.font.width(k + ' '); E.font.text(g, k, x, b.y + b.h + 8, '#a898e0', LAB); E.font.text(g, String(v), x + kw, b.y + b.h + 8, '#ffffff', LAB); });
+    } else {
+      const c = Math.max(6, Math.floor(b.c * .6)), rx = b.x + b.w + 10, lx = b.x - 10;
+      E.font.text(g, E.t('puzzle.next'), rx, b.y, '#c8b8ff', LAB);
+      if (kind === 'blocks') {
+        queue.slice(0, 5).forEach((k, i) => mini(k, rx, b.y + 12 + i * c * 2.6, i ? Math.max(4, c - 2) : c));
+        E.font.text(g, E.t('puzzle.hold'), lx, b.y, '#c8b8ff', Object.assign({ align: 'right' }, LAB));
+        if (hold) mini(hold, lx - c * 4, b.y + 12, c);
+      } else queue.slice(0, 2).forEach(([p, q], i) => { blob(g, rx, b.y + 13 + i * 30, c * 1.6, q, 0); blob(g, rx, b.y + 13 + i * 30 + c * 1.6, c * 1.6, p, 0); });
+      const sy = b.y + b.h - 62;
+      stats.forEach(([k, v], i) => { E.font.text(g, k, rx, sy + i * 21, '#a898e0', LAB); E.font.text(g, String(v), rx, sy + i * 21 + 10, '#ffffff', LAB); });
+    }
     if (kind === 'pairs' && chain > 1 && popping) E.font.title(g, E.t('puzzle.chain', { chain }), b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: ['#fff8d0', '#ffd040', '#ff7a2a'] });
   }
+  // the menu: the game picked, what it is, how it plays on the device in use (with two, each player's own keys or
+  // buttons on a row), and how a second player joins; the help in the normal font, wrapped on a narrow screen
+  const moveKeys = I => I.label('left', undefined, { short: true }) + I.label('right', undefined, { short: true });   // ('←→', 'AD', a pad's d-pad '←→')
   function menuScreen(r) {
     r.overlay(g => {
       E.font.title(g, E.t('puzzle.title'), r.W / 2, 34, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ad8', '#c04ae8'], depth: 3 });
-      E.font.text(g, E.t(pick.i === 2 ? 'puzzle.about.versus' : pick.i ? 'puzzle.about.pairs' : 'puzzle.about.blocks'), r.W / 2, r.H - 22, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
-      const two = game.players.length > 1, keysOf = I => E.t('puzzle.how.player', { player: E.t('puzzle.vs.player', { n: I.player }), move: E.t(I.half === 'right' ? 'puzzle.how.arrows' : I.half ? 'puzzle.how.wasd' : 'puzzle.how.stick'), rotate: I.label('rotate'), drop: I.label('drop'), hold: I.label('hold') });   // (two: each player's own keys)
-      E.font.text(g, two ? game.players.map(keysOf).join('     ') : touch() ? E.t('puzzle.how.touch') : E.lang.upper(E.t('puzzle.how.keys')), r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+      const two = game.players.length > 1, keysOf = I => E.t('puzzle.how.player', { player: E.t('puzzle.vs.player', { n: I.player }), move: moveKeys(I), rotate: I.label('rotate'), drop: I.label('drop'), hold: I.label('hold') });   // (two: each player's own keys)
+      const help = two ? game.players.map(keysOf) : [touch() ? E.t('puzzle.how.touch') : E.lang.upper(E.t('puzzle.how.keys', { move: moveKeys(game.input) }))];
+      if (!two && !touch() && game.players.length < 2) help.push(game.joinPrompt());
+      const W = r.W - 16, lh = E.font.lineHeight(), rows = help.reduce((n, s) => n + E.font.wrap(s, W).length, 0);
+      const about = E.t(pick.i === 2 ? 'puzzle.about.versus' : pick.i ? 'puzzle.about.pairs' : 'puzzle.about.blocks');
+      let y = r.H - 6 - rows * lh;
+      E.font.text(g, about, r.W / 2, y - 4 - E.font.wrap(about, W).length * lh, '#e8d8ff', { align: 'center', shadow: '#000', outline: false, wrap: W });
+      for (const s of help) { E.font.text(g, s, r.W / 2, y, '#b8a8e8', { align: 'center', shadow: '#000', outline: false, wrap: W }); y += E.font.wrap(s, W).length * lh; }
     });
-    pick.y = 92; pick.draw(r);
+    pick.y = pick.scale > 1 ? 86 : 92; pick.draw(r);   // (its first row where it always was, at any scale)
   }
   function results(r) {
     r.overlay(g => {
@@ -520,14 +577,15 @@ const PUZZLE = (() => {
   }
 
   return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: [], propSize: 1, camera: { zoom: false },
-    enter() { mode = 'menu'; over = null; field = null; VS = null; pick.i = 0; game.allowJoin({ max: 2, onJoin: vsJoin }); vsJoin(); game.follow(null); game.cam.bounds = null; game.focus(0, 0, 0); game.cam.snap = true; A.music('title'); },
-    exit() { game.input.steer = 'stick'; },
+    enter() { mode = 'menu'; over = null; field = null; VS = null; pick.i = 0; game.allowJoin({ max: 2, onJoin: vsJoin }); vsJoin(); game.follow(null); game.cam.bounds = null; game.focus(0, 0, 0); game.cam.snap = true; A.music('title');
+      ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; },
+    exit() { game.input.steer = 'stick'; if (ds) ds.clear(); },
     back() { if (mode === 'menu' || mode === 'over' || (VS && VS.loser !== undefined)) { game.go('title'); return true; } return false; },
     update, draw, bot,
     state: () => ({ mode, field, cur, score, lines, level, versus: VS && { loser: VS.loser, pend: VS.pend.slice(), sent: VS.sent.slice() } }),   // for tests
     versus,
     /** the proof: a game of blocks played by keys (moves, turns, drops, a hold); a hash of the field and the score */
-    run: (n = 600) => proof('puzzle', n, (i, k) => { if (i === 2) begin('blocks'); if (i % 40 === 10) k.tap(i % 80 ? 'left' : 'right'); if (i % 50 === 20) k.tap('up'); if (i % 60 === 30) k.tap('drop'); if (i === 200) k.tap('hold'); },
+    run: (n = 600) => proof('puzzle', n, (i, k) => { if (i === 2) begin('blocks'); if (i % 40 === 10) k.tap(i % 80 ? 'left' : 'right'); if (i % 50 === 20) k.tap('rotate'); if (i % 60 === 30) k.tap('drop'); if (i === 200) k.tap('hold'); },
       () => [mode, field, score, lines, level, hold, queue]) };
 })();
 scenes.puzzle = PUZZLE;

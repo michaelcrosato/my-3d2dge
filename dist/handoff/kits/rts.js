@@ -171,18 +171,28 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 16  RTS  (Dune II, Warcraft II, Command & Conquer, StarCraft). @modules grid strategy
+ * SLICE 16  RTS  (Dune II, Warcraft II, Command & Conquer, StarCraft). @modules grid strategy dualsense
  * THE VALE WAR: the Vale's hall stands south-west of a river; the Ash Clan's camp across it, north-east, behind two of
  * its three fords. Workers mine gold and carry it to the hall; the hall makes workers, a BARRACKS footmen and archers, a
  * STABLE knights (workers build both). The clan builds its own and sends its army across in waves, bigger each time.
  * Win: every clan building falls. Lose: every one of yours does. Fog hides what your people don't see; walls of rock
  * block sight, a building once seen stays on the map.
- * The mouse: a click selects, a drag draws a box, Shift adds, a double click takes every one of that kind on screen, a
+ * The MOUSE: a click selects, a drag draws a box, Shift adds, a double click takes every one of that kind on screen, a
  * right click orders (move, attack, mine; a building's rally point), the wheel zooms toward the pointer, the screen's
- * edge pans. Keys: arrows / WASD pan, Z X C the panel's commands, H the hall, R the army, Space the last alert, Ctrl+1..9
- * keeps a group and 1..9 calls it back, F then a click attack-moves. TOUCH: a tap selects, a tap on ground or a foe
- * orders, a drag pans, a long press then a drag draws a box, two fingers zoom; the panel's buttons are a thumb's size,
- * HALL and ARMY on the left; BUILD shows the plan where you tap, PLACE puts it there.
+ * edge pans; hover lights the panel's buttons and rings the unit a click would take. KEYS (its own, KEYS): arrows / WASD
+ * pan, Z X C the panel's commands, H the hall, R the army, . an idle worker, Space the last alert, Ctrl+1..9 keeps a
+ * group and 1..9 calls it back, F then a click attack-moves, Backspace lets the selection go, Esc puts a plan or an
+ * attack-move away (else pauses). PAD (the engine's cursor: cursor: true): the left stick moves the cursor (it eases onto
+ * a button or a unit when let go), ✕ clicks (held and moved, a box; twice, every one of that kind), □ orders, ○ cancels a
+ * plan or an attack-move or lets the selection go, △ attack-moves, L1 takes every one of the kind under the cursor, R1
+ * the army, the d-pad's ← ↑ → the panel's commands and ↓ (or the touchpad's click) the last alert, L3 the hall, Create
+ * an idle worker, L2 R2 zoom, the right stick pans and the cursor at an edge pushes. DUALSENSE: the light bar turns red
+ * at an attack (gold at a victory), the horn sounds from the controller, gyro aim fine-tunes the cursor; any pad rumbles
+ * at an attack out of sight and when a building of yours falls. TOUCH: a tap selects, a tap on ground or a foe orders, a
+ * drag pans, a long press then a drag draws a box, two fingers zoom; the panel's buttons are a thumb's size, HALL, ARMY
+ * and IDLE on the left (ALERT under them while an attack is fresh); BUILD shows the plan where you tap, PLACE puts it
+ * there; a swipe takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan. With Touch
+ * assists on (Settings) a worker left idle goes back to the nearest mine, and a tap near a small unit takes it.
  * HOW IT WORKS: the strategy module keeps the rules (E.Strategy: kinds as data, orders, flow fields, fog, the clan's AI
  * from its build order and waves); this slice draws (rigs, buildings as E.SHAPES, the fog), runs the HUD and its
  * commands, and the minimap (E.Shell). bot() gives the Vale an AI of its own that plays the match to its end, twice the
@@ -288,8 +298,18 @@ const RTS = (() => {
     waves: { first: 300, every: 60, min: 12 } };
 
   let map = null, rts = null, ui = null, mode = 'play', placing = null, amoving = false, over = null, msg = null, banner = null, alert = null, auto = false;
-  let stats = null, arrows = [], dying = [], ruins = [], wave = 0, idle = 0, hits = 0;
+  let stats = null, arrows = [], dying = [], ruins = [], wave = 0, idle = 0, hits = 0, ds = null, padLight = null;
   const say = (s, c = '#fff2c4') => { msg = { s, c, t: 0 }; };
+  // haptics on any pad, only while it is what the player plays with
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  // THE KEYS (docs/CONTROLS.md, strategy): the moves and the menus' (E.Input.MENU); the panel on Z X C and the d-pad's ← ↑ →,
+  // orders on a right click and □, the hall H and L3, the army R and R1, every one of a kind L1 (a double click's, on a
+  // pad), the alert Space, the d-pad's ↓ and the touchpad, attack-move F and △, an idle worker . and Create, zoom L2 R2.
+  // Space and Z are the alert's and the panel's here, not the menus' confirm; X is the panel's, not their back (one
+  // action a key)
+  const KEYS = { ...E.Input.MENU, confirm: E.Input.MENU.confirm.filter(c => c !== 'Space' && c !== 'KeyZ'), cancel: E.Input.MENU.cancel.filter(c => c !== 'KeyX'),
+    order: ['Mouse2', 'Pad2'], cmd1: ['KeyZ', 'Pad14'], cmd2: ['KeyX', 'Pad12'], cmd3: ['KeyC', 'Pad15'], base: ['KeyH', 'Pad10'], army: ['KeyR', 'Pad5'], kind: ['Pad4'],
+    alert: ['Space', 'Pad13', 'Pad17'], amove: ['KeyF', 'Pad3'], idle: ['Period', 'Pad8'], zoomIn: ['Pad7'], zoomOut: ['Pad6'] };
   const blueOf = kind => rts.of('blue', kind), mine = u => u && u.side === 'blue';
   const buildings = side => rts.units.filter(u => u.side === side && u.building);
 
@@ -302,11 +322,12 @@ const RTS = (() => {
         if (u.K.bow) arrows.push({ x: u.x, y: u.y, tx: t.x, ty: t.y, t: 0, d: Math.hypot(t.x - u.x, t.y - u.y) / 160 });
         if (u.K.melee || u.K.gather) u.swing = .45;
         if (rts.visible(t) && onScreen(t)) { if (++hits % 3 === 0) A.sfx(u.K.bow ? 'shoot' : 'hit'); }
-        if (t.side === 'blue' && (!alert || game.time - alert.t > 8) && !auto) { alert = { x: t.x, y: t.y, t: game.time }; if (!onScreen(t)) { say(t.building ? E.t('rts.say.attacked', { kind: t.K.name }) : E.t('rts.say.people_attacked'), '#ff9a7a'); A.sfx('warp'); } }
+        if (t.side === 'blue' && (!alert || game.time - alert.t > 8) && !auto) { alert = { x: t.x, y: t.y, t: game.time }; if (!onScreen(t)) { say(t.building ? E.t('rts.say.attacked', { kind: t.K.name }) : E.t('rts.say.people_attacked'), '#ff9a7a'); if (ds) ds.speaker('warp'); else A.sfx('warp'); buzz(.4, .2); } }   // (the horn from the controller's speaker, where the player has it on)
       },
       death(u) {
         if (u.resource) { say(E.t('rts.say.dry'), '#ffd860'); return; }
         stats[u.side === 'blue' ? 'lost' : 'killed']++;
+        if (u.building && u.side === 'blue' && !auto) buzz(.6, .3);
         if (u.building) { ruins.push({ x: u.x, y: u.y, r: u.r }); if (rts.visible(u)) { game.particles.explosion(u.x, u.y, 12, 1.4); A.sfx('explode'); } }
         else if (u.rig) dying.push({ x: u.x, y: u.y, rig: u.rig, t: 0, side: u.side });
       },
@@ -335,6 +356,7 @@ const RTS = (() => {
     const hall = buildings('blue')[0];
     game.cam.free = { bounds: [0, 0, map.w * T, map.h * T] }; game.focus(hall.x + 40, hall.y - 30); game.cam.snap = true;
     game.input.touchEnabled = false; L.enabled = false; A.music(SONG);
+    ds = E.DualSense ? E.DualSense.attach(game, { light: true, gyro: true, speaker: true }) : null; padLight = null;
     ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: the minimap; it keeps the pause menu)
     banner = { s: E.t('rts.banner'), t: 0, c: '#ffe070' }; say(E.t('rts.say.goal'), '#ffe8b0');
   }
@@ -364,7 +386,7 @@ const RTS = (() => {
     if (c.id === 'train') { rts.train(sel[0], c.kind); A.sfx('confirm'); }
     else if (c.id === 'cancel') { rts.cancel(sel[0]); A.sfx('cancel'); }
     else if (c.id === 'stop') { rts.order(sel, 'stop'); A.sfx('cancel'); }
-    else if (c.id === 'amove') { amoving = true; A.sfx('blip'); say(E.t(touch() ? 'rts.say.amove.touch' : 'rts.say.amove.mouse'), '#ffd0a0'); }
+    else if (c.id === 'amove') { amoving = true; A.sfx('blip'); say(E.t('rts.say.amove.' + how()), '#ffd0a0'); }
     else if (c.id === 'build') { mode = 'place'; const at = groundAt([game.W / 2, game.H / 2]) || [sel[0].x, sel[0].y]; placing = { kind: c.kind, cx: Math.floor(at[0] / T) - 1, cy: Math.floor(at[1] / T) - 1, by: sel[0] }; A.sfx('blip'); }
   }
   // the world point under a screen point (the ground's cell: map.pick, or the ground plane)
@@ -380,30 +402,58 @@ const RTS = (() => {
    * placing a building, the rules, the rigs, the end ---- */
   let boxes = { cmds: [], side: [], place: [] };
   const hitBox = (b, p) => b && p && p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
+  // which words a prompt takes: a touch screen's, a pad's (its cursor), else the mouse's
+  const how = () => touch() ? 'touch' : game.input.lastDevice === 'gamepad' ? 'pad' : 'mouse';
+  const fresh = () => !!alert && game.time - alert.t < 8;   // (an attack lately: the ALERT button, the light bar)
+  const unplace = () => { mode = 'play'; placing = null; A.sfx('cancel'); };
   function update(dt) {
     const I = game.input, tap = I.clicked();
     if (msg) msg.t += dt; if (banner) banner.t += dt;
+    padExtras(dt);
     if (over) { over.t += dt; if (over.t > 1.6) endMenu.update(dt); stepWorld(dt); return; }
     stats.t += dt;
     if (!auto) {
       let used = false;
       boxes.cmds.forEach((b, i) => { if (hitBox(b, tap)) { command(b.c); used = true; } });
       if (!used) for (const b of boxes.side) if (hitBox(b, tap)) { sideButton(b.id); used = true; }
-      if (!used) for (const b of boxes.place) if (hitBox(b, tap)) { if (b.id === 'place') place(); else { mode = 'play'; placing = null; A.sfx('cancel'); } used = true; }
+      if (!used) for (const b of boxes.place) if (hitBox(b, tap)) { if (b.id === 'place') place(); else unplace(); used = true; }
+      // a swipe (touch) takes what is temporary away: the banner, the message (a flick that began at the top), the plan (a
+      // sideways one on PLACE and CANCEL)
+      const sw = I.swipe();
+      if (sw && banner && banner.t < 2.4) { banner = null; I.swipe(true); }
+      else if (sw && msg && msg.t < 3 && sw.y < game.H * .25) { msg = null; I.swipe(true); }
+      else if (sw && mode === 'place' && (sw.dir === 'left' || sw.dir === 'right') && I.hit(boxes.place, [sw.x, sw.y]) >= 0) { I.swipe(true); unplace(); }
       HOTKEYS.forEach((k, i) => { if (I.pressed(k) && mode === 'play') command(commands()[i]); });
-      if (I.pressed('base')) sideButton('hall'); if (I.pressed('army')) sideButton('army');
-      if (I.pressed('alert') && alert) { game.focus(alert.x, alert.y); game.cam.snap = true; }
+      if (I.pressed('base')) sideButton('hall'); if (I.pressed('army')) sideButton('army'); if (I.pressed('idle')) sideButton('idle');
+      if (I.pressed('alert')) sideButton('alert');
       if (I.pressed('amove') && rts.selected.some(u => !u.building)) command({ id: 'amove' });
+      // L2 and R2 zoom on a pad, by how far they are pulled (the wheel and - = are the engine's)
+      const zi = I.value('zoomIn'), zo = I.value('zoomOut'); if (zi > .1 || zo > .1) game.zoomBy(Math.pow(1.8, dt * (zi > zo ? zi : -zo)));   // (1.8 times a second, pulled all the way)
       if (mode === 'place') {
         const p = I.pointer(), at = !used && (tap || (!touch() && p)) ? groundAt(tap || p) : null;
         if (at) { placing.cx = Math.floor(at[0] / T) - 1; placing.cy = Math.floor(at[1] / T) - 1; }
         if (!used && tap && !touch()) place();
-        else if (I.pressed('confirm')) place();
-        else if (I.pressed('order') || I.pressed('cancel')) { mode = 'play'; placing = null; A.sfx('cancel'); }
-      } else if (amoving && !used && (tap || I.pressed('order'))) {
-        const at = groundAt(tap || I.pointer()); amoving = false;
-        if (at && I.pressed('order')) A.sfx('cancel'); else if (at) { rts.order(rts.selected, 'amove', { x: at[0], y: at[1] }); A.sfx('confirm'); }
-      } else if (!used) rts.input();
+        else if (I.pressed('confirm') && I.lastDevice !== 'gamepad') place();   // (Enter; a pad's ✕ places on its click, where the cursor is)
+        else if (I.pressed('order') || I.pressed('cancel')) unplace();
+      } else if (amoving && !used && (tap || I.pressed('order') || I.pressed('cancel'))) {
+        const at = tap && groundAt(tap); amoving = false;
+        if (at) { rts.order(rts.selected, 'amove', { x: at[0], y: at[1] }); A.sfx('confirm'); } else A.sfx('cancel');   // (a right click, □ or ○: none)
+      } else if (!used) {
+        if (I.pressed('cancel') && rts.selected.length) { rts.selected = []; A.sfx('cancel'); }   // (Backspace, ○: the selection let go)
+        rts.input();
+      }
+      // TOUCH ASSIST (input.assist: touch play with Settings, Touch assists on): a worker left idle 3 s, not selected, goes
+      // back to the mine nearest the hall, as the clan's AI sends its own
+      if (I.assist) for (const w of blueOf('worker')) {
+        if (w.orders.length || rts.selected.includes(w)) { w.idleT = 0; continue; }
+        if ((w.idleT = (w.idleT || 0) + dt) < 3) continue;
+        const h = blueOf('hall')[0] || w, m = rts.units.filter(o => o.resource).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+        w.idleT = 0; if (m) rts.order([w], 'gather', m);
+      }
+      // the pad's cursor eases onto the HUD's buttons, and (not while a plan follows it) the units on the screen, when the
+      // stick lets go (not while the gyro is turning it)
+      if (I.lastDevice === 'gamepad') I.cursorSnap(gyroing ? null : [...boxes.cmds, ...boxes.side, ...boxes.place].map(b => [b.x + b.w / 2, b.y + b.h / 2])
+        .concat(mode === 'place' ? [] : rts.units.filter(u => rts.visible(u) && onScreen(u, 0)).map(u => { const q = game.view.p(u.x, u.y, 0); return [q[0] - game.screen.ix, q[1] - game.screen.iy - (u.building ? 12 : 7)]; })), 10);
     }
     stepWorld(dt);
     if (!buildings('red').length) end(true); else if (!buildings('blue').length) end(false);
@@ -412,6 +462,17 @@ const RTS = (() => {
     if (id === 'hall') { const h = blueOf('hall')[0] || buildings('blue')[0]; if (h) { rts.selected = [h]; game.focus(h.x, h.y); game.cam.snap = true; A.sfx('select'); } }
     else if (id === 'army') { rts.selected = rts.of('blue').filter(u => !u.building && !u.K.gather); A.sfx(rts.selected.length ? 'select' : 'bump'); }
     else if (id === 'idle') { const w = blueOf('worker').find(u => !u.orders.length); if (w) { rts.selected = [w]; game.focus(w.x, w.y); game.cam.snap = true; A.sfx('select'); } else A.sfx('bump'); }
+    else if (id === 'alert') { if (alert) { game.focus(alert.x, alert.y); game.cam.snap = true; } else A.sfx('bump'); }
+  }
+  // the DUALSENSE: the light bar is the Vale's blue, red for a few seconds at an attack, gold at a victory and dark red at a
+  // defeat (sent as it changes); gyro aim nudges the pad's cursor
+  let gyroing = false;
+  function padExtras(dt) {
+    if (!ds) return;
+    const c = over ? (over.won ? '#ffc040' : '#6a0c18') : alert && game.time - alert.t < 3 ? '#ff2a1a' : '#2a5ad0';
+    if (c !== padLight) ds.light(padLight = c);
+    const I = game.input, [dx, dy] = ds.gyroAim(dt), p = I.lastDevice === 'gamepad' && (dx || dy) && I.pointer(); gyroing = !!p;
+    if (p) I.setPointer(Math.max(0, Math.min(game.W - 1, p[0] + dx)), Math.max(0, Math.min(game.H - 1, p[1] + dy)));
   }
   function stepWorld(dt) {
     rts.update(dt);
@@ -467,6 +528,7 @@ const RTS = (() => {
   }
   function hud(r) {
     const W = r.W, H = r.H, tc = touch(), th = Math.max(16, Math.ceil(44 * game.screen.dpr / game.screen.S)), sel = rts.selected.filter(u => !u.dead);
+    const hv = tc ? null : game.input.pointer(), lit = b => !!hitBox(b, hv) && !(b.c && b.c.off);   // (hover lights a button under the mouse or the pad's cursor)
     ui.hud(over ? {} : { minimap: rts.minimap({ blue: '#70b0ff', red: '#ff5a4a' }) });
     boxes = { cmds: [], side: [], place: [] };
     r.overlay(g => {
@@ -489,24 +551,30 @@ const RTS = (() => {
         if (one && u.progress < 1) E.font.text(g, E.t('rts.hud.going_up', { percent: Math.floor(u.progress * 100) }), 100, py + 2, '#ffd060', { outline: false, font: 'tiny' });
         cmds.forEach((c, i) => {
           const b = { x: 7 + i * (bw + 2), y: py + 17, w: bw, h: bh, c }; boxes.cmds.push(b);
-          E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: c.off ? '#1a1828' : '#2a3a7a' });
+          E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: c.off ? '#1a1828' : lit(b) ? '#3a4a9a' : '#2a3a7a', border: lit(b) ? '#ffe070' : undefined });
           E.font.text(g, c.label, b.x + 4, b.y + b.h / 2 - 3, c.off ? '#6a6680' : '#ffffff', { outline: false, font: 'tiny' });
           if (c.cost) E.font.text(g, String(c.cost), b.x + b.w - 3, b.y + b.h / 2 - 3, c.off ? '#6a6680' : '#ffd860', { align: 'right', outline: false, font: 'tiny' });
-          if (!tc) E.font.text(g, game.input.label(HOTKEYS[i]), b.x + b.w - 3, b.y - 6, '#8a86a0', { align: 'right', outline: false, font: 'tiny' });
+          if (!tc) { const k = game.input.label(HOTKEYS[i], undefined, { short: true }), kw = E.font.width(k, { font: 'tiny' }) + 4; px.rect(g, b.x + b.w - kw - 1, b.y - 7, kw, 7, '#0a0816'); E.font.text(g, k, b.x + b.w - 3, b.y - 6, '#c8c4e0', { align: 'right', outline: false, font: 'tiny' }); }   // (its key on a chip: Z X C, the d-pad's ← ↑ → on a pad)
         });
       }
       // a building's plan: PLACE and CANCEL on a touch screen (a tap moves it), else the hint
       if (mode === 'place') {
         const ok = rts.canPlace(placing.kind, placing.cx, placing.cy);
         if (tc) [['place', E.t('rts.place.place'), ok], ['cancel', E.t('rts.place.cancel'), true]].forEach(([id, s, on], i) => { const b = { id, x: 7 + i * 66, y: H - th - 6, w: 62, h: th }; boxes.place.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: on ? '#2a5a3a' : '#3a1a1a' }); E.font.text(g, s, b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false }); });
-        E.font.text(g, E.t(tc ? 'rts.place.touch' : 'rts.place.mouse', { kind: KINDS[placing.kind].name }), W / 2, 22, ok ? '#a8ffb0' : '#ffb0a0', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, E.t('rts.place.' + how(), { kind: KINDS[placing.kind].name }), W / 2, 22, ok ? '#a8ffb0' : '#ffb0a0', { align: 'center', shadow: '#000', outline: false });
       }
-      // HALL, ARMY and IDLE on the left of a touch screen (keys H and R)
-      if (tc) ['hall', 'army', 'idle'].forEach((id, i) => { const b = { id, x: 3, y: 22 + i * (th + 3), w: 40, h: th }; boxes.side.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .82 }); E.font.text(g, E.t('rts.side.' + id), b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
+      // HALL, ARMY and IDLE on the left of a touch screen (keys H, R and .; L3, R1 and Create), ALERT under them while an
+      // attack is fresh (Space, the d-pad's ↓)
+      if (tc) ['hall', 'army', 'idle', fresh() && 'alert'].filter(Boolean).forEach((id, i) => { const b = { id, x: 3, y: 22 + i * (th + 3), w: 40, h: th }; boxes.side.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .82, bg: id === 'alert' ? '#6a1a1a' : undefined }); E.font.text(g, E.t('rts.side.' + id), b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
       // the banner, the message
       if (banner && banner.t < 2.4) { const a = banner.t < .3 ? banner.t / .3 : banner.t > 1.9 ? (2.4 - banner.t) / .5 : 1; px.blend(g, a * .7, 'normal', () => px.rect(g, 0, H / 2 - 26, W, 30, '#0a0816')); E.font.title(g, banner.s, W / 2, H / 2 - 22, { align: 'center', scale: 2, colors: ['#ffffff', banner.c, E.mix(banner.c, '#000000', .5)] }); }
       if (msg && msg.t < 3) E.font.text(g, msg.s, W / 2, mode === 'place' ? 34 : 22, msg.c, { align: 'center', shadow: '#000', outline: false });
-      if (!tc && !sel.length && stats.t < 40) E.font.text(g, E.t('rts.hint'), W / 2, H - 9, '#a8a0c0', { align: 'center', outline: false, font: 'tiny' });
+      // the first 40 seconds, nothing selected: how to play it on the device used last (the normal font on a box, where it
+      // fits beside the minimap; else the tiny one)
+      if (!tc && !sel.length && stats.t < 40) {
+        const s = E.lang.upper(E.t(how() === 'pad' ? 'rts.hint.pad' : 'rts.hint', { stick: E.t('engine.pad.rstick') })), big = E.font.width(s) + 10 <= W * .56, f = big ? {} : { font: 'tiny' }, w = E.font.width(s, f) + 10, h = big ? E.font.lineHeight() + 4 : 10;
+        E.ui.box(g, Math.round(W / 2 - w / 2), H - h - 3, w, h, { alpha: .75 }); E.font.text(g, s, W / 2, H - h - 3 + (big ? 3 : 2), '#e8e0f0', Object.assign({ align: 'center', outline: false }, f));
+      }
     });
     if (over && over.t > 1.6) endMenu.draw(r);
   }
@@ -536,10 +604,18 @@ const RTS = (() => {
   }
 
   return { view: 'iso', views: ['iso'], res: 'ps1', pausable: true, propSize: 1, touch: [], camera: { zoom: [.6, 1.6], start: 1, tall: 1.25 },
-    input: { ...E.Input.DEFAULT, order: ['Mouse2'], cmd1: ['KeyZ'], cmd2: ['KeyX'], cmd3: ['KeyC'], base: ['KeyH'], army: ['KeyR'], alert: ['Space'], amove: ['KeyF'] },
+    input: KEYS, cursor: true, escape: 'back',
     enter: start, update, draw, bot,
-    exit() { game.cam.free = null; game.input.touchEnabled = true; game.resetCamera(); if (ui) ui.hud({}); },
-    back() { if (mode === 'place') { mode = 'play'; placing = null; return true; } if (rts.selected.length) { rts.selected = []; return true; } return false; },   // a phone's back: the plan, then the selection
+    exit() { game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.resetCamera(); if (ui) ui.hud({}); if (ds) ds.clear(); },
+    // a phone's back, and a PC's Esc (escape: 'back'): the plan, an attack-move's aim, then (a phone's) the selection (the
+    // press is spent: the step's back key does no more); else false, and Esc pauses
+    back() {
+      const I = game.input; I.suppress('cancel');
+      if (mode === 'place') { unplace(); return true; }
+      if (amoving) { amoving = false; A.sfx('cancel'); return true; }
+      if (rts.selected.length && I.lastDevice === 'touch') { rts.selected = []; return true; }
+      return false;
+    },
     /** for tests: the state, the strategy module, a unit's place on the screen, the HUD's boxes */
     state: () => ({ mode, over, stats, rts, map, placing, boxes, wave, commands: commands().map(c => c.label),
       at: u => { const q = game.view.p(u.x, u.y, u.z || 0); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; } }),
