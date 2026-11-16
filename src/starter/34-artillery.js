@@ -13,7 +13,7 @@
  * along the island; hover moves the menus' focus. PAD: the left stick or d-pad walks and aims, R2 or ✕ held charges
  * and let go fires, □ jumps, △ or R1 the weapon, the right stick looks along the island, Options pauses. DUALSENSE: the
  * light bar is the team whose turn it is, R2 stiffens as the shot charges, gyro aim fine-tunes the aim, a swipe on the
- * touchpad changes the weapon, a grenade's fuse ticks from the controller; any pad rumbles at a blast (by how near) and
+ * touchpad changes the weapon; any pad rumbles at a blast (by how near) and
  * a long fall. TOUCH: the same: a drag back fires, a tap walks; the JUMP and WEAPON buttons (only on a player's turn);
  * with Touch assists on (Settings) a walk a tap asked for hops the step it would stop at. A swipe takes nothing away
  * here, on purpose: every finger is the pull (steer: 'drag'), a flick is a shot, and the banner goes by itself.
@@ -46,7 +46,7 @@ const ARTILLERY = (() => {
   // zoom: the wheel is the game's), △ and R1
   const KEYS = Object.assign({}, E.Input.MENU, { walkL: ['ArrowLeft', 'KeyA', 'Pad14', 'PadAxisLeft'], walkR: ['ArrowRight', 'KeyD', 'Pad15', 'PadAxisRight'], aimUp: ['ArrowUp', 'KeyW', 'Pad12', 'PadAxisUp'], aimDown: ['ArrowDown', 'KeyS', 'Pad13', 'PadAxisDown'],
     fire: ['Space', 'Pad7', 'Pad0'], jump: ['Enter', 'NumpadEnter', 'KeyJ', 'Pad2'], weapon: ['KeyQ', 'KeyE', 'WheelDown', 'WheelUp', 'Pad3', 'Pad5'], w1: ['Digit1'], w2: ['Digit2'], w3: ['Digit3'] });
-  let ds = null, padLight = null, padTrig = -1, fuseS = 0;   // the DualSense's extras (the dualsense module), and what they show now
+  let ds = null, padLight = null, padTrig = -1;   // the DualSense's extras (the dualsense module), and what they show now
   const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);   // (haptics on any pad, while it is what the player plays with)
 
   /* ---- 1. THE ISLAND: hills of earth over rock, beaches of sand, a few caves; the grubs spread along it, the teams mixed ---- */

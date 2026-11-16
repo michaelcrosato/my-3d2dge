@@ -137,13 +137,17 @@ const RTS = (() => {
   // action a key)
   const KEYS = { ...E.Input.MENU, confirm: E.Input.MENU.confirm.filter(c => c !== 'Space' && c !== 'KeyZ'), cancel: E.Input.MENU.cancel.filter(c => c !== 'KeyX'),
     order: ['Mouse2', 'Pad2'], cmd1: ['KeyZ', 'Pad14'], cmd2: ['KeyX', 'Pad12'], cmd3: ['KeyC', 'Pad15'], base: ['KeyH', 'Pad10'], army: ['KeyR', 'Pad5'], kind: ['Pad4'],
-    alert: ['Space', 'Pad13', 'Pad17'], amove: ['KeyF', 'Pad3'], idle: ['Period', 'Pad8'], zoomIn: ['Pad7'], zoomOut: ['Pad6'] };
+    alert: ['Space', 'Pad13', 'Pad17'], amove: ['KeyF', 'Pad3'], idle: ['Period', 'Pad8'], zoomIn: ['Pad7'], zoomOut: ['Pad6'],
+    // the keys E.Strategy reads by their codes (Shift adds to the selection and queues orders, Ctrl and a digit keep a
+    // group, the digit picks it): bound, so the input holds them, and kept off the Controls screen (their codes are fixed)
+    rtsShift: ['ShiftLeft', 'ShiftRight'], rtsCtrl: ['ControlLeft', 'ControlRight', 'MetaLeft'], ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => ['rtsGroup' + n, ['Digit' + n]])) };
+  const FIXED = Object.fromEntries(Object.keys(KEYS).filter(a => a.startsWith('rts')).map(a => [a, false]));
   const blueOf = kind => rts.of('blue', kind), mine = u => u && u.side === 'blue';
   const buildings = side => rts.units.filter(u => u.side === side && u.building);
 
   /* ---- 2. THE MATCH: a fresh map (buildings block its cells), the strategy module over it, the sides, the clan's AI ---- */
   function start(data) {
-    auto = !!(data && data.auto);
+    auto = !!(data && data.auto); game.input.names = Object.assign({}, game.input.names, FIXED);
     map = new E.TileMap({ rows: ROWS, legend: LEGEND, types: TYPES, floorMat: 'grass', floorMats: FLOORS, ao: 0, outside: false });
     rts = new E.Strategy(game, { map, kinds: KINDS, sides: { blue: { res: { gold: 400 } }, red: { res: { gold: 400 } } }, player: 'blue', on: {
       attack(u, t) {
@@ -434,7 +438,7 @@ const RTS = (() => {
   return { view: 'iso', views: ['iso'], res: 'ps1', pausable: true, propSize: 1, touch: [], camera: { zoom: [.6, 1.6], start: 1, tall: 1.25 },
     input: KEYS, cursor: true, escape: 'back',
     enter: start, update, draw, bot,
-    exit() { game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.resetCamera(); if (ui) ui.hud({}); if (ds) ds.clear(); },
+    exit() { const N = Object.assign({}, game.input.names); for (const a in FIXED) delete N[a]; game.input.names = Object.keys(N).length ? N : null; game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.resetCamera(); if (ui) ui.hud({}); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): the plan, an attack-move's aim, then (a phone's) the selection (the
     // press is spent: the step's back key does no more); else false, and Esc pauses
     back() {

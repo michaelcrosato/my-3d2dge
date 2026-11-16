@@ -13,7 +13,7 @@
  * Lose: every hero falls.
  * KEYS (its own, KEYS: the moves and the menus' keys, no action it doesn't read): arrows / WASD move the cursor (the
  * camera follows), Enter / Space / Z confirm, Backspace / X back (before acting, back undoes a move; Esc steps out of a
- * move, an aim or a facing first, else pauses), 1-5 pick a command's row, Tab the next hero (by phases: who goes next;
+ * move, an aim or a facing, or undoes a move, first, else pauses), 1-5 pick a command's row, Tab the next hero (by phases: who goes next;
  * else back to the one whose turn it is), Q and E turn the view a quarter, the wheel or - and = zoom, X skips the scene.
  * The MOUSE: the cursor follows the pointer (map.pick, the cell under it in every view and turn), a click confirms on a
  * cell or a command (hover moves the command list's focus), a right click goes back, the screen's edge or a middle drag
@@ -584,7 +584,7 @@ const TACTICS = (() => {
     exit() { game.input.touchEnabled = true; game.resetCamera(); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): moving, aiming or facing goes back to the commands (the press is
     // spent: the step's back key does no more); else false, and Esc pauses
-    back() { if (mode === 'move' || mode === 'target' || mode === 'face') { back(); game.input.suppress('cancel'); return true; } return false; },
+    back() { const u = active; if (mode === 'move' || mode === 'target' || mode === 'face' || (mode === 'command' && u && u.moved && !u.acted && !u.path)) { back(); game.input.suppress('cancel'); return true; } return false; },   // (Esc as the hint says: out of a move, an aim or a facing, or the move undone, before it pauses)
     /** for tests: the state, and helpers to find a cell or a row on the screen and to place a unit */
     state: () => ({ mode, order, phase, round, active, cursor, sel, units, cells, over, stats, map, grid, turns, rows: active ? rows(active) : [], ui,
       at: (cx, cy) => { const v = game.view, [x, y] = map.center(cx, cy), q = v.p(x, y, top(cx, cy)); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; },

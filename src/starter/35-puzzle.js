@@ -125,7 +125,7 @@ const PUZZLE = (() => {
     if (!groups.length) { pairSpawn(); return; }
     chain++; const n = groups.reduce((s, g) => s + g.length, 0);
     score += 10 * n * Math.max(1, CHAIN[Math.min(chain - 1, CHAIN.length - 1)] + (groups.length > 1 ? 3 * groups.length : 0)); popped += n;
-    popping = { cells: groups.flat(), t: 0 }; (chain > 1 ? sound : A.sfx)(chain > 1 ? 'oneup' : 'coin', { pitch: 1 + chain * .1 }); buzz(chain > 1 ? .6 : .3, chain > 1 ? .2 : .08); cheer(chain > 1 ? 2 : 1);
+    popping = { cells: groups.flat(), t: 0 }; if (chain > 1) sound('oneup', { pitch: 1 + chain * .1 }); else A.sfx('coin', { pitch: 1 + chain * .1 });   // (A.sfx called on A: unbound it threw) buzz(chain > 1 ? .6 : .3, chain > 1 ? .2 : .08); cheer(chain > 1 ? 2 : 1);
     for (const [x, y] of popping.cells) burst(x, y, PCOL[field[y * W + x] - 1]);
     lines = popped; level = 1 + Math.floor(popped / 40);   // (the results show blobs popped; a level every 40)
   }
