@@ -1014,7 +1014,7 @@ class Input {
    */
   touchButtons(actions, o = {}) {
     if (!this.screen.canvas) return null;
-    this._touchArgs = { actions, o }; this._touchLabels = o.labels || null; this._touchSet = {};
+    this._touchArgs = { actions, o }; this._touchLabels = o.labels || null; this._touchSet = {}; this._touchScene = false;   // (the game's own: a scene's touch sets it after, and only those a title clears)
     return this._touchSync();
   }
   /** one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether
@@ -1217,7 +1217,7 @@ class Input {
     if (device === 'gamepad') return ENG('pad.lstick');
     if (device === 'touch') return E.lang.upper(ENG('touch.stick'));
     const k = ['up', 'left', 'down', 'right'].map(a => (this.map[a] || []).filter(c => !padCode(c) && !c.startsWith('Act:')));
-    return k.every((c, i) => c.includes('Key' + 'WASD'[i])) ? 'WASD' : '↑↓←→';
+    return k.every((c, i) => c.includes('Key' + 'WASD'[i])) ? ['KeyW', 'KeyA', 'KeyS', 'KeyD'].map(c => this.codeLabel(c)).join('') : '↑↓←→';   // (the keys as the keyboard's layout prints them: ZQSD on an AZERTY)
   }
   // the pad's cursor, each step: the left stick moves it (slow near the middle of its travel, fast at the rim), it eases
   // onto a snap point when let go near one, ✕ clicks where it is; the mouse's place is where the pad takes over
@@ -1238,6 +1238,8 @@ class Input {
     else if (D && this.held.has('Pad0')) this._gesture('move', P[0], P[1]);
     else if (D) { this._padDown = null; if (Math.hypot(P[0] - D.x, P[1] - D.y) < 4) this._click = [P[0], P[1]]; this._gesture('up', P[0], P[1]); }
   }
+  // the pad's ✕ let go of as the cursor's button without a click or a box (it picked a menu's entry, or the cursor went)
+  _padCancel() { this._padDown = null; if (this._g && this._g.id === 'pad') { if (this._g.mode === 'box') this._gBox = null; this._g = null; } }
   /** the pointer's gestures, read each step in screen pixels (the HUD's space), from a mouse or one finger:
    *  box() -> { x0, y0, x1, y1, from, to, done } while a box is drawn (a mouse's left button dragged; on a touch screen a long
    *  press, then a drag), done the step it is let go; else null */
@@ -1332,7 +1334,7 @@ class Input {
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
-    if (this.padCursor) this._cursorStep(dt);
+    if (this.padCursor) this._cursorStep(dt); else if (this._padDown) this._padCancel();   // (a press left as the cursor went: forgotten, never a click when it comes back)
     // a tap is held for the one step after it (its release comes the step after that)
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
@@ -1352,7 +1354,7 @@ class Input {
   _create(down, p) {
     const c = this._cr;
     if (!down) { if (c && !c.chord && !c.out) this._tapCode('Pad8'); this._cr = null; return false; }
-    if (!c) { this._cr = { t: this.clock, chord: false, out: false }; return false; }
+    if (!c) { const ch = !!(p.buttons[9] && p.buttons[9].pressed); this._cr = { t: this.clock, chord: ch, out: false }; if (ch) this._opt = true; return false; }   // (Options in the same poll: the chord, Options held back from this poll on)
     if (c.chord || (!c.out && p.buttons[9] && p.buttons[9].pressed)) { c.chord = true; this._opt = true; return false; }   // (Options held back too, until it is let go)
     if (!c.out && this.clock - c.t >= .25) c.out = true;
     return c.out;
@@ -3473,8 +3475,8 @@ class Game {
     if (ok('views')) this.views = s.views;
     if (ok('input')) this.input.use(s.input);
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
-    if (ok('touch')) this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch);
-    else if (!s.pausable && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus)
+    if (ok('touch')) { this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch); this.input._touchScene = true; }
+    else if (!s.pausable && this.input._touchScene && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
     if (ok('cursor')) { this.input.padCursor = s.cursor; this._sceneCursor = true; } else if (this._sceneCursor) { this.input.padCursor = false; this._sceneCursor = false; }   // (a scene's cursor ends with it)
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
@@ -3503,6 +3505,7 @@ class Game {
     for (const f of HOOKS.input) f(this, dt);
     this._ownRun('input', dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast(ENG('note.pad_lost'), ENG('note.pad_lost_text')); else this.note(E.lang.upper(ENG('note.pad_lost')), 2.5); }
+    if ((this.shell && this.shell.screen) || this.paused) this.input._padCancel();   // (✕ on a menu or while paused is the menu's: let go after it closes, never a click on the game)
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this.shownNote && this.real < this.shownNote.end) {   // a notice swiped away: a flick up or sideways that began in the screen's top quarter, where it shows
       const sw = this.input.swipe(); if (sw && sw.dir !== 'down' && sw.y < this.H * .25) { this.input.swipe(true); this.shownNote = null; }
@@ -10040,7 +10043,7 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-row{min-height:52px}.esh-row>span{font-size:14px}
 .esh kbd.esh-pb{display:inline-grid;place-items:center;min-width:1.9em;height:1.9em;padding:0 .45em;border-radius:1em;border:1px solid #ffffff55;border-bottom-width:1px;background:#12161f;color:#f1f1f1;font:700 12px var(--font);line-height:1}
 .esh kbd.esh-face{width:1.9em;padding:0;color:var(--c);border-color:var(--c);font-size:14px}.esh kbd.esh-ms{border-radius:10px}
-.esh-toast.on,.esh-tut{touch-action:none;cursor:default}.esh-toast.on{pointer-events:auto}
+.esh-toast.on,.esh-tut{touch-action:none;cursor:default}.esh-fingers .esh-toast.on{pointer-events:auto}
 @keyframes esh-in{from{opacity:0}}`;
 const SHELL_THEME = { ink: '#f1e8d6', paper: 'rgba(14,18,22,.86)', accent: '#d9b77c', muted: '#a49d8c', danger: '#e8836a', line: 'rgba(217,183,124,.3)', font: 'system-ui, sans-serif', titleFont: 'Georgia, serif' };
 /** the settings screen's groups, in order (the standard ones; a game's own are 'Game' unless they name another) */
@@ -10103,6 +10106,7 @@ class Shell {
     away(this._els.toast, () => { this._els.toast.classList.remove('on'); this._toastEnd = 0; });
     away(this._els.tut, d => { if (d > 40) this.tutorial(null); });
     const mini = this._els.mini; mini.width = 176; mini.height = 158;
+    r.addEventListener('pointerdown', () => { this._ptr = true; }, true); for (const t of ['pointerup', 'pointercancel']) addEventListener(t, () => { this._ptr = false; }, true);   // (a press on a screen: not redrawn under it before its click)
     mini.onclick = e => this._miniClick(e.clientX, e.clientY);   // (the world point clicked: a strategy game's camera goes there)
   }
   // the minimap clicked at browser client coords: its onClick gets the world point. True when it took the click
@@ -10332,11 +10336,11 @@ class Shell {
       P.forEach((q, k) => { const b = this._el('button', k === (this._pl || 0) ? 'pri' : '', ENG(q.device === 'gamepad' ? 'controls.player_pad' : q.half === 'left' ? 'controls.player_left' : q.half === 'right' ? 'controls.player_right' : 'controls.player', { player: k + 1 })); b.onclick = () => { this._pl = k; this._capEnd(''); this._render(); }; row.appendChild(b); });
       add(row);
     }
-    const S = this._game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = S.keys('Touch').length > 0 && (coarse || I._touched || S.touch === 'on' || !!I._touchArgs);   // (a touch screen's tab, with or without buttons on the screen now: a title's)
+    const S = this._game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = S.keys('Touch').length > 0 && (coarse || I._touched || S.touch === 'on');   // (a touch screen's tab, with or without buttons on the screen now: a title's)
     // a tab for each way to play: the keyboard and mouse, the controller, and the touch buttons where there are some; it
     // opens on the one the player used last (show('controls', { tab: 'pad' }) on another)
     const devs = [['keys', ENG('controls.keyboard')], ['pad', ENG('controls.controller')]].concat(touch ? [['touch', groupWords('Touch')]] : []);
-    const tab = devs.some(d => d[0] === top.s.tab) ? top.s.tab : I.lastDevice === 'gamepad' ? 'pad' : I.lastDevice === 'touch' && touch ? 'touch' : 'keys';
+    const tab = devs.some(d => d[0] === top.s.tab) ? top.s.tab : top.tab0 && devs.some(d => d[0] === top.tab0) ? top.tab0 : I.lastDevice === 'gamepad' ? 'pad' : I.lastDevice === 'touch' && touch ? 'touch' : 'keys'; top.tab0 = top.tab0 || tab;   // (tab0: the tab it opened on, kept when it is redrawn for another device)
     add(this._tabs(devs, tab, d => { this._capEnd(''); this.show('controls', { tab: d, tabFocus: true }); }));
     if (tab === 'touch') { for (const k of S.keys('Touch')) add(this._row(k)); return; }
     const pad = tab === 'pad', grid = this._el('div', 'esh-bind one');
@@ -10439,7 +10443,7 @@ class Shell {
       if (e.pointerType !== 'mouse') return; const t = e.target.closest && e.target.closest('button:not(:disabled), input:not(:disabled)');
       if (t && box.contains(t) && document.activeElement !== t) t.focus({ preventScroll: true });
     });
-    if (desc) box.addEventListener('focusin', e => { const r = e.target.closest && e.target.closest('.esh-row'); desc.textContent = (r && r._help) || ''; });
+    if (desc) { const say = e => { const r = e.target.closest && e.target.closest('.esh-row'); desc.textContent = (r && r._help) || ''; }; box.addEventListener('focusin', say); box.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') say(e); }); }   // (a tap: Safari on a phone focuses no button)
     this._els.scr.replaceChildren(sh, ...nav);
     const all = this._focusables(), tabbed = s.tabFocus && sh.querySelector('.esh-tabs button.on'), f = tabbed || all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
     top.focus = undefined; delete s.tabFocus; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
@@ -10521,7 +10525,7 @@ class Shell {
     if (this.root) {
       if (this._toastEnd && now > this._toastEnd) { this._els.toast.classList.remove('on'); this._toastEnd = 0; }
       if (this._tutEnd && now > this._tutEnd) this.tutorial(null);
-      this.root.classList.toggle('esh-still', !!g.reduceMotion);
+      this.root.classList.toggle('esh-still', !!g.reduceMotion); this.root.classList.toggle('esh-fingers', I.lastDevice === 'touch');   // (a toast takes a tap or a swipe on a touch screen; a mouse clicks through it)
     }
     const pb = I.padPrev || [], l1 = !!pb[4] && !this._l1, r1 = !!pb[5] && !this._r1; this._l1 = !!pb[4]; this._r1 = !!pb[5];   // (L1 and R1 this step: a screen's tabs)
     const mini = this._els && this._els.mini; if (mini && !this._stack.length) {   // the pad's cursor (drawn on the canvas, under the HTML) shows through the minimap, and ✕ on it is a click there
@@ -10531,6 +10535,9 @@ class Shell {
       if (cl && I._clickAt && this._miniClick(cl[0], cl[1])) I._clickAt = null;   // (the game doesn't also read it as a click on the ground beneath)
     }
     if (!this._stack.length) return;
+    const dev = I.lastDevice === 'gamepad' || I.lastDevice === 'touch' ? I.lastDevice : 'keys';   // (the keyboard and the mouse draw the same hints)
+    if (this.root && !this._cap && !this._ptr && this._drawnFor && dev !== this._drawnFor) this._render();   // the player picked up another device: the screen's hints and tab chips redrawn for it, the focus and the tab kept
+    if (!this._ptr) this._drawnFor = dev;
     const keep = this._held; this._held = new Set();
     const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), closeAll = has('pause') && I.pressed('pause'), mv = I.move();
     const hit = ['up', 'down', 'left', 'right'].find(a => has(a) && I.pressed(a)), dir = Math.abs(mv[1]) > .5 ? (mv[1] < 0 ? 'up' : 'down') : Math.abs(mv[0]) > .5 ? (mv[0] < 0 ? 'left' : 'right') : null;
