@@ -961,6 +961,12 @@ function views(E, ed) {
     const wr = new E.Road({ segment: 200 }); wr.add(60).add(40, { curve: 3 }); const N = wr.length, wg = new E.Game({ headless: true, draw: true, res: [320, 180] });
     wg.start({ update() {}, draw(r) { wr.draw(r, { z: N + 600, x: 0 }); } }); wg.advance(.05);
     const a = wr.project(N + 3000, .3), b = wr.project(3000, .3), c = wr.project(2 * N + 3000, .3);
+    // a short loop drawn whole (its draw distance past half the lap): a car in its far half keeps its faces; a corner of a
+    // car just ahead that pokes behind the camera loses its own (Codex's case on #225)
+    const sr = new E.Road({ segment: 200 }); sr.add(100); const sg = new E.Game({ headless: true, draw: true, res: [320, 180] }), got = {};
+    const probe = (k, z, dx) => sr.mesh({ bounds: 10, draw(g, near) { got[k] = near(z + dx, 0, 0); } }, z, 0);
+    sg.start({ update() {}, draw(r) { sr.draw(r, { z: 0, x: 0, cars: [probe('far', 15000, 0), probe('near', 600, -500)] }); } }); sg.advance(.05);
+    check(`${ed}: views: road: road.mesh on a short loop drawn whole: a car past half the lap ahead is drawn, a corner behind the camera is left out`, !!got.far && got.near === null, JSON.stringify(got));
     check(`${ed}: views: road: a distance a lap or more on projects where that place on the road is, the camera wrapped`, !!a && !!b && !!c && Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[2] - b[2]) < 1e-9 && Math.abs(c[1] - b[1]) < 1e-6, JSON.stringify({ a, b, c }));
   }
   // forks (the ROAD kit): a split eases one road into two, a branch bends away; a model on the road

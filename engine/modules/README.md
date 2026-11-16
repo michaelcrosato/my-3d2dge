@@ -36,8 +36,8 @@ E.Grid = Grid;
 - **The header is the manual** (`/*!`, so minified copies keep it): its first line names the module and says what it
   is; the third says which editions it loads after ("the full engine only" when it uses a name the agent edition
   doesn't have) and which modules it needs ("Needs: grid, gen."). Then what it holds, its API, a complete example and
-  its rules, in at most 1,500 cl100k tokens (`doctrine-check` counts it; a larger budget is a decision in
-  `docs/DECISIONS.md` and a line in its table). Its fenced examples run in `contract-test` (and in `agent-test` on the
+  its rules, in about 1,500 cl100k tokens (a soft budget, D98: `doctrine-check` counts and reports it, never fails on
+  it; trim it later). Its fenced examples run in `contract-test` (and in `agent-test` on the
   agent edition when it loads after it).
 - **The code** sits at the first column inside the wrapper, as the core's does, with a doc comment on every public name
   (`node tools/api-index.mjs --missing` lists those without). It uses only the core's public API: `doctrine-check`

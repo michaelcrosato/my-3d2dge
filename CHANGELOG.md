@@ -5,13 +5,26 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
-## 0.104.1 (2026-11-16)
+## 0.104.3 (2026-11-16)
 
 A builder's game (an open-world RPG made by another model on v0.100.0) crashed with `Maximum call stack size exceeded` in `Shell.back` when its co-op setup screen's Back was pressed: the screen's own `back` tidied up and then called `shell.back()`, as the engine's own audio-offset calibration did.
 
 - **Engine**: `shell.back()` called from inside the open screen's own `back` (`back: () => { tidy(); shell.back(); }`) closes that screen. It had called the screen's `back` again, forever, until the stack overflowed: a builder's screen with a back of its own had no way to close itself but `hide()`, and Cancel or Escape on the settings' audio-offset calibration crashed the page the same way. A `back` that doesn't call it still keeps its screen (to ask first), and one that closes two still sends the second through the screen under's own `back`.
 - **Engine**: `shell.show(name)` on the open screen updates it in place, and the focus stays where it was, as the Shell meant: it had made a new screen, so the focus went back to the first button. A screen redrawn as things change (that builder's co-op setup, shown again as each player gets ready) no longer sends a controller player's focus back to the top after every press.
 - **Tools**: contract-test cancels a screen whose own `back` calls `shell.back()` (and one that updates itself first), the audio-offset calibration, and a `back` that closes two; standard-test presses Escape on such a screen in Chromium and shows a screen again with the focus on its second button. Before the fix the cancels overflowed the stack and the focus went back to the first button.
+
+## 0.104.2 (2026-11-16)
+
+A fix from Codex's review of v0.104.0.
+
+- **Engine**: fixed: the road module's `road.mesh` called a corner more than half a lap ahead behind the camera, so on a short loop drawn whole a car in its far half lost its faces; each corner is now measured from its car's own place round the lap. A contract check draws such a loop.
+
+## 0.104.1 (2026-11-16)
+
+Token budgets made soft, the owner's call (D98).
+
+- **Tools**: the doctrine check counts every manual and kit against its budget as before, but one past its budget is a note, no longer a failure: budgets don't hold back the work now; trimming comes later.
+- **Docs**: D98; `docs/KITS.md`, `engine/modules/README.md`, `CLAUDE.md`, `AI_GUIDE.md`, `README.md` and `DOCTRINE.md` call the budgets soft.
 
 ## 0.104.0 (2026-11-16)
 

@@ -8,7 +8,7 @@
 // 1. assets (principle 4): no binary file in the repository outside the approved list: fonts anywhere, and the pictures
 //    our own tools draw for the docs (docs/assets/, written by tools/ed-codex-showcase.mjs). A binary is a file with a zero
 //    byte in its first 8 KB, or a picture, sound, model or archive by its extension.
-// 2. the manuals' budgets (principle 1): the agent edition's header, the API card, the API index, the 3D engine's
+// 2. the manuals' budgets (principle 1; soft since D98: counted and reported, past one a note, never a failure): the agent edition's header, the API card, the API index, the 3D engine's
 //    header (its manual) and each module's (engine/modules/: 1,500, or its line in MODULE_BUDGETS), in cl100k tokens (exact with gpt-tokenizer, a dev dependency since D28; without it
 //    estimated from each manual's own characters a token, measured and rounded down so the estimate errs high: the header
 //    2.97, the API card 3.15, the index 3.29, the 3D manual's estimate at 2.9).
@@ -22,8 +22,9 @@
 // 5. the API index (principle 1): API-INDEX.md is what tools/api-index.mjs makes of the engine today (node tools/build.mjs
 //    writes it), every public name in it has a description, and it answers the lookups of tools/api-index-lookups.json
 //    (D39).
-// 6. the kits' budgets (principle 1; D51): each kit is a whole engine, card and game for a chat model's context, so every 2D
-//    kit (dist/kits/my-3d2dge-<id>.html) is at most 216,000 cl100k tokens (D83) and a 3D kit within its own budget (the kit
+// 6. the kits' budgets (principle 1; D51; soft since D98: counted and reported, past one a note, never a failure): each kit
+//    is a whole engine, card and game for a chat model's context, so every 2D kit (dist/kits/my-3d2dge-<id>.html) aims at
+//    216,000 cl100k tokens (D83) and a 3D kit at its own budget (the kit
 //    diet, tools/build.mjs). Counted exactly, with gpt-tokenizer only (an estimate of minified code is too rough here).
 //    Ten 2D kits keep budgets of their own (KIT2D: D69, D92 to D97); the 3D kits are back at their budgets from before D63 (D70).
 // 7. a builder's copy (D76): the manuals a builder reads (the API card, the guide, the handoff package's README, the single
@@ -79,13 +80,13 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
     ['the asset card (docs/ASSETS.md)', read('docs/ASSETS.md'), 4000, 3.1],   // (D30)
     ...[...allModules().values()].map(m => [`module ${m.name}'s manual`, m.manual, MODULE_BUDGETS[m.name] || MODULE_BUDGET, 2.9])
   ];
-  const line = [];
-  for (const [name, text, budget, ratio] of MANUALS) {
+  const line = []; let over = 0;
+  for (const [name, text, budget, ratio] of MANUALS) {   // (soft budgets, D98: counted and reported, never a failure; trimmed later)
     const n = tok ? tok(text) : Math.ceil(text.length / ratio);
-    if (n > budget) fail('budget', `${name} is ${n} tokens${tok ? '' : ' (estimated)'}, over its budget of ${budget}: cut it, or raise the budget with a line in docs/DECISIONS.md`);
+    if (n > budget) { over++; notes.push(`budget: ${name} is ${n} tokens${tok ? '' : ' (estimated)'}, past its soft budget of ${budget} (D98: trim it later)`); }
     line.push(`${name} ${n} of ${budget}`);
   }
-  console.log(`2. budgets (${tok ? 'cl100k' : 'estimated'} tokens): ${line.join(', ')}`);
+  console.log(`2. budgets, soft (${tok ? 'cl100k' : 'estimated'} tokens${over ? ', ' + over + ' past theirs' : ''}): ${line.join(', ')}`);
 }
 
 /* 3. the API boundary */
@@ -188,14 +189,14 @@ if (opt('baseline')) {
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');
   else {
-    const line = [];
+    const line = [];   // (soft budgets, D98: counted and reported, never a failure; trimmed later)
     for (const f of kits) {
       const id = f.replace(/^my-3d2dge-|\.html$/g, ''), three = id.startsWith('3d-'), budget = three ? KIT3D[id.slice(3)] : KIT2D[id] || KIT, n = count(readFileSync(join(dir, f), 'utf8'));
-      if (!budget) { fail('kits', `${f}: a new 3D kit has no budget: give it one in KIT3D (tools/doctrine-check.mjs) with a line in docs/DECISIONS.md`); continue; }
-      if (n > budget) fail('kits', `${f} is ${n} tokens, over its budget of ${budget}: leave out what its game never calls (DIET in tools/build.mjs), move the API card's detail to the index, or raise the budget with a line in docs/DECISIONS.md`);
+      if (!budget) { line.push(`${id} ${Math.round(n / 1000)}k`); continue; }
+      if (n > budget) notes.push(`kits: ${f} is ${n} tokens, past its soft budget of ${budget} (D98: trim it later: the kit diet in tools/build.mjs, or the API card's detail moved to the index)`);
       line.push(`${id} ${Math.round(n / 1000)}k`);
     }
-    console.log(`6. the kits (cl100k tokens; 2D at most ${KIT / 1000}k but ${Object.keys(KIT2D).length} of their own, 3D each its own): ${line.join(', ')}`);
+    console.log(`6. the kits, soft budgets (cl100k tokens; 2D about ${KIT / 1000}k, ${Object.keys(KIT2D).length} of their own, 3D each its own): ${line.join(', ')}`);
   }
 }
 

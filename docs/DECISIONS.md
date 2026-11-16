@@ -1743,3 +1743,16 @@ An entry:
 - **Why:** a stretch goal named by the owner, for a few hundred tokens; the rest of the kit is unchanged.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.104.0
+
+## D98 · 2026-11-16 · Token budgets are soft: counted and reported, never a failure
+
+- **Principle:** 1 (agent-readable: a measured token budget for each manual, the API card, the index and each kit)
+- **Call:** the owner's word (2026-11-16): the token budgets are soft limits; they, API limits and the like should not
+  steer the work being done now, and can be optimized and trimmed later. `tools/doctrine-check.mjs` still counts every
+  manual (the agent edition's header, the API card, the index, the 3D engine's manual, the asset card, each module's)
+  and every kit, and prints each against its budget; one past its budget is a note, no longer a failure. No budget is
+  raised for a feature again; a pull request says what it took past one, and the trimming comes later.
+- **Why:** D92 to D97 each raised a kit's budget for a feature the owner asked for; the raises were bookkeeping, not a
+  choice anyone would make differently. The counts stay, so the trimming pass knows where to start.
+- **Answered:** the owner
+- **Landed in:** v0.104.1
