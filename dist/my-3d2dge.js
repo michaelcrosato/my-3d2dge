@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.106.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.107.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -86,7 +86,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.106.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.107.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -3482,7 +3482,7 @@ class Game {
     if (ok('input')) this.input.use(s.input);
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (ok('touch')) { this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch); this.input._touchScene = true; }
-    else if (!s.pausable && this.input._touchScene && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
+    else if (!s.pausable && this.input._touchArgs && (this.input._touchScene || (old && old.touch != null))) this.input._touchOff();   // (a scene that named touch buttons takes them away as it ends, even ones its enter set again)   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
     if (ok('cursor')) { this.input.padCursor = s.cursor; this._sceneCursor = true; } else if (this._sceneCursor) { this.input.padCursor = false; this._sceneCursor = false; }   // (a scene's cursor ends with it)
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
@@ -10366,7 +10366,7 @@ class Shell {
     for (const k of S.keys('Controller').filter(k => !S.spec(k).show || S.spec(k).show(this._game))) add(this._row(k));
   }
   _capStart(a, device, name) {
-    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: !!CI._cr };
+    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: CI._cr || null, crOld: CI._cr || null };
     this._status = ENG(device === 'pad' ? 'controls.press_pad' : 'controls.press_key', { action: name });
     this._render();
   }
@@ -10562,7 +10562,7 @@ class Shell {
   /** binding a controller button: the first one pressed since binding began (Start cancels) */
   _capPad() {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
-    const cr = !!(I._cr && !I._cr.chord), crNew = cr && !c.cr; c.cr = cr;   // (Create comes to a game a quarter of a second late, for the hub's chord: here its press binds at once)
+    const t = c.cr, crNew = !!t && t !== c.crOld && !t.chord && !t.out && I._cr !== t; c.cr = I._cr || null;   // (Create comes a quarter of a second late, for the hub's chord: a tap binds as it is let go, a hold when it comes out, the chord never)
     const i = crNew ? 8 : I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
     const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
     if (i === 9) this._capEnd(ENG('controls.not_changed')); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
@@ -11343,7 +11343,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.106.2: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.107.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11584,7 +11584,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.106.2: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.107.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12001,7 +12001,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.106.2: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.107.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12246,7 +12246,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DUALSENSE v0.106.2: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
+my-3D2dge module DUALSENSE v0.107.0: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12470,7 +12470,7 @@ E.DualSense = {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.106.2: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.107.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13044,7 +13044,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.106.2: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.107.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13227,7 +13227,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.106.2: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.107.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13636,7 +13636,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MESH v0.106.2: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.107.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13774,7 +13774,7 @@ E.Mesh = Mesh;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MGA v0.106.2: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
+my-3D2dge module MGA v0.107.0: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13934,7 +13934,7 @@ E.MGA = {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.106.2: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.107.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14293,7 +14293,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.106.2: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.107.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14660,7 +14660,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module REWIND v0.106.2: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.107.0: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14720,7 +14720,7 @@ E.Rewind = Rewind;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.106.2: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.107.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14927,7 +14927,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.106.2: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.107.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15116,7 +15116,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.106.2: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.107.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15299,7 +15299,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.106.2: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.107.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15634,7 +15634,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.106.2: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.107.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15788,7 +15788,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.106.2: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.107.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15996,7 +15996,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.106.2: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.107.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -16451,7 +16451,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.106.2: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.107.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

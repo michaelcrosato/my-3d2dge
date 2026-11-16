@@ -279,8 +279,8 @@ const FIGHT = (() => {
   const DUMMY = ['stand', 'crouch', 'jump', 'guard'];   // (each shown as its line, fighting.dummy.<what>)
   // the menus: ○ (or Esc) and a sideways swipe back out of each, as the scene's back() does
   const menu = new E.Menu(game, [E.t('fighting.menu.versus'), E.t('fighting.menu.arcade'), E.t('fighting.menu.training')], { y: 0, onPick: i => choose(['versus', 'arcade', 'training'][i]), onCancel: () => game.go('title') });
-  const after = new E.Menu(game, [E.t('fighting.menu.rematch'), E.t('fighting.menu.select'), E.t('fighting.menu.title')], { y: 0, onPick: i => i === 0 ? fight(picks) : i === 1 ? choose(kind) : game.go('title'), onCancel: () => { if (!result || result.t > 2.2) choose(kind); } });
-  const cont = new E.Menu(game, [E.t('fighting.menu.continue'), E.t('fighting.menu.title')], { y: 0, onPick: i => i ? game.go('title') : fight(picks), onCancel: () => { if (!result || result.t > 2.2) game.go('title'); } });   // (○ is heavy kick too: a second after the menu shows, so the last blows mashed are no answer)
+  const after = new E.Menu(game, [E.t('fighting.menu.rematch'), E.t('fighting.menu.select'), E.t('fighting.menu.title')], { y: 0, onPick: i => i === 0 ? fight(picks) : i === 1 ? choose(kind) : game.go('title'), onCancel: () => choose(kind) });
+  const cont = new E.Menu(game, [E.t('fighting.menu.continue'), E.t('fighting.menu.title')], { y: 0, onPick: i => i ? game.go('title') : fight(picks), onCancel: () => game.go('title') });
   const p2 = () => game.players[1] || null, THROW = E.t('fighting.touch.throw');
   // how player 2 joins: the keyboard's key and a pad's button, by name (2, OPTIONS or MENU)
   const joinLine = () => E.t('fighting.join', { key: game.input.codeLabel('Digit2'), pad: E.lang.upper(game.input.codeLabel('Pad9')) });
@@ -334,8 +334,8 @@ const FIGHT = (() => {
       result.t += dt; if (result.t < 1.2) return;
       match.call = null;   // (the menu's own title instead)
       const leave = () => result.t > 5 || I.pressed('start') || (result.t > 2 && (game.players.some(P => P.pressed('confirm')) || I.clicked() || I.swipe(true)));   // (CHAMPION: in its own time, or at a press, a click or a swipe)
-      if (kind === 'arcade') { if (result.w === 0) { if (result.next) { picks = [picks[0], ladder[step]]; fight(picks); } else if (leave()) game.go('title'); } else if (!cont.update(dt)) pickOnStart(cont); }
-      else if (!after.update(dt)) pickOnStart(after);
+      if (kind === 'arcade') { if (result.w === 0) { if (result.next) { picks = [picks[0], ladder[step]]; fight(picks); } else if (leave()) game.go('title'); } else if (result.t > 2.2 && !cont.update(dt)) pickOnStart(cont); }   // (the menus read a second after they show: the last blows mashed are no answer)
+      else if (result.t > 2.2 && !after.update(dt)) pickOnStart(after);
     }
   }
   function draw(r) {

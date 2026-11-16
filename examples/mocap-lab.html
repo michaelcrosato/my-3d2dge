@@ -94,7 +94,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
   <canvas id="screen" role="img" aria-label="Mocap lab: imported animation clips played on a pixel-art mannequin and on the engine's hero"></canvas>
   <div class="hud top">
     <div class="brand panel">
-      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a> <span class="ver" title="Release and build">v0.106.2 · dev-build</span></h1>
+      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a> <span class="ver" title="Release and build">v0.107.0 · dev-build</span></h1>
       <p id="note"></p>
       <select id="pick" aria-label="Animation clip"></select>
     </div>
@@ -171,7 +171,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.106.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.107.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -258,7 +258,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.106.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.107.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -3654,7 +3654,7 @@ class Game {
     if (ok('input')) this.input.use(s.input);
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (ok('touch')) { this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch); this.input._touchScene = true; }
-    else if (!s.pausable && this.input._touchScene && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
+    else if (!s.pausable && this.input._touchArgs && (this.input._touchScene || (old && old.touch != null))) this.input._touchOff();   // (a scene that named touch buttons takes them away as it ends, even ones its enter set again)   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
     if (ok('cursor')) { this.input.padCursor = s.cursor; this._sceneCursor = true; } else if (this._sceneCursor) { this.input.padCursor = false; this._sceneCursor = false; }   // (a scene's cursor ends with it)
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
@@ -10538,7 +10538,7 @@ class Shell {
     for (const k of S.keys('Controller').filter(k => !S.spec(k).show || S.spec(k).show(this._game))) add(this._row(k));
   }
   _capStart(a, device, name) {
-    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: !!CI._cr };
+    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: CI._cr || null, crOld: CI._cr || null };
     this._status = ENG(device === 'pad' ? 'controls.press_pad' : 'controls.press_key', { action: name });
     this._render();
   }
@@ -10734,7 +10734,7 @@ class Shell {
   /** binding a controller button: the first one pressed since binding began (Start cancels) */
   _capPad() {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
-    const cr = !!(I._cr && !I._cr.chord), crNew = cr && !c.cr; c.cr = cr;   // (Create comes to a game a quarter of a second late, for the hub's chord: here its press binds at once)
+    const t = c.cr, crNew = !!t && t !== c.crOld && !t.chord && !t.out && I._cr !== t; c.cr = I._cr || null;   // (Create comes a quarter of a second late, for the hub's chord: a tap binds as it is let go, a hold when it comes out, the chord never)
     const i = crNew ? 8 : I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
     const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
     if (i === 9) this._capEnd(ENG('controls.not_changed')); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);

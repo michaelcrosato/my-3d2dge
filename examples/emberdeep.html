@@ -39,14 +39,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.106.2</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.107.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.106.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.107.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -133,7 +133,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.106.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.107.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -3529,7 +3529,7 @@ class Game {
     if (ok('input')) this.input.use(s.input);
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (ok('touch')) { this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch); this.input._touchScene = true; }
-    else if (!s.pausable && this.input._touchScene && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
+    else if (!s.pausable && this.input._touchArgs && (this.input._touchScene || (old && old.touch != null))) this.input._touchOff();   // (a scene that named touch buttons takes them away as it ends, even ones its enter set again)   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
     if (ok('cursor')) { this.input.padCursor = s.cursor; this._sceneCursor = true; } else if (this._sceneCursor) { this.input.padCursor = false; this._sceneCursor = false; }   // (a scene's cursor ends with it)
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
@@ -10413,7 +10413,7 @@ class Shell {
     for (const k of S.keys('Controller').filter(k => !S.spec(k).show || S.spec(k).show(this._game))) add(this._row(k));
   }
   _capStart(a, device, name) {
-    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: !!CI._cr };
+    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: CI._cr || null, crOld: CI._cr || null };
     this._status = ENG(device === 'pad' ? 'controls.press_pad' : 'controls.press_key', { action: name });
     this._render();
   }
@@ -10609,7 +10609,7 @@ class Shell {
   /** binding a controller button: the first one pressed since binding began (Start cancels) */
   _capPad() {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
-    const cr = !!(I._cr && !I._cr.chord), crNew = cr && !c.cr; c.cr = cr;   // (Create comes to a game a quarter of a second late, for the hub's chord: here its press binds at once)
+    const t = c.cr, crNew = !!t && t !== c.crOld && !t.chord && !t.out && I._cr !== t; c.cr = I._cr || null;   // (Create comes a quarter of a second late, for the hub's chord: a tap binds as it is let go, a hold when it comes out, the chord never)
     const i = crNew ? 8 : I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
     const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
     if (i === 9) this._capEnd(ENG('controls.not_changed')); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
@@ -11393,7 +11393,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/dualsense.js ---- */
 /*!
-my-3D2dge module DUALSENSE v0.106.2: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
+my-3D2dge module DUALSENSE v0.107.0: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14797,7 +14797,7 @@ function heroAim(h, dt = 1 / 60) {
  *  basic attack swings by itself at a foe in reach, so a thumb stays free for the skills and the dodge. Only a free basic
  *  skill (Blade Dance, Codex's Quillshot, Dan's Reap: the autopilot's own test), never in town, never while a skill
  *  button is held, held back while the stick pulls away from the foe (kiting stays the player's), and never at one a
- *  takedown or an execution would take (one unaware of him, one reeling: those stay the player's). A controller, the
+ *  takedown or an execution would take (one unaware of him, one reeling within USE's reach: those stay the player's). A controller, the
  *  keyboard and the mouse play as before */
 function heroAutoBasic(h, md, mlen) {
   const i = h.slots.findIndex(id => id && REG.skills[id] && REG.skills[id].kind === 'basic' && !REG.skills[id].cost); if (i < 0) return;
@@ -14805,7 +14805,7 @@ function heroAutoBasic(h, md, mlen) {
   const m = nearestEnemy('hero', h.x, h.y, reach + 30); if (!m || m.team !== 'foe' || Math.hypot(m.x - h.x, m.y - h.y) - (m.r || 0) > reach) return;
   if (mlen > .1 && md[0] * (m.x - h.x) + md[1] * (m.y - h.y) <= 0) return;
   if (h.act && !h.act.free && h.act.skill !== id) return;
-  if ((m.arch && m.arch.takedown && !m.alarmed) || exeKind(h, m)) return;   // (one unaware of him, or reeling: a takedown or an execution is the player's, on USE)
+  const k = exeKind(h, m); if ((m.arch && m.arch.takedown && !m.alarmed) || (k && Math.hypot(m.x - h.x, m.y - h.y) <= EXE.range[k] + (m.r || 0))) return;   // (one unaware of him, or reeling within USE's reach: a takedown or an execution is the player's)
   h.aim = angTo(h, m); useSlot(h, i, true);
 }
 function updateHero(h, dt, o = {}) {
@@ -18826,7 +18826,7 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   // the tree itself: drag to pan, click to buy (on release, so a drag never buys), right click to undo. It registers before
   // the chrome, so the bars, the overview and the totals (drawn over it, topmost) take their own clicks
   hot(x0, y0 + 18, W, H - 29, { drag: (mx, my) => {
-    if (game.input.pinching) { const d = V.drag; if (d) Object.assign(d, { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 99 }); return; }   // (two fingers pinch: no pan, and no star chosen when they lift)
+    if (game.input.pinching || UI.fingers.size > 1) { const d = V.drag; if (d) Object.assign(d, { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 99 }); return; }   // (two fingers pinch: no pan, and no star chosen when they lift)
     if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my) || (ctlDevice() === 'touch' ? PRG_pick(mx, my, 14) : null) }; return; }   // (a finger is wide: a star within 14 px)
     const d = V.drag; d.moved = Math.max(d.moved, Math.abs(mx - d.x) + Math.abs(my - d.y));
     if (d.moved > 3) { V.cx = d.cx - (mx - d.x) / V.z; V.cy = d.cy - (my - d.y) / V.z; V.anchor = null; V.go = null; }
@@ -35130,15 +35130,17 @@ if (storedControls && typeof storedControls === "object") {
 		)
 			CONTROL.bindings[a] = [...new Set(codes)];
 	}
-	// a save from before the controls standard (no v): an action the player rebound keeps their codes and gains its new
-	// d-pad or touchpad button (the map ↑ and the touchpad, the labels ←, the portal ↓, the use →), unless another
-	// action of theirs already has it
+	// a save from before the controls standard (no v): the d-pad and the touchpad's new roles (the map ↑ and the touchpad,
+	// the labels ←, the portal ↓, the use →) go to their actions, rebound or not, unless the player gave that button to
+	// another action (one of them moved Potion onto the d-pad: it stays Potion's alone); the touchpad is never an
+	// action's only pad button
 	if (!(storedControls.v >= 2))
 		for (const [a, add] of [["interact", ["Pad15"]], ["portal", ["Pad13"]], ["map", ["Pad12", "Pad17"]], ["labels", ["Pad14"]]]) {
-			const codes = CONTROL.bindings[a];
-			if (!codes) continue;
-			for (const c of add)
-				if (!Object.values(CONTROL.bindings).some((b) => b.includes(c)) && codes.length < 12) codes.push(c);
+			const taken = (c) => Object.entries(CONTROL.bindings).some(([b, cs]) => b !== a && cs.includes(c));
+			const own = CONTROL.bindings[a] ? CONTROL.bindings[a].slice() : (INPUT[a] || []).filter((c) => !add.includes(c));
+			for (const c of add) if (!taken(c) && !own.includes(c) && own.length < 12) own.push(c);
+			if (!own.some((c) => /^Pad/.test(c) && c !== "Pad17") && own.includes("Pad17")) own.splice(own.indexOf("Pad17"), 1);
+			if (CONTROL.bindings[a] || own.join() !== (INPUT[a] || []).join()) CONTROL.bindings[a] = own;
 		}
 }
 CONTROL.v = 2;   // (the saves from here on are the standard's)
@@ -35640,12 +35642,14 @@ game.input.touchFilter = (e) => {
 		!UI.hot.some((h) => (h.click || h.drag) && inRect(m, h))
 	);
 };
+UI.fingers = new Set(); // the fingers on the canvas (not the stick's): two or more are a pinch, never a drag
 canvas.addEventListener("pointerdown", (e) => {
 	if (
 		e.pointerType === "mouse" ||
 		(game.input.stickId === e.pointerId && game.input.stickOn)
 	)
 		return;
+	UI.fingers.add(e.pointerId);
 	UI.mouse.cx = e.clientX;
 	UI.mouse.cy = e.clientY;
 	UI.mouse.active = true;
@@ -35654,6 +35658,7 @@ canvas.addEventListener("pointerdown", (e) => {
 	canvas.setPointerCapture(e.pointerId);
 });
 const endTouch = (e) => {
+	UI.fingers.delete(e.pointerId);
 	if (e.pointerType !== "mouse") {
 		game.input.release("Act:click");
 		UI.mouse.down = false;
