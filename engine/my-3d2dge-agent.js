@@ -1131,7 +1131,7 @@ E.lang = {
   },
   /** the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a
    *  function of your own for a game without E.Game's input */
-  control(a) { const g = E.current; return (g && g.input && g.input.map && g.input.map[a] && g.input.label(a)) || a; },
+  control(a) { const g = E.current, I = g && g.input; if (a === 'move' && I && I.map && !I.map.move && I.moveLabel) return I.moveLabel(); return (I && I.map && I.map[a] && I.label(a)) || a; },   // ({key:move}: the move keys or stick, where no action is called move)
   /** text a game draws itself (not a line) with its {key:action} tags filled: E.font.text(g, E.lang.keys('{key:jump} to
    *  jump'), ...) shows the player's own key or button for it, on the device used last */
   keys(text) { return String(text).replace(/\{key:(\w+)\}/g, (tag, a) => this.control(a)); },

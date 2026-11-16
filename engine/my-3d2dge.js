@@ -964,7 +964,7 @@ class Input {
    *  Xbox symbols). o: { short: true } the form for a small badge ('LMB', 'Spc') */
   label(a, device = this.lastDevice, o) {
     const m = this.map[a]; if (!m) { this._check(a); return ''; }
-    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || this._actionCaps(a);
+    if (device === 'touch') { const t = this._touchSet && this._touchSet[a]; return (t && t.label) || (this._touchLabels && this._touchLabels[a]) || this._actionCaps(a); }   // (the button as it reads now: touchSet's label first)
     const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
     const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
     return c ? this.codeLabel(c, !!(o && o.short)) : '';
@@ -1798,7 +1798,7 @@ E.lang = {
   },
   /** the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a
    *  function of your own for a game without E.Game's input */
-  control(a) { const g = E.current; return (g && g.input && g.input.map && g.input.map[a] && g.input.label(a)) || a; },
+  control(a) { const g = E.current, I = g && g.input; if (a === 'move' && I && I.map && !I.map.move && I.moveLabel) return I.moveLabel(); return (I && I.map && I.map[a] && I.label(a)) || a; },   // ({key:move}: the move keys or stick, where no action is called move)
   /** text a game draws itself (not a line) with its {key:action} tags filled: E.font.text(g, E.lang.keys('{key:jump} to
    *  jump'), ...) shows the player's own key or button for it, on the device used last */
   keys(text) { return String(text).replace(/\{key:(\w+)\}/g, (tag, a) => this.control(a)); },
@@ -10194,7 +10194,7 @@ class Shell {
     const lbl = settingWords(key, sp, 'label', sp.label || actionName(key)), row = this._el('div', 'esh-row'), lab = this._el('span', '', lbl), fs = this._game.fullscreen;
     row.appendChild(lab);
     const note = t => { if (t) lab.appendChild(this._el('small', '', t)); };
-    row._help = settingWords(key, sp, 'help', sp.help) || '';
+    row._help = E.lang.keys(settingWords(key, sp, 'help', sp.help) || '');   // (a {key:action} in it names the player's own key or button)
     let lock = null; try { lock = typeof sp.locked === 'function' ? sp.locked(this._game) : null; } catch (e) { lock = null; }
     note(lock);
     if (sp.type === 'fullscreen') {
