@@ -12,7 +12,7 @@ mode it shares with others, the line says so, and what of the game is not there.
 | Game | Kit: mode | Deep link | What it needs, and where it is | Checked by |
 | --- | --- | --- | --- | --- |
 | Final Fantasy VI (airship), Secret of Mana (Flammie), Terranigma | SKY: VOYAGE | `#sky/voyage` | free flight, altitude and pitch, a world that curves away (`m7` `curve`, `wrap`) | kits: the airship to three beacons and home |
-| Pilotwings | SKY: PLANE, DIVE | `#sky/plane`, `#sky/dive` | a light plane through rings, a skydive; the camera rolled and pitched (`cam.roll`, `pitch`); Pilotwings' rocket belt, hang glider and helicopter stage are not there | kits: ten rings and a landing; three hoops and the target; phone: the plane's controls, the dive's chute opened only in its band |
+| Pilotwings | SKY: PLANE, DIVE, ROCKET BELT | `#sky/plane`, `#sky/dive`, `#sky/belt` | a light plane through rings, a skydive, a jet pack through low rings onto a pad on its fuel; the camera rolled and pitched (`cam.roll`, `pitch`); Pilotwings' hang glider and helicopter stage are not there | kits: ten rings and a landing; three hoops and the target; five rings and the pad; phone: the plane's controls, the dive's chute opened only in its band |
 | Super Star Wars (the speeders) | BLASTER: SPEEDER | `#blaster/speeder` | a speeder turned freely, low over a Mode 7 desert: crawlers to find by a radar and bring down, skimmers that hunt you | kits: the four crawlers brought down |
 | HyperZone | BLASTER: ZONE | `#blaster/zone` | a rail course ahead over a neon Mode 7 grid, pods coming at you, mines to steer round, the camera banking into the bends | kits: the course to its gate |
 | Yoshi's Safari, Battle Clash | BLASTER: SAFARI | `#blaster/safari` | first person on rails, an aiming cursor (`m7.pick(sx, sy, boxes)`, replay-safe) | kits: the walker's fall; phone: a tap aims and fires, once |
@@ -27,10 +27,10 @@ mode it shares with others, the line says so, and what of the game is not there.
 | Game | Kit: mode | Deep link | What it needs, and where it is | Checked by |
 | --- | --- | --- | --- | --- |
 | OutRun, Rad Racer | ROAD: COAST RUN (car) | `#road/car` | the road module's road, curves and hills, traffic, a clock and checkpoints, the forks | kits: the coast run to its goal |
-| Pole Position | ROAD: CIRCUIT | `#road/circuit` | a closed track (the road loops), three laps against a pack of seven cars from the back of the grid, lap times, a place; Pole Position's qualifying lap is not there | kits: three laps run, a best lap kept |
+| Pole Position | ROAD: CIRCUIT | `#road/circuit` | a qualifying lap alone against the clock that sets your grid slot, then three laps of a closed track (the road loops) against a pack of seven cars, lap times, a place | kits: the qualifying lap and its slot, three laps run, a best lap kept |
 | Hang-On, Super Hang-On | ROAD: COAST RUN (bike) | `#road/bike` | a motorbike that leans into the bends | kits: the bike to its first fork |
 | Top Gear, Lotus Turbo Challenge | ROAD: DUEL (and CIRCUIT alone) | `#road/duel`, `#road/circuit` | two players race the circuit's three laps against its pack, the screen split (on one keyboard: W and the up arrow each one's gas); Top Gear's fuel and pit stops are not there | kits: the duel's three laps with the pack of seven, two viewports, each half of the keyboard |
-| Chase H.Q. | ROAD: CHASE, and the coast run's forks | `#road/chase` | a target to catch and ram (the chase); branching roads (`split`, `branch`) are the coast run's, the chase's own road has no fork | kits: the arrest; the coast run's two forks taken |
+| Chase H.Q. | ROAD: CHASE | `#road/chase` | a target to catch and ram; the road forks (`split`, `branch`), the radio says which way it went, and the other road lets it pull far ahead | kits: the chase through its fork to the arrest |
 | Road Rash | ROAD: RASH | `#road/rash` | riders who fight side to side | kits: the finish, riders punched down |
 | Power Drift | ZERO: SKY RIBBON | `#zero/sky` | a track raised on pillars that climbs, banks and crosses itself (`E.Race({ heights })`, `m7.quad` layers); a machine is held to the track, so Power Drift's jumps off its crests are not there | kits: six machines finish the ribbon |
 
