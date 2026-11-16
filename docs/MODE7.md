@@ -33,7 +33,7 @@ mode it shares with others, the line says so, and what of the game is not there.
 | Top Gear, Lotus Turbo Challenge | ROAD: DUEL (and CIRCUIT alone) | `#road/duel`, `#road/circuit` | two players race the circuit's three laps against its pack, the screen split (on one keyboard: W and the up arrow each one's gas); Top Gear's fuel and pit stops are not there | kits: the duel's three laps with the pack of seven, two viewports, each half of the keyboard |
 | Chase H.Q. | ROAD: CHASE | `#road/chase` | a target to catch and ram; the road forks (`split`, `branch`), the radio says which way it went, and the other road lets it pull far ahead | kits: the chase through its fork to the arrest |
 | Road Rash | ROAD: RASH | `#road/rash` | riders who fight side to side | kits: the finish, riders punched down |
-| Power Drift | ZERO: SKY RIBBON | `#zero/sky` | a track raised on pillars that climbs, banks and crosses itself (`E.Race({ heights })`, `m7.quad` layers); a machine is held to the track, so Power Drift's jumps off its crests are not there | kits: six machines finish the ribbon |
+| Power Drift | ZERO: SKY RIBBON | `#zero/sky` | a track raised on pillars that climbs, banks and crosses itself (`E.Race({ heights })`, `m7.quad` layers); a kicker past the overpass throws a machine at speed into the air a moment (its body falls under gravity, its shadow on the track), Power Drift's jump | kits: six machines finish the ribbon, jumping off its kicker |
 
 ## Sprite-scaling shooters and flight
 
