@@ -44,7 +44,12 @@
   "sky.medal.bronze": "BRONZE MEDAL",
   "action.gas": "Gas",
   "action.slow": "Slow",
-  "action.act": "Act"
+  "action.act": "Act",
+  "sky.menu.belt": "ROCKET BELT",
+  "sky.event.belt": "ROCKET BELT",
+  "sky.goal.belt": "THROUGH THE RINGS, THEN THE PAD",
+  "sky.belt.pad": "NOW DOWN ON THE PAD",
+  "sky.hud.fuel": "FUEL"
  },
  "notes": {
   "sky.title": "The flight game's title, on its menu.",
@@ -91,6 +96,11 @@
   "sky.medal.bronze": "The third medal, for 55 or more.",
   "action.gas": "A control's name (the settings' controls and the touch button): more throttle.",
   "action.slow": "A control's name: less throttle, or a parachute's brake.",
-  "action.act": "A control's name: open the parachute, or land the airship."
+  "action.act": "A control's name: open the parachute, or land the airship.",
+  "sky.menu.belt": "An event: fly a jet pack strapped to your back.",
+  "sky.event.belt": "The rocket belt event's name, in the corner while flying.",
+  "sky.goal.belt": "Shown as the rocket belt event starts: fly through the low rings, then land on the landing pad.",
+  "sky.belt.pad": "The rocket belt: the last ring is next; after it, land softly on the square pad.",
+  "sky.hud.fuel": "The rocket belt's fuel, beside its gauge."
  }
 }
