@@ -1,14 +1,15 @@
 /* =====================================================================================
- * SLICE 24  BLASTER  (Space Harrier, After Burner, Yoshi's Safari / Battle Clash). @modules mode7 mesh
- * Shooters into the screen, four stages in a row (or one picked on the menu). HARRIER: a hero with a jet pack over a
+ * SLICE 24  BLASTER  (Space Harrier, After Burner, Yoshi's Safari / Battle Clash, HyperZone, Super Star Wars). @modules mode7 mesh
+ * Shooters into the screen, five stages in a row (or one picked on the menu). HARRIER: a hero with a jet pack over a
  * checkered plain, anywhere on the screen, firing into it at saucers and jets; columns to dodge; a serpent at the end.
  * BURNER: a jet over the sea, the horizon tilting as it banks: its cannon, missiles at what the reticle has locked, a
  * barrel roll that shakes off missiles; a bomber at the end. SAFARI: first person on rails through a valley, a cursor
  * to aim: slimes and bats out from behind the rocks (a rock stops a shot), a walker with three weak points at the end.
- * ZONE (HyperZone, Super Star Wars' speeders): a craft along a winding course over a neon grid, the camera banking
- * into its bends: pods to shoot, mines on the course to steer round, the gate at its end.
- * Three lives, a score and a best. Deep links: #blaster/harrier, #blaster/burner, #blaster/safari, #blaster/zone.
- * KEYS: the arrows (the hero, the jet: up climbs; the cursor), J / Z / Space or a click fire, K / X the missiles,
+ * ZONE (HyperZone): a craft along a winding course over a neon grid, the camera banking into its bends: pods to
+ * shoot, mines on the course to steer round, the gate at its end. SPEEDER (Super Star Wars' speeders): free over the
+ * dunes, low, turned where you will: four crawlers to find by the radar and bring down, skimmers that hunt you.
+ * Three lives, a score and a best. Deep links: #blaster/harrier, #blaster/burner, #blaster/safari, #blaster/zone,
+ * #blaster/speeder. KEYS: the arrows (the hero, the jet: up climbs; the cursor; the speeder: up faster), J / Z / Space or a click fire, K / X the missiles,
  * L / C / Shift the barrel roll. A pad: the stick, A fire, X missiles, B the roll. TOUCH: the stick, and it fires by
  * itself; MISSILE and ROLL in the jet; in the safari a tap shoots where it lands.
  * HOW IT WORKS: E.Mode7 (the mode7 module): the plain, the sea and the valley, the camera rolled with the jet, m7.pick
@@ -18,7 +19,7 @@
 const BLASTER = (() => {
   const KEYS = Object.assign({}, E.Input.DEFAULT, { fire: ['KeyJ', 'KeyZ', 'Space', 'Mouse0', 'Pad0', 'Pad7'], missile: ['KeyK', 'KeyX', 'Pad2', 'Pad5'], roll: ['KeyL', 'KeyC', 'ShiftLeft', 'ShiftRight', 'Pad1', 'Pad4'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
-  const STAGES = ['harrier', 'burner', 'safari', 'zone'], hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
+  const STAGES = ['harrier', 'burner', 'safari', 'zone', 'speeder'], hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
   /* ---- THE MODELS (x forward, y right, z up) ---- */
   const SAUCER = new E.Mesh([['ball', [0, 0, 6], [16, 16, 4], 'hull', { n: 10 }], ['ball', [0, 0, 9.5], [7, 7, 5], '#8ae0ff', { n: 8 }], ['tube', [0, 0, 1.6], 5, 1.4, '#ffd040', { axis: 'z', n: 6 }]]);
   const JET = new E.Mesh([['tube', [2, 0, 4], 2.6, 12, 'body', { n: 8, end: .3 }], ['tube', [-13, 0, 4.2], 2.3, 3, '#3a3a42', { n: 8, end: 1.15 }],
@@ -33,6 +34,8 @@ const BLASTER = (() => {
     ['box', [16, 0, 84], [8, 14, 6], '#2a2e3a', { top: [.6, .8] }], ['box', [24, 0, 74], [4, 18, 3], '#ffc040'], ['box', [0, 0, 92], [12, 12, 6], 'hull', { top: [.5, .6] }], ['box', [0, 18, 62], [9, 8, 4], '#3a3e4a', { mirror: true }], ['box', [6, 18, 4], [16, 8, 4], '#4a4e5a', { top: [.7, 1], mirror: true }]]);
   const ARM = new E.Mesh([['box', [0, 0, 0], [10, 7, 7], 'hull'], ['tube', [16, 0, 0], 3.2, 9, '#2a2e3a', { n: 6 }]]);
   const CORE = new E.Mesh([['ball', [0, 0, 0], [9, 9, 9], 'core', { n: 8 }]]);
+  const SPEEDER = new E.Mesh([['box', [0, 0, 3], [12, 5, 1.6], 'body', { top: [.7, .9] }], ['tube', [-6, 6, 4], 1.8, 6, '#5a5a62', { n: 6, mirror: true }], ['ball', [3, 0, 5], [4, 3, 2.2], '#5ab8f0', { n: 6 }]]);
+  const CRAWLER = new E.Mesh([['box', [0, 0, 16], [24, 13, 13], 'hull', { top: [.8, .85] }], ['box', [6, 0, 33], [11, 9, 5], 'hull', { top: [.7, .8] }], ['box', [0, 14, 6], [24, 3, 6], '#3a3430', { mirror: true }], ['box', [24, 0, 24], [1, 9, 3], '#ffc040']]);
   const HERO = new E.Humanoid({ size: 1.2, weapon: 'gun', hair: 'spiky', colors: { cloth: '#e83a30', pants: '#2a3a8a', hair: '#ffd040' } });
   const SONG = { bpm: 150, steps: 4, tracks: [
     { wave: 'square', vol: .05, notes: 'E5 . E5 G5 . E5 D5 . | C5 . D5 . E5 . . . | E5 . E5 G5 . A5 G5 . | E5 . D5 . C5 . . . | A5 . A5 C6 . A5 G5 . | E5 . G5 . A5 . . . | G5 . E5 . D5 . C5 . | D5 . . . . . . .' },
@@ -56,13 +59,15 @@ const BLASTER = (() => {
         sky: new E.Backdrop({ sky: ['#3a2a8a', '#b86aa8', '#f0c8a0'], sun: { x: .3, y: .45, r: 18, color: '#fff0c0' }, layers: [{ kind: 'mountains', color: '#7a5a9a', y: .82, height: .2, parallax: .05, seed: 3 }] }) }),
       sea: new E.Mode7({ floor: (x, y) => { const n = E.noise2(x / 700, y / 700), r = hash(x >> 4, y >> 4) % 6; return n > .7 ? [70 + r * 3, 140, 60] : n > .66 ? [220, 200, 140] : n > .58 ? [40, 140, 190] : [20 + r, 70 + r * 2, 160]; }, size: [8192, 8192], texel: 16, wrap: true, far: 9000, fog: { color: '#cfe0f4', near: 2500, far: 9000 },
         sky: new E.Backdrop({ sky: ['#1a4aa8', '#5a9ae0', '#cfe0f4'], layers: [{ kind: 'clouds', color: '#ffffff', y: .55, height: .18, parallax: .04, drift: 6 }] }) }),
+      dunes: new E.Mode7({ floor: (x, y) => { const n = E.noise2(x / 420, y / 420), r = hash(x >> 2, y >> 2) % 7; return n > .74 ? [150 + r, 104, 76] : Math.sin((x + y * .4) / 46 + n * 14) > .6 ? [230 - r, 194, 136] : [212 - r * 2, 172 - r, 112]; }, size: [4096, 4096], texel: 4, wrap: true, far: 6000, fog: { color: '#f0d0a0', near: 2000, far: 6000 },
+        sky: ['#c8683a', '#f0d0a0'] }),
       vale: new E.Mode7({ floor: vale, texel: 4, outside: '#4a8a3e', far: 3000, fog: { color: '#6a9a58', near: 1200, far: 3000 }, sky: new E.Backdrop({ sky: ['#3a7ad8', '#8ac0f0', '#cfe6f8'], sun: { x: .8, y: .2, r: 12, color: '#fffbe0' }, layers: [{ kind: 'clouds', color: '#ffffff', y: .25, height: .15, parallax: .04, drift: 4 }, { kind: 'mountains', color: '#6a7ab8', y: .55, height: .3, parallax: .05, seed: 2 }, { kind: 'hills', color: '#5a9a4a', y: .78, height: .22, parallax: .08 }] }) })
     });
   }
 
   /* ---- THE RUN: the score, the lives, what flies; a stage at a time ---- */
   let mode = 'menu', R = null, t = 0, auto = false;
-  const menu = new E.Menu(game, [E.t('blaster.menu.start'), E.t('blaster.stage.harrier'), E.t('blaster.stage.burner'), E.t('blaster.stage.safari'), E.t('blaster.stage.zone'), E.t('blaster.menu.back')], { onPick: i => i === 5 ? game.go('title') : begin(i ? i - 1 : 0, i > 0) });
+  const menu = new E.Menu(game, [E.t('blaster.menu.start'), E.t('blaster.stage.harrier'), E.t('blaster.stage.burner'), E.t('blaster.stage.safari'), E.t('blaster.stage.zone'), E.t('blaster.stage.speeder'), E.t('blaster.menu.back')], { onPick: i => i === 6 ? game.go('title') : begin(i ? i - 1 : 0, i > 0) });
   const after = new E.Menu(game, [E.t('blaster.menu.again'), E.t('blaster.menu.menu')], { onPick: i => i === 0 ? begin(R.first, R.one) : toMenu() });
   function toMenu() { mode = 'menu'; R = null; A.music('title'); }
   /** a run from a stage (one: that stage alone); a game of one: players who joined elsewhere (a split screen) leave, and
@@ -229,6 +234,45 @@ const BLASTER = (() => {
         for (const h of R.hot) V.mesh(MISSILE, h.x, h.y, h.z, { yaw: Math.atan2(h.vy, h.vx), colors: {} });
       }
     },
+    /** the dunes: the speeder turned freely, faster or slower, low over the sand; four crawlers far apart (the radar
+     *  finds them), slow, firing when you're near; skimmers that hunt you; the stage clear when the last crawler falls */
+    speeder: {
+      start() {
+        const Q = E.rng(9); R.v = { x: 4096, y: 4096, z: 26, yaw: -Math.PI / 2, turn: 0, speed: 420 }; R.next = 5;
+        for (let i = 0; i < 4; i++) { const a = i * TAU / 4 + .5 + Q() * .5, d = 1300 + i * 350; R.foes.push({ kind: 'crawler', x: 4096 + Math.cos(a) * d, y: 4096 + Math.sin(a) * d, z: 40, yaw: Q() * TAU, hp: 10, r: 70, t: 0, fire: 2 + i }); }
+      },
+      cam() { const v = R.v, back = game.H > game.W ? 150 : 110; return { x: v.x - Math.cos(v.yaw) * back, y: v.y - Math.sin(v.yaw) * back, h: 46, angle: v.yaw, pitch: 7, fov: game.H > game.W ? 84 : 70, roll: v.turn * 8 }; },
+      update(dt, k) {
+        const v = R.v; v.turn += (clamp(k.x, -1, 1) - v.turn) * Math.min(1, dt * 6); v.yaw += v.turn * 1.6 * dt;
+        v.speed = clamp(v.speed - clamp(k.y, -1, 1) * 420 * dt, 260, 780); v.x += Math.cos(v.yaw) * v.speed * dt; v.y += Math.sin(v.yaw) * v.speed * dt; v.z = 26 + Math.sin(R.t * 3) * 2;
+        if (k.fire && R.cool <= 0) { R.cool = .1; R.fired++; R.shots.push({ x: v.x + Math.cos(v.yaw) * 20, y: v.y + Math.sin(v.yaw) * 20, z: v.z + 4, vx: Math.cos(v.yaw) * 2400, vy: Math.sin(v.yaw) * 2400, vz: 0, t: 0 }); A.sfx('shoot', { vol: .3 }); }
+        const fw = [Math.cos(v.yaw), Math.sin(v.yaw)];
+        if (R.t > R.next && R.foes.filter(f => f.kind === 'skimmer').length < 3) { R.next = R.t + 7; for (const sd of [-1, 1]) R.foes.push({ kind: 'skimmer', x: v.x + fw[0] * 2200 - fw[1] * sd * 300, y: v.y + fw[1] * 2200 + fw[0] * sd * 300, z: 30, yaw: v.yaw + Math.PI, speed: 640, hp: 2, r: 26, t: 0, fire: 1.5 }); }
+        for (const f of R.foes) {
+          f.t += dt; const d = Math.hypot(v.x - f.x, v.y - f.y), want = Math.atan2(v.y - f.y, v.x - f.x);
+          if (f.kind === 'crawler') {   // it grinds on, turning slowly; near, it fires; run into it and it hurts
+            f.yaw += Math.sin(f.t * .3 + f.r) * .1 * dt; f.x += Math.cos(f.yaw) * 60 * dt; f.y += Math.sin(f.yaw) * 60 * dt;
+            f.fire -= dt; if (f.fire < 0 && d < 1500) { f.fire = 2.6; fireAt(f, 520); }
+            if (d < 66) { hurt(); v.speed = 260; v.x = f.x - Math.cos(want) * 68; v.y = f.y - Math.sin(want) * 68; }
+          } else {   // a skimmer: turns after you, fires a homing bolt now and then
+            if (f.t > .8) f.yaw += clamp(E.angDiff(f.yaw, want), -1.1 * dt, 1.1 * dt); f.x += Math.cos(f.yaw) * f.speed * dt; f.y += Math.sin(f.yaw) * f.speed * dt;
+            f.fire -= dt; if (f.fire < 0 && d < 1400) { f.fire = 3; R.hot.push({ x: f.x, y: f.y, z: f.z, vx: Math.cos(f.yaw) * 620, vy: Math.sin(f.yaw) * 620, vz: 0, t: 0, home: true }); }
+          }
+        }
+        R.foes = R.foes.filter(f => f.hp > 0 && (f.kind === 'crawler' || f.t < 16));
+        if (R.phase === 'play' && !R.foes.some(f => f.kind === 'crawler')) clear();
+      },
+      hit(s) {
+        for (const f of R.foes) if (f.hp > 0 && Math.hypot(s.x - f.x, s.y - f.y, s.z - f.z) < f.r) { if (--f.hp <= 0) { const big = f.kind === 'crawler'; for (let i = 0; i < (big ? 3 : 1); i++) boom(f.x + (i - 1) * 30, f.y, f.z, big ? 2 : 1.2); score(big ? 5000 : 800); } else A.sfx('hit', { vol: .3 }); return true; }
+        return false;
+      },
+      me() { const v = R.v; return { x: v.x, y: v.y, z: v.z }; },
+      gather(V) {
+        const v = R.v; V.add(v.x, v.y, 0, (g, sx, sy, k) => { const a = g.globalAlpha; g.globalAlpha = .35; px.ell(g, sx, sy, 20 * k, 7 * k, '#3a2010'); g.globalAlpha = a; });
+        for (const f of R.foes) V.mesh(f.kind === 'crawler' ? CRAWLER : SPEEDER, f.x, f.y, f.kind === 'crawler' ? 0 : f.z, f.kind === 'crawler' ? { yaw: f.yaw, scale: 3, colors: { hull: '#9a8a74' } } : { yaw: f.yaw, scale: 1.4, colors: { body: '#7a2a2a' } });
+        if (R.hurt <= 0 || Math.floor(t * 12) % 2) V.mesh(SPEEDER, v.x, v.y, v.z, { yaw: v.yaw, roll: v.turn * .5, scale: 1.4, colors: { body: '#e8e4d8' } });
+      }
+    },
     /** the valley: the camera rides the rails, the cursor aims, a shot is what m7.pick finds under it; the walker at the end */
     safari: {
       start() {
@@ -339,6 +383,10 @@ const BLASTER = (() => {
     } else if (R.name === 'zone') {   // line up the nearest pod ahead; a mine ahead on your line: step round it
       const f = R.foes.filter(f => f.hp > 0 && f.s > R.s + 60 && f.kind === 'pod').sort((a, b) => a.s - b.s)[0], m = R.foes.find(f => f.kind === 'mine' && f.hp > 0 && f.s > R.s && f.s < R.s + 420 && Math.abs(f.u - R.u) < 50);
       const tu = m ? m.u + (m.u > R.u ? -110 : 110) : f ? f.u : 0, tz = m ? 30 : f ? f.z : 60; k.x = clamp((tu - R.u) / 30, -1, 1); k.y = clamp(-(tz - R.zh) / 30, -1, 1);
+    } else if (R.name === 'speeder') {   // the nearest crawler: turn to it, close in, veer off its side; fire at whatever is lined up
+      const v = R.v, dist = f => Math.hypot(f.x - v.x, f.y - v.y), off = f => Math.abs(E.angDiff(v.yaw, Math.atan2(f.y - v.y, f.x - v.x))), f = R.foes.filter(f => f.kind === 'crawler').sort((a, b) => dist(a) - dist(b))[0];
+      if (f) { const a = E.angDiff(v.yaw, Math.atan2(f.y - v.y, f.x - v.x)), d = dist(f); k.x = d < 240 ? 1 : clamp(a * 3, -1, 1); k.y = d > 900 ? -1 : d < 500 ? 1 : 0; }
+      k.fire = R.foes.some(f => off(f) < .2 && dist(f) < 2000);
     } else if (R.name === 'burner') {
       const j = R.j, f = R.foes.filter(f => f.hp > 0).sort((a, b) => Math.hypot(a.x - j.x, a.y - j.y) - Math.hypot(b.x - j.x, b.y - j.y))[0];
       if (f) { k.x = clamp(E.angDiff(j.yaw, Math.atan2(f.y - j.y, f.x - j.x)) * 2.5, -1, 1); k.y = clamp(-(f.z - j.z) / 120, -1, 1); }
@@ -359,7 +407,7 @@ const BLASTER = (() => {
       r.overlay(g => { E.font.title(g, E.t('blaster.title'), W / 2, 22, { scale: 4, align: 'center', colors: ['#fff8d0', '#ffd060', '#ff7a3a', '#c83a6a'], depth: 3 }); E.font.text(g, E.t('blaster.tagline'), W / 2, 68, '#fff0e0', { align: 'center', shadow: '#2a1040', outline: false }); });
       menu.y = Math.round(H / 2) - 8; menu.draw(r); return;
     }
-    const st = STAGE[R.name], V = R.name === 'harrier' ? VP.plain : R.name === 'burner' ? VP.sea : R.name === 'zone' ? VP.zone : VP.vale, cam = st.cam();
+    const st = STAGE[R.name], V = VP[{ harrier: 'plain', burner: 'sea', zone: 'zone', safari: 'vale', speeder: 'dunes' }[R.name]], cam = st.cam();
     st.gather(V);
     for (const s of R.shots) if (!s.homing) V.add(s.x, s.y, s.z, (g, sx, sy, k) => { const q = Math.max(1, 4 * k); px.disc(g, sx, sy, q * 1.6, '#ffe070'); px.disc(g, sx, sy, q, '#ffffff'); });
     for (const h of R.hot) if (!h.home) V.add(h.x, h.y, h.z, (g, sx, sy, k) => { const q = Math.max(1.5, 7 * k), w = Math.sin(t * 30) > 0; px.disc(g, sx, sy, q * 1.4, w ? '#ff5020' : '#ff9030'); px.disc(g, sx, sy, q * .7, '#fff0a0'); });
@@ -375,6 +423,11 @@ const BLASTER = (() => {
         for (const f of R.locks) { const p = VP.sea.project(f.x, f.y, f.z + 6); if (p) { const s = 10; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { px.rect(g, p[0] + a * s - (a > 0 ? 4 : 0), p[1] + b * s, 5, 1, '#ff4040'); px.rect(g, p[0] + a * s, p[1] + b * s - (b > 0 ? 4 : 0), 1, 5, '#ff4040'); } } }
         txt(E.t('blaster.missiles', { n: j.missiles }), 6, 10 + lh * 2, '#ffffff');
         if (R.locks.length && j.missiles > 0) txt(E.t('blaster.lock', { n: R.locks.length, key: game.input.label('missile') }), cx, cy + 20, '#ff6060', { align: 'center' });
+      }
+      if (R.name === 'speeder') {   // the radar (ahead is up; a crawler yellow, a skimmer red) and the crawlers left
+        const v = R.v, cx = 26, cy = H - 26, fx = Math.cos(v.yaw), fy = Math.sin(v.yaw); px.disc(g, cx, cy, 21, '#2a1a10'); px.disc(g, cx, cy, 19, '#4a3420'); px.rect(g, cx, cy, 1, 1, '#ffffff');
+        for (const f of R.foes) { const dx = f.x - v.x, dy = f.y - v.y, a = (dx * fx + dy * fy) / 130, b = (dy * fx - dx * fy) / 130, m = Math.min(1, 17 / (Math.hypot(a, b) || 1)), big = f.kind === 'crawler'; px.rect(g, Math.round(cx + b * m) - (big ? 1 : 0), Math.round(cy - a * m) - (big ? 1 : 0), big ? 3 : 2, big ? 3 : 2, big ? '#ffe040' : '#ff4040'); }
+        txt(E.t('blaster.crawlers', { n: R.foes.filter(f => f.kind === 'crawler').length }), 6, 10 + lh * 2, '#ffe890');
       }
       if (R.name === 'safari') {   // the cursor: a ring and a cross
         const [cx, cy] = R.cur, c = R.flash > 0 ? '#ffffff' : '#ff3a3a';
@@ -410,7 +463,7 @@ const BLASTER = (() => {
     /** a stage played by the autopilot (a demo; the bot's) */
     demo(stage) { begin(Math.max(0, STAGES.indexOf(stage)), true); auto = true; },
     state: () => R && { mode, stage: R.name, phase: R.phase, t: +R.t.toFixed(2), score: R.score, lives: R.lives, hits: R.hits, foes: R.foes.length, shots: R.shots.length, fired: R.fired,
-      hero: R.name === 'harrier' ? [Math.round(R.hx), Math.round(R.hz)] : R.name === 'burner' ? [Math.round(R.j.x), Math.round(R.j.y), Math.round(R.j.z), +R.j.roll.toFixed(3)] : R.name === 'zone' ? [Math.round(R.s), Math.round(R.u), Math.round(R.zh)] : [Math.round(R.s), Math.round(R.cur[0]), Math.round(R.cur[1])], boss: R.boss ? (R.boss.hp !== undefined ? R.boss.hp : R.boss.parts.map(p => p.hp)) : null },
+      hero: R.name === 'harrier' ? [Math.round(R.hx), Math.round(R.hz)] : R.name === 'burner' ? [Math.round(R.j.x), Math.round(R.j.y), Math.round(R.j.z), +R.j.roll.toFixed(3)] : R.name === 'zone' ? [Math.round(R.s), Math.round(R.u), Math.round(R.zh)] : R.name === 'speeder' ? [Math.round(R.v.x), Math.round(R.v.y), +R.v.yaw.toFixed(3)] : [Math.round(R.s), Math.round(R.cur[0]), Math.round(R.cur[1])], boss: R.boss ? (R.boss.hp !== undefined ? R.boss.hp : R.boss.parts.map(p => p.hp)) : null },
     /** the proof: the harrier stage, flying up and right, firing, then down and left */
     run: (n = 600) => proof('blaster', n, (i, k) => {
       if (i === 2) begin(0, true);
