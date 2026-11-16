@@ -30,6 +30,8 @@
 //    files' headers, the agent edition's and the 3D engine's manuals) say the engine is theirs to change ("yours to
 //    change"), and none says not to (never edit the engine, do not change it unless asked, keep everything outside GAME
 //    START and GAME END as it is, read the code only to debug).
+// 8. no code in a comment: a // comment at the end of a line of the sources whose text ends with a statement (a call or
+//    an assignment after the comment's closing parenthesis, then a ;) has swallowed code that was meant to run
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
@@ -216,6 +218,19 @@ if (opt('baseline')) {
     for (const m of text.matchAll(NOT)) { nots++; fail('copy', `${f}:${text.slice(0, m.index).split('\n').length}: "${m[0].replace(/\s+/g, ' ')}" tells a builder to leave the engine alone, but their copy is theirs to change (D76): say that instead, or supersede D76 in docs/DECISIONS.md`); }
   }
   console.log(`7. a builder's copy (D76): ${say} of ${COPIES.length} manuals say the engine is the builder's to change, ${nots ? nots + ' line(s) say not to' : 'none says not to'}`);
+}
+
+/* 8. no code in a comment */
+// a // comment put at the end of a line in the middle of it leaves what follows commented out: the code never runs, and
+// nothing else notices (it happened four times in the Mode 7 kits, v0.102.0 and v0.103.0)
+{
+  const CODE = /\)\s+[A-Za-z_$][\w$.\[\]]*\s*(\+?=|\(|\.\w+\()[^;]*;\s*$/;
+  let n = 0, seen = 0;
+  const walk = d => { for (const e of readdirSync(join(root, d), { withFileTypes: true })) { const f = d + '/' + e.name; if (e.isDirectory()) walk(f); else if (f.endsWith('.js')) {
+    seen++; read(f).split('\n').forEach((l, i) => { const t = l.trim(), c = l.indexOf('//'); if (c < 0 || t.startsWith('//') || t.startsWith('*') || /https?:/.test(l)) return;
+      if (CODE.test(l.slice(c + 2).trim())) { n++; fail('comments', `${f}:${i + 1}: code after a // comment never runs: move the comment to the end of the line (${l.slice(c, c + 90).trim()}...)`); } }); } } };
+  for (const d of ['engine', 'src']) walk(d);
+  console.log(`8. code in comments: ${n ? n + ' line(s) whose comment swallowed code' : 'none'} (${seen} source files)`);
 }
 
 for (const n of notes) console.log('   note: ' + n);
