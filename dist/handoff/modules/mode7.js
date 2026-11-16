@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module MODE7 v0.101.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.102.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -219,16 +219,16 @@ class Mode7 {
       this._t = r.game.time; this._seen = [];
       // drawn on a canvas of the viewport's size (moved so screen points land on it), then onto the frame
       const c = this._out && this._out.width === vp.w && this._out.height === vp.h ? this._out : (this._out = E.mkCanvas(vp.w, vp.h)), cg = E.ctx2d(c);
+      const sky = this.o.sky, low = Array.isArray(sky) ? sky[sky.length - 1] : sky.sky ? sky.sky[sky.sky.length - 1] : this.o.outside;   // (under all: the sky's lowest color, so the horizon's row has no seam, nor the rows past the floor's far edge)
       if (!roll) {
         this.begin(rect, cam); this._pt = null;
-        cg.setTransform(1, 0, 0, 1, -vp.x, -vp.y); this._scene(cg, r, vp, items);
+        cg.setTransform(1, 0, 0, 1, -vp.x, -vp.y); E.px.rect(cg, vp.x, vp.y, vp.w, vp.h, low); E.px.reset(cg); this._scene(cg, r, vp, items);
       } else {   // rolled: drawn level on a canvas big enough to cover the viewport once turned, then turned onto it
         const ca = Math.abs(Math.cos(roll)), sa = Math.abs(Math.sin(roll)), ox = rect.cx - vp.x - vp.w / 2, oy = rect.cy - vp.y - vp.h / 2, m = 4 + 2 * (Math.abs(ox) + Math.abs(oy));
         const W2 = Math.ceil(vp.w * ca + vp.h * sa + m), H2 = Math.ceil(vp.w * sa + vp.h * ca + m), U = this._lvl && this._lvl.width === W2 && this._lvl.height === H2 ? this._lvl : (this._lvl = E.mkCanvas(W2, H2)), ug = E.ctx2d(U);
         const lv = { x: 0, y: 0, w: W2, h: H2 }, cx2 = W2 / 2 + ox, cy2 = H2 / 2 + oy;
         this.begin({ W: W2, H: H2, x: 0, y: 0, cx: cx2, cy: cy2, focal: rect.H / 2 / Math.tan((cam.fov || 70) * Math.PI / 360) }, cam);
         const P = this._P; P.cr = 1; P.sr = 0;
-        const sky = this.o.sky, low = Array.isArray(sky) ? sky[sky.length - 1] : sky.sky ? sky.sky[sky.sky.length - 1] : this.o.outside;   // (under all: the sky's lowest color, so the horizon's row has no seam)
         ug.setTransform(1, 0, 0, 1, 0, 0); E.px.rect(ug, 0, 0, W2, H2, low); E.px.reset(ug); this._scene(ug, r, lv, items);
         cg.setTransform(1, 0, 0, 1, 0, 0); cg.clearRect(0, 0, vp.w, vp.h); cg.setTransform(1, 0, 0, 1, rect.cx - vp.x, rect.cy - vp.y); cg.rotate(-roll); cg.imageSmoothingEnabled = false; cg.drawImage(U, -cx2, -cy2);
         this.begin(rect, cam); this._pt = { cx: cx2, cy: cy2, rx: rect.cx, ry: rect.cy, cr: P.cr, sr: P.sr };   // (project and pick on the turned screen)

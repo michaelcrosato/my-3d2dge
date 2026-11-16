@@ -193,7 +193,7 @@ const SKY = (() => {
       const dx = x - 512, dy = y - 512, a = Math.atan2(dy, dx), r = Math.hypot(dx, dy), n = hash(x, y) % 7;
       const coast = 330 + 70 * E.noise2(Math.cos(a) * 2 + 7, Math.sin(a) * 2 + 3) + 26 * E.noise2(x / 40, y / 40) - r, hill = E.noise2(x / 70 + 3, y / 70 + 9) * (coast > 60 ? 1 : 0) + Math.max(0, 1 - Math.hypot(x - 430, y - 360) / 150) * .5;
       let c;
-      if (coast < -22) c = (E.noise2(x / 9, y / 3) > .62) ? [74, 132, 214] : [38 + n, 92 + n, 186];
+      if (coast < -22) c = (E.noise2(x / 9, y / 3) > .62 + Math.max(0, r - 440) / 170) ? [74, 132, 214] : [38 + n, 92 + n, 186];   // (the waves thin out to none before the canvas's edge: plain sea, as outside it)
       else if (coast < 0) c = [70, 178 + n * 2, 196];
       else if (coast < 9) c = [228 - n * 2, 206, 150];
       else if (hill > .95) c = [236, 238, 244];
@@ -256,7 +256,10 @@ const SKY = (() => {
   const CASTLE = new E.Mesh([['box', [0, 0, 12], [30, 20, 12], '#cac2b2'], ['box', [24, 18, 22], [6, 6, 22], '#b8b0a0', { mirror: true }], ['box', [-24, 18, 22], [6, 6, 22], '#b8b0a0', { mirror: true }],
     ['box', [24, 18, 48], [7, 7, 4], '#3a5aa8', { top: [.12, .12], mirror: true }], ['box', [-24, 18, 48], [7, 7, 4], '#3a5aa8', { top: [.12, .12], mirror: true }], ['box', [0, 0, 32], [10, 10, 8], '#d6cebe'], ['box', [0, 0, 45], [11, 11, 5], '#3a5aa8', { top: [.1, .1] }]]);
   const R7 = E.rng(11), TREES = [], CLOUDS = [];
-  for (let i = 0; i < 70; i++) { const a = R7() * TAU, r = 300 + R7() * 900, x = M + Math.cos(a) * r, y = M + Math.sin(a) * r; if (Math.abs(x - RUNWAY.x) > 140 || y < 2300 || y > 3200) TREES.push([x, y, R7() < .5 ? 'tree' : 'pine', .8 + R7() * .5]); }
+  for (let i = 0; i < 70; i++) {   // (off the runway and off the dive's target: one there still takes its draws, so the rest stand where they did)
+    const a = R7() * TAU, r = 300 + R7() * 900, x = M + Math.cos(a) * r, y = M + Math.sin(a) * r;
+    if (Math.abs(x - RUNWAY.x) > 140 || y < 2300 || y > 3200) { const tr = [x, y, R7() < .5 ? 'tree' : 'pine', .8 + R7() * .5]; if (Math.hypot(x - TARGET[0], y - TARGET[1]) > 150) TREES.push(tr); }
+  }
   for (let i = 0; i < 26; i++) CLOUDS.push([R7() * ISLE, R7() * ISLE, 420 + R7() * 500, 50 + R7() * 50]);
   const WCLOUDS = Array.from({ length: 40 }, () => [R7() * 8192, R7() * 8192, 300 + R7() * 300, 60 + R7() * 50]);
   const cloud = (c, k) => (g, sx, sy) => { const s = c[3] * k; if (s < 1) return; px.ell(g, sx, sy - s * .1, s * .9, s * .32, '#c8d4e8'); px.disc(g, sx - s * .45, sy - s * .38, s * .36, '#f4f8ff'); px.disc(g, sx + s * .35, sy - s * .34, s * .3, '#eef4fc'); px.disc(g, sx, sy - s * .55, s * .42, '#ffffff'); };
@@ -392,7 +395,7 @@ const SKY = (() => {
       if (S.home && S.land && S.land.t > 3) finish();
     }
   }
-  function finish() { if (mode !== 'fly') return; res = score(); mode = 'results'; after.i = 0; if (res.medal) A.sfx('powerup'); }
+  function finish() { if (mode !== 'fly') return; res = score(); mode = 'results'; after.i = 0; bannerT = 0; if (res.medal) A.sfx('powerup'); }   // (the banner gone: the results box stands where it was)
 
   /* ---- the look ---- */
   function shadow(V, x, y, z, s) { V.add(x, y, 0, (g, sx, sy, k) => { const a = g.globalAlpha; g.globalAlpha = a * clamp(.5 - z / 1600, .1, .5); px.ell(g, sx, sy, s * k, s * k * .36, '#0c1a10'); g.globalAlpha = a; }); }
@@ -405,9 +408,9 @@ const SKY = (() => {
   }
   function draw(r) {
     const W = r.W, H = r.H; views();
-    const cam = camFor(), V = ev === 'voyage' ? w7 : m7, fx = Math.cos(cam.angle), fy = Math.sin(cam.angle);
-    if (V === m7) {
-      for (const [x, y, kind, s] of TREES) { const d = (x - cam.x) * fx + (y - cam.y) * fy; if (d > 20 && d < 2600) m7.shape(kind, x, y, 0, { size: s }); }
+    const cam = camFor(), V = ev === 'voyage' ? w7 : m7, fx = Math.cos(cam.angle), fy = Math.sin(cam.angle), cp = Math.cos(cam.pitch * Math.PI / 180), sp = Math.sin(cam.pitch * Math.PI / 180);
+    if (V === m7) {   // the trees in view: by their depth from the camera (the free fall's view reaches behind straight down)
+      for (const [x, y, kind, s] of TREES) { const d = (x - cam.x) * fx + (y - cam.y) * fy; if (d * cp + cam.h * sp > 20 && d < 2600) m7.shape(kind, x, y, 0, { size: s }); }
       for (const c of CLOUDS) m7.add(c[0], c[1], c[2], (g, sx, sy, k) => cloud(c, k)(g, sx, sy));
     } else {
       for (const c of WCLOUDS) w7.add(c[0], c[1], c[2], (g, sx, sy, k) => cloud(c, k)(g, sx, sy));
@@ -487,11 +490,12 @@ const SKY = (() => {
   }
 
   /** the bot (tools/kits-test.mjs): each event flown by the autopilot to its end: the plane round the rings and onto the
-   *  runway, the diver through the hoops onto the target, the airship to the three beacons and home */
+   *  runway, the diver through the hoops onto the target, the airship to the three beacons and home (first, a player who
+   *  joined on the keyboard's right half: let go as SKY starts) */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
-      game.go('sky', null, { fade: 0 }); game.advance(1 / 120); const out = {};
+      game.addPlayer({ keys: 'right' }); game.go('sky', null, { fade: 0 }); game.advance(1 / 120); const out = { solo: game.players.length };   // (a player who joined another game: let go here)
       for (const e of ['plane', 'dive', 'voyage']) {
         start(e); pilot = true; let n = 0; for (; n < 400 && mode === 'fly'; n++) game.advance(1);
         out[e] = e === 'plane' ? { rings: S.rings, landed: S.landed, score: res && res.total, seconds: n } : e === 'dive' ? { rings: S.rings, dist: Math.round(S.dist), soft: S.soft, score: res && res.total, seconds: n } : { lit: S.lit.filter(Boolean).length, home: S.home, seconds: n };
@@ -502,12 +506,14 @@ const SKY = (() => {
   }
 
   return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['gas', 'slow', 'act'], camera: { zoom: false },
-    enter(d) { mode = 'menu'; S = null; ev = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); if (d && d.part) start(['plane', 'dive', 'voyage'].includes(d.part) ? d.part : 'plane'); },
+    enter(d) {
+      game.allowJoin(false); while (game.players.length > 1) game.removePlayer(game.players.length);   // (flown alone: those who joined another game let go, the whole keyboard player 1's again)
+      mode = 'menu'; S = null; ev = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); if (d && d.part) start(['plane', 'dive', 'voyage'].includes(d.part) ? d.part : 'plane'); },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'results') { toMenu(); return true; } return false; },
     update, draw, bot,
     /** an event flown by the autopilot (a demo; the bot's) */
     demo(e) { start(e); pilot = true; },
-    state: () => S && { mode, ev, t: +t.toFixed(2), x: Math.round(S.x), y: Math.round(S.y), z: Math.round(S.z), yaw: +S.yaw.toFixed(3), roll: S.roll !== undefined ? +S.roll.toFixed(3) : 0, speed: S.speed !== undefined ? Math.round(S.speed) : 0, thr: S.thr !== undefined ? +S.thr.toFixed(2) : 0, rings: S.rings, down: S.down, score: res && res.total },
+    state: () => S && { mode, ev, t: +t.toFixed(2), x: Math.round(S.x), y: Math.round(S.y), z: Math.round(S.z), yaw: +S.yaw.toFixed(3), roll: S.roll !== undefined ? +S.roll.toFixed(3) : 0, speed: S.speed !== undefined ? Math.round(S.speed) : 0, thr: S.thr !== undefined ? +S.thr.toFixed(2) : 0, rings: S.rings, down: S.down, chute: S.opened ? Math.round(S.opened) : null, score: res && res.total },   // (chute: the height the dive's opened at)
     /** the proof: the light plane from its start, the throttle up, a bank to the right and a climb, then level */
     run: (n = 600) => proof('sky', n, (i, k) => {
       if (i === 2) start('plane');

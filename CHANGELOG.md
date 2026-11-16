@@ -5,6 +5,23 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.102.0 (2026-11-16)
+
+The last gaps in the owner's Mode 7 list played: Pole Position's and Top Gear's lap race against a pack (ROAD's CIRCUIT, and the duel on it), Super Star Wars' free roam (BLASTER's SPEEDER); an audit of the six Mode 7 kits, each finding fixed and checked; two engine fixes it turned up.
+
+- **Engine**: ROAD's CIRCUIT (Pole Position, Top Gear; `#road/circuit`): three laps of a closed desert track (the road loops) from the back of a grid of seven cars that race, ease off in the bends, change lines round you and bump; lap times and the best kept, a place, the top three wins. The duel now races the circuit and its pack, two players split screen (Top Gear, Lotus), the first over the line after three laps winning.
+- **Engine**: BLASTER's SPEEDER (Super Star Wars' speeders; `#blaster/speeder`, the fifth stage): a speeder turned freely, low over a desert: four crawlers far apart to find by a radar and bring down, skimmers that hunt you.
+- **Engine**: the road module: a thing placed with `pass: true` (a gate over the road) is drawn but never hit. `road.hits` counted an arch's whole width, so ROAD's coast run spun out under its own checkpoint arches whenever the car was near the middle of the road.
+- **Engine**: the mode7 module: the sky's lowest color under the floor when the camera isn't rolled (as when it is), so a short far edge leaves no stale or black band under the horizon; a globe's floor is drawn whole after the models past its edge (it had been drawn at the last model's fog).
+- **Engine**: ROAD: the rewind puts back the drift, its charge and the boost (Codex's review of v0.101.0); holding R past the oldest moment waits there (one rewind, not all three); the duel on one keyboard (W and S player 1's, the arrows player 2's), a solo mode after it giving player 1 the whole keyboard back; the striker shows FIRE alone; `#road/hd`'s HUD and menus scale with it; tail lights follow the brake of the player in that car.
+- **Engine**: BLASTER: the jet's camera pitches up as it climbs (up climbs); no lock-on with no missiles; the stage card is a grace (ZONE's first pods hit during it); ZONE's craft stops at its course's end; a click in the safari fires once; the harrier's camera keeps the hero on the screen and its aim leans to what a shot can hit.
+- **Engine**: SKY: the dive's target clear of trees, trees under a straight-down view kept, the results box clear of the banner, the sea's waves fading before the canvas's edge, a player who joined another game let go.
+- **Engine**: ZERO: a phone's tap ends the attract race; a race of one after VS gives player 1 the whole keyboard back; the results fit the GBA's 160 rows.
+- **Engine**: KART: on a phone the stick held down brakes and backs a kart off a wall; two on one keyboard have W and up for their gas; past the line the CPU drives your kart; the results fit a GBA's 160 rows.
+- **Engine**: SPECIAL: the tube's camera banks the right way, its runner upright and its three gates drawn; the arena's karts start facing open lanes, its end names the kart with the most balloons, its clock and end box drawn once over a split screen; on a phone the arena's stick pulled down backs up; a stage of one sends joined players off.
+- **Tools**: the kits test runs ROAD's circuit and the duel on it, BLASTER's speeder, the solo keyboard after two-player modes in ROAD, ZERO, KART and SPECIAL, and reads each kart's and machine's real time stood still; the phone test taps SKY's chute, the striker's buttons, the safari's single shot, ZERO's attract tap, KART's backing off a wall and SPECIAL's arena; contract checks for the floor under a short far edge, a globe's floor drawn whole and a gate over the road.
+- **Docs**: `docs/MODE7.md` made honest (what of each game is not there), with Pole Position, Top Gear and Super Star Wars on rows of their own; D94 and D95: KART (218,000) and BLASTER (221,000) keep token budgets of their own.
+
 ## 0.101.0 (2026-11-15)
 
 Victory Heat Rally's drift and Horizon Chase's resolution in ROAD, the GBA modes letterboxed exactly, a page of which kit plays which Mode 7 game, and Codex's review of v0.100.0.
