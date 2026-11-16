@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.103.1 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.104.1 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and 25 working games and an animation lab.
@@ -33,7 +33,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.103.1)
+# my-3D2dge API card (v0.104.1)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -3099,7 +3099,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </script>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.103.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.104.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -3127,7 +3127,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.103.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.104.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -3214,7 +3214,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.103.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.104.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -14144,7 +14144,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.103.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.104.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14371,7 +14371,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/click.js ---- */
 /*!
-my-3D2dge module CLICK v0.103.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.104.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14750,7 +14750,7 @@ E.Click = Click;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.103.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.104.1: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14990,7 +14990,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.103.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.104.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -15555,7 +15555,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.103.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.104.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15741,7 +15741,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.103.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.104.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16153,7 +16153,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mesh.js ---- */
 /*!
-my-3D2dge module MESH v0.103.1: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.104.1: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16294,7 +16294,7 @@ E.Mesh = Mesh;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.103.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.104.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16656,7 +16656,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!
-my-3D2dge module PHYSICS v0.103.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.104.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17026,7 +17026,7 @@ E.Physics = Physics;
 <script>
 /* ---- inlined from engine/modules/rewind.js ---- */
 /*!
-my-3D2dge module REWIND v0.103.1: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.104.1: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17089,7 +17089,7 @@ E.Rewind = Rewind;
 <script>
 /* ---- inlined from engine/modules/rhythm.js ---- */
 /*!
-my-3D2dge module RHYTHM v0.103.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.104.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -17299,7 +17299,7 @@ E.Rhythm = Rhythm;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.103.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.104.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17385,7 +17385,7 @@ class Road {
     const W = this.o.width, fog = this.o.fog;
     return { z, x, w: model.bounds * (o.scale || 1) * 2, draw: g => {
       const a = g.globalAlpha; g.globalAlpha = 1;   // (the road fogs a thing by its transparency: a model's faces mix toward the fog instead)
-      const C = this._cam, near = (X, Y, Z) => { let d = X - C.z; if (d < -this.length / 2) d += this.length; return d < 400 ? null : this.project(X, Y / W, Z); };   // (a corner at or behind the camera: its face left out)
+      const C = this._cam, N = this.length, near = (X, Y, Z) => { let d = ((X - C.z) % N + N) % N; if (d > N / 2) d -= N; return d < 400 ? null : this.project(X, Y / W, Z); };   // (a corner at or behind the camera: its face left out; distances round the lap, as the camera's)
       model.draw(g, near, Object.assign({}, o, { x: z, y: x * W, z: o.y || 0, mix: a < 1 && fog ? [fog.color, (1 - a) * .9] : o.mix }));
       g.globalAlpha = a; E.px.reset(g);
     } };
@@ -17409,7 +17409,7 @@ class Road {
    *  or null behind it */
   project(z, x, y = 0) {
     const C = this._cam; if (!C) return null;
-    let dz = z - C.z; if (dz < 0) dz += this.length;
+    const N = this.length, dz = ((z - C.z) % N + N) % N;   // (ahead of the camera round the lap: a distance a lap or more on, a lap's racer, is where that place is)
     const L = this.o.segment, u = dz / L + C.pct, k = Math.floor(u), B = C.bend, b = k + 1 < B.length ? B[k] + (B[k + 1] - B[k]) * (u - k) : B[B.length - 1] || 0;
     const p = this._p(x * this.o.width + b, this.yAt(z) + y, C.z + dz, C); return p && [p.x, p.y, p.scale];
   }
@@ -17488,7 +17488,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.103.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.104.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -17674,7 +17674,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.103.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.104.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18010,7 +18010,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/songs.js ---- */
 /*!
-my-3D2dge module SONGS v0.103.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.104.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18167,7 +18167,7 @@ E.Songbook = Songbook;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.103.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.104.1: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -18378,7 +18378,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.103.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.104.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -18823,7 +18823,7 @@ E.tooltip = (r, x, y, lines) => {
 <script>
 /* ---- inlined from engine/modules/terrain.js ---- */
 /*!
-my-3D2dge module TERRAIN v0.103.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.104.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -29455,10 +29455,10 @@ const SKY = (() => {
    *  that way) and turns it; the fuel runs down (faster on GAS), and when it's gone it falls; down again on the ground
    *  (once up), the landing judged by the pad and how hard */
   function belt(P, dt, k) {
-    if (P.down) { P.v *= .9; return; }
+    if (P.down) { P.v *= .9; P.roll *= .9; return; }   // (down: it stops, and stands up straight)
     const idle = P.z <= 0 && !k.gas, lift = P.fuel <= 0 ? -1.3 : k.gas ? 1 : k.brake ? -1 : -.3; P.thrust = !idle && lift > -.5 ? 1 : 0;   // (on the ground it stands, its jets off, till GAS)
     if (!idle) P.fuel = Math.max(0, P.fuel - (1 + (k.gas ? 2 : 0)) * dt); P.vz += (lift * 70 - P.vz) * Math.min(1, dt * 1.6);
-    P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += ((P.z > 0 ? -clamp(k.y, -1, 1) * 120 : 0) - P.v) * Math.min(1, dt * (P.z > 0 ? 1.1 : 6));   // (the lean flies it only off the ground) P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;
+    P.yaw += clamp(k.x, -1, 1) * 1.4 * dt; P.v += ((P.z > 0 ? -clamp(k.y, -1, 1) * 120 : 0) - P.v) * Math.min(1, dt * (P.z > 0 ? 1.1 : 6)); P.roll += (clamp(k.x, -1, 1) * .3 - P.roll) * Math.min(1, dt * 4); P.lean = P.v / 400;   // (the lean flies it only off the ground)
     P.x += Math.cos(P.yaw) * P.v * dt; P.y += Math.sin(P.yaw) * P.v * dt; P.z = Math.max(0, P.z + P.vz * dt); if (P.z > 15) P.up = true;
     if (P.z <= 0 && (P.up || P.fuel <= 0)) { P.down = true; P.dist = Math.hypot(P.x - PAD[0], P.y - PAD[1]); P.soft = P.vz > -32; say(E.t(P.dist < 15 ? 'sky.bull' : P.dist < 90 ? 'sky.landed' : 'sky.miss')); A.sfx(P.soft ? 'land' : 'hurt'); if (!P.soft) game.shake(4); }
   }
@@ -30104,7 +30104,7 @@ const ROAD = (() => {
   function grid(P, q) {
     const s = clamp(Math.round((q - 20) / .8), 0, 7), at = j => ({ z: SEG * 4 + (7 - j) * 700, x: [-2 / 3, 0, 2 / 3][j % 3] }); let j = 0;
     for (const v of P.rivals) { if (j === s) j++; Object.assign(v, at(j++), { speed: 0 }); v.goal = v.x; }
-    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lean: 0, crash: 0, spin: 0, hop: 0, bump: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 });   // (a standing start: a spin carried over the line is over) P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');
+    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lean: 0, crash: 0, spin: 0, hop: 0, bump: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 }); P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');   // (a standing start: a spin carried over the line is over)
   }
   /** a car of the pack and a player's touch: pushed apart; the one behind loses its speed */
   function bump(P, v, gap) { const sd = P.x < v.x ? -1 : 1; P.x += sd * .12; v.x -= sd * .12; v.goal = v.x; if (gap > 0) P.speed = Math.min(P.speed, v.speed) * .85; else v.speed *= .85; P.bump = .5; A.sfx('bump'); game.shake(2); }
@@ -30156,7 +30156,8 @@ const ROAD = (() => {
         if (v.fall > 0) { v.fall -= dt; v.speed = Math.max(0, v.speed - 4200 * dt); v.z += v.speed * dt; if (v.fall <= 0) { v.hp = 3; v.speed = 2400; } continue; }   // (down: it tumbles to a stop, then gets back on)
         const gap = v.z - P.z, want = TOP * v.pace * (gap > 8000 ? .92 : gap < -8000 ? 1.08 : 1) * (P.circuit ? 1 - Math.abs(road.curveAt(v.z)) * .02 : 1), c = road.centers(v.z)[0];   // (a car eases off in a bend)
         v.speed += clamp(want - v.speed, -1600 * dt, 1500 * dt); v.z += v.speed * dt;
-        const block = (P.circuit ? (DUO || [P]).map(Q => ({ z: Q.z, lane: Q.x - c })) : L.traffic).find(o => o.z > v.z && o.z - v.z < 2600 && Math.abs(c + o.lane - v.x) < .45);   // (on the circuit: a player ahead in its line) if (block) v.goal = c + (o => o > 0 ? -2 / 3 : o < 0 ? 2 / 3 : (v.k & 1 ? 2 / 3 : -2 / 3))(block.lane);
+        const ahead = P.circuit ? (DUO || [P]).map(Q => ({ z: Q.z, lane: Q.x - c })) : L.traffic, blocked = x => ahead.some(o => o.z > v.z && o.z - v.z < 2600 && Math.abs(c + o.lane - x) < .45);
+        if (blocked(v.goal)) { const free = [-2 / 3, 0, 2 / 3].map(l => c + l).filter(x => !blocked(x)).sort((a, b) => Math.abs(a - v.x) - Math.abs(b - v.x))[0]; if (free !== undefined) v.goal = free; }   // (the lane it's bound for blocked ahead, by traffic or, on the circuit, a player: the nearest lane clear)
         v.x += clamp(v.goal - v.x, -1, 1) * dt * 1.4;
         for (const o of L.traffic) if (Math.abs(o.z - v.z) < 900 && Math.abs(c + o.lane - v.x) < .35) { v.speed *= .6; v.x += v.x > c + o.lane ? .2 : -.2; }
         if (P.circuit) { if (Math.abs(gap) < 1100 && Math.abs(v.x - P.x) < .4 && P.bump <= 0 && P.crash <= 0) bump(P, v, gap); }
@@ -30350,7 +30351,8 @@ scenes.road = ROAD;
  * KEYS: left / right steer, up / Z gas, down / X brake, Space / C boost. A pad: the stick, A gas, X brake, B boost.
  * TOUCH: the stick steers, it accelerates by itself; BOOST.
  * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floors, and the ribbon as m7.quad strips over them; E.Car and
- * E.Race (the drive module) the machines, the laps and the drivers (heights: true, as the ribbon crosses itself); E.Mesh
+ * E.Race (the drive module) the machines, the laps and the drivers (heights: true, as the ribbon crosses itself; a
+ * machine's body falls on its own, so off the kicker's crest it flies a moment, Power Drift's jump); E.Mesh
  * (the mesh module) the machines; this file the tracks, the energy, the ribbon's walls and the HUD.
  * ===================================================================================== */
 const ZERO = (() => {
@@ -30392,7 +30394,8 @@ const ZERO = (() => {
     return { map, m7, towers };
   }
   /* ---- SKY RIBBON: a figure of eight in the air (the line's points [x, y, z]), its segments, pillars and shadow ---- */
-  const HW = 64, RIB = new E.Path(Array.from({ length: 24 }, (_, i) => { const a = i / 24 * Math.PI * 2; return [2048 + 1500 * Math.sin(a), 2048 + 1050 * Math.sin(a) * Math.cos(a), 230 + 170 * Math.cos(a) + 30 * Math.sin(a * 3)]; }), { closed: true, smooth: 'catmull' });
+  const rib = a => [2048 + 1500 * Math.sin(a), 2048 + 1050 * Math.sin(a) * Math.cos(a), 230 + 170 * Math.cos(a) + 30 * Math.sin(a * 3)], ST = Math.PI / 12;   // (the figure of eight's point at angle a)
+  const HW = 64, RIB = new E.Path([0, 2 / 3, 1, 4 / 3, ...Array.from({ length: 22 }, (_, i) => i + 2)].map(k => { const q = rib(k * ST); if (k === 1) q[2] += 20; if (k === 4 / 3) q[2] += 16; return q; }), { closed: true, smooth: 'catmull' });   // (the line through 24 points round, two more either side of the kicker: a ramp on the straight past the overpass, a shelf to land on after its crest, Power Drift's jump)
   const RL = RIB.length, STEP = 64;
   let sky = null;
   function buildSky() {
@@ -30426,9 +30429,18 @@ const ZERO = (() => {
     s = ((s % RL) + RL) % RL; const S = sky.segs, k = Math.min(S.length - 1, Math.floor(s / STEP)), a = S[k], b = S[(k + 1) % S.length], t = (s - a.s) / ((k + 1 < S.length ? b.s : RL) - a.s), dz = a.dz + (b.dz - a.dz) * t;
     return { z: RIB.at(s).z - dz * u / HW, bank: a.bank + (b.bank - a.bank) * t };
   }
-  function ride(R) {   // (held to it: down a slope it never leaves the ground; at the middle's height, so its place on the line is exact, drawn lifted by the bank)
+  function ride(R, dt) {   // (held to it: at the middle's height, so its place on the line is exact, drawn lifted by the bank)
     const c = R.car, s = RIB.nearest(c.x, c.y, c.z), p = RIB.at(s), f = surf(s, (c.x - p.x) * -Math.sin(p.angle) + (c.y - p.y) * Math.cos(p.angle));
     R.pit = s > RPIT[0] && s < RPIT[1]; R.slope = (RIB.at(s + 20).z - p.z) / 20; R.bank = f.bank; R.lift = f.z - p.z; c.z = p.z; c.vz = 0; c.onGround = true;
+    // its body (drawn) rides the line's height as it changes step by step (on the line: the bank and a push sideways no part of it),
+    // and falls at G: where the line's climb eases off faster (off the kicker's crest: Power Drift's jump) it flies on, its
+    // shadow on the track, and lands back; a real jump (over 3 units high) costs a little speed
+    const G = 130, up = dt && R.pz !== undefined ? (p.z - R.pz) / dt : 0; R.pz = p.z;
+    if (!dt || R.bz === undefined) { R.bz = p.z; R.bv = up; R.air = 0; R.peak = 0; } else {
+      R.bv -= G * dt; R.bz += R.bv * dt; R.peak = Math.max(R.peak, R.bz - p.z);
+      if (R.bz <= p.z) { if (R.peak > 3) { c.vx *= .95; c.vy *= .95; R.jumps = (R.jumps || 0) + 1; if (players.includes(R)) A.sfx('land', { vol: .5 }); } R.bz = p.z; R.bv = up; R.air = 0; R.peak = 0; } else R.air += dt;
+    }
+    R.lift += R.bz - p.z;
   }
 
 
@@ -30471,7 +30483,7 @@ const ZERO = (() => {
     const was = race.t; race.update(dt, track === 'city' ? city.map : RIBMAP);
     if (was < 0 && Math.floor(was) !== Math.floor(race.t)) A.sfx(race.t >= 0 ? 'confirm' : 'select');
     for (const R of race.racers) {
-      const c = R.car; if (track === 'sky') ride(R);
+      const c = R.car; if (track === 'sky') ride(R, dt);
       if (c.hitWall && race.go && track === 'sky') {   // the ribbon's barrier (it runs along the line) turns it along itself, F-Zero's glance: a graze keeps most of its speed, a hit head-on little; grinding on, a little less each step (the city's walls of cells bounce it, as the kart's do)
         const p = RIB.at(RIB.nearest(c.x, c.y, c.z)), a = Math.abs(E.angDiff(c.angle, p.angle)) < Math.PI / 2 ? p.angle : p.angle + Math.PI, off = E.angDiff(c.angle, a);
         const v = Math.max(c.speed, R.v0 * (R.calm > .4 ? .9 - .5 * Math.abs(Math.sin(off)) : .985)); c.angle += off * .35; c.vx = Math.cos(a) * v; c.vy = Math.sin(a) * v;
@@ -30518,6 +30530,7 @@ const ZERO = (() => {
     const i = r.viewport ? r.viewport.i : 0, me = players[i], cam = cams[i], V = view();
     if (track === 'city') towersOf(cam); else ribbonFor(cam);
     const fx = Math.cos(cam.angle), fy = Math.sin(cam.angle);
+    for (const R of race.racers) if (R.bz - R.car.z > 1.5 && (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 10) V.add(R.car.x, R.car.y, R.car.z + (R.lift || 0) - (R.bz - R.car.z) + .5, (g, sx, sy, k) => { const a = g.globalAlpha; g.globalAlpha = .35; px.ell(g, sx, sy, 9 * k, 4 * k, '#000000'); g.globalAlpha = a; });   // (in the air: its shadow on the track)
     for (const R of race.racers) if (R === me || (R.car.x - cam.x) * fx + (R.car.y - cam.y) * fy > 26) V.mesh(MACHINE, R.car.x, R.car.y, R.car.z + (track === 'sky' ? R.lift || 0 : 0) + 3 + Math.sin(t * 9 + R.ci) * .6, { scale: .8, yaw: R.car.angle, roll: clamp(R.car.slide * .012, -.5, .5) + (track === 'sky' ? R.bank || 0 : 0), colors: { body: R.cast.body, trim: R.cast.trim, glow: R.car.boostT > 0 ? '#ffe060' : '#ff6a2a' } });   // (it leans with its slide; one beside the camera, nearer than its near plane can draw, is left out)
     V.draw(r, cam);
     if (me) race.hud(r, me, { color: players.length > 1 ? ['#a0d8ff', '#ffd080', '#a0ffa0', '#ffa0e0'][i] : '#ffffff', right: r.viewport && r.viewport.y > 0 ? null : cornerX() });
@@ -30568,7 +30581,7 @@ const ZERO = (() => {
     try {
       game.go('zero', null, { fade: 0 }); game.advance(1 / 120); auto = true; const out = {};
       G = { gp: true, pts: CAST.map(() => 0) };
-      for (const tr of ['city', 'sky']) { go(tr); let n = 0; for (; n < 220 && !race.over; n++) game.advance(1); out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +Math.max(...race.racers.map(R => R.stuckMax)).toFixed(2), energy: race.racers.map(R => Math.round(R.energy)) }; if (race.over) finish(); }   // (stuck: the longest any stood still)
+      for (const tr of ['city', 'sky']) { go(tr); let n = 0; for (; n < 220 && !race.over; n++) game.advance(1); out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +Math.max(...race.racers.map(R => R.stuckMax)).toFixed(2), energy: race.racers.map(R => Math.round(R.energy)), jumps: race.racers.reduce((a, R) => a + (R.jumps || 0), 0) }; if (race.over) finish(); }   // (stuck: the longest any stood still)   // (jumps: off the ribbon's kicker, over 0.3 s in the air)
       out.points = G.pts.slice(); auto = false;
       toMenu(); idle = 30; game.advance(1 / 60); out.attract = attract && mode === 'race';   // (left alone on the title: it races by itself)
       const I = game.input, dev = I.lastDevice; for (const e of ['down', 'up']) I.feed(e, game.W / 2, game.H * .3, { touch: true }); game.advance(1 / 60);

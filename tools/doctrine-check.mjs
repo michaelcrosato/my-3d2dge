@@ -25,11 +25,13 @@
 // 6. the kits' budgets (principle 1; D51): each kit is a whole engine, card and game for a chat model's context, so every 2D
 //    kit (dist/kits/my-3d2dge-<id>.html) is at most 216,000 cl100k tokens (D83) and a 3D kit within its own budget (the kit
 //    diet, tools/build.mjs). Counted exactly, with gpt-tokenizer only (an estimate of minified code is too rough here).
-//    Ten 2D kits keep budgets of their own (KIT2D: D69, D92 to D95); the 3D kits are back at their budgets from before D63 (D70).
+//    Ten 2D kits keep budgets of their own (KIT2D: D69, D92 to D97); the 3D kits are back at their budgets from before D63 (D70).
 // 7. a builder's copy (D76): the manuals a builder reads (the API card, the guide, the handoff package's README, the single
 //    files' headers, the agent edition's and the 3D engine's manuals) say the engine is theirs to change ("yours to
 //    change"), and none says not to (never edit the engine, do not change it unless asked, keep everything outside GAME
 //    START and GAME END as it is, read the code only to debug).
+// 8. no code in a comment: a // comment at the end of a line of the sources whose text ends with a statement (a call or
+//    an assignment after the comment's closing parenthesis, then a ;) has swallowed code that was meant to run
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
@@ -181,7 +183,7 @@ if (opt('baseline')) {
 {
   let count = null;
   try { const { countTokens } = await import('gpt-tokenizer/encoding/cl100k_base'); count = countTokens; } catch (e) { /* optional */ }
-  const KIT = 216000, KIT2D = { rpg: 264000, shooter: 242000, adventure: 228000, sim: 229000, rts: 227000, brawler: 225000, zero: 222000, special: 229000, kart: 218000, blaster: 221000 };   // (D83: languages, each kit's lines in its head)   // (D69; D80, D81: the matrix plan's engine, past Part 0's room)   // (a 2D kit; the six that can't get there without losing what they play: D69; ZERO's models: D92; SPECIAL's five stages: D93, D96; KART's: D94; BLASTER's five: D95)
+  const KIT = 216000, KIT2D = { rpg: 264000, shooter: 242000, adventure: 228000, sim: 229000, rts: 227000, brawler: 225000, zero: 225000, special: 229000, kart: 218000, blaster: 221000 };   // (D83: languages, each kit's lines in its head)   // (D69; D80, D81: the matrix plan's engine, past Part 0's room)   // (a 2D kit; the six that can't get there without losing what they play: D69; ZERO's models: D92, D97; SPECIAL's five stages: D93, D96; KART's: D94; BLASTER's five: D95)
   const KIT3D = { action: 250000, platformer: 244500, shooter: 322000, horror: 268000, racing: 257000, flight: 258000, crawler: 262000 };   // (D83)   // (a 3D kit: D51, the horror kit's D61, the racing and flight kits' D64; back from D63 by the 3D diet: D70; the crawler's D72)
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');
@@ -216,6 +218,19 @@ if (opt('baseline')) {
     for (const m of text.matchAll(NOT)) { nots++; fail('copy', `${f}:${text.slice(0, m.index).split('\n').length}: "${m[0].replace(/\s+/g, ' ')}" tells a builder to leave the engine alone, but their copy is theirs to change (D76): say that instead, or supersede D76 in docs/DECISIONS.md`); }
   }
   console.log(`7. a builder's copy (D76): ${say} of ${COPIES.length} manuals say the engine is the builder's to change, ${nots ? nots + ' line(s) say not to' : 'none says not to'}`);
+}
+
+/* 8. no code in a comment */
+// a // comment put at the end of a line in the middle of it leaves what follows commented out: the code never runs, and
+// nothing else notices (it happened four times in the Mode 7 kits, v0.102.0 and v0.103.0)
+{
+  const CODE = /\)\s+(?:(?:if|for|while|return|const|let|var|new)\b|[A-Za-z_$][\w$.\[\]]*\s*(?:(?:[-+*/%&|^]|\*\*|<<|>>>?|&&|\|\||\?\?)?=(?!=)|\+\+|--|\(|\.\w+\()).*[;}]\s*$/;   // (after the comment's closing parenthesis: a statement, to the line's end)
+  let n = 0, seen = 0;
+  const walk = d => { for (const e of readdirSync(join(root, d), { withFileTypes: true })) { const f = d + '/' + e.name; if (e.isDirectory()) walk(f); else if (f.endsWith('.js')) {
+    seen++; read(f).split('\n').forEach((l, i) => { const t = l.trim(), c = l.indexOf('//'); if (c < 0 || t.startsWith('//') || t.startsWith('*') || /https?:/.test(l)) return;
+      if (CODE.test(l.slice(c + 2).trim())) { n++; fail('comments', `${f}:${i + 1}: code after a // comment never runs: move the comment to the end of the line (${l.slice(c, c + 90).trim()}...)`); } }); } } };
+  for (const d of ['engine', 'src']) walk(d);
+  console.log(`8. code in comments: ${n ? n + ' line(s) whose comment swallowed code' : 'none'} (${seen} source files)`);
 }
 
 for (const n of notes) console.log('   note: ' + n);

@@ -5,13 +5,23 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
-## 0.103.1 (2026-11-16)
+## 0.104.1 (2026-11-16)
 
 A builder's game (an open-world RPG made by another model on v0.100.0) crashed with `Maximum call stack size exceeded` in `Shell.back` when its co-op setup screen's Back was pressed: the screen's own `back` tidied up and then called `shell.back()`, as the engine's own audio-offset calibration did.
 
 - **Engine**: `shell.back()` called from inside the open screen's own `back` (`back: () => { tidy(); shell.back(); }`) closes that screen. It had called the screen's `back` again, forever, until the stack overflowed: a builder's screen with a back of its own had no way to close itself but `hide()`, and Cancel or Escape on the settings' audio-offset calibration crashed the page the same way. A `back` that doesn't call it still keeps its screen (to ask first), and one that closes two still sends the second through the screen under's own `back`.
 - **Engine**: `shell.show(name)` on the open screen updates it in place, and the focus stays where it was, as the Shell meant: it had made a new screen, so the focus went back to the first button. A screen redrawn as things change (that builder's co-op setup, shown again as each player gets ready) no longer sends a controller player's focus back to the top after every press.
 - **Tools**: contract-test cancels a screen whose own `back` calls `shell.back()` (and one that updates itself first), the audio-offset calibration, and a `back` that closes two; standard-test presses Escape on such a screen in Chromium and shows a screen again with the focus on its second button. Before the fix the cancels overflowed the stack and the focus went back to the first button.
+
+## 0.104.0 (2026-11-16)
+
+Power Drift's jumps, the last of the owner's three stretch goals played whole; code that trailing comments had swallowed runs again, and a check keeps it so.
+
+- **Engine**: ZERO's SKY RIBBON gains a kicker (a ramp on the straight past the overpass, a shelf after its crest to land on) and each machine a body that rides the line's height and falls under gravity: off the kicker's crest it flies, the faster the higher (a hop of 6 to 12 units at top speed, 30 to 45 boosted), its shadow on the track, and lands back losing a little speed (Power Drift). Nothing else launches it: not the bank, a barrier or a knock.
+- **Engine**: fixed, from Codex's review of v0.103.0: the road module projected a distance a lap or more past the camera's (a circuit racer's, which keeps growing past `road.length` while the camera's wraps) as far off, so from ROAD's circuit's second lap on every car, yours too, shrank toward the horizon; `road.project` and `road.mesh` now take distances round the lap.
+- **Engine**: fixed: code a `//` comment had swallowed at the end of a line never ran. ROAD: the grid banner, its sound and the turn reset after the qualifying lap; the rash riders' and the circuit pack's lane change round traffic or a player ahead (since v0.102.0; one re-picks only when the lane it's bound for is blocked, the nearest clear lane, so none flips back and forth). The 3D shooter's gun now dips on a landing, not lifts. SKY: the rocket belt's roll and lean (and, down, it stands up straight). The 3D shooter: the spring that takes back the dip a landing gives the gun (since v0.73.0).
+- **Tools**: the doctrine check's eighth part fails on a line whose trailing comment ends in a statement (code that never runs). The kits test counts ZERO's jumps.
+- **Docs**: `docs/MODE7.md`'s Power Drift row; D97: ZERO's budget 225,000.
 
 ## 0.103.0 (2026-11-16)
 
