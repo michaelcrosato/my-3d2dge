@@ -1339,9 +1339,10 @@ class Input {
       if (was) { fingers.delete(id); if (![...fingers.values()].includes(was)) { this.release('Act:' + was.dataset.act); was.classList.remove('on'); } }
       if (b) { fingers.set(id, b); this.press('Act:' + b.dataset.act); b.classList.add('on'); }
     };
-    box.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); try { box.setPointerCapture(e.pointerId); } catch (err) { /* gone */ } to(e.pointerId, under(e)); }, { signal });
-    box.addEventListener('pointermove', e => { if (box.hasPointerCapture && box.hasPointerCapture(e.pointerId)) to(e.pointerId, under(e)); }, { signal });
-    for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) box.addEventListener(t, e => to(e.pointerId, null), { signal });
+    const down = new Set();   // (the fingers on the buttons, on one or between two)
+    box.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); down.add(e.pointerId); try { box.setPointerCapture(e.pointerId); } catch (err) { /* gone */ } to(e.pointerId, under(e)); }, { signal });
+    box.addEventListener('pointermove', e => { if (down.has(e.pointerId)) to(e.pointerId, under(e)); }, { signal });
+    for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) box.addEventListener(t, e => { down.delete(e.pointerId); to(e.pointerId, null); }, { signal });
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {

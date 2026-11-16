@@ -172,6 +172,9 @@ if (!process.argv.includes('--node')) {
       await p.keyboard.press('ArrowRight'); await ev(p, () => step()); await p.keyboard.press('ArrowRight'); await ev(p, () => step());
       const st = await ev(p, () => [game.shell.screen, game.settings.volume, game.audio.volume, [...document.querySelectorAll('.esh-tabs button')].map(e => e.textContent).join(), (document.querySelector('.esh-tabs button.on') || {}).textContent, [...document.querySelectorAll('.esh-row')].some(r => /^Full screen/.test(r.textContent)), (document.querySelector('.esh-desc') || {}).textContent]);
       check(`${ed}: Settings: tabs Display, Sound and Comfort (E turns to Sound: its rows alone, the focused row's help below them); the arrows turn a slider, applied at once`, st[0] === 'settings' && st[1] > vol0 && st[2] === st[1] && st[3] === 'Display,Sound,Comfort' && st[4] === 'Sound' && !st[5], JSON.stringify([vol0, st]));
+      const hov = await ev(p, () => { const b = [...document.querySelectorAll('.esh-sh .esh-row button, .esh-sh .esh-row input')].pop(), q = b.getBoundingClientRect();
+        b.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse', clientX: q.left + 4, clientY: q.top + 4, bubbles: true })); return document.activeElement === b; });
+      check(`${ed}: the mouse over a row's control moves the focus there`, hov);
       await p.keyboard.press('Escape'); await ev(p, () => step());
       // Controls: rebind by pressing the key; a conflict is said and changes nothing; Escape cancels
       await ev(p, () => [...document.querySelectorAll('.esh-sh button')].find(b => b.textContent === 'Controls').click()); await ev(p, () => step());
@@ -298,6 +301,20 @@ if (!process.argv.includes('--node')) {
       await ev(p, () => { game.settings.set('touch', 'off'); step(); });
       const offT = await ev(p, () => [!!document.querySelector('[data-sys=touch]'), game.input.touchEnabled]);
       check(`${ed}: touch buttons follow the player's side, size and visibility`, lb[0] < 40 && lb[1] === 80 && lb[2] === 'right' && offT.join() === 'false,false', JSON.stringify([lb, offT]));
+      // the controls standard's touch (docs/CONTROLS.md): four buttons in a diamond (a pad's face: bottom, right, left, top),
+      // a finger sliding from one to the next, a toast tapped away
+      const lay = await ev(p, () => { game.settings.set('touch', 'on'); game.settings.set('hand', 'right'); game.settings.set('touchSize', 62); const I = game.input;
+        I.touchButtons(['jump', 'attack', 'dash', 'skill'], { layout: 'diamond', slide: true }); step();
+        const at = a => { const q = document.querySelector('[data-sys=touch] [data-act=' + a + ']').getBoundingClientRect(); return [Math.round(q.left + q.width / 2), Math.round(q.top + q.height / 2)]; };
+        const [S, R, L, T] = ['jump', 'attack', 'dash', 'skill'].map(at), box = document.querySelector('[data-sys=touch]');
+        const fire = (type, [x, y]) => document.elementFromPoint(x, y).dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 9, clientX: x, clientY: y, bubbles: true }));
+        fire('pointerdown', S); step(1); const one = [I.down('jump'), I.down('attack')]; fire('pointermove', R); step(1); const two = [I.down('jump'), I.down('attack')]; fire('pointerup', R); step(1);
+        game.shell.toast('Saved'); step(1); const t = document.querySelector('.esh-toast'), q = t.getBoundingClientRect(), mid = [q.left + q.width / 2, q.top + q.height / 2];
+        const tw = t.classList.contains('on'); for (const ty of ['pointerdown', 'pointerup']) t.dispatchEvent(new PointerEvent(ty, { pointerType: 'touch', pointerId: 11, clientX: mid[0], clientY: mid[1], bubbles: true })); step(1);
+        I.touchButtons(['jump', 'attack']); step();
+        return { diamond: S[0] === T[0] && L[1] === R[1] && S[1] > R[1] && T[1] < R[1] && R[0] > S[0] && L[0] < S[0] && !!box, slide: one.join() + '|' + two.join() + '|' + I.down('attack'), toast: tw && !t.classList.contains('on') };
+      });
+      check(`${ed}: touch layouts: a diamond as a pad's face; a finger slides from JUMP to ATTACK; a toast goes at a tap`, lay.diamond && lay.slide === 'true,false|false,true|false' && lay.toast, JSON.stringify(lay));
       // a game's own E.Shell takes over from the engine's: one interface, the standard menu in it
       const own = await ev(p, () => { const ui = new E.Shell(game, { screens: { help: { keys: [['W', 'Up']] } } }); game.pause(); step(); return [document.querySelectorAll('.esh').length, game.shell === ui, [...document.querySelectorAll('.esh-sh button')].map(b => b.textContent).join()]; });
       check(`${ed}: a game's own E.Shell takes over from the engine's, with the standard menu`, own[0] === 1 && own[1] && /Resume,Settings,Controls/.test(own[2]) && /Help/.test(own[2]), JSON.stringify(own));
