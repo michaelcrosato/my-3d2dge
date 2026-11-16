@@ -10,6 +10,7 @@ One version number covers the engine, its agent edition, the docs and the games 
 Power Drift's jumps, the last of the owner's three stretch goals played whole; code that trailing comments had swallowed runs again, and a check keeps it so.
 
 - **Engine**: ZERO's SKY RIBBON gains a kicker (a hump on the straight past the overpass) and each machine a body that falls under gravity: off the kicker's crest at speed it flies a moment, its shadow on the track, and lands back losing a little speed (Power Drift).
+- **Engine**: fixed, from Codex's review of v0.103.0: the road module projected a distance a lap or more past the camera's (a circuit racer's, which keeps growing past `road.length` while the camera's wraps) as far off, so from ROAD's circuit's second lap on every car, yours too, shrank toward the horizon; `road.project` and `road.mesh` now take distances round the lap.
 - **Engine**: fixed: code a `//` comment had swallowed at the end of a line never ran. ROAD: the grid banner, its sound and the turn reset after the qualifying lap; the rash riders' and the circuit pack's lane change round traffic or a player ahead (since v0.102.0). SKY: the rocket belt's roll and lean. The 3D shooter: the spring that takes back the dip a landing gives the gun (since v0.73.0).
 - **Tools**: the doctrine check's eighth part fails on a line whose trailing comment ends in a statement (code that never runs). The kits test counts ZERO's jumps.
 - **Docs**: `docs/MODE7.md`'s Power Drift row; D97: ZERO's budget 225,000.

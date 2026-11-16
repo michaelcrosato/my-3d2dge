@@ -85,7 +85,7 @@ class Road {
     const W = this.o.width, fog = this.o.fog;
     return { z, x, w: model.bounds * (o.scale || 1) * 2, draw: g => {
       const a = g.globalAlpha; g.globalAlpha = 1;   // (the road fogs a thing by its transparency: a model's faces mix toward the fog instead)
-      const C = this._cam, near = (X, Y, Z) => { let d = X - C.z; if (d < -this.length / 2) d += this.length; return d < 400 ? null : this.project(X, Y / W, Z); };   // (a corner at or behind the camera: its face left out)
+      const C = this._cam, N = this.length, near = (X, Y, Z) => { let d = ((X - C.z) % N + N) % N; if (d > N / 2) d -= N; return d < 400 ? null : this.project(X, Y / W, Z); };   // (a corner at or behind the camera: its face left out; distances round the lap, as the camera's)
       model.draw(g, near, Object.assign({}, o, { x: z, y: x * W, z: o.y || 0, mix: a < 1 && fog ? [fog.color, (1 - a) * .9] : o.mix }));
       g.globalAlpha = a; E.px.reset(g);
     } };
@@ -109,7 +109,7 @@ class Road {
    *  or null behind it */
   project(z, x, y = 0) {
     const C = this._cam; if (!C) return null;
-    let dz = z - C.z; if (dz < 0) dz += this.length;
+    const N = this.length, dz = ((z - C.z) % N + N) % N;   // (ahead of the camera round the lap: a distance a lap or more on, a lap's racer, is where that place is)
     const L = this.o.segment, u = dz / L + C.pct, k = Math.floor(u), B = C.bend, b = k + 1 < B.length ? B[k] + (B[k + 1] - B[k]) * (u - k) : B[B.length - 1] || 0;
     const p = this._p(x * this.o.width + b, this.yAt(z) + y, C.z + dz, C); return p && [p.x, p.y, p.scale];
   }
