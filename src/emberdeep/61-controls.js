@@ -60,15 +60,17 @@ if (storedControls && typeof storedControls === "object") {
 		)
 			CONTROL.bindings[a] = [...new Set(codes)];
 	}
-	// a save from before the controls standard (no v): an action the player rebound keeps their codes and gains its new
-	// d-pad or touchpad button (the map ↑ and the touchpad, the labels ←, the portal ↓, the use →), unless another
-	// action of theirs already has it
+	// a save from before the controls standard (no v): the d-pad and the touchpad's new roles (the map ↑ and the touchpad,
+	// the labels ←, the portal ↓, the use →) go to their actions, rebound or not, unless the player gave that button to
+	// another action (one of them moved Potion onto the d-pad: it stays Potion's alone); the touchpad is never an
+	// action's only pad button
 	if (!(storedControls.v >= 2))
 		for (const [a, add] of [["interact", ["Pad15"]], ["portal", ["Pad13"]], ["map", ["Pad12", "Pad17"]], ["labels", ["Pad14"]]]) {
-			const codes = CONTROL.bindings[a];
-			if (!codes) continue;
-			for (const c of add)
-				if (!Object.values(CONTROL.bindings).some((b) => b.includes(c)) && codes.length < 12) codes.push(c);
+			const taken = (c) => Object.entries(CONTROL.bindings).some(([b, cs]) => b !== a && cs.includes(c));
+			const own = CONTROL.bindings[a] ? CONTROL.bindings[a].slice() : (INPUT[a] || []).filter((c) => !add.includes(c));
+			for (const c of add) if (!taken(c) && !own.includes(c) && own.length < 12) own.push(c);
+			if (!own.some((c) => /^Pad/.test(c) && c !== "Pad17") && own.includes("Pad17")) own.splice(own.indexOf("Pad17"), 1);
+			if (CONTROL.bindings[a] || own.join() !== (INPUT[a] || []).join()) CONTROL.bindings[a] = own;
 		}
 }
 CONTROL.v = 2;   // (the saves from here on are the standard's)
@@ -570,12 +572,14 @@ game.input.touchFilter = (e) => {
 		!UI.hot.some((h) => (h.click || h.drag) && inRect(m, h))
 	);
 };
+UI.fingers = new Set(); // the fingers on the canvas (not the stick's): two or more are a pinch, never a drag
 canvas.addEventListener("pointerdown", (e) => {
 	if (
 		e.pointerType === "mouse" ||
 		(game.input.stickId === e.pointerId && game.input.stickOn)
 	)
 		return;
+	UI.fingers.add(e.pointerId);
 	UI.mouse.cx = e.clientX;
 	UI.mouse.cy = e.clientY;
 	UI.mouse.active = true;
@@ -584,6 +588,7 @@ canvas.addEventListener("pointerdown", (e) => {
 	canvas.setPointerCapture(e.pointerId);
 });
 const endTouch = (e) => {
+	UI.fingers.delete(e.pointerId);
 	if (e.pointerType !== "mouse") {
 		game.input.release("Act:click");
 		UI.mouse.down = false;

@@ -3482,7 +3482,7 @@ class Game {
     if (ok('input')) this.input.use(s.input);
     if (ok('res') || ok('expand')) this.screen.setOptions(Object.assign(ok('res') ? { res: s.res } : {}, ok('expand') ? { expand: s.expand } : {}));
     if (ok('touch')) { this.input.touchButtons(Array.isArray(s.touch) ? s.touch : s.touch.buttons, Array.isArray(s.touch) ? {} : s.touch); this.input._touchScene = true; }
-    else if (!s.pausable && this.input._touchScene && this.input._touchArgs) this.input._touchOff();   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
+    else if (!s.pausable && this.input._touchArgs && (this.input._touchScene || (old && old.touch != null))) this.input._touchOff();   // (a scene that named touch buttons takes them away as it ends, even ones its enter set again)   // (a title or a game over that names no buttons: the last scene's go, not left over its menus; buttons the game set itself stay)
     if (ok('cursor')) { this.input.padCursor = s.cursor; this._sceneCursor = true; } else if (this._sceneCursor) { this.input.padCursor = false; this._sceneCursor = false; }   // (a scene's cursor ends with it)
     ok('camera');
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
@@ -10366,7 +10366,7 @@ class Shell {
     for (const k of S.keys('Controller').filter(k => !S.spec(k).show || S.spec(k).show(this._game))) add(this._row(k));
   }
   _capStart(a, device, name) {
-    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: !!CI._cr };
+    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: CI._cr || null, crOld: CI._cr || null };
     this._status = ENG(device === 'pad' ? 'controls.press_pad' : 'controls.press_key', { action: name });
     this._render();
   }
@@ -10562,7 +10562,7 @@ class Shell {
   /** binding a controller button: the first one pressed since binding began (Start cancels) */
   _capPad() {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
-    const cr = !!(I._cr && !I._cr.chord), crNew = cr && !c.cr; c.cr = cr;   // (Create comes to a game a quarter of a second late, for the hub's chord: here its press binds at once)
+    const t = c.cr, crNew = !!t && t !== c.crOld && !t.chord && !t.out && I._cr !== t; c.cr = I._cr || null;   // (Create comes a quarter of a second late, for the hub's chord: a tap binds as it is let go, a hold when it comes out, the chord never)
     const i = crNew ? 8 : I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
     const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
     if (i === 9) this._capEnd(ENG('controls.not_changed')); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
