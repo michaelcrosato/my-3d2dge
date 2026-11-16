@@ -25,7 +25,11 @@
   "special.turn.clear": "THE FORT IS CLEARED!",
   "action.gas": "Gas",
   "action.brake": "Brake",
-  "action.fire": "Fire"
+  "action.fire": "Fire",
+  "special.menu.room": "ROOM",
+  "special.room.gems": "GEMS {n}/3",
+  "special.room.out": "OUT OF THE TURNING ROOM!",
+  "special.room.late": "TIME UP: THE ROOM KEEPS YOU"
  },
  "notes": {
   "special.title": "The bonus stages' title, on its menu.",
@@ -49,6 +53,10 @@
   "special.turn.nests": "The nests still standing, {n}.",
   "special.turn.down": "The stage is lost: the soldier has no lives left.",
   "special.turn.clear": "The stage is won: every nest is destroyed.",
-  "action.fire": "A control's name: the one button, a jump on some stages and a shot on others."
+  "action.fire": "A control's name: the one button, a jump on some stages and a shot on others.",
+  "special.menu.room": "A stage: a room seen from the side that turns round as you climb through it.",
+  "special.room.gems": "The gems taken so far in the turning room, {n} of three.",
+  "special.room.out": "The stage is won: all three gems taken and out through the door.",
+  "special.room.late": "The stage is lost: the time ran out before you got out."
  }
 }
