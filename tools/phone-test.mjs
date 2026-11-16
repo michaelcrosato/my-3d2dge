@@ -30,7 +30,8 @@
 //  13e. zero: BOOST thumb-sized; it accelerates by itself; the stick steers
 //  13b. sky: GAS and SLOW thumb-sized in the plane (ACT only where it acts: the chute, a landing); the stick banks the
 //      plane and it turns; GAS opens the throttle; the dive's ACT and SLOW (no GAS): ACT tapped above the chute's band
-//      opens nothing, in it the chute; the voyage's GAS, SLOW and ACT (its landings)
+//      opens nothing, in it the chute; the voyage's GAS, SLOW and ACT (its landings); the hang glider's SLOW alone (its
+//      air brake: held, it slows); the helicopter's GAS, SLOW and FIRE (ACT, labelled): GAS held lifts it, FIRE a missile
 //  15. rpg's journey: its windows' rows a thumb's height; a tap on New game starts it; the stick walks the party; MENU
 //      opens the menu, a tap on a row opens it, BACK closes it
 //  16. tactics: the command list's rows a thumb's height; a tap on a unit selects it (its card); MOVE, then a tap on a
@@ -537,8 +538,9 @@ if (want('kart')) {
 
 /* 13b. sky: its buttons, the stick banking the plane, GAS; the dive's ACT, the chute; the voyage's buttons */
 if (want('sky')) {
-  console.log('sky: GAS and SLOW, thumb-sized; the stick banks the plane and it turns; GAS opens the throttle; the dive\'s ACT opens the chute in its band, not above it; the voyage has GAS, SLOW and ACT');
-  const shown = page => ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+  console.log('sky: GAS and SLOW, thumb-sized; the stick banks the plane and it turns; GAS opens the throttle; the dive\'s ACT opens the chute in its band, not above it; the voyage has GAS, SLOW and ACT; the glider SLOW alone, its air brake; the helicopter GAS, SLOW and FIRE, GAS lifting it and FIRE firing');
+  const shown = page => ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, text: b.textContent, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+  const hold = async (cdp, b, ms) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x, y: b.y }] }); await wait(ms); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(100); };
   const tap = async (cdp, b) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x, y: b.y }] }); await wait(150); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(150); };
   for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
     const { page, ctx, cdp, errors } = await open('sky', vp, 'sky/plane'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1200);
@@ -564,6 +566,19 @@ if (want('sky')) {
     await ev(page, () => window.__game.game.go('sky', { part: 'voyage' }, { fade: 0 })); await wait(600);
     const vy = await shown(page), vacts = vy.map(b => b.act).sort().join(), vsmall = Math.min(...vy.map(b => Math.min(b.w, b.h)));
     check(`sky ${label}: the voyage's GAS, SLOW and ACT, each a thumb's size`, vacts === 'act,gas,slow' && vsmall >= 44 && !errors.length, `buttons ${vacts}, smallest ${Math.round(vsmall)} CSS px${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    // the hang glider: SLOW alone (no engine: no GAS), held its air brake
+    await ev(page, () => window.__game.game.go('sky', { part: 'glider' }, { fade: 0 })); await wait(600);
+    const gl = await shown(page), gacts = gl.map(b => b.act).sort().join(), gsmall = Math.min(...gl.map(b => Math.min(b.w, b.h))), g0 = await st();
+    const slow = gl.find(b => b.act === 'slow'); if (slow) await hold(cdp, slow, 1500); const g1 = await st();
+    await page.screenshot({ path: resolve('check-output/phone', `sky-glider-${label.replace(/ /g, '-')}.png`) });
+    check(`sky ${label}: the glider's SLOW alone, a thumb's size; held, its air brake slows it`, gacts === 'slow' && gsmall >= 44 && g0.ev === 'glider' && g1.speed < g0.speed - 5 && !errors.length, `buttons ${gacts}, smallest ${Math.round(gsmall)} CSS px; speed ${g0.speed} -> ${g1.speed}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    // the helicopter: GAS, SLOW and ACT (labelled FIRE); GAS held lifts it off the pad, FIRE tapped fires a missile
+    await ev(page, () => window.__game.game.go('sky', { part: 'heli' }, { fade: 0 })); await wait(600);
+    const hb = await shown(page), hacts = hb.map(b => b.act).sort().join(), hsmall = Math.min(...hb.map(b => Math.min(b.w, b.h))), fire = hb.find(b => b.act === 'act'), up = hb.find(b => b.act === 'gas');
+    const h0 = await st(); if (up) await hold(cdp, up, 1200); const h1 = await st(); if (fire) await tap(cdp, fire); const h2 = await st();
+    await page.screenshot({ path: resolve('check-output/phone', `sky-heli-${label.replace(/ /g, '-')}.png`) });
+    check(`sky ${label}: the helicopter's GAS, SLOW and FIRE (ACT), each a thumb's size`, hacts === 'act,gas,slow' && fire && fire.text === 'FIRE' && hsmall >= 44, `buttons ${hb.map(b => b.act + ' ' + b.text).join(', ')}, smallest ${Math.round(hsmall)} CSS px`);
+    check(`sky ${label}: GAS held lifts the helicopter off the pad; FIRE tapped fires a missile`, h0.ev === 'heli' && h0.z === 0 && h1.z > 30 && h2.fired === 1 && !errors.length, `height ${h0.z} -> ${h1.z}, missiles fired ${h2.fired}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
