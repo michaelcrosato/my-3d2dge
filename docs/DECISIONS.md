@@ -1843,10 +1843,12 @@ An entry:
 ## D105 · 2026-11-16 · Input and a free camera run on the player's own time
 
 - **Principle:** the controls standard (D100): the pad's cursor and the camera are the player's, at any game speed
-- **Call:** each step's input (its clock, double taps, long presses, swipes, the pad's cursor) and a free camera's keys,
-  stick and edge pan advance by the step unscaled, not by `timeScale`: a sim stopped at timeScale 0 still has a cursor
-  and a camera, and slow motion no longer stretches a double tap's window or a fighter's input history (`input.history`
-  keeps a second of the player's time). Game time, `game.real` and every scene's `dt` are as before.
+- **Call:** the pad's cursor and a free camera's keys, stick and edge pan move by the step unscaled, not by
+  `timeScale`; input's clock (double taps, long presses, swipes, `buffered()`, `input.history`) keeps game time as
+  before, so slow motion keeps a buffer as long as it was, and runs on the player's own time only while the game's
+  stands still (timeScale 0). A sim stopped at timeScale 0 still has a cursor, a camera, a double click and a long
+  press. Game time, `game.real` and every scene's `dt` are as before. (A first version ran input's clock unscaled
+  always; the review found it shortened Emberdeep's buffers in its perfect-dodge slow motion, and it was narrowed.)
 - **Why:** at timeScale 0 the pad's cursor and the camera stood still, so a stopped park could not be built on a pad.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.107.0

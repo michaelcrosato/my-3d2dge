@@ -43,7 +43,7 @@ const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), 
 // from the first frame, before any touch: cornerArea's pinned), else the edge (the race's lap and time end left of it)
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 // START picks too (the touch START; Enter), and a pad's Options or Esc opens the standard menu
-const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 let active = null;               // the world of the scene that is playing (the shared keys turn its camera)
@@ -175,8 +175,8 @@ scenes.over = {
  * swaps, □ or the touchpad the items, ○ back in them, Options pauses. DUALSENSE: the light bar is the condition (green,
  * amber, red beating with the heart; red as you are hurt), L2 a firm pull, R2 the handgun's break while it has a round;
  * the pickups, the reload and the dry click from the controller's speaker; any pad rumbles on each shot, a bite, a
- * grab, a blow, a door, and beats with your heart in DANGER. TOUCH: the stick, ITEMS, RUN, AIM, ACT where there is
- * something (OPEN, TAKE, BOX, SAVE, USE, LOOK; FIRE while aiming, SHAKE in a grab), SWAP (to the knife or the gun) while
+ * grab, a blow, a door, and beats with your heart in DANGER. TOUCH: the stick, ITEMS, RUN, AIM, ACT named for what
+ * is there (OPEN, TAKE, BOX, SAVE, USE, LOOK; FIRE while aiming, SHAKE in a grab), SWAP (to the knife or the gun) while
  * not aiming; the touch assists (Settings, on at first) run at the stick's rim and lower the aim at a dog when the lock
  * moves to it. A tap picks on the items screen and in the box; a swipe closes them and takes a message away.
  * THE 3D: camera zones (world.camera.zones: fixed, one that turns after you, one on a rail), lock-on
@@ -582,8 +582,8 @@ const HORROR = (() => {
 
   /* ---- THE ITEMS SCREEN (I) and THE ITEM BOX: the world stands still while they are open ---- */
   const status = () => H.hp > 66 ? [E.t('horror3d.status.fine'), '#5ad070'] : H.hp > 33 ? [E.t('horror3d.status.caution'), '#e8c040'] : [E.t('horror3d.status.danger'), '#e8483a'];
-  function openItems() { mode = 'items'; menu = { i: 0, pick: null, sub: null, mt: game.input.mouse.t }; A.sfx('select'); world.camera.unlock(); H.aim = false; }
-  function openBox() { mode = 'box'; menu = { side: 0, i: 0, top: [0, 0], mt: game.input.mouse.t }; A.sfx('door'); }
+  function openItems() { mode = 'items'; menu = { i: 0, pick: null, sub: null, mt: game.input.mouse.t, skip: game.input.down('act') }; A.sfx('select'); world.camera.unlock(); H.aim = false; }
+  function openBox() { mode = 'box'; menu = { side: 0, i: 0, top: [0, 0], mt: game.input.mouse.t, skip: game.input.down('act') }; A.sfx('door'); }
   function closeScreen() { const was = mode; mode = 'play'; menu = null; if (was === 'box') A.sfx('door'); }
   function useItem(id) {
     const it = rpg.items[id];
@@ -597,7 +597,8 @@ const HORROR = (() => {
    *  a tap (on a part: pick it; outside the panel: back), a swipe (back). A left click is read as a click only, not as
    *  act's press as well (it is one of act's codes) */
   function screenInput() {
-    const I = game.input, M = menu, click = I.clicked(), moved = I.mouse.t !== M.mt; M.mt = I.mouse.t;
+    const I = game.input, M = menu, moved = I.mouse.t !== M.mt; M.mt = I.mouse.t;
+    let click = I.clicked(); if (M.skip && (click || !I.down('act'))) { M.skip = false; click = null; }   // (the click that ends the press that opened it is not one on it)
     const pick = (I.pressed('act') && I.lastDevice !== 'mouse') || I.pressed('confirm'), back = I.pressed('items') || I.pressed('cancel') || !!I.swipe(true);
     return { I, click, hover: moved ? I.pointer() : null, pick, back, outside: !!click && lay.panel && I.hit([lay.panel], click) < 0 };
   }
@@ -737,7 +738,7 @@ const HORROR = (() => {
     act: ['KeyE', 'KeyF', 'KeyJ', 'Space', 'Mouse0', 'Pad0', 'Pad7'], aim: ['KeyK', 'Mouse2', 'Pad6', 'Pad4'], run: ['ShiftLeft', 'ShiftRight', 'Pad1'], swap: ['KeyQ', 'Pad3'], items: ['KeyI', 'Tab', 'Pad2', 'Pad17'],
     start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
   // the touch buttons (the actions' names: ITEMS, SWAP, RUN, AIM, ACT); ACT and SWAP are named for what they do (update)
-  const TOUCH = ['items', 'swap', 'run', 'aim', 'act'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t('action.' + a))]));
+  const TOUCH = ['swap', 'items', 'run', 'aim', 'act'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t('action.' + a))]));
   // (assist: the touch assists, from the player's input: a proof's and the bot's own controls have none)
   const ctl = { move: [0, 0], tank: false, assist: false, down: a => game.input.down(a), pressed: a => game.input.pressed(a), use: a => game.input.consume(a) };
   function controls(dt) { ctl.tank = world.camera.tank; ctl.assist = game.input.assist; world.camera.steer(hero, game.input.move(), H.aim || H.grabbed || H.dead ? 0 : dt, ctl.move); if (H.aim) ctl.move[0] = game.input.move()[0]; return ctl; }
@@ -842,10 +843,11 @@ const HORROR = (() => {
       const want = H.room === 'gallery' && enemies.some(e => e.type === 'boss' && e.alive) ? DREAD : H.room === 'foyer' ? SAFE : HALL;
       if (want !== song && !ended && !H.dead) { song = want; A.music(want); }
       // ACT named for what it does here (OPEN, TAKE, BOX, SAVE, USE, LOOK; FIRE or STAB while aiming, SHAKE in a grab),
-      // hidden with nothing to do; SWAP to the other weapon while not aiming
+      // always in its place at the edge (FIRE comes where the thumb that aims expects it); SWAP to the other weapon while
+      // not aiming, first in the row, so its coming and going moves no other button
       const t = H.aim || H.grabbed || H.dead || world.passing ? null : world.reach(hero, 16), d = (t && t.data) || {};
       const what = H.dead ? null : H.grabbed ? 'shake' : H.aim ? (H.gun ? 'fire' : 'stab') : !t ? null : t.kind === 'door' ? (d.id === 'gate' ? 'look' : 'open') : d.item ? 'take' : t.kind === 'trunk' ? 'box' : t.kind === 'typewriter' ? 'save' : t === socket ? 'use' : null;
-      inp.touchSet('act', what ? E.t('horror3d.touch.' + what) : null, !!what);
+      inp.touchSet('act', what ? E.t('horror3d.touch.' + what) : null);
       inp.touchSet('swap', E.t(H.gun ? 'horror3d.hud.knife' : 'horror3d.touch.gun'), !H.aim && !H.grabbed && !H.dead);
     },
     draw(r) {

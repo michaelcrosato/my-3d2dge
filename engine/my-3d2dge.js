@@ -1309,8 +1309,9 @@ class Input {
     const rc = S.canvas.getBoundingClientRect(); return [((cx - rc.left) * S.dpr - S.OX) / S.S, ((cy - rc.top) * S.dpr - S.OY) / S.S];
   }
   /** advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and
-   *  released() (the engine calls it every step) */
-  tick(dt) {
+   *  released() (the engine calls it every step: dt its clock's step, game time; own the player's own, which moves the
+   *  pad's cursor at any game speed) */
+  tick(dt, own = dt) {
     this._suppressed.clear();
     this.clock += dt;
     let pads = [];
@@ -1339,7 +1340,7 @@ class Input {
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
-    if (this.padCursor) this._cursorStep(dt); else if (this._padDown) this._padCancel();   // (a press left as the cursor went: forgotten, never a click when it comes back)
+    if (this.padCursor) this._cursorStep(own); else if (this._padDown) this._padCancel();   // (a press left as the cursor went: forgotten, never a click when it comes back)
     // a tap is held for the one step after it (its release comes the step after that)
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
@@ -3504,8 +3505,8 @@ class Game {
   }
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    const u = this._uDt != null ? this._uDt : dt; this._uDt = null;   // u: this step in the player's own time, which slow motion and timeScale 0 don't touch: input's clock (double taps, long presses), the pad's cursor and a free camera run on it
-    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(u); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(u);   // (the other players: section 10j)
+    const u = this._uDt != null ? this._uDt : dt, idt = this.timeScale > 0 ? dt : u; this._uDt = null;   // u: this step in the player's own time (slow motion and timeScale 0 don't touch it): the pad's cursor and a free camera run on it; input's clock keeps game time (a buffer in slow motion as long as before), the player's while time stands still
+    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(idt, u); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(idt, u);   // (the other players: section 10j)
     this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
     this._ownRun('input', dt);

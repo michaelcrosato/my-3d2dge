@@ -1951,7 +1951,7 @@ class Settings {
     if (!sp || !sp.key || typeof sp.key !== 'string' || sp.key in Settings.prototype || sp.key === 'saved' || sp.key === 'onChange' || sp.key[0] === '_') { warn('setting:' + (sp && sp.key), 'a setting needs a key of its own: { key: "hints", label: "Hints", value: true }'); return undefined; }
     const s = Object.assign({ group: 'Game', type: sp.options ? 'select' : typeof sp.value === 'number' ? 'slider' : typeof sp.value === 'boolean' || sp.value === undefined ? 'toggle' : 'value' }, sp);
     this._specs[s.key] = s;
-    const saved = settingValue(s, this._raw[s.key]); if (saved !== undefined) this._saved[s.key] = saved;
+    const saved = settingValue(s, s.key in this._saved ? this._saved[s.key] : this._raw[s.key]); if (saved !== undefined) this._saved[s.key] = saved;   // (defined again: this session's choice)
     this[s.key] = saved !== undefined ? saved : this.default(s.key); this._apply(s.key);
     return this[s.key];
   }
@@ -1965,7 +1965,7 @@ class Settings {
     if (this.onChange) this.onChange(key, ok);
     return ok;
   }
-  reset(group) { for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; this[k] = this.default(k); this._apply(k); } this._save(); }
+  reset(group) { for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; delete this._raw[k]; this[k] = this.default(k); this._apply(k); } this._save(); }
   _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g.fail('setting "' + key + '"', e); } }
   _save() { if (this._g.headless) return; this.saved = store.set(this._key, { v: SETTINGS_VERSION, values: this._saved }); if (!this.saved) warn('settings:save', 'the settings could not be saved (storage is blocked or full): they last for this visit'); }
 }

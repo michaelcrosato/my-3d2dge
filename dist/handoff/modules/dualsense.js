@@ -90,6 +90,7 @@ class DualSense {
     this._raw = [0, 0, 0]; this._bias = [0, 0, 0]; this._rate = [0, 0, 0]; this._still = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
     this.extras(o);
     game.hook('input', dt => this._tick(dt));
+    if (typeof addEventListener === 'function') { addEventListener('pagehide', () => this.clear()); if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => this._push()); }   // (a page hidden or closed frees the triggers and gives the light back)
     if (!game.headless && typeof navigator !== 'undefined') this._find();
   }
   /** name more extras this game uses ({ light, triggers, gyro, speaker, mic }: attach does it): their rows are added */
@@ -142,14 +143,14 @@ class DualSense {
   async _open(d) {
     try {
       if (!d.opened) await d.open();
-      this._dev = d; this.connected = this.allowed.hid = true; this._sent = '';
+      this._dev = d; this.connected = this.allowed.hid = true; this._sent = ''; this._setup = true;   // (_setup: the first report takes the light bar over from the firmware's blue)
       this._wire = (d.collections || []).some(c => (c.outputReports || []).some(r => r.reportId === 0x31)) ? 'bt' : 'usb';
       d.addEventListener('inputreport', e => this._report(e));
       if (this._wire === 'bt') d.receiveFeatureReport(0x05).catch(() => {});   // (asking for the calibration turns on Bluetooth's full reports)
       this._push();
     } catch (e) { this._dev = null; this.connected = false; }
   }
-  // an input report: the gyro (pitch, yaw, roll: about 1,024 a degree a second) and the touchpad's two fingers
+  // an input report: the gyro (pitch, yaw, roll: raw, about 16.4 a degree a second, ±2,000 over 16 bits) and the touchpad's two fingers
   _report(e) {
     const v = e.data, k = e.reportId === 0x31 ? 1 : e.reportId === 0x01 && v.byteLength >= 63 ? 0 : -1; if (k < 0) return;
     this._raw = [v.getInt16(k + 15, true), v.getInt16(k + 17, true), v.getInt16(k + 19, true)];
@@ -162,9 +163,9 @@ class DualSense {
     this._flicked = null;
     if (this.game.paused !== this._paused) { this._paused = this.game.paused; this._push(); }   // (the triggers freed under a pause, back after it)
     if (this.connected) {
-      const d = this._raw.map((r, i) => r - this._bias[i]), calm = d.every(x => Math.abs(x) < 300);
+      const d = this._raw.map((r, i) => r - this._bias[i]), calm = d.every(x => Math.abs(x) < 80);   // (still: under about 5 degrees a second)
       this._still = calm ? this._still + dt : 0; if (this._still > .8) for (let i = 0; i < 3; i++) this._bias[i] += (this._raw[i] - this._bias[i]) * .05;
-      this._rate = this._raw.map((r, i) => Math.abs(r - this._bias[i]) < 40 ? 0 : (r - this._bias[i]) / 1024);   // (degrees a second; a hair's noise is none)
+      this._rate = this._raw.map((r, i) => Math.abs(r - this._bias[i]) < 24 ? 0 : (r - this._bias[i]) / 16.384);   // (degrees a second; a hair's noise, under 1.5, is none)
       const p = this.touches[0], f = this._flick;
       if (p && !f) this._flick = { x: p.x, y: p.y, t: 0, x1: p.x, y1: p.y };
       else if (p && f) { f.t += dt; f.x1 = p.x; f.y1 = p.y; }
@@ -177,12 +178,14 @@ class DualSense {
     if (!this._dev || !this._dev.opened) return;
     const S = this.game.settings, c = new Uint8Array(47), w = this._want;
     // the triggers' effects (free under a pause: a menu doesn't push back), the light bar, the player lights
-    if (this._o.triggers) { const on = S.padTriggers !== false && !this.game.paused; c[0] |= 0x0c; c.set(effect(on && w.right), 10); c.set(effect(on && w.left), 21); }
-    if (w.light && S.padLight !== false) { c[1] |= 0x04; c[44] = parseInt(w.light.slice(1, 3), 16); c[45] = parseInt(w.light.slice(3, 5), 16); c[46] = parseInt(w.light.slice(5, 7), 16); }
+    if (this._o.triggers) { const on = S.padTriggers !== false && !this.game.paused && !(typeof document !== 'undefined' && document.hidden); c[0] |= 0x0c; c.set(effect(on && w.right), 10); c.set(effect(on && w.left), 21); }
+    const lit = S.padLight === false ? w.light && '#3050ff' : w.light;   // (Light bar off: the controller's own blue, not the game's last colour)
+    if (lit) { c[1] |= 0x04; c[44] = parseInt(lit.slice(1, 3), 16); c[45] = parseInt(lit.slice(3, 5), 16); c[46] = parseInt(lit.slice(5, 7), 16); }
     if (w.player !== null) { c[1] |= 0x10; c[43] = w.player >= 0 ? LEDS[w.player % 4] : 0; }
+    if (this._setup) { c[38] |= 0x02; c[41] = 0x02; }   // (the light bar's setup: the firmware's own light faded out, so the game's shows, over Bluetooth too)
     const key = c.join(); if (key === this._sent) return;
     if (this._busy) { this._again = true; return; }
-    this._sent = key; this._busy = true;
+    this._sent = key; this._busy = true; this._setup = false;
     let id = 0x02, data = c;
     if (this._wire === 'bt') { id = 0x31; data = new Uint8Array(77); data[0] = (this._seq++ & 15) << 4; data[1] = 0x10; data.set(c, 2); new DataView(data.buffer).setUint32(73, crc32([0xa2, 0x31, ...data.subarray(0, 73)]), true); }
     this._dev.sendReport(id, data).catch(() => {}).then(() => { this._busy = false; if (this._again) { this._again = false; this._push(); } });

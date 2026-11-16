@@ -198,7 +198,7 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   camera: { capture: true (a click captures the mouse in any mode; camera.takeMouse(out) -> its [dx, dy] since the last
   call: turn your own camera), near, far (units) }; camera.target also sizes the outlines and centres the sun's shadow
   camera.set(mode), camera.follow(actor), camera.ground(move, out) -> the stick turned to the ground,
-  camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it, or null; camera.heading,
+  camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it (where the stick turns the camera, ahead), or null; camera.heading,
   camera.pose, camera.chase = { pitch, dist, fov, height, auto }, camera.first = { pitch, fov }
   camera.steer(hero, move, dt, out) -> the way to go by the player's setting (game.settings.define(E.World3D.CONTROLS)):
   ground(), or tank controls (up forward along hero.facing, down back, left and right turn it: set facing yourself only
@@ -333,10 +333,12 @@ async function init(game, o = {}) {
  *  never). Off while a session is recorded or replayed: the lock is not in its record, so the replay would turn apart */
 function mouseLook(gc) {
   const cam = () => { const w = PAGE.active; return w && w.camera; }, S = E.session;
+  let refused = false;   // (the page may not lock the mouse, a frame without its allowance: then a click is the game's again)
+  document.addEventListener('pointerlockerror', () => { refused = true; });
   gc.addEventListener('pointerdown', e => {
     const c = cam(); if (!c || e.pointerType !== 'mouse' || !c.mouseLook || !(c.capture || ['chase', 'first', 'fly'].includes(c.mode)) || document.pointerLockElement) return;
-    if (PAGE.game.paused || (S && (S.recording || S.replaying))) return;
-    try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* refused: [ and ] still turn it */ }
+    if (PAGE.game.paused || (S && (S.recording || S.replaying)) || refused) return;
+    try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => { refused = true; }); } catch (err) { refused = true; return; }   // (refused: [ and ] still turn it, and the clicks swing and fire)
     const I = PAGE.game.input; I.release('Mouse' + e.button); I.consumeAll();   // (the click that takes the mouse is no swing or shot)
   });
   document.addEventListener('pointerlockchange', () => { for (const w of PAGE.worlds) w.camera.locked = document.pointerLockElement === gc; });
@@ -1639,7 +1641,7 @@ function makeAtlas(world) {
  *    camera.steer(actor, move, dt) -> the same, or tank controls (the player's setting: World3D.CONTROLS);
  *    camera.lock(from, target | list) -> lock-on (Zelda's targeting): the chase and first cameras turn to frame both,
  *    ground() strafes round the target, a reticle marks it; cycle(list) the next in sight, unlock();
- *    camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it, or null;
+ *    camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it (where the stick turns the camera, ahead), or null;
  *    camera.heading: the ground angle it looks along; camera.pose: { x, y, z, yaw, pitch, fov, ortho } now
  * ============================================================================= */
 const headingOf = yawDeg => Math.atan2(-Math.cos(yawDeg * DEG), -Math.sin(yawDeg * DEG));
@@ -1872,12 +1874,13 @@ class Camera3D {
     for (const a of list) { if (a === C || !this.sight(F, a)) continue; const d = ((((Math.atan2(a.y - F.y, a.x - F.x) - base) * dir) % TAU) + TAU) % TAU || TAU; if (d < bd) { bd = d; best = a; } }
     if (best) this.lockOn = best; return best;
   }
-  /** the angle an actor aims at: straight ahead with the mouse captured (chase, first), the right stick (turned to the
-   *  ground), the mouse's point on the floor at the actor's height; null when nothing aims */
+  /** the angle an actor aims at: straight ahead with the mouse captured (chase, first), or with the right stick where it
+   *  turns the camera (chase, first, fly; padLook not false); else the right stick turned to the ground, the mouse's
+   *  point on the floor at the actor's height; null when nothing aims */
   aim(a) {
-    const I = this.world.game.input, p = this.pose || this.update(0);
+    const I = this.world.game.input, p = this.pose || this.update(0), behind = (this.mode === 'chase' || this.mode === 'first' || this.mode === 'fly') && !this.capture;
     if ((this.mode === 'chase' || this.mode === 'first') && this.locked) return p.yaw;
-    if (I.aimSource === 'pad' && I.padAim) { const v = this.ground([I.padAim[0], I.padAim[1]], [0, 0]); return Math.atan2(v[1], v[0]); }
+    if (I.aimSource === 'pad' && I.padAim) { if (behind && this.padLook !== false) return p.yaw; const v = this.ground([I.padAim[0], I.padAim[1]], [0, 0]); return Math.atan2(v[1], v[0]); }   // (the stick turns the camera there: it aims where it looks, never round in circles)
     if (I.aimSource === 'mouse' && I.mouse.active) { const m = this.world.screenToFloor(I.mouse.cx, I.mouse.cy, (a.z || 0) + 4); if (m && Math.hypot(m[0] - a.x, m[1] - a.y) > 3) return Math.atan2(m[1] - a.y, m[0] - a.x); }
     return null;
   }

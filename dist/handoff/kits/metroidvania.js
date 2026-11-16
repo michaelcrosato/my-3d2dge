@@ -115,7 +115,7 @@ const proof = (id, n, script, state, fresh) => {
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
 // (Settings, Controls, Button symbols), so a controller reaches them before it plays
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
@@ -953,7 +953,7 @@ const MVANIA = (() => {
     const lh = E.font.lineHeight();
     if (got) { const w = Math.min(r.W - 16, 260), L = E.font.wrap(got.text, w - 12), y = Math.round(r.H * .36); E.ui.box(g, Math.round(r.W / 2 - w / 2), y - 6, w, 30 + L.length * lh, { bg: ['#1a2a4a', '#0a1020'], border: '#8ab0e8' }); E.font.title(g, got.title, r.W / 2, y, { scale: 2, align: 'center', colors: ['#ffffff', '#c8e0ff', '#6a9ae0'] }); L.forEach((t, i) => E.font.text(g, t, r.W / 2, y + 20 + i * lh, '#e8f0ff', SC)); }
     if (hint > 0 && !got && !banner && age > 1) {
-      const s = E.t(touch() ? 'metroidvania.hint.touch' : 'metroidvania.hint.keys'), parts = s.split('  •  '), cut = Math.ceil(parts.length / 2);
+      const s = E.t(touch() ? (game.input.assist ? 'metroidvania.hint.touch' : 'metroidvania.hint.touch_lash') : 'metroidvania.hint.keys'), parts = s.split('  •  '), cut = Math.ceil(parts.length / 2);
       const L = E.font.width(s) < r.W - 8 ? [s] : parts.length > 1 ? [parts.slice(0, cut).join('  •  '), parts.slice(cut).join('  •  ')] : E.font.wrap(s, r.W - 8);   // (broken at a dot)
       const ta = game.input.touchArea && game.input.touchArea(), h = 3 + L.length * lh, y = (ta ? Math.round(ta.y0) : r.H) - h - 4;   // (above the touch buttons)
       px.blend(g, .6 * clamp(hint, 0, 1), 'normal', () => px.rect(g, 0, y, r.W, h, '#000000')); L.forEach((t, i) => E.font.text(g, t, r.W / 2, y + 3 + i * lh, '#d8e0ff', SC));

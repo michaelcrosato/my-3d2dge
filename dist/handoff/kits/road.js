@@ -115,7 +115,7 @@ const proof = (id, n, script, state, fresh) => {
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
 // (Settings, Controls, Button symbols), so a controller reaches them before it plays
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
@@ -489,7 +489,7 @@ const ROAD = (() => {
       // braking, the bend pulls it outward less, and it charges a boost let go when the brake is
       const slide = !P.bike && !P.chase && !P.striker && k.brake > .5 && Math.abs(k.x) > .5 && P.speed > TOP * .55;   // (L2 squeezed past halfway: a light squeeze only brakes)
       if (slide) { if (!P.drift) P.drift = Math.sign(k.x); P.charge = Math.min(2, (P.charge || 0) + dt); } else if (P.drift) { if (P.charge > .6) { P.boost = Math.max(P.boost, P.charge * .9); A.sfx('powerup', { vol: .4 }); } P.drift = 0; P.charge = 0; }
-      const g = +k.gas || 0, acc = g > 0 ? (P.speed < 2000 ? 2600 : 1500) * g - 700 * (1 - g) : -700, br = k.brake && !P.drift ? 5200 * k.brake : 0;   // (the gas and the brake as far as they are pulled: part of the throttle holds a lower speed; the autopilot's true is all of it)
+      const g = +k.gas || 0, acc = g > 0 ? (P.speed < 2000 ? 2600 : 1500) * g - 700 * (1 - g) : -700, br = k.brake && !P.drift ? 5200 * k.brake : 0;   // (the gas and the brake as far as they are pulled: part of the throttle pulls more gently; the autopilot's true is all of it)
       P.speed = clamp(P.speed + (acc - br) * dt - (off ? P.speed * 1.4 * dt : 0), 0, top);
       if (k.nitro && P.chase && P.nitro > 0 && P.boost <= 0) { P.nitro--; P.boost = 3; A.sfx('powerup'); }
       const grip = Math.min(1, P.speed / 1200), steer = clamp(k.x, -1, 1);
@@ -828,7 +828,7 @@ const ROAD = (() => {
     } finally { Math.random = was; auto = false; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['brake', 'rewind', 'nitro', 'gas'], camera: { zoom: false },
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['nitro', 'rewind', 'brake', 'gas'], camera: { zoom: false },
     exit() { game.splitScreen(0); players(true); dsOff(); },   // (the joined leave with the scene: the next has the whole keyboard; the DualSense clean)
     enter(d) { mode = 'menu'; P = null; DUO = null; auto = false; menu.i = 0; game.allowJoin({ max: 2 }); game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); game.screen.setOptions({ res: d && d.part === 'hd' ? [960, 540] : 'ps1' });   // (#road/hd: the coast run at today's resolution, Horizon Chase's and Slipstream's)
       if (d && d.part) { if (d.part === 'duel') duel(); else if (['chase', 'rash', 'striker', 'circuit', 'cotton'].includes(d.part)) start(d.part); else { ride = d.part === 'bike' ? 'bike' : 'car'; start(ride); } } },

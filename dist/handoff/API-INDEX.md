@@ -57,60 +57,60 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 227 Views (projections); E.View: view
 - 254 Screen; game.screen
 - 276 Input; E.Input: input
-- 380 Pixel fonts
-- 392 Languages
-- 426 Lighting; game.lights
-- 445 Particles; E.Particles: game.particles
-- 465 Renderer; r
-- 515 Game; E.Game: game
-- 631 Standard features; settings, fullscreen
-- 648 10c. Boot
-- 653 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 670 10e. Paths; E.Path: path
-- 680 10g. Weather
-- 684 10k. Save slots; E.Saves: saves
-- 707 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 786 Blob rig; E.Blob: blob
-- 806 Tile map; E.TileMap: map
-- 870 Materials
-- 891 Flow field; E.FlowField: flow
-- 909 Texture helpers for floortex functions
-- 920 Platform map; E.PlatformMap: level
-- 954 Platformer; E.Platformer: hero
-- 995 Body; E.Body: body
-- 1015 Actions; E.Action: action
-- 1037 17c. Mover; E.Mover: mover
-- 1076 17d. Perception; E.Suspicion: suspicion
-- 1093 Bullets; E.Bullets: shots
-- 1113 Spatial hash; E.SpatialHash: grid
-- 1123 Audio; game.audio
-- 1157 Backdrops; E.Backdrop: backdrop
-- 1165 21c. Props
-- 1170 21e. Shapes
-- 1182 Ui; E.Dialog: talk, E.Menu: menu
-- 1244 21d. Shell; E.Shell: shell
-- 1273 Gpu lighting (webgpu); game.gpu
-- 1294 Sessions
-- 1303 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1338 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1383 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1422 Module dualsense: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic (engine/modules/dualsense.js)
-- 1428 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1509 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1520 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1579 Module mesh: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection (engine/modules/mesh.js); E.Mesh: mesh
-- 1589 Module mga: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code) (engine/modules/mga.js)
-- 1596 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1622 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1651 Module rewind: time run backwards: the game's state kept a moment at a time, walked back on request (engine/modules/rewind.js); E.Rewind: rewind
-- 1661 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1693 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1712 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1741 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1760 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1768 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1797 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1844 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 381 Pixel fonts
+- 393 Languages
+- 427 Lighting; game.lights
+- 446 Particles; E.Particles: game.particles
+- 466 Renderer; r
+- 516 Game; E.Game: game
+- 632 Standard features; settings, fullscreen
+- 649 10c. Boot
+- 654 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 671 10e. Paths; E.Path: path
+- 681 10g. Weather
+- 685 10k. Save slots; E.Saves: saves
+- 708 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 787 Blob rig; E.Blob: blob
+- 807 Tile map; E.TileMap: map
+- 871 Materials
+- 892 Flow field; E.FlowField: flow
+- 910 Texture helpers for floortex functions
+- 921 Platform map; E.PlatformMap: level
+- 955 Platformer; E.Platformer: hero
+- 996 Body; E.Body: body
+- 1016 Actions; E.Action: action
+- 1038 17c. Mover; E.Mover: mover
+- 1077 17d. Perception; E.Suspicion: suspicion
+- 1094 Bullets; E.Bullets: shots
+- 1114 Spatial hash; E.SpatialHash: grid
+- 1124 Audio; game.audio
+- 1158 Backdrops; E.Backdrop: backdrop
+- 1166 21c. Props
+- 1171 21e. Shapes
+- 1183 Ui; E.Dialog: talk, E.Menu: menu
+- 1245 21d. Shell; E.Shell: shell
+- 1274 Gpu lighting (webgpu); game.gpu
+- 1295 Sessions
+- 1304 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1339 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1384 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1423 Module dualsense: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic (engine/modules/dualsense.js)
+- 1429 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1510 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1521 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1580 Module mesh: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection (engine/modules/mesh.js); E.Mesh: mesh
+- 1590 Module mga: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code) (engine/modules/mga.js)
+- 1597 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1623 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1652 Module rewind: time run backwards: the game's state kept a moment at a time, walked back on request (engine/modules/rewind.js); E.Rewind: rewind
+- 1662 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1694 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1713 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1742 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1761 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1769 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1798 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1845 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -293,7 +293,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.clicked()` †: where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to it; a HUD button of your own can: if (hit(input.clicked())) ...
 - `input.codeLabel(code, short = false)`: a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family). short: true, the form for a small badge ('LMB', 'Spc', '↑' for the d-pad's)
 - `input.consume(a)`: mark a buffered press of action a as used, so buffered(a) is false until the next press
-- `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack)
+- `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack; the pad cursor's ✕ too, so its release clicks nothing)
 - `input.cursorSnap(points, radius = 14)` †: points the pad's cursor eases onto when the stick lets go near one ([[x, y]] or { x, y }, screen pixels; null: none), within radius pixels
 - `input.doubleTap()` †: [x, y] the step a second tap or click lands within .35 s and 8 pixels of the first (a double tap), else null
 - `input.down(a)`: is the action held right now?
@@ -311,6 +311,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.moveLabel(device = this.lastDevice)`: the move keys or stick as a prompt names them, on the device used last (or the one named): 'WASD', '↑↓←→', 'L stick', the touch screen's 'Stick'
 - `input.padStyle()`: the controller family whose symbols label() shows: glyphs, or with glyphs 'auto' the one its name says
 - `input.pan()` †: [dx, dy] how far a drag moved this step: one finger on open ground (not a box), or a mouse's middle or right button; else null. A free camera pans by it (game.cam.free)
+- `input.pinching` †: true while two fingers pinch (a game's own one-finger drag waits for it: the pinch is not a pan)
 - `input.pointer()` †: the pointer in screen pixels [x, y] (the HUD's space): the mouse's, or the pad's cursor while it is in use (padCursor); null before the mouse has moved over the canvas
 - `input.press(code)`: press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input, tests, bots
 - `input.pressed(a)`: true only during the first update step after the press (menus, jumps, one-shot actions)
@@ -331,10 +332,10 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.swipe(take = false)`: a quick one-finger flick on the canvas (a touch screen): { dir: 'left' | 'right' | 'up' | 'down', x, y } (where it began, in screen pixels) during the step after the finger lifted, else null. take: true uses it up, so nothing else reads it this step. Swiping away is the touch standard's way out of what is temporary: E.Dialog skips its text, E.Menu cancels, game.note and the Shell's toast, card and screens go by themselves; a game's own canvas menu or banner reads it: if (input.swipe(true)) close()
 - `input.swipeOn(el, fn)` †: a touch screen's flick on an element of the page's own (a dialog, a panel of HTML over the game): fn(dir) with 'left' | 'right' | 'up' | 'down', as swipe() reads one on the canvas. Returns a function that stops it
 - `input.tap(a)`: press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down() are true in the next step, released() in the one after
-- `input.tick(dt)`: advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and released() (the engine calls it every step)
+- `input.tick(dt, own = dt)`: advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and released() (the engine calls it every step: dt its clock's step, game time; own the player's own, which moves the pad's cursor at any game speed)
 - `input.touchArea()` †: where the touch buttons cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W and r.H), or null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself)
 - `input.touchButtons(actions, o = {})` †: On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' }, force, layout, slide }). layout: 'row' (the default; a row too long for the screen wraps upward), 'diamond' (up to four, as a pad's face: the actions in the order bottom, right, left, top), 'grid' (two columns), 'arc' (the first big in the corner, the rest round it, the circle widened so they never overlap); slide: true lets a finger slide from button to button (a fighter's punch to kick) instead of holding the first. The other half of the screen is a move stick (past halfway it presses up, down, left and right too, as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
-- `input.touchSet(a, label = null, show = true)` †: one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null, near || talking)
+- `input.touchSet(a, label = null, show = true)` †: one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null, near || talking). In the row layout the others close up round a hidden one, so a button that comes and goes in play goes first in the row (the far end from the corner), where its coming and going moves no other under a thumb; one a thumb holds while another must not move (AIM and FIRE) stays shown and is relabelled instead
 - `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
 - `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it. Every preset (E.Input.DEFAULT, PLATFORMER, THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel). The keys held stay held (down() in the new layout, not pressed() again), and a press no step has seen counts in it
 - `input.value(a)` †: how far action a is pressed, 0 to 1: a gamepad button by its travel (the triggers, even short of a press), a stick's direction (PadAxisUp ..., or up / down / left / right on the touch stick) by its push, any other code held 1

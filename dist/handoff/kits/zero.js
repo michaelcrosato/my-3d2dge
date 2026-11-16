@@ -115,7 +115,7 @@ const proof = (id, n, script, state, fresh) => {
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
 // (Settings, Controls, Button symbols), so a controller reaches them before it plays
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };

@@ -43,7 +43,7 @@ const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), 
 // from the first frame, before any touch: cornerArea's pinned), else the edge (the race's lap and time end left of it)
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 // START picks too (the touch START; Enter), and a pad's Options or Esc opens the standard menu
-const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 let active = null;               // the world of the scene that is playing (the shared keys turn its camera)
@@ -188,7 +188,7 @@ const RACING = (() => {
   // still gas and brake; the touch stick held down brakes and backs up)
   const KEYS = Object.assign({}, W3.INPUT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad7', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad6', 'Pad2', 'Act:down'], drift: ['Space', 'ShiftLeft', 'ShiftRight', 'Pad5'], item: ['KeyE', 'KeyJ', 'Pad4', 'Pad1'] });
   for (const k of ['attack', 'dash', 'skill', 'jump', 'lock']) delete KEYS[k];
-  const TOUCH = ['drift', 'item', 'gas'];
+  const TOUCH = ['item', 'drift', 'gas'];   // (ITEM, which comes and goes, first in the row: its coming and going moves no other button)
   // a DualSense's extras (the dualsense module: player 1's pad, the one it addresses): the light bar and the triggers, told
   // only when they change; nothing at all without one
   let ds = null, dsWas = '';
