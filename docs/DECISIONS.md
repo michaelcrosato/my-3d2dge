@@ -1770,3 +1770,58 @@ An entry:
   choice, as a game may load anything; the engine stays dependency-free.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.106.0
+
+## D100 · 2026-11-16 · The controls standard: a DualSense on a TV first
+
+- **Principle:** 2 (agent-operable) and the owner's own standard for every game's controls and interface
+- **Call:** the owner's word (2026-11-16, quoted whole in `docs/CONTROLS.md`): every game is designed around a DualSense
+  (or any standard-mapping pad) on a TV at ten feet; keyboard and mouse native; prompts follow the last device, with
+  PlayStation symbols by default and Xbox's in Settings; a DualSense's extras where they mean something; no dense,
+  web-style screens; touch an add-on, upright and on its side, with swipes, multitouch, context buttons and simple
+  assists. The engine meets each clause once (`input.label`, `input.assist`, `input.swipe`, `E.assist`, the Shell, the
+  dualsense module), and each kit and Emberdeep apply it to their genre.
+- **Why:** the owner's standardization pass; the owner tests the games afterwards and gives feedback.
+- **Answered:** the owner
+- **Landed in:** v0.107.0
+
+## D101 · 2026-11-16 · The Shell is sized for a TV by default, and Settings and Controls are tabbed pages
+
+- **Principle:** the controls standard (D100): readable at ten feet, no dense web-style screens
+- **Call:** `E.Shell` grows with the window unless a game says `tv: false` (14 px text up to 875 px wide, about twice
+  that on a 1,920 px TV); it was opt-in (`tv: true`). The standard Settings screen is a tab a group (Display, Sound,
+  Comfort, the game's own) and Controls a tab a device (keyboard and mouse, controller, touch), turned by L1 R1, Q E, a
+  click or a tap, with the focused row's help under the list instead of under every row, and the buttons that work the
+  screen along its bottom. The Button symbols setting offers PlayStation and Xbox, the two the owner named; a game may
+  still set `input.glyphs` to `'nintendo'`, `'generic'` or `'auto'` in code.
+- **Why:** a long list of small rows with help under each is the web-style screen the standard rules out; tabs and short
+  pages are how a console's settings read from a sofa.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0
+
+## D102 · 2026-11-16 · Permissions found, never asked: the DualSense's extras and the microphone wait for 52in1
+
+- **Principle:** the controls standard (D100): "Features that need permission (like the mic) can only be turned on in the
+  game's settings if the player has already allowed them in their 52in1 settings"
+- **Call:** the dualsense module never calls `navigator.hid.requestDevice` or prompts for the microphone. It opens a
+  DualSense only from `navigator.hid.getDevices()` (what the player already allowed), reads the microphone only when the
+  Permissions API says `granted`, and the controller's speaker only when it can be named and chosen; the frame's
+  Permissions Policy must allow each (`hid`, `microphone`, `speaker-selection`). Until then each row is locked and says
+  where to allow it. 52in1 today frames a game on its separate games address with `allow` naming gamepad, gyroscope and
+  accelerometer but not `hid`, `microphone` or `speaker-selection` (`52in1/assets/js/ui/player.js`, FRAME_ALLOW), and
+  keeps its own DualSense connection for its light bar: inside 52in1 these extras stay locked until the hub allows them
+  in a game's frame and its Settings grant them. Outside 52in1 they work wherever the browser already allows them.
+- **Why:** the owner's rule; asking from inside a game would be the prompt the rule forbids.
+- **Answered:** the owner's rule; how it is met is a reversible call, flagged in the pull request
+- **Landed in:** v0.107.0
+
+## D103 · 2026-11-16 · Create reaches a game a quarter of a second late
+
+- **Principle:** the 52in1 hub's controls (its README: "PS, and Create + Options, are the hub's")
+- **Call:** the engine held back Options while Create was held, but Create's own press reached the game first (Emberdeep
+  opened its bag every time a player called the hub's bar). Create is now held back 0.25 s: with Options pressed meanwhile
+  it is the hub's chord and the game sees neither (Options not until it is let go); let go sooner it arrives as a tap;
+  held, as a press. The PS button (16) never reaches a game. Both editions.
+- **Why:** a player calling the hub's bar must not also open a game's map or bag; a quarter of a second on a button
+  games use for a map or a menu is not felt.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0

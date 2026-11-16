@@ -103,6 +103,10 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   the HUD anchored to `r.W` and `r.H`. A game of one fixed screen fills the sides with cabinet art drawn by code.
 - **A phone:** touch controls that fit the genre, tap targets of at least 44 CSS pixels, and a case in
   `tools/phone-test.mjs` (a 3D kit: `tools/kit3d-test.mjs`'s phone section).
+- **The controls standard** (`docs/CONTROLS.md`): a DualSense on a TV first, the genre's keys and the mouse where the
+  genre uses it, every prompt from `input.label`, readable at ten feet, the DualSense's extras where they mean something
+  (`@modules dualsense`), and touch upright and on its side with swipes, context buttons and simple assists gated on
+  `input.assist`.
 - **The look target** (PS1 / N64 era 2D): backdrops, materials, lighting, dressed HD rigs, effects, the title font, and
   `check.mjs` with no look notes. A kit of 1980 games plays as a remaster, with the classic look one key away.
 - **Sound:** an effect for every action, and at least one original song of its own in the step sequencer's format.
