@@ -31,6 +31,7 @@ const PINBALL = (() => {
   const KEYS = Object.assign({}, E.Input.DEFAULT, { flipL: ['ShiftLeft', 'KeyZ', 'ArrowLeft', 'KeyA', 'Pad4', 'Pad6', 'Pad14'], flipR: ['ShiftRight', 'Slash', 'ArrowRight', 'KeyD', 'Pad5', 'Pad7', 'Pad15'],
     plunge: ['Space', 'ArrowDown', 'KeyS', 'Pad0', 'Pad13', 'PadRAxisDown'], nudge: ['KeyN', 'KeyX', 'ArrowUp', 'KeyW', 'Pad3', 'Pad12'] });
   KEYS.flipL.push('Mouse0'); KEYS.flipR.push('Mouse2');   // (a mouse's buttons flip too, as PC tables let them)
+  KEYS.confirm = ['Enter', 'NumpadEnter', 'Space', 'Pad0']; KEYS.cancel = ['Escape', 'Backspace', 'Pad1'];   // (no flipper or nudge key starts a game or leaves the game over: Z and X are the table's)
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];   // (DEFAULT's, unused here: they'd list on the table's keys)
 
   /* ---- 1. THE TABLE: its bodies in the physics world, in table units (x across, y down the table toward the flippers) ---- */
@@ -389,7 +390,7 @@ const PINBALL = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'pinball', views: ['pinball'], res: 'ps1', pausable: true, touch: [], camera: { zoom: false }, input: KEYS,
+  return { view: 'pinball', views: ['pinball'], res: 'ps1', pausable: true, escape: 'back', touch: [], camera: { zoom: false }, input: KEYS,
     enter: start, update, draw, bot: botRun,
     exit() { game.input.touchEnabled = true; game.input.zones = null; game.cam.offset = [0, 0]; A.music(null); if (ds) ds.clear(); dsKey = ''; },
     back() { if (mode === 'play' && !demo) return false; game.go('title'); return true; },

@@ -697,6 +697,7 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   // the tree itself: drag to pan, click to buy (on release, so a drag never buys), right click to undo. It registers before
   // the chrome, so the bars, the overview and the totals (drawn over it, topmost) take their own clicks
   hot(x0, y0 + 18, W, H - 29, { drag: (mx, my) => {
+    if (game.input.pinching) { const d = V.drag; if (d) Object.assign(d, { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 99 }); return; }   // (two fingers pinch: no pan, and no star chosen when they lift)
     if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my) || (ctlDevice() === 'touch' ? PRG_pick(mx, my, 14) : null) }; return; }   // (a finger is wide: a star within 14 px)
     const d = V.drag; d.moved = Math.max(d.moved, Math.abs(mx - d.x) + Math.abs(my - d.y));
     if (d.moved > 3) { V.cx = d.cx - (mx - d.x) / V.z; V.cy = d.cy - (my - d.y) / V.z; V.anchor = null; V.go = null; }
@@ -823,7 +824,7 @@ function PRG_treeUpdate(dt) {
   // zoom: + and - (Q E, PageUp PageDown), the right stick, a pinch; the centre: R (R3, Home, 0)
   if (inp.pressed('zoomIn')) PRG_zoomBy(1.25, V.ox, V.oy); else if (inp.pressed('zoomOut')) PRG_zoomBy(.8, V.ox, V.oy);
   if (inp.padAim && Math.abs(inp.padAim[1]) > .2) PRG_zoomBy(1 - inp.padAim[1] * dt * 2.5, V.ox, V.oy);
-  const pz = inp.zoom(), zq = pz !== 1 && inp.zoomPoint(), sc = game.screen; if (pz !== 1) PRG_zoomBy(pz, zq ? zq[0] - (sc.ix || 0) : V.ox, zq ? zq[1] - (sc.iy || 0) : V.oy);   // (a pinch about its fingers' middle)
+  const pz = inp.zoom(), zq = pz !== 1 && inp.zoomPoint(); if (pz !== 1) PRG_zoomBy(pz, zq ? zq[0] : V.ox, zq ? zq[1] : V.oy);   // (a pinch about its fingers' middle: zoomPoint is in the HUD's pixels, as UI.mouse is)
   if (inp.pressed('centre')) { V.go = { x: 0, y: 0 }; V.zt = 1; V.anchor = { sx: V.ox, sy: V.oy, tx: 0, ty: 0 }; }
   // gyro: a DualSense's tilt pans a big map (Settings, Controls, Gyro aim)
   if (DS) { const gy = DS.gyroAim(dt); if (gy[0] || gy[1]) { V.cx += gy[0] / V.z; V.cy += gy[1] / V.z; V.anchor = null; V.go = null; } }

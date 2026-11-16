@@ -53,7 +53,7 @@ const SPECIAL = (() => {
     game.allowJoin(false); if (p !== 'arena') while (game.players.length > 1) game.removePlayer(game.players.length);
     part = p; mode = 'play'; result = null; t = 0; S = STAGE[p].start(); A.music(SONG); game.input.consumeAll();
   }
-  function end(won, line) { if (mode !== 'play') return; mode = 'over'; result = { won, line }; after.i = 0; A.sfx(won ? 'secret' : 'hurt'); }
+  function end(won, line) { if (mode !== 'play') return; mode = 'over'; result = { won, line, t: 0 }; after.i = 0; A.sfx(won ? 'secret' : 'hurt'); }
   const shade = (g, x, y, r, c, hi) => { px.disc(g, x, y, r, c); if (r > 2) px.disc(g, x - r * .35, y - r * .35, Math.max(1, r * .35), hi); };   // (a ball lit from the top left)
   const steerOf = I => { const m = I.move()[0]; return Math.abs(m) > .2 ? m : 0; };
   const buzz = (s, t, I = game.input) => { if (!auto && I) I.rumble(s, t); };   // (a pad shaken: player 1's, or the kart's own player's in the ARENA)
@@ -370,7 +370,7 @@ const SPECIAL = (() => {
     const play = mode === 'play'; I.touchSet('jump', null, play && (part === 'planet' || part === 'tube' || part === 'room')); I.touchSet('fire', null, play && (part === 'arena' || part === 'turn')); I.touchSet('gas', null, play && part === 'arena' && !I.assist);
     sense();
     if (mode === 'menu') { menu.update(dt); pickOnStart(menu); return; }
-    if (mode === 'over') { after.update(dt); pickOnStart(after); return; }
+    if (mode === 'over') { result.t += dt; if (result.t < .6) { game.input.consumeAll(); return; } after.update(dt); pickOnStart(after); return; }   // (the jump or the shot mashed as the stage ends is no answer: the menu reads after .6 s)
     STAGE[part].update(S, dt, I);
   }
   /** player 1's DualSense: the light bar the stage's state (the ARENA your kart, white as a balloon goes; the TUBE gold

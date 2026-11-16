@@ -60,7 +60,18 @@ if (storedControls && typeof storedControls === "object") {
 		)
 			CONTROL.bindings[a] = [...new Set(codes)];
 	}
+	// a save from before the controls standard (no v): an action the player rebound keeps their codes and gains its new
+	// d-pad or touchpad button (the map ↑ and the touchpad, the labels ←, the portal ↓, the use →), unless another
+	// action of theirs already has it
+	if (!(storedControls.v >= 2))
+		for (const [a, add] of [["interact", ["Pad15"]], ["portal", ["Pad13"]], ["map", ["Pad12", "Pad17"]], ["labels", ["Pad14"]]]) {
+			const codes = CONTROL.bindings[a];
+			if (!codes) continue;
+			for (const c of add)
+				if (!Object.values(CONTROL.bindings).some((b) => b.includes(c)) && codes.length < 12) codes.push(c);
+		}
 }
+CONTROL.v = 2;   // (the saves from here on are the standard's)
 CONTROL.deadzone = clamp(CONTROL.deadzone, 0.05, 0.5);
 CONTROL.size = clamp(CONTROL.size, 44, 72);
 CONTROL.opacity = clamp(CONTROL.opacity, 0.3, 1);

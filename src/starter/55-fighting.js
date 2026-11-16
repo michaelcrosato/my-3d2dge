@@ -16,7 +16,8 @@
  * #fighting/training.
  * KEYS: arrows / WASD move, jump (up) and crouch (down); U, I punch over J, K kick (light, heavy); a pad's □ △ over ✕ ○,
  * with R1 and R2 the heavy punch and kick too. Two on one keyboard: each half the same block, punches over kicks (R T over
- * F G; L ; over . /), and the menus say whose keys are which. ○ or a sideways swipe backs out of the menus and the select.
+ * F G; L ; over . /), and the menus say whose keys are which. ○ or a sideways swipe backs out of the menus, a sideways
+ * swipe out of the select (where ○, a heavy kick, picks a fighter as every attack does).
  * A DualSense's light bar shows player 1's life (cyan while the super is ready); each player's own pad shakes.
  * TOUCH: the stick (motions work on it; with Touch assists on, a motion may skip its diagonal and takes half as long
  * again) and LP HP over LK HK, a finger sliding from one to the next; HP reads THROW next to a foe while the stick
@@ -106,8 +107,8 @@ const FIGHT = (() => {
   const DUMMY = ['stand', 'crouch', 'jump', 'guard'];   // (each shown as its line, fighting.dummy.<what>)
   // the menus: ○ (or Esc) and a sideways swipe back out of each, as the scene's back() does
   const menu = new E.Menu(game, [E.t('fighting.menu.versus'), E.t('fighting.menu.arcade'), E.t('fighting.menu.training')], { y: 0, onPick: i => choose(['versus', 'arcade', 'training'][i]), onCancel: () => game.go('title') });
-  const after = new E.Menu(game, [E.t('fighting.menu.rematch'), E.t('fighting.menu.select'), E.t('fighting.menu.title')], { y: 0, onPick: i => i === 0 ? fight(picks) : i === 1 ? choose(kind) : game.go('title'), onCancel: () => choose(kind) });
-  const cont = new E.Menu(game, [E.t('fighting.menu.continue'), E.t('fighting.menu.title')], { y: 0, onPick: i => i ? game.go('title') : fight(picks), onCancel: () => game.go('title') });
+  const after = new E.Menu(game, [E.t('fighting.menu.rematch'), E.t('fighting.menu.select'), E.t('fighting.menu.title')], { y: 0, onPick: i => i === 0 ? fight(picks) : i === 1 ? choose(kind) : game.go('title'), onCancel: () => { if (!result || result.t > 2.2) choose(kind); } });
+  const cont = new E.Menu(game, [E.t('fighting.menu.continue'), E.t('fighting.menu.title')], { y: 0, onPick: i => i ? game.go('title') : fight(picks), onCancel: () => { if (!result || result.t > 2.2) game.go('title'); } });   // (○ is heavy kick too: a second after the menu shows, so the last blows mashed are no answer)
   const p2 = () => game.players[1] || null, THROW = E.t('fighting.touch.throw');
   // how player 2 joins: the keyboard's key and a pad's button, by name (2, OPTIONS or MENU)
   const joinLine = () => E.t('fighting.join', { key: game.input.codeLabel('Digit2'), pad: E.lang.upper(game.input.codeLabel('Pad9')) });

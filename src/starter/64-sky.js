@@ -187,7 +187,7 @@ const SKY = (() => {
    *  stalls; at the ground it lands on the runway (lined up, slow, level, not sinking hard) or crashes */
   function plane(P, dt, k) {
     if (P.down) { P.speed = Math.max(0, P.speed - (P.landed ? 70 : 200) * dt); P.x += Math.cos(P.yaw) * P.speed * dt; P.y += Math.sin(P.yaw) * P.speed * dt; P.roll *= .9; P.pitch *= .9; return; }
-    const g = +k.gas || 0, b = +k.brake || 0; P.thr += ((g ? 1 : b ? 0 : P.thr) - P.thr) * Math.min(1, dt * 1.5 * Math.max(g, b));   // (the throttle moves as fast as the trigger is pulled; a key, at once as before)
+    const g = +k.gas || 0, b = +k.brake || 0, gb = g !== b; P.thr += ((g > b ? 1 : b > g ? 0 : g ? 1 : P.thr) - P.thr) * Math.min(1, dt * 1.5 * (gb ? Math.abs(g - b) : g));   // (the throttle moves as fast as the trigger is pulled, the harder pull winning: a finger resting on R2 doesn't open it under a full L2; keys as before)
     P.roll += (clamp(k.x, -1, 1) * .95 - P.roll) * Math.min(1, dt * 2.6);
     P.pitch += (clamp(k.y, -1, 1) * .55 - P.pitch) * Math.min(1, dt * 1.7);
     if (P.speed < 72) P.pitch -= (72 - P.speed) * .02 * dt;
@@ -313,7 +313,7 @@ const SKY = (() => {
     if (P.land) { const L = P.land; L.t += dt; P.z += ((L.t < 2.2 ? 40 : 240) - P.z) * Math.min(1, dt * 1.6); P.speed *= .97;
       if (L.t > 1.6 && !L.done) { L.done = true; if (L.i < 0) { P.home = true; say(E.t('sky.voyage.done'), 4); A.sfx('secret'); } else { P.lit[L.i] = true; say(E.t('sky.voyage.lit', { n: P.lit.filter(Boolean).length }), 3); A.sfx('oneup'); } }
       if (L.t > 3.4 && !P.home) P.land = null; return; }
-    P.thr += ((k.gas ? 1 : k.brake ? 0 : P.thr) - P.thr) * Math.min(1, dt * 1.2);
+    { const g = +k.gas || 0, b = +k.brake || 0; P.thr += ((g > b ? 1 : b > g ? 0 : g ? 1 : P.thr) - P.thr) * Math.min(1, dt * 1.2); }   // (the harder pull wins)
     P.yaw += clamp(k.x, -1, 1) * 1.05 * dt; P.z = clamp(P.z - clamp(k.y, -1, 1) * -110 * dt, 120, 640);
     P.speed += (60 + P.thr * 240 - P.speed) * Math.min(1, dt * .8);
     P.x = ((P.x + Math.cos(P.yaw) * P.speed * dt) % 8192 + 8192) % 8192; P.y = ((P.y + Math.sin(P.yaw) * P.speed * dt) % 8192 + 8192) % 8192;

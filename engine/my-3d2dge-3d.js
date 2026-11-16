@@ -333,10 +333,12 @@ async function init(game, o = {}) {
  *  never). Off while a session is recorded or replayed: the lock is not in its record, so the replay would turn apart */
 function mouseLook(gc) {
   const cam = () => { const w = PAGE.active; return w && w.camera; }, S = E.session;
+  let refused = false;   // (the page may not lock the mouse, a frame without its allowance: then a click is the game's again)
+  document.addEventListener('pointerlockerror', () => { refused = true; });
   gc.addEventListener('pointerdown', e => {
     const c = cam(); if (!c || e.pointerType !== 'mouse' || !c.mouseLook || !(c.capture || ['chase', 'first', 'fly'].includes(c.mode)) || document.pointerLockElement) return;
-    if (PAGE.game.paused || (S && (S.recording || S.replaying))) return;
-    try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* refused: [ and ] still turn it */ }
+    if (PAGE.game.paused || (S && (S.recording || S.replaying)) || refused) return;
+    try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => { refused = true; }); } catch (err) { refused = true; return; }   // (refused: [ and ] still turn it, and the clicks swing and fire)
     const I = PAGE.game.input; I.release('Mouse' + e.button); I.consumeAll();   // (the click that takes the mouse is no swing or shot)
   });
   document.addEventListener('pointerlockchange', () => { for (const w of PAGE.worlds) w.camera.locked = document.pointerLockElement === gc; });

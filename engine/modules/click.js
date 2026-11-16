@@ -243,7 +243,7 @@ class Click {
     const G = this.game, I = G.input, R = this.rooms[this.room], H = this.hero;
     if (this._fade) { this._fade += dt * 4; if (this._fade >= 1 && this._swap) { this._swap(); this._swap = null; } if (this._fade >= 2) this._fade = 0; return true; }
     let ate = false;   // (the click, press or swipe that turns a line does only that)
-    if (this.line) { const L = this.line; L.t += dt; ate = L.t > .3 && !!(I.clicked() || I.pressed('confirm') || (I.swipe && I.swipe(true))); if (L.t > 1 + L.lines[L.i].length * .05 || ate) { L.i++; L.t = 0; if (L.i >= L.lines.length) this.line = null; } }
+    if (this.line) { const L = this.line; L.t += dt; ate = L.t > .3 && !!(I.clicked() || I.pressed('confirm') || (I.swipe && I.swipe(true))); if (ate) I.consumeAll(); if (L.t > 1 + L.lines[L.i].length * .05 || ate) { L.i++; L.t = 0; if (L.i >= L.lines.length) this.line = null; } }
     const talking = this.story && this.story.running && this.story.update(dt);
     // the hero's walk
     H.k = this.scaleAt(H.y); H.moving = false;
@@ -317,7 +317,7 @@ class Click {
     const step = (I.map.nextSpot && I.pressed('nextSpot') ? 1 : 0) - (I.map.prevSpot && I.pressed('prevSpot') ? 1 : 0);
     if (step && I.setPointer) { this._cycle(I, p, step, L); return; }
     if (I.map.verbs && I.pressed('verbs')) { if (this._coin) { this._coin = null; return; } const q = toRoom(p), h = q && this.at(...q); if (h) { this._coin = { h, x: p[0], y: p[1] }; return; } }   // (the coin at the cursor, every verb; again: it closes)
-    if (right && this.ui === 'icons') { const i = ICONS.findIndex(v => v[0] === this.verb); this.verb = ICONS[(i + 1) % ICONS.length][0]; return; }   // (Sierra's: a right click turns the cursor)
+    if (right && this.ui === 'icons' && !pad) { const i = ICONS.findIndex(v => v[0] === this.verb); this.verb = ICONS[(i + 1) % ICONS.length][0]; return; }   // (Sierra's: a right click turns the cursor; a pad's □ looks, as its hint says)
     if (right && p) { const b = this.boxes.find(b => b.id.startsWith('item:') && on(p, b)); if (b) { this.act('look', b.id.slice(5)); return; } }   // (a right click on an item in the inventory looks at it)
     const spotAt = q => this.at(...q) || (touch && I.assist ? this._near(q[0], q[1], this._thumb() / 2.5 / L.z) : null);   // (a thumb that just missed, by under half its width: the nearest)
     const rc = toRoom(c) || toRoom(lp), lookAt = toRoom(right ? p : null);

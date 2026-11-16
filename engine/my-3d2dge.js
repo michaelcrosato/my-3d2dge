@@ -1065,7 +1065,7 @@ class Input {
     box.dataset.sys = 'touch';
     if (!document.getElementById('e3-touch-css')) { const st = document.createElement('style'); st.id = 'e3-touch-css'; st.textContent = '[data-sys=touch] button.on{background:rgba(255,255,255,.34)!important;border-color:#fff!important;transform:scale(.93)}[data-sys=touch] button{transition:transform .06s}'; document.head.appendChild(st); }   // (a press shows under the finger)
     const lay = actions.length > 4 && o.layout === 'diamond' ? 'grid' : o.layout || 'row', at = {};   // (each button's middle and size, for a layout of its own)
-    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (lay === 'row' ? ';display:flex;gap:10px;flex-wrap:wrap-reverse;justify-content:flex-end;max-width:calc(100vw - 28px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))' + (left ? ';flex-direction:row-reverse' : '') : '');
+    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (lay === 'row' ? ';display:flex;gap:10px;flex-wrap:wrap-reverse;max-width:calc(100vw - 28px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));flex-direction:' + (left ? 'row' : 'row-reverse') : '');
     if (lay !== 'row') {
       const g = 8, n = actions.length;
       if (lay === 'diamond') { const pos = [[1, 2], [2, 1], [0, 1], [1, 0]]; actions.forEach((a, i) => { at[a] = [pos[i][0] * (size * .82), pos[i][1] * (size * .82), size]; }); }   // (bottom, right, left, top)
@@ -1079,7 +1079,7 @@ class Input {
     this._touchBtns = {};
     for (const a of actions) {
       const b = this._touchBtns[a] = document.createElement('button'), z = at[a] ? at[a][2] : size; b.dataset.act = a; b.setAttribute('aria-label', a);
-      b.style.cssText = 'width:' + z + 'px;height:' + z + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(z / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;padding:0' + (at[a] ? ';position:absolute;left:' + Math.round(at[a][0]) + 'px;top:' + Math.round(at[a][1]) + 'px' : '');
+      b.style.cssText = 'width:' + z + 'px;height:' + z + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(z / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;padding:0' + (at[a] ? ';position:absolute;left:' + Math.round(at[a][0]) + 'px;top:' + Math.round(at[a][1]) + 'px' : ';order:' + (actions.length - 1 - actions.indexOf(a)));   // (a row fills from the corner: the last action there, a row too long wraps its first ones upward)
       this._touchLook(b, a); box.appendChild(b);
     }
     if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
@@ -1143,8 +1143,9 @@ class Input {
   suppressCode(code) {
     for (const a of this._codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
   }
-  /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; this._swipeAt = null; }
+  /** forget every pending press (after closing a menu or dialog, so the same press does not also attack; the pad cursor's
+   *  ✕ too, so its release clicks nothing) */
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; this._swipeAt = null; this._padCancel(); }   // (the pad cursor's ✕ taken too: no click when it is let go)
   /** the page went full screen or back: the keys and mouse buttons let go (one held through the change may never come up),
    *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
    *  first tap, the one that went full screen, is a JUMP */
@@ -1256,6 +1257,8 @@ class Input {
   /** [x, y] where the last zoom was asked for: the mouse pointer for the wheel, between the fingers for a pinch; null when
    *  the keys zoomed (about the screen's middle) */
   zoomPoint() { return this._zoomPt; }
+  /** true while two fingers pinch (a game's own one-finger drag waits for it: the pinch is not a pan) */
+  get pinching() { return this._pinching; }
   /** a pointer event in screen pixels, as the browser's would give: feed('down' | 'move' | 'up', x, y, { touch: false,
    *  button: 0, id: 0 (which finger, for zones) }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses,
    *  double taps and pans follow; a finger in one of the zones holds its act), or
@@ -9773,7 +9776,7 @@ class Dialog {
     this._fx = fxs.some(Boolean) ? fxs : null; this._hold = 0; this._held = -1;   // (the markup's looks and pauses per page letter; the pause running)
     /** name: the speaker's name shown on the box; onDone: called when the last page closes; choices: the answers
      *  offered on the last page, or null; onChoice: called with the index picked */
-    this.name = o.name || null; this.onDone = o.onDone || null; this.choices = o.choices || null; this.onChoice = o.onChoice || null; this._blip = 0;
+    this.name = o.name || null; this.onDone = o.onDone || null; this.choices = o.choices || null; this.onChoice = o.onChoice || null; this._blip = 0; this._mt = this.game.input.mouse.t;
     this.auto = o.auto || 0; this.modal = o.modal !== false; this._wait = 0;   // auto: seconds each page stays after typing; modal: false lets play go on (radio chatter)
     return this;
   }
@@ -9812,7 +9815,7 @@ class Dialog {
       }
     }
     if (this._rest > 0) this._rest -= dt;
-    const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
+    const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing, moved = inp.mouse.t !== this._mt; this._mt = inp.mouse.t;   // (moved: the mouse or the pad's cursor this step; one resting from before the question moves no choice)
     // swiped away (a touch screen): the rest of its text skipped, the box closed; a question goes to its last page (it
     // waits for an answer). A box play goes on under (modal: false) goes only for a swipe that began on it
     const sw = !asking && inp.swipe && inp.swipe(), sd = sw && this._dims();
@@ -9834,7 +9837,7 @@ class Dialog {
       if (inp.repeat('down') || inp.repeat('right')) { this.choice = (this.choice + 1) % this.choices.length; this.game.audio.sfx('select'); }
       // a tap or click on a choice picks it; the mouse moved over one moves the cursor there
       const b = this._cbox(d), row = q => q && q[0] >= b.x && q[0] < b.x + b.w && q[1] >= b.y && q[1] < b.y + b.h ? clamp(Math.floor((q[1] - b.y - 3) / d.lh), 0, this.choices.length - 1) : -1;
-      const moved = inp.mouse.t !== this._mt; this._mt = inp.mouse.t; const hv = moved ? row(inp.pointer()) : -1;   // (the mouse moved over a choice, or the pad's cursor: the cursor goes there)
+      const hv = moved ? row(inp.pointer()) : -1;   // (the mouse moved over a choice, or the pad's cursor: the cursor goes there)
       if (hv >= 0 && hv !== this.choice) { this.choice = hv; this.game.audio.sfx('select'); }
       const tc = row(c); if (tc >= 0) { this.choice = tc; chose = true; }
     }
@@ -10300,9 +10303,9 @@ class Shell {
   _tabs(tabs, on, go) {
     const box = this._el('div', 'esh-tabs'), I = this._game.input, pad = I.lastDevice === 'gamepad', chips = tabs.length > 1 && I.lastDevice !== 'touch';   // (a finger taps a tab: no keys shown for it)
     box.setAttribute('role', 'tablist'); this._tabGo = d => { const i = tabs.findIndex(t => t[0] === on); go(tabs[(i + d + tabs.length) % tabs.length][0]); };
-    if (chips) box.appendChild(this._chip(pad ? I.codeLabel('Pad4') : 'Q', pad));
+    if (chips) box.appendChild(this._chip(I.codeLabel(pad ? 'Pad4' : 'KeyQ'), pad));   // (Q and E where they are: A and E on an AZERTY)
     for (const [id, words] of tabs) { const b = this._el('button', id === on ? 'on' : '', words); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(id === on)); b.onclick = () => go(id); box.appendChild(b); }
-    if (chips) box.appendChild(this._chip(pad ? I.codeLabel('Pad5') : 'E', pad));
+    if (chips) box.appendChild(this._chip(I.codeLabel(pad ? 'Pad5' : 'KeyE'), pad));
     if (tabs.length < 2) this._tabGo = null;
     return box;
   }
@@ -10362,7 +10365,7 @@ class Shell {
     for (const k of S.keys('Controller').filter(k => !S.spec(k).show || S.spec(k).show(this._game))) add(this._row(k));
   }
   _capStart(a, device, name) {
-    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)) };
+    const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)), cr: !!CI._cr };
     this._status = ENG(device === 'pad' ? 'controls.press_pad' : 'controls.press_key', { action: name });
     this._render();
   }
@@ -10457,7 +10460,7 @@ class Shell {
     const box = this._el('div', 'esh-tags esh-hints'), one = (code, words) => { if (!code) return; const e = this._el('span'); e.append(this._chip(code, pad), ' ' + words); box.appendChild(e); };
     const lab = a => I.map[a] && I.label(a, pad ? 'gamepad' : 'keyboard');
     one(lab('confirm'), ENG('shell.select')); if (!title) one(lab('cancel'), ENG('shell.back'));
-    if (this._tabGo) one(pad ? I.codeLabel('Pad4') + ' ' + I.codeLabel('Pad5') : 'Q E', ENG('shell.tabs'));
+    if (this._tabGo) one(I.codeLabel(pad ? 'Pad4' : 'KeyQ') + ' ' + I.codeLabel(pad ? 'Pad5' : 'KeyE'), ENG('shell.tabs'));
     return box.childNodes.length ? box : null;
   }
   /** the Language menu: the page's languages, each in its own language (E.lang.name); a choice starts the game again in it
@@ -10558,7 +10561,8 @@ class Shell {
   /** binding a controller button: the first one pressed since binding began (Start cancels) */
   _capPad() {
     const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
-    const i = I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
+    const cr = !!(I._cr && !I._cr.chord), crNew = cr && !c.cr; c.cr = cr;   // (Create comes to a game a quarter of a second late, for the hub's chord: here its press binds at once)
+    const i = crNew ? 8 : I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
     const ra = RSTICK.find(k => I.held.has(k) && !c.prevR.includes(k)); c.prevR = RSTICK.filter(k => I.held.has(k));   // (the right stick pushed: its direction)
     if (i === 9) this._capEnd(ENG('controls.not_changed')); else if (i >= 0) this._capBind('Pad' + i); else if (ra) this._capBind(ra);
   }

@@ -216,7 +216,8 @@ function heroAim(h, dt = 1 / 60) {
 /** the touch standard's hack-and-slash assist (docs/CONTROLS.md): on touch, with Touch assists on (input.assist), the
  *  basic attack swings by itself at a foe in reach, so a thumb stays free for the skills and the dodge. Only a free basic
  *  skill (Blade Dance, Codex's Quillshot, Dan's Reap: the autopilot's own test), never in town, never while a skill
- *  button is held, and held back while the stick pulls away from the foe (kiting stays the player's). A controller, the
+ *  button is held, held back while the stick pulls away from the foe (kiting stays the player's), and never at one a
+ *  takedown or an execution would take (one unaware of him, one reeling: those stay the player's). A controller, the
  *  keyboard and the mouse play as before */
 function heroAutoBasic(h, md, mlen) {
   const i = h.slots.findIndex(id => id && REG.skills[id] && REG.skills[id].kind === 'basic' && !REG.skills[id].cost); if (i < 0) return;
@@ -224,6 +225,7 @@ function heroAutoBasic(h, md, mlen) {
   const m = nearestEnemy('hero', h.x, h.y, reach + 30); if (!m || m.team !== 'foe' || Math.hypot(m.x - h.x, m.y - h.y) - (m.r || 0) > reach) return;
   if (mlen > .1 && md[0] * (m.x - h.x) + md[1] * (m.y - h.y) <= 0) return;
   if (h.act && !h.act.free && h.act.skill !== id) return;
+  if ((m.arch && m.arch.takedown && !m.alarmed) || exeKind(h, m)) return;   // (one unaware of him, or reeling: a takedown or an execution is the player's, on USE)
   h.aim = angTo(h, m); useSlot(h, i, true);
 }
 function updateHero(h, dt, o = {}) {

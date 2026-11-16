@@ -271,6 +271,7 @@ const townScene = {
     const use = townUse(L0, h);
     if (use) { UI.prompt = use.label; UI.promptVerb = use.verb; UI.promptFn = use.fn; }
     const T = TOWN_HOLD;   // a controller at a shopkeeper: a tap of interact opens the shop, a hold talks (the mouse clicks them to talk)
+    if (T.use && (UI.top() || talk.open)) T.use = null;   // (a panel or a talk opened mid-hold: the hold is over, no shop later)
     if (T.use && (T.use.label !== (use && use.label) || !inp.down('interact'))) { if (T.use.label === (use && use.label)) T.use.fn(); T.use = null; }
     else if (T.use && (T.t += dt) > .35) { T.use.hold(); T.use = null; }
     else if (use && use.hold && inp.lastDevice === 'gamepad' && inp.pressed('interact')) { inp.consume('interact'); T.use = use; T.t = 0; }
@@ -488,5 +489,6 @@ game.hook('input', () => {
   if (z !== 1 && ['town', 'level', 'proving'].includes(ED.mode)) { PINCH.k *= z; if (PINCH.k > 1.15 || PINCH.k < .87) { zoomStep(PINCH.k > 1 ? 1 : -1); PINCH.k = 1; } }
 });
 let wheelT = 0;
-canvas.addEventListener('wheel', e => { if (UI.modal) return; const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
+canvas.addEventListener('wheel', e => { if (UI.modal || ED.mode === 'gallery') return;   // (the Gallery's wheel steps its reel)
+  const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
 BUS.on('heroDie', () => {});

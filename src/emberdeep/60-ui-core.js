@@ -57,7 +57,8 @@ function updateUI(dt) {
   const P0 = UI.top(), sw = inp.swipe();
   // ○ (Esc) backs out one layer: a panel's back() takes it first (a skill waiting for its slot, the tree's totals, a
   // sale waiting to be confirmed), then the panel closes. Death has no way back: it asks for a choice
-  if (inp.pressed('pause')) { if (P0) UI.close(); else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); else if (ED.mode === 'gallery') game.go('title'); }
+  if (inp.pressed('pause') && !(P0 && inp.pressed('cancel'))) { if (P0) UI.close();   // (Options closes a panel whole; Esc, pause and cancel at once, backs out a layer as ○ does)
+    else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); else if (ED.mode === 'gallery') game.go('title'); }
   else if (P0 && inp.pressed('cancel')) { if (!(P0.back && P0.back())) UI.close(); }
   // a flick sideways on a touch screen takes the panel away the same way (not the tree, which pans by dragging, nor an
   // item being dragged out of the bag, nor death)
