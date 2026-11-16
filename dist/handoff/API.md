@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.104.4)
+# my-3D2dge API card (v0.106.1)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -258,10 +258,10 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Kart and anti-gravity racing (Super Mario Kart, F-Zero, Power Drift) | Mode 7 | `E.Mode7` over a TileMap track (floor tags), `E.Car` (`kart: true`: hop, drift, boost) in an `E.Race` round an `E.Path` (laps, drivers, items), `m7.mesh` machines, a raised track (`heights`), `game.splitScreen(n)` | KART, ZERO |
 | 3D kart racing (Mario Kart 64, Crash Team Racing) | the 3D engine's `'behind'` camera | `world.track` (banked, walls, pads, `gaps` for a shortcut), `world.vehicle` karts raced by `E.Race`, split screen through `world.cameras` | 3D RACING |
 | Rail shooters (Star Fox 64, Panzer Dragoon) | the 3D engine's `'behind'` camera | `world.flyer` on rails or free in bounds, rolls (`f.rolling`) turn shots aside, `f.seek` for a charged lock, `Dialog`'s radio | 3D FLIGHT |
-| Into the screen (Space Harrier, After Burner, Yoshi's Safari) | Mode 7, rolled; first person on rails | world-space shots and foes, a bank as `cam.roll`, a cursor's shot by `m7.pick(sx, sy, boxes)` after `m7.begin` | BLASTER |
+| Into the screen (Space Harrier, After Burner, Yoshi's Safari, HyperZone, Super Star Wars, Thunder Blade) | Mode 7, rolled; first person on rails | world-space shots and foes, a bank as `cam.roll`, a cursor's shot by `m7.pick(sx, sy, boxes)` after `m7.begin` | BLASTER |
 | Flight over a world (Pilotwings, Final Fantasy VI's airship) | Mode 7, pitched and rolled | `m7.cam`'s `roll` and `pitch`, `curve` for a world that bends away; craft as `m7.mesh` models | SKY |
-| Road racing (OutRun, Pole Position, Road Rash) | the pseudo-3D road | `E.Road` segments (curves, hills, tunnels), scenery and traffic on it, `curveAt` throwing the car outward, checkpoints, forks (`split`, `branch`), `road.mesh` cars, `E.Rewind` | ROAD |
-| Bonus stages (Blue Sphere, Sonic 2's half-pipe, kart battle, Contra III) | Mode 7 | `curve`, `m7.quad` strips under `cam.roll`, `E.Car` in an arena, `pitch: 90` | SPECIAL |
+| Road racing (OutRun, Pole Position, Road Rash), flying over it (Night Striker, Panorama Cotton) | the pseudo-3D road | `E.Road` segments (curves, hills, tunnels), scenery and traffic on it, `curveAt` throwing the car outward, checkpoints, forks (`split`, `branch`), `road.mesh` cars, `E.Rewind`, `road.project` | ROAD |
+| Bonus stages (Blue Sphere, Sonic 2's half-pipe, kart battle, Contra III, Castlevania IV) | Mode 7 | `curve`, `m7.quad` strips under `cam.roll`, `E.Car` in an arena, `pitch: 90` | SPECIAL |
 | Top-down racing and driving (Micro Machines, RC Pro-Am, GTA) | `topdown` / `iso` | `E.Car` on a TileMap, `E.Race` for laps and drivers, cars as `px.poly` on `r.w()` corners | KART |
 | First-person shooter (Doom, GoldenEye 007, Apex Legends) | the 3D engine's first person (or third) | a level of text rows or a terrain, `world.ray` hitscan, recoil and reloads, doors (`world.thing('door')`), raiders on `world.flow()` | 3D SHOOTER |
 | Bomberman, Frogger, Sokoban, Gauntlet, Robotron; Sonic, Prince of Persia; light guns | as the recipe says | `AI_GUIDE.md`'s Genre recipes: each on the kit closest to it | (a recipe) |

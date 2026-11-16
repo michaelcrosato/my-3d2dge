@@ -1,4 +1,4 @@
-// The BLASTER kit's game (shooters into the screen: a jet-pack hero over a checkered plain, a jet that rolls the horizon and locks on, a first-person ride with a cursor; three bosses), readable: the starter's shell (src/starter/00-shell.js), then
+// The BLASTER kit's game (shooters into the screen, six stages: a jet-pack hero over a checkered plain, a jet that rolls the horizon and locks on, a first-person ride with a cursor, a craft along a winding neon course, a speeder free over the dunes that hunts crawlers by radar, an attack helicopter up a city's avenue, seen first from overhead; four bosses; Space Harrier, After Burner, Yoshi's Safari, HyperZone, Super Star Wars, Thunder Blade), readable: the starter's shell (src/starter/00-shell.js), then
 // the slice from line 168 (src/starter/31-blaster.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. blaster.html plays it; node kits/test.mjs blaster runs it headless.
 /* ============================== GAME START ==============================
@@ -40,14 +40,14 @@ const SLICES = [
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
-  { id: 'blaster', label: 'BLASTER', about: 'INTO THE SCREEN: A HERO, A JET, A RIDE', family: 'ARCADE' },
+  { id: 'blaster', label: 'BLASTER', about: 'INTO THE SCREEN: SIX STAGES, FOUR BOSSES', family: 'ARCADE' },
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
   { id: 'pinball', label: 'PINBALL', about: 'ONE TABLE: RAMP, MULTIBALL, JACKPOT', family: 'ARCADE' },
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
-  { id: 'road', label: 'ROAD', about: 'A COAST ROAD, ITS FORKS, A CHASE', family: 'RACING' },
+  { id: 'road', label: 'ROAD', about: 'RACE, FIGHT, CHASE AND FLY DOWN THE ROAD', family: 'RACING' },
   { id: 'zero', label: 'ZERO', about: 'ANTI-GRAVITY: A CITY, A RIBBON IN THE SKY', family: 'RACING' },
-  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A TURNING FORT', family: 'ARCADE' },
-  { id: 'sky', label: 'SKY', about: 'A FLIGHT SCHOOL, A SKYDIVE, AN AIRSHIP', family: 'FLIGHT' },
+  { id: 'special', label: 'SPECIAL', about: 'A PLANET, A HALF-PIPE, AN ARENA, A FORT, A ROOM', family: 'ARCADE' },
+  { id: 'sky', label: 'SKY', about: 'PLANE, SKYDIVE, BELT, GLIDER, HELICOPTER, AIRSHIP', family: 'FLIGHT' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
@@ -167,26 +167,32 @@ scenes.over = {
 
 /* =====================================================================================
  * SLICE 24  BLASTER  (Space Harrier, After Burner, Thunder Blade, Yoshi's Safari, HyperZone, Super Star Wars). @modules mode7 mesh
- * Shooters into the screen, five stages in a row (or one picked on the menu). HARRIER: a hero with a jet pack over a
+ * Shooters into the screen, six stages in a row (or one picked on the menu). HARRIER: a hero with a jet pack over a
  * checkered plain, anywhere on the screen, firing into it at saucers and jets; columns to dodge; a serpent at the end.
  * BURNER: a jet over the sea (seen first from overhead, as Thunder Blade opens), the horizon tilting as it banks: its cannon, missiles at what the reticle has locked, a
  * barrel roll that shakes off missiles; a bomber at the end. SAFARI: first person on rails through a valley, a cursor
  * to aim: slimes and bats out from behind the rocks (a rock stops a shot), a walker with three weak points at the end.
  * ZONE (HyperZone): a craft along a winding course over a neon grid, the camera banking into its bends: pods to
  * shoot, mines on the course to steer round, the gate at its end. SPEEDER (Super Star Wars' speeders): free over the
- * dunes, low, turned where you will: four crawlers to find by the radar and bring down, skimmers that hunt you.
+ * dunes, low, turned where you will: four crawlers to find by the radar and bring down, skimmers that hunt you. BLADE
+ * (Thunder Blade): an attack helicopter up a city's avenue by itself, seen first from straight overhead (it moves about
+ * the screen, its gun firing down at the tanks and jeeps in the streets and the turrets on the roofs), then the camera
+ * swings down behind it and it flies low between the buildings, or up over them: round a wing or under a skybridge in
+ * its way (a building hit hurts), helicopters head on, a gauge of its height and the roof ahead; a gunship at the end.
  * Three lives, a score and a best. Deep links: #blaster/harrier, #blaster/burner, #blaster/safari, #blaster/zone,
- * #blaster/speeder. KEYS: the arrows (the hero, the jet: up climbs; the cursor; the speeder: up faster), J / Z / Space or a click fire, K / X the missiles,
- * L / C / Shift the barrel roll. A pad: the stick, A fire, X missiles, B the roll. TOUCH: the stick, and it fires by
- * itself; MISSILE and ROLL in the jet; in the safari a tap shoots where it lands.
- * HOW IT WORKS: E.Mode7 (the mode7 module): the plain, the sea and the valley, the camera rolled with the jet, m7.pick
- * under the cursor; E.Mesh (the mesh module) the saucers, jets, missiles, columns, rocks, the bomber and the walker;
+ * #blaster/speeder, #blaster/blade. KEYS: the arrows (the hero, the jet, the helicopter: up climbs, overhead up flies
+ * ahead; the cursor; the speeder: up faster), J / Z / Space or a click fire, K / X the missiles, L / C / Shift the
+ * barrel roll. A pad: the stick, A fire, X missiles, B the roll. TOUCH: the stick, and it fires by itself; MISSILE and
+ * ROLL in the jet; in the safari a tap shoots where it lands.
+ * HOW IT WORKS: E.Mode7 (the mode7 module): the plain, the sea, the valley and the city's streets, the camera rolled
+ * with the jet, m7.pick under the cursor; E.Mesh (the mesh module) the saucers, jets, missiles, columns, rocks, the
+ * bomber, the walker, the helicopters (their rotors laid out in the body's frame), tanks, jeeps and the city's buildings;
  * E.Humanoid the hero, E.Blob the slimes and bats, E.Path the rails; this file the stages, their waves and the score.
  * ===================================================================================== */
 const BLASTER = (() => {
   const KEYS = Object.assign({}, E.Input.DEFAULT, { fire: ['KeyJ', 'KeyZ', 'Space', 'Mouse0', 'Pad0', 'Pad7'], missile: ['KeyK', 'KeyX', 'Pad2', 'Pad5'], roll: ['KeyL', 'KeyC', 'ShiftLeft', 'ShiftRight', 'Pad1', 'Pad4'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
-  const STAGES = ['harrier', 'burner', 'safari', 'zone', 'speeder'], hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
+  const STAGES = ['harrier', 'burner', 'safari', 'zone', 'speeder', 'blade'], hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
   /* ---- THE MODELS (x forward, y right, z up) ---- */
   const SAUCER = new E.Mesh([['ball', [0, 0, 6], [16, 16, 4], 'hull', { n: 10 }], ['ball', [0, 0, 9.5], [7, 7, 5], '#8ae0ff', { n: 8 }], ['tube', [0, 0, 1.6], 5, 1.4, '#ffd040', { axis: 'z', n: 6 }]]);
   const JET = new E.Mesh([['tube', [2, 0, 4], 2.6, 12, 'body', { n: 8, end: .3 }], ['tube', [-13, 0, 4.2], 2.3, 3, '#3a3a42', { n: 8, end: 1.15 }],
@@ -203,6 +209,21 @@ const BLASTER = (() => {
   const CORE = new E.Mesh([['ball', [0, 0, 0], [9, 9, 9], 'core', { n: 8 }]]);
   const SPEEDER = new E.Mesh([['box', [0, 0, 3], [12, 5, 1.6], 'body', { top: [.7, .9] }], ['tube', [-6, 6, 4], 1.8, 6, '#5a5a62', { n: 6, mirror: true }], ['ball', [3, 0, 5], [4, 3, 2.2], '#5ab8f0', { n: 6 }]]);
   const CRAWLER = new E.Mesh([['box', [0, 0, 16], [24, 13, 13], 'hull', { top: [.8, .85] }], ['box', [6, 0, 33], [11, 9, 5], 'hull', { top: [.7, .8] }], ['box', [0, 14, 6], [24, 3, 6], '#3a3430', { mirror: true }], ['box', [24, 0, 24], [1, 9, 3], '#ffc040']]);
+  // the city's: an attack helicopter (its rotors drawn apart, turning: rotor()), the armoured gunship with two, a tank and
+  // its turret, a jeep, a roof gun, a tree
+  const HELI = new E.Mesh([['ball', [2, 0, 12], [15, 6, 6.5], 'body', { n: 8 }], ['ball', [10, 0, 14.5], [7, 4.2, 4.6], '#8ad0f0', { n: 6 }], ['tube', [-19, 0, 14], 1.4, 12, 'body', { n: 6, end: 1.7 }],
+    ['face', [[-29, 0, 14], [-34, 0, 14], [-36, 0, 25], [-32, 0, 25]], 'trim', { both: true }], ['face', [[-26, 0, 14.5], [-30, 0, 14.5], [-30, 6, 14.5], [-27, 6, 14.5]], 'trim', { both: true, mirror: true }],
+    ['box', [-1, 0, 19.5], [7, 3.6, 2.4], 'body', { top: [.8, .8] }], ['tube', [0, 0, 23.5], 1, 1.6, '#3a3a42', { axis: 'z', n: 5 }], ['box', [0, 7.5, 10.5], [3.5, 3, .7], 'trim', { mirror: true }], ['tube', [1, 11, 9.4], 1.8, 4.5, '#3a3a42', { n: 6, mirror: true }],
+    ['box', [2, 6, 1], [12, .8, .8], '#2a2a30', { mirror: true }], ['box', [-5, 5, 4], [.7, .7, 3], '#2a2a30', { mirror: true }], ['box', [8, 5, 4], [.7, .7, 3], '#2a2a30', { mirror: true }], ['tube', [16, 0, 7.5], .8, 3.5, '#2a2a30', { n: 4 }]]);
+  const GUNSHIP = new E.Mesh([['box', [0, 0, 14], [24, 8, 8], 'hull', { top: [.85, .75] }], ['box', [27, 0, 12], [5, 7, 6], 'hull', { top: [.5, .7], tip: [-3, 0] }], ['ball', [27, 0, 17], [5, 4.5, 3], '#ff6a3a', { n: 6 }],
+    ['box', [-28, 0, 18], [6, 5, 6], 'hull', { top: [.8, .8] }], ['box', [18, 0, 23], [6, 4, 2], 'hull'], ['tube', [18, 0, 26], 1.2, 1.2, '#3a3a42', { axis: 'z', n: 5 }], ['tube', [-27, 0, 25.5], 1.2, 1.5, '#3a3a42', { axis: 'z', n: 5 }],
+    ['box', [0, 12, 10], [6, 4, 1.2], 'trim', { mirror: true }], ['tube', [2, 18, 8], 2.6, 7, '#2a2a30', { n: 6, mirror: true }], ['tube', [12, 18, 8], .9, 3, '#1a1a20', { n: 4, mirror: true }], ['box', [-4, 0, 4.5], [14, 6, 2], '#3a3a42']]);
+  const TANK = new E.Mesh([['box', [0, 0, 5], [13, 6, 3], 'hull', { top: [.85, .85] }], ['box', [0, 8.5, 3.5], [14, 2.5, 3.5], '#2a2a26', { mirror: true }]]);
+  const TURRET = new E.Mesh([['box', [-1, 0, 2.5], [6, 5, 2.5], 'hull', { top: [.75, .8] }], ['tube', [11, 0, 3], 1, 7, '#3a3a36', { n: 5 }]]);
+  const JEEP = new E.Mesh([['box', [0, 0, 5], [9, 5, 2.5], 'body', { top: [.95, .95] }], ['box', [-1, 0, 9.5], [3.5, 4.5, 2], 'body', { top: [.8, .9] }], ['tube', [6, 5.5, 2.5], 2.5, 1, '#1a1a1a', { axis: 'y', n: 6, mirror: true }],
+    ['tube', [-6, 5.5, 2.5], 2.5, 1, '#1a1a1a', { axis: 'y', n: 6, mirror: true }], ['tube', [-5, 0, 13.5], .6, 4, '#2a2a2a', { n: 4 }]]);
+  const GUN = new E.Mesh([['box', [0, 0, 2], [8, 8, 2], '#4a4a52'], ['ball', [0, 0, 6], [6.5, 6.5, 5], 'hull', { n: 8 }], ['tube', [9, 2, 7], .8, 5, '#2a2a30', { n: 4, mirror: true }]]);
+  const TREE = new E.Mesh([['tube', [0, 0, 6], 1.6, 6, '#6a4a2a', { axis: 'z', n: 5 }], ['ball', [0, 0, 17], [10, 10, 9], 'leaf', { n: 6 }]]);
   const HERO = new E.Humanoid({ size: 1.2, weapon: 'gun', hair: 'spiky', colors: { cloth: '#e83a30', pants: '#2a3a8a', hair: '#ffd040' } });
   const SONG = { bpm: 150, steps: 4, tracks: [
     { wave: 'square', vol: .05, notes: 'E5 . E5 G5 . E5 D5 . | C5 . D5 . E5 . . . | E5 . E5 G5 . A5 G5 . | E5 . D5 . C5 . . . | A5 . A5 C6 . A5 G5 . | E5 . G5 . A5 . . . | G5 . E5 . D5 . C5 . | D5 . . . . . . .' },
@@ -228,13 +249,79 @@ const BLASTER = (() => {
         sky: new E.Backdrop({ sky: ['#1a4aa8', '#5a9ae0', '#cfe0f4'], layers: [{ kind: 'clouds', color: '#ffffff', y: .55, height: .18, parallax: .04, drift: 6 }] }) }),
       dunes: new E.Mode7({ floor: (x, y) => { const n = E.noise2(x / 420, y / 420), r = hash(x >> 2, y >> 2) % 7; return n > .74 ? [150 + r, 104, 76] : Math.sin((x + y * .4) / 46 + n * 14) > .6 ? [230 - r, 194, 136] : [212 - r * 2, 172 - r, 112]; }, size: [4096, 4096], texel: 4, wrap: true, far: 6000, fog: { color: '#f0d0a0', near: 2000, far: 6000 },
         sky: ['#c8683a', '#f0d0a0'] }),
-      vale: new E.Mode7({ floor: vale, texel: 4, outside: '#4a8a3e', far: 3000, fog: { color: '#6a9a58', near: 1200, far: 3000 }, sky: new E.Backdrop({ sky: ['#3a7ad8', '#8ac0f0', '#cfe6f8'], sun: { x: .8, y: .2, r: 12, color: '#fffbe0' }, layers: [{ kind: 'clouds', color: '#ffffff', y: .25, height: .15, parallax: .04, drift: 4 }, { kind: 'mountains', color: '#6a7ab8', y: .55, height: .3, parallax: .05, seed: 2 }, { kind: 'hills', color: '#5a9a4a', y: .78, height: .22, parallax: .08 }] }) })
+      vale: new E.Mode7({ floor: vale, texel: 4, outside: '#4a8a3e', far: 3000, fog: { color: '#6a9a58', near: 1200, far: 3000 }, sky: new E.Backdrop({ sky: ['#3a7ad8', '#8ac0f0', '#cfe6f8'], sun: { x: .8, y: .2, r: 12, color: '#fffbe0' }, layers: [{ kind: 'clouds', color: '#ffffff', y: .25, height: .15, parallax: .04, drift: 4 }, { kind: 'mountains', color: '#6a7ab8', y: .55, height: .3, parallax: .05, seed: 2 }, { kind: 'hills', color: '#5a9a4a', y: .78, height: .22, parallax: .08 }] }) }),
+      // the city's streets (1,024 across and eight blocks up, repeating): the avenue at x 0 (four lanes, a double yellow
+      // line, crossings at the corners), a side street at 512, a cross street every 512 up it, sidewalks; the lots
+      // concrete, two of them in the eight blocks a park (a fountain, paths: park() says which, for block())
+      city: new E.Mode7({ floor: (x, y) => {
+        const ax = x > 512 ? 1024 - x : x, yy = y % 512, n = hash(x >> 2, y >> 2) % 6, tar = [60 + n, 60 + n, 68 + n], white = [218, 216, 206], yel = [228, 186, 60];
+        if (ax < 100) return yy > 42 && yy < 58 || yy > 454 && yy < 470 ? (ax % 14 < 8 ? white : tar) : yy < 40 || yy > 472 ? tar : ax > 1.5 && ax < 5 ? yel : ax > 47 && ax < 51 && (yy & 63) < 30 || ax > 93 && ax < 96 ? white : tar;
+        if (yy < 40 || yy > 472) return (yy < 2 || yy > 510) && (ax & 31) < 16 ? yel : tar;   // (a cross street)
+        if (ax > 488) return ax > 510 && (yy & 31) < 16 ? white : tar;   // (the side street)
+        if (ax < 124 || ax > 476 || yy < 56 || yy > 456) return (x & 15) < 2 || (y & 15) < 2 ? [128, 124, 120] : [150 + n, 146 + n, 140 + n];   // (the sidewalks)
+        if (!park(x < 512 ? 0 : 1, y >> 9)) return [112 + n, 106 + n, 100 + n];
+        const dx = ax - 300, dy = yy - 256, r = Math.hypot(dx, dy);
+        return r < 28 ? [70, 130, 190] : r < 34 ? [190, 184, 170] : Math.abs(dx) < 6 || Math.abs(dy) < 6 ? [184, 170, 136] : [70 + n * 3, 120 + n * 2, 60];
+      }, size: [1024, 4096], texel: 2, wrap: true, far: 3200, fog: { color: '#e8b496', near: 1300, far: 3200 },
+        sky: new E.Backdrop({ sky: ['#2a3a8a', '#b8708a', '#f0b890'], sun: { x: .75, y: .62, r: 14, color: '#fff0c0' }, layers: [{ kind: 'city', color: '#8a7090', y: .92, height: .5, parallax: .05, windows: '#ffe0a0', seed: 4 }] }) })
     });
   }
 
+  /* ---- THE CITY: its blocks up the avenue (y falls as the stage goes on), each building a box on its lot ---- */
+  const WALLS = ['#c8b8a0', '#a8aab8', '#c89a80', '#b0b8b0', '#d8d0c4', '#9890a8', '#b88a74', '#8a9aa8'], GLASS = [{ win: '#3a4a72', lit: '#ffd98a' }, { win: '#2a5a6a', lit: '#fff0b0' }], LIGHT = [-.5, .45, .75];
+  const park = (lot, b) => (b & 7) === (lot ? 5 : 2);   // (the floor's lot 0 is x 124 to 476 in its 1,024, lot 1 548 to 900)
+  // a building's models, cached by size: its box (a roof house on top) and its windows, a band of glass a floor on the
+  // sides the camera sees (toward the avenue, s its side, and the south), drawn after it unshaded; x0..x1 across from its
+  // origin (the corner by the avenue at its north end: kept while any of it is on the screen, sorted by its far end)
+  const SHAPES = new Map();
+  function shape(x0, x1, d, h, s, roof) {
+    const key = [x0, x1, d, h, s, roof].join(); let m = SHAPES.get(key); if (m) return m;
+    const w = x1 - x0, body = new E.Mesh([['box', [(x0 + x1) / 2, d / 2, h / 2], [w / 2, d / 2, h / 2], 'wall']]), win = new E.Mesh();
+    if (roof) body.part(['box', [(x0 + x1) / 2 + s * w * .12, d * .4, h + 5], [Math.min(30, w * .2), Math.min(26, d * .2), 5], 'roof']);
+    for (let a = 10, f = 0; a + 12 < h; a += 22, f++) {
+      const c = hash(f, w + h) % 3 ? 'win' : 'lit', b = a + 8, y = d + .6;
+      if (s) { const x = -s * .6; win.part(['face', s > 0 ? [[x, d - 8, a], [x, 8, a], [x, 8, b], [x, d - 8, b]] : [[x, 8, a], [x, d - 8, a], [x, d - 8, b], [x, 8, b]], c]); }
+      win.part(['face', [[x1 - 8, y, a], [x0 + 8, y, a], [x0 + 8, y, b], [x1 - 8, y, b]], s ? c : 'lit']);
+    }
+    SHAPES.set(key, m = { body, win }); return m;
+  }
+  // the city's block b: y from b * 512 (its cross street) to b * 512 + 512; a lot each side of the avenue (136 to 460 out)
+  // and past the side street (560 to 890), two buildings to a lot, or a park's trees; downtown (from 6,650 up the
+  // avenue) tall, and on the way to the gunship a skybridge across the avenue or a low wing into it every third block;
+  // each a box { x0, x1, y0, y1, z0, z1 } and its look (fx: its origin's x); the same every run
+  const CITY = new Map();
+  function block(b) {
+    let L = CITY.get(b); if (L) return L; L = [];
+    const down = b < -13, y = b * 512, m = -b % 3, way = down && b > -37 && b < -15;
+    for (const s of [-1, 1]) for (const c of [0, 1]) {
+      if (park((s > 0) === !c ? 0 : 1, b)) { for (const [ox, oy] of [[-110, -120], [110, -120], [-110, 120], [110, 120], [-60, -40], [60, 50]]) L.push({ tree: true, x0: s * (c ? 724 : 300) + ox, y0: y + 256 + oy, y1: y + 256 + oy, col: hash(ox + 200, b) % 2 ? '#3a8a3a' : '#5a9a3a' }); continue; }
+      for (const k of [0, 1]) {
+        const r = hash(b * 4 + k * 2 + c, s + 3), w = 150 + (r % 8) * 20, h = down ? 120 + (r >>> 3) % 12 * 20 : 50 + (r >>> 3) % 6 * 20, x = s * (c ? 560 : 136);
+        L.push({ x0: s > 0 ? x : x - w, x1: s > 0 ? x + w : x, y0: y + 72 + k * 192, y1: y + 248 + k * 192, z0: 0, z1: h, fx: x, s, near: !c, col: WALLS[(r >>> 7) % WALLS.length], glass: GLASS[(r >>> 10) & 1] });
+      }
+    }
+    const lo = L.filter(q => q.near && q.y0 === y + 72 && !q.tree);
+    if (way && m === 0 && lo.length === 2) { const z = clamp(Math.min(lo[0].z1, lo[1].z1) - 70, 90, 170); L.push({ x0: -136, x1: 136, y0: y + 140, y1: y + 180, z0: z, z1: z + 26, fx: 0, s: 0, near: true, col: '#8a9ab0', glass: GLASS[0] }); }
+    const s = b & 1 ? 1 : -1;
+    if (way && m === 1 && !park(s > 0 ? 0 : 1, b)) { const h = 70 + hash(b, 9) % 3 * 25; L.push({ x0: s > 0 ? 20 : -136, x1: s > 0 ? 136 : -20, y0: y + 290, y1: y + 420, z0: 0, z1: h, fx: s * 20, s, near: true, wing: true, col: '#b0a090', glass: GLASS[1] }); }
+    CITY.set(b, L); return L;
+  }
+  // the boxes (not the trees) with some of them between y0 and y1
+  function boxes(y0, y1) { const out = []; for (let b = Math.floor(y0 / 512); b <= Math.floor(y1 / 512); b++) for (const q of block(b)) if (!q.tree && q.y1 > y0 && q.y0 < y1) out.push(q); return out; }
+  // a rotor: a pale disc where its blades blur and two blades crossed, turned to a; laid out in the model's frame (it
+  // banks and pitches with the body): hub and radius in the model's units, side: in the upright plane (a tail rotor)
+  function rotor(g, V, M, o, hub, rad, a, side) {
+    const P = (u, v) => V.project(...M.at(hub[0] + u, hub[1] + (side ? 0 : v), hub[2] + (side ? v : 0), o)), ring = [];
+    for (let i = 0; i < 12; i++) { const p = P(Math.cos(i * TAU / 12) * rad, Math.sin(i * TAU / 12) * rad); if (!p) return; ring.push([p[0], p[1]]); }
+    px.polyDither(g, ring, '#e8eef8', .28);
+    for (const b of [a, a + Math.PI / 2]) { const c = Math.cos(b), s = Math.sin(b), w = side ? .7 : 1.3, q = [[rad, w], [rad, -w], [-rad, -w], [-rad, w]].map(([u, v]) => P(c * u - s * v, s * u + c * v)); if (!q.some(p => !p)) px.poly(g, q.map(p => [p[0], p[1]]), '#1e1e24'); }
+  }
+  // a helicopter's two rotors (or the gunship's), gathered at its foot right after its body (the same depth: drawn after it)
+  const rotors = (g, V, M, o, a) => { if (M === HELI) { rotor(g, V, M, o, [0, 0, 25.4], 26, a); rotor(g, V, M, o, [-34, 1.6, 21], 5.5, a * 1.7, true); } else { rotor(g, V, M, o, [18, 0, 27.4], 22, a); rotor(g, V, M, o, [-27, 0, 27.2], 22, -a); } };
+
   /* ---- THE RUN: the score, the lives, what flies; a stage at a time ---- */
   let mode = 'menu', R = null, t = 0, auto = false;
-  const menu = new E.Menu(game, [E.t('blaster.menu.start'), E.t('blaster.stage.harrier'), E.t('blaster.stage.burner'), E.t('blaster.stage.safari'), E.t('blaster.stage.zone'), E.t('blaster.stage.speeder'), E.t('blaster.menu.back')], { onPick: i => i === 6 ? game.go('title') : begin(i ? i - 1 : 0, i > 0) });
+  const menu = new E.Menu(game, [E.t('blaster.menu.start'), E.t('blaster.stage.harrier'), E.t('blaster.stage.burner'), E.t('blaster.stage.safari'), E.t('blaster.stage.zone'), E.t('blaster.stage.speeder'), E.t('blaster.stage.blade'), E.t('blaster.menu.back')], { onPick: i => i === 7 ? game.go('title') : begin(i ? i - 1 : 0, i > 0) });
   const after = new E.Menu(game, [E.t('blaster.menu.again'), E.t('blaster.menu.menu')], { onPick: i => i === 0 ? begin(R.first, R.one) : toMenu() });
   function toMenu() { mode = 'menu'; R = null; A.music('title'); }
   /** a run from a stage (one: that stage alone); a game of one: players who joined elsewhere (a split screen) leave, and
@@ -261,7 +348,7 @@ const BLASTER = (() => {
   const STAGE = {
     /** the zone: a course along a path over the grid; the craft a lateral u and a height on it, the camera behind banking into the bends */
     zone: {
-      start() { Object.assign(R, { s: 0, u: 0, zh: 60, steer: 0, spawn: 400 }); },
+      start() { Object.assign(R, { s: 0, u: 0, zh: 60, steer: 0, spawn: 400, pods: 0, mines: 0 }); },   // (pods: shot down; mines: run into)
       at(s, u, z) { const p = ZONE.at(s); return { x: p.x - Math.sin(p.angle) * u, y: p.y + Math.cos(p.angle) * u, z, a: p.angle }; },
       cam() { const c = this.at(R.s - 170, R.u * .6, 0), a = ZONE.at(R.s).angle, bend = E.angDiff(a, ZONE.at(R.s + 260).angle); return { x: c.x, y: c.y, h: 46 + R.zh * .55, angle: c.a + E.angDiff(c.a, a) * .5, pitch: 6 + R.zh * .02, fov: 70, roll: clamp(bend * 70, -24, 24) + R.steer * -6 }; },
       update(dt, k) {
@@ -269,21 +356,21 @@ const BLASTER = (() => {
         R.steer += (k.x - R.steer) * Math.min(1, dt * 8); R.u = clamp(R.u + R.steer * 300 * dt, -150, 150); R.zh = clamp(R.zh - k.y * 220 * dt, 16, 160);
         const me = this.at(R.s, R.u, R.zh);
         if (k.fire && R.cool <= 0) { R.cool = .11; R.fired++; R.shots.push({ x: me.x, y: me.y, z: me.z + 4, vx: Math.cos(me.a) * 1700, vy: Math.sin(me.a) * 1700, vz: 0, t: 0 }); A.sfx('shoot', { vol: .3 }); }
-        while (R.spawn < R.s + 2400 && R.spawn < ZL - 900) {   // what lies ahead, placed along the course: pods in threes, now and then a mine on it
+        while (R.spawn < R.s + 2400 && R.spawn < ZL - 900) {   // what lies ahead, placed along the course: pods in threes, now and then a mine on it, floating at the height the craft flies (steered round, over or under, or shot)
           const n = Math.round(R.spawn / 260), u = Math.sin(n * .9) * 110, mine = n % 4 === 3;
-          if (mine) { const q = this.at(R.spawn, -u * .6, 14); R.foes.push({ kind: 'mine', s: R.spawn, u: -u * .6, x: q.x, y: q.y, z: 14, hp: 2, r: 16 }); }
+          if (mine) { const q = this.at(R.spawn, -u * .6, 60); R.foes.push({ kind: 'mine', s: R.spawn, u: -u * .6, x: q.x, y: q.y, z: 60, hp: 2, r: 16 }); }
           else for (let i = -1; i <= 1; i++) { const q = this.at(R.spawn + i * 40, u + i * 40, 50 + Math.abs(i) * 30); R.foes.push({ kind: 'pod', s: R.spawn + i * 40, u: u + i * 40, x: q.x, y: q.y, z: q.z, hp: 1, r: 16, ph: n + i }); }
           R.spawn += 260;
         }
         for (const f of R.foes) if (f.hp > 0) {
           f.t = (f.t || 0) + dt;
           if (f.kind === 'pod') { f.s -= 160 * dt; f.u += Math.sin(f.t * 2 + f.ph) * 40 * dt; const q = this.at(f.s, f.u, f.z); f.x = q.x; f.y = q.y; if (!f.shot && f.s - R.s < 900 && f.ph % 3 === 0) { f.shot = true; fireAt(f, 560); } }
-          if (Math.abs(f.s - R.s) < 14 && Math.abs(f.u - R.u) < f.r + 6 && Math.abs(f.z - R.zh) < 26) { f.hp = 0; boom(f.x, f.y, f.z); hurt(); }
+          if (Math.abs(f.s - R.s) < 14 && Math.abs(f.u - R.u) < f.r + 6 && Math.abs(f.z - R.zh) < 26) { f.hp = 0; boom(f.x, f.y, f.z); hurt(); if (f.kind === 'mine') R.mines++; }
         }
         R.foes = R.foes.filter(f => f.hp > 0 && f.s > R.s - 300);
         if (R.s >= ZL - 400) clear();
       },
-      hit(s) { for (const f of R.foes) if (f.hp > 0 && Math.hypot(s.x - f.x, s.y - f.y, s.z - f.z) < f.r + 8) { if (--f.hp <= 0) { boom(f.x, f.y, f.z); score(f.kind === 'mine' ? 500 : 200); } return true; } return false; },
+      hit(s) { for (const f of R.foes) if (f.hp > 0 && Math.hypot(s.x - f.x, s.y - f.y, s.z - f.z) < f.r + 8) { if (--f.hp <= 0) { boom(f.x, f.y, f.z); score(f.kind === 'mine' ? 500 : 200); if (f.kind === 'pod') R.pods++; } return true; } return false; },
       me() { const m = this.at(R.s, R.u, R.zh); return { x: m.x, y: m.y, z: m.z }; },
       gather(V) {
         const k0 = Math.floor((R.s - 160) / 90);
@@ -444,6 +531,117 @@ const BLASTER = (() => {
         if (R.hurt <= 0 || Math.floor(t * 12) % 2) V.mesh(SPEEDER, v.x, v.y, v.z, { yaw: v.yaw, roll: v.turn * .5, scale: 1.4, colors: { body: '#e8e4d8' } });
       }
     },
+    /** the city (Thunder Blade): the helicopter flies up the avenue (north) by itself, seen from straight overhead for its
+     *  first stretch (the stick moves it about the screen, its gun fires down ahead at the streets), then the camera
+     *  swings down behind it (at 12 s, as the sea's does) and it flies low between the buildings, the stick its line
+     *  across and its height; waves by time, then the gunship */
+    blade: {
+      start() { Object.assign(R, { F: 0, hx: 0, dy: 40, hz: 260, bank: 0, tilt: -.1, spin: 0, guns: new Set() }); },
+      swing: () => E.ease.inOutQuad(clamp((R.t - 12) / 2.5, 0, 1)),
+      cam() {   // (over the helicopter, then swung down behind it: the pitch kept within 20 degrees of it, on the screen throughout)
+        const tall = game.H > game.W, u = this.swing(), y = R.F + R.dy, n = { x: R.hx * (tall ? .85 : .6), y: y + (tall ? 200 : 150), h: R.hz + (tall ? 70 : 58), angle: -Math.PI / 2, pitch: (tall ? 6 : 10) + R.hz * .01, fov: tall ? 80 : 66, roll: Math.abs(R.bank) > .04 ? R.bank * -12 : 0 };
+        for (const q of boxes(n.y - 260, n.y + 40)) if (q.z0 > 0 && R.hz < q.z0) n.h = Math.min(n.h, q.z0 - 8 + Math.max(0, n.y - q.y1 - 40) * .6);   // (the helicopter under a skybridge: the camera under it too, as it nears it)
+        if (u >= 1) return n; const cy = R.F - 40 + (n.y - R.F + 40) * u, h = R.hz + 330 + (n.h - R.hz - 330) * u, dn = Math.atan2(h - R.hz, cy - y) * 180 / Math.PI;
+        const ox = R.hx * (tall ? .85 : .5); return Object.assign(n, { x: ox + (n.x - ox) * u, y: cy, h, pitch: Math.min(90, Math.max(90 + (n.pitch - 90) * u, dn - 20)), roll: n.roll * u });
+      },
+      update(dt, k) {
+        const u = this.swing(), top = u <= 0, T = R.t, lim = top ? 300 : u < 1 ? 300 - 200 * u : 200;   // (across: the street grid overhead, drawn in to the avenue as the camera swings down)
+        R.F -= 480 * dt; R.spin += dt * 31;
+        R.bank += (clamp(k.x, -1, 1) * .35 - R.bank) * Math.min(1, dt * 6); R.tilt += (-.1 + (top ? k.y * .15 : -k.y * .12) - R.tilt) * Math.min(1, dt * 5);
+        R.hx = clamp(R.hx + k.x * 300 * dt, -300, 300); R.hx += (clamp(R.hx, -lim, lim) - R.hx) * Math.min(1, dt * 4);
+        if (top) R.dy = clamp(R.dy + k.y * 260 * dt, -150, 110);   // overhead: up and down the screen; the swing: down to the avenue; behind: up and down
+        else if (u < 1) {   // (the swing: down to the avenue, but over a roof until it's over the avenue itself)
+          const yy = R.F + R.dy, roof = Math.abs(R.hx) > 110 ? Math.max(0, ...boxes(yy - 40, yy + 40).filter(q => !q.z0 && R.hx > q.x0 - 24 && R.hx < q.x1 + 24).map(q => q.z1 + 24)) : 0;
+          R.dy -= R.dy * Math.min(1, dt * 3); R.hz += (Math.max(120, roof) - R.hz) * Math.min(1, dt * 1.6);
+        }
+        else R.hz = clamp(R.hz - k.y * 260 * dt, 40, 420);
+        const me = this.me();
+        if (k.fire && R.cool <= 0) {   // overhead the gun fires down ahead (a shot meets what it passes over); behind, ahead, leaning to the foe nearest its line
+          R.cool = .1; R.fired++; A.sfx('shoot', { vol: .3 });
+          if (u < .5) R.shots.push({ x: me.x, y: me.y - 20, z: me.z - 6, vx: 0, vy: -1100, vz: -(me.z - 6) / .45, t: .45, down: true });
+          else { const f = R.foes.filter(f => f.hp > 0 && f.y < me.y - 60 && me.y - f.y < 1800 && Math.abs(f.x - me.x) < 50 + (me.y - f.y) * .06 && Math.abs(f.z + 10 - me.z) < 70 + (me.y - f.y) * .1).sort((a, b) => b.y - a.y)[0], tt = f ? (me.y - f.y) / 1600 : 1;
+            R.shots.push({ x: me.x, y: me.y - 20, z: me.z - 4, vx: f ? clamp((f.x - me.x) / tt, -400, 400) : 0, vy: -1600, vz: f ? clamp((f.z + 10 - me.z + 4) / tt, -700, 500) : 0, t: 0 }); }
+        }
+        const W = R.waves, wave = (at, fn) => { if (T >= at && W === wave.n) { fn(); R.waves++; } wave.n++; }; wave.n = 0;
+        for (const [at, kind, n] of [[1.5, 'tanks', 3], [3, 'jeeps', 2], [4.5, 'guns', 3], [6, 'copters', 3], [7.5, 'tanks', 4], [9, 'guns', 3], [10.5, 'copters', 2], [15, 'copters', 3], [17, 'tanks', 3], [19.5, 'guns', 4],
+          [22, 'copters', 4], [24.5, 'jeeps', 3], [26, 'tanks', 2], [28, 'guns', 4], [30.5, 'copters', 5], [33, 'tanks', 3], [35.5, 'copters', 3], [37, 'guns', 3]]) wave(at, () => this.spawn(kind, n, top, me));
+        if (T > 40 && !R.boss) { R.boss = { kind: 'gunship', x: 0, y: me.y - 2200, z: 200, hp: 60, max: 60, r: 76, t: 0, fire: 2.5, salvo: 5 }; R.foes.push(R.boss); A.music('boss'); }
+        for (const f of R.foes) {
+          f.t += dt; if (f.hp <= 0) continue;
+          const dx = me.x - f.x, dy = me.y - f.y, near = dy > 150 && dy < 1400;   // (ahead of the helicopter, in range)
+          if (f.v) { f.x += Math.cos(f.yaw) * f.v * dt; f.y += Math.sin(f.yaw) * f.v * dt; }
+          if (f.kind === 'tank' || f.kind === 'gun') { f.aim = Math.atan2(dy, dx); if (near && (f.fire -= dt) < 0) { f.fire = f.kind === 'tank' ? 2.6 : 2.1; lob(f, f.kind === 'tank' ? 480 : 540, f.z + 14); } }
+          if (f.kind === 'copter') {   // it weaves at you (down the avenue, between its walls), one missile when near, and past you climbs away; flown into, it hurts
+            f.y += f.vy * dt; f.x += Math.sin(f.t * 2 + f.ph) * 60 * dt; if (!top) f.x = clamp(f.x, -100, 100); if (dy < -40 && !top) f.z += 320 * dt;
+            if (near && (f.fire -= dt) < 0) { f.fire = 9; R.hot.push({ x: f.x, y: f.y + 10, z: f.z, vx: 0, vy: 560, vz: 0, t: 0, home: true }); }
+            if (Math.hypot(dx, dy, me.z - f.z) < 34) { f.hp = 0; boom(f.x, f.y, f.z, 1.4); hurt(); }
+          }
+        }
+        const B = R.boss; if (B && B.flash > 0) B.flash -= dt;
+        if (B && B.hp > 0) {   // the gunship holds a place ahead (keeping up), weaving: a burst of three from its guns, a pair of missiles now and then
+          const e = Math.min(1, dt * 1.2); B.x += (Math.sin(B.t * .8) * 50 - B.x) * e; B.y += -480 * dt + (me.y - 480 - B.y) * Math.min(1, dt * .9); B.z += (180 + Math.sin(B.t * 1.3) * 60 - B.z) * e;
+          if ((B.fire -= dt) < 0) { B.fire = 1.5; for (const s of [-1, 0, 1]) lob({ x: B.x + s * 40, y: B.y + 30 }, 620, B.z, s * 60); }
+          if ((B.salvo -= dt) < 0) { B.salvo = 4.5; for (const s of [-1, 1]) R.hot.push({ x: B.x + s * 44, y: B.y + 20, z: B.z, vx: s * 160, vy: 420, vz: 0, t: 0, home: true }); }
+        } else if (B && !B.dead) { B.dead = true; B.fall = 0; for (let i = 0; i < 6; i++) boom(B.x + (i - 3) * 24, B.y, B.z + (i % 2) * 20, 2); clear(); }
+        else if (B && B.z > 0) {   // shot down: it falls on ahead, smoking, and bursts on the street
+          B.fall += dt * 260; B.z = Math.max(0, B.z - B.fall * dt); B.y += -480 * dt + (me.y - 480 - B.y) * Math.min(1, dt * .9);
+          if (Math.floor(B.t / .3) !== Math.floor((B.t - dt) / .3)) boom(B.x, B.y, B.z + 20, 1.2); if (B.z <= 0) boom(B.x, B.y, 10, 3);
+        }
+        if (!top) for (const q of boxes(me.y - 14, me.y + 14)) if (me.x > q.x0 - 14 && me.x < q.x1 + 14 && me.z > q.z0 - 10 && me.z < q.z1 + 12) {   // a building flown into: it hurts, and knocks the helicopter out the nearest way (across, over, under)
+          const free = o => Math.abs(me.x + o[0]) <= lim && !boxes(me.y - 14, me.y + 14).some(b => b !== q && me.x + o[0] > b.x0 - 14 && me.x + o[0] < b.x1 + 14 && me.z + o[1] > b.z0 - 10 && me.z + o[1] < b.z1 + 12);   // (a way out within reach and into no other building)
+          const out = [[q.x0 - 15 - me.x, 0], [q.x1 + 15 - me.x, 0], [0, q.z1 + 13 - me.z], [0, q.z0 > 0 ? q.z0 - 11 - me.z : 1e9]].filter(free).sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]))[0] || [0, q.z1 + 13 - me.z];
+          R.hx += out[0]; R.hz += out[1]; game.shake(4); hurt(); break;
+        }
+        R.foes = R.foes.filter(f => f === R.boss || (f.hp > 0 && f.y < R.F + 600 && f.t < 30));   // (gone past the screen's foot, overhead too)
+      },
+      /** what a wave brings, from ahead (overhead, just past the screen's top; behind, out of the haze): tanks up the
+       *  avenue's lanes (not into a wing), jeeps across a cross street, guns on the roofs by the avenue, helicopters */
+      spawn(kind, n, top, me) {
+        const ahead = me.y - (top ? 820 : 2900);
+        for (let i = 0; i < n; i++) {
+          if (kind === 'tanks') { const lanes = [-70, 70, -25, 25].filter(x => !boxes(ahead - n * 170 - 60, ahead + 400).some(q => q.wing && x > q.x0 - 30 && x < q.x1 + 30)); R.foes.push({ kind: 'tank', x: lanes[i % lanes.length], y: ahead - i * 170, z: 0, yaw: Math.PI / 2, aim: Math.PI / 2, v: 40, hp: 3, r: 26, t: 0, fire: 1 + i * .7 }); }
+          if (kind === 'jeeps') { const s = i % 2 ? 1 : -1; R.foes.push({ kind: 'jeep', x: -s * (520 + i * 140), y: Math.round(ahead / 512) * 512 + s * 18, z: 0, yaw: s > 0 ? 0 : Math.PI, v: 240, hp: 1, r: 20, t: 0 }); }
+          if (kind === 'copters') { const c = i - (n - 1) / 2; R.foes.push({ kind: 'copter', x: c * (top ? 120 : 55), y: (top ? me.y - 760 : ahead) - Math.abs(c) * (top ? 90 : 160), z: top ? 260 : clamp(me.z + (i % 2 ? 40 : -20), 70, 340), vy: top ? 240 : 320, hp: 2, r: 30, t: 0, ph: i, fire: .3 + i * .35 }); }
+        }
+        if (kind === 'guns') for (const q of boxes(ahead - 600, ahead + 200).filter(q => q.s && q.near && !q.z0 && !q.wing && !R.guns.has(q)).sort((a, b) => b.y0 - a.y0).slice(0, n)) { R.guns.add(q); R.foes.push({ kind: 'gun', x: q.fx + q.s * 26, y: (q.y0 + q.y1) / 2, z: q.z1, hp: 2, r: 22, t: 0, fire: 1 + R.guns.size % 3 * .5, aim: Math.PI / 2 }); }
+      },
+      hit(s) {   // (overhead, a shot meets what it passes over: the streets and the air are one)
+        for (const f of R.foes) if (f.hp > 0 && (s.down ? Math.hypot(s.x - f.x, s.y - f.y) < f.r + 4 : Math.hypot(s.x - f.x, s.y - f.y, s.z - f.z - (f.kind === 'copter' || f === R.boss ? 0 : 8)) < f.r + 6)) {
+          if (f === R.boss) f.flash = .04;
+          if (--f.hp <= 0) { if (f !== R.boss) boom(f.x, f.y, f.z + 10, f.kind === 'copter' ? 1.4 : 1.2); score({ tank: 500, jeep: 300, gun: 400, copter: 800, gunship: 20000 }[f.kind]); } else A.sfx('hit', { vol: .3 });
+          return true;
+        }
+        return false;
+      },
+      me() { return { x: R.hx, y: R.F + R.dy, z: R.hz }; },
+      gather(V) {
+        const me = this.me(), u = this.swing(), y0 = me.y + (u < .5 ? 700 : 300), y1 = me.y - (u < .5 ? 800 : 3200), c = this.cam(), cp = Math.cos(c.pitch * Math.PI / 180), sp = Math.sin(c.pitch * Math.PI / 180);
+        for (let b = Math.floor(y1 / 512); b <= Math.floor(y0 / 512); b++) for (const q of block(b)) {   // the city: each box, its windows near
+          if (q.y0 > y0 || q.y1 < y1 || !q.near && u >= .5 && me.z < 150 && me.y - q.y1 > 1200) continue;   // (past the side street, far up the avenue: behind the near ones, but in view over the roofs)
+          if (q.tree) { V.mesh(TREE, q.x0, q.y0, 0, { scale: 1.6, colors: { leaf: q.col } }); continue; }
+          let d = q.y1 - q.y0; if (cp > .2) { const end = c.y - (14 + (q.z1 + 10 - c.h) * sp) / cp; if (q.y1 > end) d = Math.floor((end - q.y0) / 16) * 16; }   // (one the camera is passing: cut short in front of it, a face reaching behind it being left out whole)
+          if (d < 16) continue;
+          const m = d < q.y1 - q.y0 ? shape(q.x0 - q.fx, q.x1 - q.fx, d, q.z1 - q.z0, q.s, !q.wing && q.s !== 0) : q.m || (q.m = shape(q.x0 - q.fx, q.x1 - q.fx, d, q.z1 - q.z0, q.s, !q.wing && q.s !== 0));
+          V.mesh(m.body, q.fx, q.y0, q.z0, { colors: { wall: q.col, roof: '#5a5866' }, light: LIGHT });
+          if (q.near && me.y - q.y1 < 1400) V.mesh(m.win, q.fx, q.y0, q.z0, { colors: q.glass, flat: true });
+        }
+        for (const f of R.foes) {
+          if (f.kind === 'tank') { const o = { x: f.x, y: f.y, z: 0, yaw: f.yaw, scale: 1.8 }, p = TANK.at(-1, 0, 8, o); V.mesh(TANK, f.x, f.y, 0, Object.assign(o, { colors: { hull: '#6a7a4a' }, light: LIGHT })); V.mesh(TURRET, p[0], p[1], p[2], { yaw: f.aim, scale: 1.8, colors: { hull: '#7a8a5a' }, light: LIGHT }); }
+          else if (f.kind === 'jeep') V.mesh(JEEP, f.x, f.y, 0, { yaw: f.yaw, scale: 1.8, colors: { body: '#8a7a4a' }, light: LIGHT });
+          else if (f.kind === 'gun') V.mesh(GUN, f.x, f.y, f.z, { yaw: f.aim, scale: 1.8, colors: { hull: '#8a8a96' }, light: LIGHT });
+          else if (f === R.boss ? f.z > 0 : f.hp > 0) {   // a helicopter, the gunship: its body, then its rotors at the same foot
+            const M = f === R.boss ? GUNSHIP : HELI, o = { x: f.x, y: f.y, z: f.z - (M === HELI ? 14 : 36), yaw: Math.PI / 2 + (f.dead ? f.t * 3 : 0), roll: f.dead ? .4 : Math.sin(f.t * 2 + (f.ph || 0)) * .25, pitch: .12, scale: M === HELI ? 1.2 : 3.2, light: LIGHT,
+              colors: M === HELI ? { body: '#5a6a3a', trim: '#3a4a2a' } : { hull: f.flash > 0 ? '#f0e8e0' : '#4a4e5a', trim: '#2a2e38' } };
+            V.mesh(M, o.x, o.y, o.z, o); V.add(o.x, o.y, o.z, g => rotors(g, V, M, o, f.t * 31), null, true);
+          }
+        }
+        for (const h of R.hot) if (h.home) V.mesh(MISSILE, h.x, h.y, h.z, { yaw: Math.atan2(h.vy, h.vx), scale: 1.4 });
+        const sx = me.x + me.z * .3, sy = me.y - me.z * .2, gz = Math.max(0, ...boxes(sy - 1, sy + 1).filter(q => sx > q.x0 && sx < q.x1 && q.z1 < me.z).map(q => q.z1));   // (its shadow, cast north-east, on the street or a roof)
+        V.add(sx, sy, gz, (g, x, y, k) => { const a = g.globalAlpha; g.globalAlpha = .35; px.ell(g, x, y, 24 * k, 12 * k, '#1a1420'); g.globalAlpha = a; });
+        const o = { x: me.x, y: me.y, z: me.z - 14, yaw: -Math.PI / 2, pitch: R.tilt, roll: R.bank, scale: 1.35, light: LIGHT, colors: { body: '#4a6a9a', trim: '#e8e0c8' } };   // (the helicopter over all: layer 1)
+        if (R.hurt <= 0 || Math.floor(t * 12) % 2) V.add(o.x, o.y, o.z, g => { HELI.draw(g, (x, y, z) => V.project(x, y, z), o); rotors(g, V, HELI, o, R.spin); }, null, true, 1);
+      }
+    },
     /** the valley: the camera rides the rails, the cursor aims, a shot is what m7.pick finds under it; the walker at the end */
     safari: {
       start() {
@@ -453,11 +651,11 @@ const BLASTER = (() => {
       },
       cam() { const p = RAIL.at(R.s), look = R.boss ? Math.atan2(R.boss.y - p.y, R.boss.x - p.x) : p.angle; return { x: p.x, y: p.y, h: 26, angle: look + (R.cur[0] / game.W - .5) * .25, pitch: 3 + (R.cur[1] / game.H - .5) * 8, fov: game.H > game.W ? 80 : 70 }; },
       update(dt, k) {
-        const I = game.input, ptr = I.pointer && I.pointer();
+        const I = game.input, ptr = I.pointer && I.pointer(), drawn = this.cam();   // (the camera the last frame was drawn with: a tap or a click is on what it showed, so the shot is picked through it, not one already turned to the cursor's new place)
         if (ptr && (!R.ptr || ptr[0] !== R.ptr[0] || ptr[1] !== R.ptr[1])) R.cur = ptr.slice(); R.ptr = ptr;
         R.cur = [clamp(R.cur[0] + k.x * 230 * dt, 6, game.W - 6), clamp(R.cur[1] + k.y * 230 * dt, 6, game.H - 6)];
         const shoot = k.tap || (k.fire && R.cool <= 0 && !(I.lastDevice === 'touch' && !auto)); if (k.tap) R.cur = k.tap.slice();
-        if (shoot) { R.cool = .22; R.fired++; A.sfx('shoot', { vol: .4 }); R.flash = .06; VP.vale.begin({ W: game.W, H: game.H }, this.cam()); const h = VP.vale.pick(R.cur[0], R.cur[1], targets()), f = h && h.target;
+        if (shoot) { R.cool = .22; R.fired++; A.sfx('shoot', { vol: .4 }); R.flash = .06; VP.vale.begin({ W: game.W, H: game.H }, drawn); const h = VP.vale.pick(R.cur[0], R.cur[1], targets()), f = h && h.target;
           if (f && f.hp > 0) { f.hp--; if (f.hp <= 0) { boom(f.x, f.y, f.z + 12, f.weak ? 1.6 : 1); score(f.weak ? 3000 : f.kind === 'shell' ? 200 : 500); } else A.sfx('hit', { vol: .4 }); } }
         if (R.flash > 0) R.flash -= dt;
         if (!R.boss) { R.s = Math.min(RAIL.length - 40, R.s + 150 * dt); if (R.s >= RAIL.length - 40) { const p = RAIL.at(RAIL.length), ap = p.angle; R.boss = { x: p.x + Math.cos(ap) * 230, y: p.y + Math.sin(ap) * 230, t: 0 };
@@ -509,6 +707,8 @@ const BLASTER = (() => {
     return out;
   }
   function fireAt(f, sp) { const m = STAGE[R.name].me() || { x: 0, y: R.F, z: 60 }, dx = m.x - f.x, dy = m.y - f.y, dz = m.z - f.z, d = Math.hypot(dx, dy, dz) || 1; R.hot.push({ x: f.x, y: f.y, z: f.z, vx: dx / d * sp, vy: dy / d * sp, vz: dz / d * sp, t: 0 }); }
+  // a shell from (f.x, f.y, z) at the helicopter, aimed where it will be (it flies on up the avenue), off: that far beside
+  function lob(f, sp, z, off = 0) { const m = STAGE.blade.me(), ty = m.y - 480 * Math.hypot(m.x - f.x, m.y - f.y, m.z - z) / sp * .85, dx = m.x + off - f.x, dy = ty - f.y, dz = m.z - z, d = Math.hypot(dx, dy, dz) || 1; R.hot.push({ x: f.x, y: f.y, z, vx: dx / d * sp, vy: dy / d * sp, vz: dz / d * sp, t: 0 }); }
 
   /* ---- each step ---- */
   function update(dt) {
@@ -542,18 +742,21 @@ const BLASTER = (() => {
   }
   function end() { mode = 'results'; after.i = 0; R.best = best('blaster', R.score); R.won = R.phase === 'clear'; }
   /** the autopilot (the bot, and a demo): the hero lines up with what is ahead and keeps clear of the columns; the jet
-   *  turns toward the bandits, locks them and fires; the cursor goes to the nearest foe on the screen */
+   *  turns toward the bandits, locks them and fires; the cursor goes to the nearest foe on the screen; the helicopter
+   *  takes the free line up the avenue (round a wing, under or over a skybridge) nearest the foe ahead (R.still: hands
+   *  off, nothing steered or fired: the bot's craft left to fly straight on) */
   function pilot() {
-    const k = { x: 0, y: 0, fire: true, missile: false, roll: false };
+    const k = { x: 0, y: 0, fire: !R.still, missile: false, roll: false };
+    if (R.still) return k;
     if (R.name === 'harrier') {
       const B = R.boss, f = B && B.parts && B.hp > 0 ? B.parts[0] : R.foes.filter(f => f.hp > 0 && f.y < R.F - 100 && f.kind !== 'col').sort((a, b) => b.y - a.y)[0];
       let tx = f ? f.x : 0, tz = f ? f.z : 60;
       for (const c of R.foes) if (c.kind === 'col' && c.y < R.F + 20 && R.F - c.y < 500 && Math.abs(c.x - tx) < 50) tz = Math.max(tz, 150);
       for (const h of R.hot) if (h.y < R.F && R.F - h.y < 400 && Math.abs(h.x - R.hx) < 40) tx += h.x > R.hx ? -80 : 80;
       k.x = clamp((tx - R.hx) / 40, -1, 1); k.y = clamp(-(tz - R.hz) / 40, -1, 1);
-    } else if (R.name === 'zone') {   // line up the nearest pod ahead; a mine ahead on your line: step round it
+    } else if (R.name === 'zone') {   // line up the nearest pod ahead; a mine ahead on your line: step round it, keeping your height
       const f = R.foes.filter(f => f.hp > 0 && f.s > R.s + 60 && f.kind === 'pod').sort((a, b) => a.s - b.s)[0], m = R.foes.find(f => f.kind === 'mine' && f.hp > 0 && f.s > R.s && f.s < R.s + 420 && Math.abs(f.u - R.u) < 50);
-      const tu = m ? m.u + (m.u > R.u ? -110 : 110) : f ? f.u : 0, tz = m ? 30 : f ? f.z : 60; k.x = clamp((tu - R.u) / 30, -1, 1); k.y = clamp(-(tz - R.zh) / 30, -1, 1);
+      const tu = m ? m.u + (m.u > R.u ? -110 : 110) : f ? f.u : 0, tz = f ? f.z : 60; k.x = clamp((tu - R.u) / 30, -1, 1); k.y = clamp(-(tz - R.zh) / 30, -1, 1);
     } else if (R.name === 'speeder') {   // the nearest crawler: turn to it, close in, veer off its side; fire at whatever is lined up
       const v = R.v, dist = f => Math.hypot(f.x - v.x, f.y - v.y), off = f => Math.abs(E.angDiff(v.yaw, Math.atan2(f.y - v.y, f.x - v.x))), f = R.foes.filter(f => f.kind === 'crawler').sort((a, b) => dist(a) - dist(b))[0];
       if (f) { const a = E.angDiff(v.yaw, Math.atan2(f.y - v.y, f.x - v.x)), d = dist(f); k.x = d < 240 ? 1 : clamp(a * 3, -1, 1); k.y = d > 900 ? -1 : d < 500 ? 1 : 0; }
@@ -562,6 +765,16 @@ const BLASTER = (() => {
       const j = R.j, f = R.foes.filter(f => f.hp > 0).sort((a, b) => Math.hypot(a.x - j.x, a.y - j.y) - Math.hypot(b.x - j.x, b.y - j.y))[0];
       if (f) { k.x = clamp(E.angDiff(j.yaw, Math.atan2(f.y - j.y, f.x - j.x)) * 2.5, -1, 1); k.y = clamp(-(f.z - j.z) / 120, -1, 1); }
       k.missile = R.locks.length > 0 && Math.floor(R.t * 3) % 2 === 0; k.roll = R.hot.some(h => Math.hypot(h.x - j.x, h.y - j.y) < 260);
+    } else if (R.name === 'blade') {   // overhead: under the nearest foe ahead, a shell near stepped round; behind: the free line (a lane and a height) nearest the foe ahead, clear of every box for a stretch ahead
+      const S = STAGE.blade, m = S.me(), u = S.swing(), f = R.foes.filter(f => f.hp > 0 && f.y < m.y - 40 && m.y - f.y < (u < 1 ? 520 : 1500)).sort((a, b) => b.y - a.y)[0];
+      if (u <= 0) { let tx = f ? f.x : 0; for (const h of R.hot) if (h.y < m.y + 20 && m.y - h.y < 260 && Math.abs(h.x - m.x) < 40) tx = m.x + (h.x > m.x ? -90 : 90); k.x = clamp((tx - m.x) / 30, -1, 1); k.y = clamp((40 - R.dy) / 30, -1, 1); }
+      else if (u < 1) k.x = clamp(-m.x / 30, -1, 1);
+      else {
+        const tx = f ? clamp(f.x, -90, 90) : 0, tz = f ? clamp(f.z + 40, 60, 380) : 110, bx = boxes(m.y - 820, m.y + 30), free = (x, z, far) => !bx.some(q => q.y1 > m.y - far && x > q.x0 - 30 && x < q.x1 + 30 && z > q.z0 - 26 && z < q.z1 + 24);
+        let best = null;
+        for (const far of [820, 420, 200]) { for (const x of [-90, -45, 0, 45, 90]) for (const z of [50, 80, 120, 170, 230, 300, 380]) if (free(x, z, far)) { const c = Math.abs(x - tx) + Math.abs(z - tz) * .7 + Math.abs(x - m.x) * .6 + Math.abs(z - m.z) * .6; if (!best || c < best[2]) best = [x, z, c]; } if (best) break; }
+        const [gx, gz] = best || [0, 400]; k.x = clamp((gx - m.x) / 25, -1, 1); k.y = clamp(-(gz - m.z) / 25, -1, 1);
+      }
     } else {
       const V = VP.vale.begin({ W: game.W, H: game.H }, STAGE.safari.cam()), all = targets().filter(q => q.target).map(q => [q.target, V.project(q.x, q.y, q.z + q.h / 2)]).filter(([, p]) => p && p[0] > 0 && p[0] < game.W && p[1] > 0 && p[1] < game.H).sort((a, b) => (a[0].kind === 'shell' ? -1 : 0) - (b[0].kind === 'shell' ? -1 : 0) || b[1][2] - a[1][2]);
       const on = all.find(a => a[0] === R.aimAt && a[0].kind !== 'shell' && !all.some(b => b[0].kind === 'shell')) || all[0]; R.aimAt = on && on[0];   // (it keeps to one target; a shell first)
@@ -578,7 +791,7 @@ const BLASTER = (() => {
       r.overlay(g => { E.font.title(g, E.t('blaster.title'), W / 2, 22, { scale: 4, align: 'center', colors: ['#fff8d0', '#ffd060', '#ff7a3a', '#c83a6a'], depth: 3 }); E.font.text(g, E.t('blaster.tagline'), W / 2, 68, '#fff0e0', { align: 'center', shadow: '#2a1040', outline: false }); });
       menu.y = Math.round(H / 2) - 8; menu.draw(r); return;
     }
-    const st = STAGE[R.name], V = VP[{ harrier: 'plain', burner: 'sea', zone: 'zone', safari: 'vale', speeder: 'dunes' }[R.name]], cam = st.cam();
+    const st = STAGE[R.name], V = VP[{ harrier: 'plain', burner: 'sea', zone: 'zone', safari: 'vale', speeder: 'dunes', blade: 'city' }[R.name]], cam = st.cam();
     st.gather(V);
     for (const s of R.shots) if (!s.homing) V.add(s.x, s.y, s.z, (g, sx, sy, k) => { const q = Math.max(1, 4 * k); px.disc(g, sx, sy, q * 1.6, '#ffe070'); px.disc(g, sx, sy, q, '#ffffff'); });
     for (const h of R.hot) if (!h.home) V.add(h.x, h.y, h.z, (g, sx, sy, k) => { const q = Math.max(1.5, 7 * k), w = Math.sin(t * 30) > 0; px.disc(g, sx, sy, q * 1.4, w ? '#ff5020' : '#ff9030'); px.disc(g, sx, sy, q * .7, '#fff0a0'); });
@@ -600,6 +813,10 @@ const BLASTER = (() => {
         for (const f of R.foes) { const dx = f.x - v.x, dy = f.y - v.y, a = (dx * fx + dy * fy) / 130, b = (dy * fx - dx * fy) / 130, m = Math.min(1, 17 / (Math.hypot(a, b) || 1)), big = f.kind === 'crawler'; px.rect(g, Math.round(cx + b * m) - (big ? 1 : 0), Math.round(cy - a * m) - (big ? 1 : 0), big ? 3 : 2, big ? 3 : 2, big ? '#ffe040' : '#ff4040'); }
         txt(E.t('blaster.crawlers', { n: R.foes.filter(f => f.kind === 'crawler').length }), 6, 10 + lh * 2, '#ffe890');
       }
+      if (R.name === 'blade' && STAGE.blade.swing() >= 1) {   // the height: a gauge at the right, the helicopter's mark on it, in red the tallest roof on its line ahead
+        const x = right - 8, y0 = 34, y1 = H - 34, m = STAGE.blade.me(), Y = z => Math.round(y1 - (y1 - y0) * clamp(z / 420, 0, 1)), roof = Math.max(0, ...boxes(m.y - 700, m.y).filter(q => m.x > q.x0 - 20 && m.x < q.x1 + 20).map(q => q.z1));
+        px.rect(g, x, y0, 3, y1 - y0, '#100818'); px.rect(g, x + 1, Y(roof), 1, y1 - Y(roof), '#6a3a4a'); if (roof) px.rect(g, x - 3, Y(roof), 9, 2, '#ff4a4a'); px.rect(g, x - 4, Y(m.z) - 1, 11, 3, '#ffe890');
+      }
       if (R.name === 'safari') {   // the cursor: a ring and a cross
         const [cx, cy] = R.cur, c = R.flash > 0 ? '#ffffff' : '#ff3a3a';
         px.rect(g, cx - 9, cy, 6, 1, c); px.rect(g, cx + 4, cy, 6, 1, c); px.rect(g, cx, cy - 9, 1, 6, c); px.rect(g, cx, cy + 4, 1, 6, c);
@@ -617,12 +834,14 @@ const BLASTER = (() => {
   const HERO_ICON = (g, x, y) => { px.rect(g, x + 2, y, 4, 4, '#ffd040'); px.rect(g, x + 1, y + 4, 6, 5, '#e83a30'); px.rect(g, x + 1, y + 9, 2, 3, '#2a3a8a'); px.rect(g, x + 5, y + 9, 2, 3, '#2a3a8a'); };
 
   /** the bot (tools/kits-test.mjs): each stage played alone by the autopilot to its boss's fall (the hits it takes
-   *  counted; the bot plays on through them) */
+   *  counted; the bot plays on through them; the zone's pods shot down and mines run into too), then the zone again with
+   *  the craft left alone, straight down the middle at its height: the mines on its line hit it (still) */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
       game.go('blaster', null, { fade: 0 }); game.advance(1 / 120); const out = {};
-      for (let i = 0; i < STAGES.length; i++) { auto = true; begin(i, true); let n = 0; for (; n < 150 && mode === 'play'; n++) game.advance(1); out[STAGES[i]] = { cleared: !!R.won, score: R.score, hits: R.hits, seconds: n }; toMenu(); }
+      for (let i = 0; i < STAGES.length; i++) { auto = true; begin(i, true); let n = 0; for (; n < 150 && mode === 'play'; n++) game.advance(1); out[STAGES[i]] = Object.assign({ cleared: !!R.won, score: R.score, hits: R.hits, seconds: n }, R.name === 'zone' && { pods: R.pods, mines: R.mines }); toMenu(); }
+      auto = true; begin(STAGES.indexOf('zone'), true); R.still = true; for (let n = 0; n < 150 && mode === 'play'; n++) game.advance(1); out.zone.still = R.mines; toMenu();
       return Object.assign(out, { errors: game.errors.length });
     } finally { Math.random = was; auto = false; }
   }
@@ -633,8 +852,17 @@ const BLASTER = (() => {
     update, draw, bot,
     /** a stage played by the autopilot (a demo; the bot's) */
     demo(stage) { begin(Math.max(0, STAGES.indexOf(stage)), true); auto = true; },
+    /** the safari's foes on the screen as the last frame drew them, each where a tap would hit it (no rock or nearer box
+     *  over it), nearest first: [{ i (its place in the stage's foes), kind, x, y (its box's middle), w (its width), all in
+     *  game pixels, d (how far it is from the camera) }] (the phone test taps one) */
+    sights() {
+      if (!R || R.name !== 'safari') return [];
+      const cam = STAGE.safari.cam(), V = VP.vale.begin({ W: game.W, H: game.H }, cam), all = targets();
+      return all.filter(q => q.target && q.target.hp > 0).map(q => { const p = V.project(q.x, q.y, q.z); return p && { i: R.foes.indexOf(q.target), kind: q.target.kind, x: p[0], y: p[1] - q.h * p[2] / 2, w: q.w * p[2], d: Math.hypot(q.x - cam.x, q.y - cam.y) }; })
+        .filter(o => o && o.x > 0 && o.x < game.W && o.y > 0 && o.y < game.H && (V.pick(o.x, o.y, all) || {}).target === R.foes[o.i]).sort((a, b) => a.d - b.d);
+    },
     state: () => R && { mode, stage: R.name, phase: R.phase, t: +R.t.toFixed(2), score: R.score, lives: R.lives, hits: R.hits, foes: R.foes.length, shots: R.shots.length, fired: R.fired,
-      hero: R.name === 'harrier' ? [Math.round(R.hx), Math.round(R.hz)] : R.name === 'burner' ? [Math.round(R.j.x), Math.round(R.j.y), Math.round(R.j.z), +R.j.roll.toFixed(3)] : R.name === 'zone' ? [Math.round(R.s), Math.round(R.u), Math.round(R.zh)] : R.name === 'speeder' ? [Math.round(R.v.x), Math.round(R.v.y), +R.v.yaw.toFixed(3)] : [Math.round(R.s), Math.round(R.cur[0]), Math.round(R.cur[1])], boss: R.boss ? (R.boss.hp !== undefined ? R.boss.hp : R.boss.parts.map(p => p.hp)) : null },
+      hero: R.name === 'harrier' ? [Math.round(R.hx), Math.round(R.hz)] : R.name === 'burner' ? [Math.round(R.j.x), Math.round(R.j.y), Math.round(R.j.z), +R.j.roll.toFixed(3)] : R.name === 'zone' ? [Math.round(R.s), Math.round(R.u), Math.round(R.zh)] : R.name === 'speeder' ? [Math.round(R.v.x), Math.round(R.v.y), +R.v.yaw.toFixed(3)] : R.name === 'blade' ? [Math.round(R.hx), Math.round(R.F + R.dy), Math.round(R.hz)] : [Math.round(R.s), Math.round(R.cur[0]), Math.round(R.cur[1])], boss: R.boss ? (R.boss.hp !== undefined ? R.boss.hp : R.boss.parts.map(p => p.hp)) : null },
     /** the proof: the harrier stage, flying up and right, firing, then down and left */
     run: (n = 600) => proof('blaster', n, (i, k) => {
       if (i === 2) begin(0, true);

@@ -5,13 +5,60 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
-## 0.104.4 (2026-11-16)
+## 0.106.1 (2026-11-16)
 
 A builder's game (an open-world RPG made by another model on v0.100.0) crashed with `Maximum call stack size exceeded` in `Shell.back` when its co-op setup screen's Back was pressed: the screen's own `back` tidied up and then called `shell.back()`, as the engine's own audio-offset calibration did.
 
 - **Engine**: `shell.back()` called from inside the open screen's own `back` (`back: () => { tidy(); shell.back(); }`) closes that screen. It had called the screen's `back` again, forever, until the stack overflowed: a builder's screen with a back of its own had no way to close itself but `hide()`, and Cancel or Escape on the settings' audio-offset calibration crashed the page the same way. A `back` that doesn't call it still keeps its screen (to ask first), and one that closes two still sends the second through the screen under's own `back`.
 - **Engine**: `shell.show(name)` on the open screen updates it in place, and the focus stays where it was, as the Shell meant: it had made a new screen, so the focus went back to the first button. A screen redrawn as things change (that builder's co-op setup, shown again as each player gets ready) no longer sends a controller player's focus back to the top after every press.
 - **Tools**: contract-test cancels a screen whose own `back` calls `shell.back()` (and one that updates itself first), the audio-offset calibration, and a `back` that closes two; standard-test presses Escape on such a screen in Chromium and shows a screen again with the focus on its second button. Before the fix the cancels overflowed the stack and the focus went back to the first button.
+
+## 0.106.0 (2026-11-16)
+
+game.audio plays my-game-audio's songs: scored music (orchestral, synthwave, chiptune cues) written as code.
+
+- **Engine**: new module `mga` (`engine/modules/mga.js`, the full engine only). `E.MGA.attach(game, MyGameAudio)` makes
+  `game.audio.music(song, { cue })` play a my-game-audio song (any object with `sections` and `form`) through
+  `game.audio.bus('music')`, so the Volume, Music and Sound settings, `mute()` and `duck()` apply. The music clock stays
+  game.audio's own: a silent chip song with the cue's tempo and length, so `pos`, `at(step)`, `onBeat` and `stopMusic()`
+  work, headless too. `layer()`, `sting()` and a cue change go to the song's layers, stingers and cues. A chip song
+  plays as before. The library is the game's to load; the module bundles nothing (D99).
+- **Tools**: `tools/mga-test.mjs` (`node tools/mga-test.mjs`): the module end to end in Chromium with the real library (its file
+  given by `MGA_DIST`; without it, the test says so and passes). An analyser on the music bus hears the song, hears it
+  silenced by the Music volume and lowered by `duck()`; `at(16)` fires on its step; a layer, a cue change and a chip
+  song after it go through.
+- **Docs**: `docs/KITS.md` lists the module beside the songbook; decision D99.
+
+## 0.105.1 (2026-11-16)
+
+Fixes from an audit of `docs/MODE7.md` against the kits: every row's deep link, its code and its check.
+
+- **Engine**: SKY's HELICOPTER: the flak turrets fire at it from the height it can fire missiles from (3 up), no longer only above 10, so flying low is no way under them; the LIFT OFF prompt, the aiming cross and the landing count from the same height.
+- **Engine**: BLASTER's SAFARI: a tap picks through the camera as the frame drew it (the camera turns with the cursor), so a tap on a foe shoots it; it turned to the tap first and missed most foes off the middle. `sights()` lists the foes a tap can hit, where they are drawn.
+- **Engine**: BLASTER's ZONE: the mines float at the craft's height, to steer round or shoot; they sat under it and never hit. The autopilot keeps its height and steps round them.
+- **Engine**: ROAD's COTTON: the first pumpkin of each wave hops like the rest; it slid along the road under every star, unhittable, still firing.
+- **Engine**: ROAD's DUEL: player 1 starts in the middle lane, clear of the pack; it started right behind the pack's first car and was bumped on the first step.
+- **Engine**: ROAD's coast run: the CHECKPOINT arch adds its time as you pass it (once per leg; a rewind back past it takes it back), no longer at the fork 72 segments on, where a run that reached the arch with seconds left could still time out.
+- **Engine**: ZERO: no one joins mid-race (pressing 2 took the arrows and the gas from a player racing alone); the menu lets players in, as KART's does.
+- **Engine**: ZERO's attract race: Esc, P or Start ends it like any other key, no longer pausing over it; a phone's back goes to the menu.
+- **Engine**: ZERO's VS and SPECIAL's ARENA, two on one keyboard: W and the up arrow are each half's gas (the boost or the shell on F and .), as in KART and ROAD; the gas was on F and . and W did nothing.
+- **Engine**: SPECIAL's ARENA: a CPU kart pinned against a wall counts its time from `dt`.
+- **Tools**: the kits test asks ZONE for pods shot and no mine hit (and, flown hands off, a mine run into); the helicopter for flak at 5 up; ZERO's ribbon for at least five machines jumping off the kicker; ZERO's VS and SPECIAL's split arena for W and the up arrow driving; ZERO's demo to end on the pause key; COTTON for every foe but one; and opens `#zero/gba` and `#kart/gba` in a 2:1 window, letterboxed at 240 x 160. The phone test taps a foe in the valley and it falls.
+- **Tools**: the build's kit descriptions name every mode: BLASTER's six stages and four bosses, SKY's six events, ROAD's circuit, rash, duel, striker and cotton, SPECIAL's room; the title's captions for the four kits widened to match.
+- **Docs**: the Labs page's cards for SKY, BLASTER, ROAD and SPECIAL name their newer modes, and ZERO's and SPECIAL's the keys for two on one keyboard; `AI_GUIDE.md` sends Thunder Blade to BLASTER's BLADE, Panorama Cotton to ROAD's COTTON and Castlevania IV's room to SPECIAL's ROOM, and lists `mesh` and `rewind` among the fourteen modules the agent edition takes; README's and API.md's rows name HyperZone, Super Star Wars, Thunder Blade, Panorama Cotton and Castlevania IV (the API card 22,029 tokens, past its soft 22,000: D98).
+- **Docs**: ROAD's manual: six blows put you down in the rash (not three); the coast run's clock starts at 44 (the chase 55); the autopilot goes right at the first fork and left at the next. `docs/MODE7.md`'s checks say what they now prove.
+
+## 0.105.0 (2026-11-16)
+
+The last parts of the owner's Mode 7 list played: Pilotwings' hang glider and helicopter, Thunder Blade's city, Top Gear's fuel and pit stops, and Panorama Cotton.
+
+- **Engine**: SKY's HANG GLIDER (`#sky/glider`): no engine; it banks, pitches, sinks and stalls; three thermals (golden coils) lift it while it circles in one; four rings, one above its start, then the bullseye, slow and level; SLOW an air brake. Scored out of 100.
+- **Engine**: SKY's HELICOPTER (`#sky/heli`): off the pad, GAS climbs, SLOW comes down, let go and it hovers; the stick tilts and turns it; ACT (FIRE) a missile; five anti-aircraft turrets that aim and fire flak, three hits and it's down; all five, then land on the pad. Scored out of 100.
+- **Engine**: BLASTER's BLADE (`#blaster/blade`, the sixth stage, Thunder Blade): a city's streets as a Mode 7 floor and its buildings as lit box models; first seen from straight overhead shooting down at tanks, jeeps, rooftop guns and helicopters, then the camera swings down behind the helicopter up the avenue between the towers and under the skybridges; a gunship at the end.
+- **Engine**: ROAD's CIRCUIT and DUEL: fuel (a tank lasts about two of the three laps; dry, the car crawls) and a pit lane along the right of the straight before the line that refuels a car slowed into it (Top Gear); the autopilot stops once.
+- **Engine**: ROAD's COTTON (`#road/cotton`, Panorama Cotton): a witch on a broom over a winding road through big rolling hills, anywhere on the screen, throwing stars at sixteen waves of winged puffs and hopping pumpkins, then the Pumpkin King.
+- **Tools**: the kits test flies the glider and the helicopter, clears BLADE and COTTON, and pits in the circuit and the duel; the phone test taps the new buttons.
+- **Docs**: `docs/MODE7.md`'s Pilotwings, Top Gear, Thunder Blade and Panorama Cotton rows; no game on the list has a part left out.
 
 ## 0.104.3 (2026-11-16)
 

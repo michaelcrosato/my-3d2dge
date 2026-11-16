@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.104.4  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.106.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -86,7 +86,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.104.4', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.106.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -11013,7 +11013,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.104.4: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.106.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11237,7 +11237,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.104.4: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.106.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11613,7 +11613,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.104.4: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.106.1: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11850,7 +11850,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.104.4: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.106.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12412,7 +12412,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.104.4: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.106.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12595,7 +12595,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.104.4: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.106.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13004,7 +13004,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MESH v0.104.4: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.106.1: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13142,7 +13142,120 @@ E.Mesh = Mesh;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.104.4: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MGA v0.106.1: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine only. Needs: no other module.
+
+my-game-audio (https://github.com/michaelcrosato/my-game-audio, MIT) writes a game's music, sound effects and voices as
+code, with no audio files: songs are text scores with cues (title, battle...), layers and stingers, rendered in workers
+and looped seamlessly. This module lets game.audio play them as it plays its own chip songs. The library is the game's
+to load (its dist/my-game-audio.js, one dependency-free file, gives the global MyGameAudio); this module only adapts.
+- const mga = E.MGA.attach(game, MyGameAudio, opts): from then on game.audio.music(song, { cue, fade, at }) plays a
+  my-game-audio song (anything with sections and form) through game.audio.bus('music'), so the player's Volume, Music
+  and Sound settings, mute and the pause's ducking apply as to any song; a chip song still plays as before. opts go to
+  MyGameAudio.createPlayer (workers, parallel, cache, stream).
+- The music clock is game.audio's own: the song runs a silent chip song with its cue's tempo and length (four steps a
+  beat), so game.audio.pos, at(step, fn), onBeat(fn) and stopMusic() work on it, headless too (where there is no
+  sound, or no library: lib null). pos.step counts from the start, intro included; a cue whose sections change tempo
+  keeps its first body section's on the clock.
+- game.audio.layer(name, vol, fade) sets a song's layer (song.layers); game.audio.sting(name, { at }) plays one of its
+  stingers; music(song, { cue }) with the song playing changes cue on the next bar.
+- mga.player: the my-game-audio player (null without sound): sfx(name), say(text, character), prepare(song, cue)...;
+  E.MGA.isSong(x): true for a my-game-audio song; E.MGA.clock(song, cue) -> { bpm, steps, len, intro } (the silent
+  song's numbers).
+
+```js mga
+const E = My3D2dge, game = new E.Game({ headless: true }); game.start({ update() {}, draw() {} });
+E.MGA.attach(game, null);   // no library here: the clock without the sound
+const song = { bpm: 120, meter: [4, 4], grid: 16, sections: { A: { bars: 2, parts: {} }, B: { bars: 1, bpm: 90, parts: {} } },
+  form: ['A'], loops: { calm: { body: ['A'] }, tense: { intro: ['A'], body: ['B'] } }, layers: { drums: ['kick'] } };
+if (!E.MGA.isSong(song) || E.MGA.isSong({ bpm: 120, tracks: [] })) throw new Error('isSong');
+let hit = -1; game.audio.music(song, { cue: 'calm' }); game.audio.at(8, () => { hit = game.audio.pos.step; });
+for (let i = 0; i < 120 && hit < 0; i++) game.advance(1 / 60);
+if (Math.round(hit) !== 8 || game.audio.pos.bpm !== 120) throw new Error('at(8) on its step: ' + hit);
+const c = E.MGA.clock(song, 'tense'); if (c.bpm !== 90 || c.len !== 16 || c.intro !== 32) throw new Error(JSON.stringify(c));
+game.audio.layer('drums', 0); game.audio.stopMusic(); if (game.audio.pos.playing) throw new Error('stopped');
+```
+Rules: load my-game-audio's dist file in the page before calling attach; keep music quiet by default (Settings'
+Music); prepare() a level's cues while it loads, so its music starts at once.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module MGA: load engine/my-3d2dge.js (the full engine) first');
+
+/* =============================================================================
+ * MGA  my-game-audio songs on game.audio: the sound through its music bus, the clock on its own
+ * ========================================================================== */
+/** true for a my-game-audio song: sections and a form (a chip song has tracks) */
+const isSong = x => !!x && typeof x === 'object' && !!x.sections && Array.isArray(x.form) && !x.tracks;
+// a cue's sections (intro and body), as my-game-audio's cuesOf says: loops[cue], or intro + loop, or the whole form
+function cueOf(song, cue) {
+  if (song.loops && song.loops[cue || 'main']) { const d = song.loops[cue || 'main']; return { intro: d.intro || [], body: d.body || [] }; }
+  if (song.loops && !cue) { const d = song.loops[Object.keys(song.loops)[0]]; return { intro: d.intro || [], body: d.body || [] }; }
+  if (song.loop) return { intro: song.intro || [], body: song.loop };
+  return { intro: [], body: song.form };
+}
+/** the silent chip song's numbers for a cue: { bpm (its first body section's), steps: 4 a beat, len (the body's
+ *  steps), intro (the intro's steps) } */
+function clock(song, cue) {
+  const d = cueOf(song, cue), steps = 4;
+  const beatsOf = names => names.reduce((a, n) => { const s = song.sections[n] || {}; return a + (s.bars || 0) * ((s.meter || song.meter || [4, 4])[0]); }, 0);
+  const first = song.sections[d.body[0]] || {};
+  const bpm = first.bpm || (first.tempo ? +String(first.tempo).split('|').map(x => x.trim()).filter(Boolean)[0] || song.bpm : song.bpm) || 120;
+  return { bpm, steps, len: Math.max(1, beatsOf(d.body) * steps), intro: beatsOf(d.intro) * steps };
+}
+// the silent song: rests the cue's length, and a silent track for each layer (so game.audio.layer finds it)
+function shadow(song, cue) {
+  const c = clock(song, cue), rest = Array(c.intro + c.len).fill('.').join(' ');
+  const tracks = [{ wave: 'square', vol: 0, notes: rest }, ...Object.keys(song.layers || {}).map(name => ({ name, wave: 'square', vol: 0, notes: '.' }))];
+  return { bpm: c.bpm, steps: c.steps, len: c.intro + c.len, tracks };
+}
+
+/** attach my-game-audio (lib: the MyGameAudio global, or null for the clock alone) to a game's audio. Returns
+ *  { player, song, cue }: the my-game-audio player (made at the first song, null without sound) and what plays */
+function attach(game, lib, opts = {}) {
+  const A = game.audio, base = { music: A.music.bind(A), stopMusic: A.stopMusic.bind(A), layer: A.layer.bind(A), sting: A.sting.bind(A) };
+  const M = { player: null, song: null, cue: null };
+  const player = () => {
+    if (M.player || !lib || game.headless) return M.player;
+    const music = A.bus('music'); if (!music) return null;   // no sound here (no Web Audio, or it failed)
+    M.player = lib.createPlayer(Object.assign({ context: A.ctx, buses: { music, sfx: A.bus('sfx'), voice: A.bus('voice') } }, opts));
+    return M.player;
+  };
+  A.music = (song, o = {}) => {
+    if (!isSong(song)) { if (M.song) { const p = M.player; M.song = null; if (p) p.stop({ fade: o.fade || .06 }); } return base.music(song, o); }
+    const cue = o.cue || (song.loops ? Object.keys(song.loops)[0] : 'main');
+    if (M.song === song && M.cue === cue && !o.restart) return;
+    const changing = M.song === song;
+    M.song = song; M.cue = cue;
+    base.music(shadow(song, cue), { fade: o.fade, sync: o.sync, restart: true });
+    const p = player(); if (!p) return;
+    if (changing) p.cue(cue, { at: o.at || 'bar', fade: o.fade });
+    else p.music(song, { cue, fade: o.fade, at: o.at }).catch(e => console.warn('my-game-audio:', e && e.message || e));
+  };
+  A.stopMusic = fade => { if (M.song && M.player) M.player.stop({ fade: fade || .06 }); M.song = null; return base.stopMusic(fade); };
+  A.layer = (name, vol = 1, fade = .5) => { if (M.song && M.player && hasLayer(M.song, name)) M.player.layer(name, vol, fade); return base.layer(name, vol, fade); };
+  A.sting = (what, o = {}) => {
+    if (M.song && typeof what === 'string' && M.song.stingers && M.song.stingers[what]) { if (M.player) M.player.sting(what, o); return; }
+    return base.sting(what, o);
+  };
+  return M;
+}
+const hasLayer = (song, name) => !!(song.layers && song.layers[name]);
+
+/** E.MGA: my-game-audio songs on game.audio */
+E.MGA = {
+  /** attach(game, MyGameAudio, opts): game.audio plays my-game-audio songs from then on; returns { player, song, cue } */
+  attach: attach,
+  /** isSong(x): true for a my-game-audio song (sections and a form, no tracks) */
+  isSong: isSong,
+  /** clock(song, cue): the silent chip song's numbers for a cue: { bpm, steps: 4, len, intro } (steps) */
+  clock: clock
+};
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+/*!
+my-3D2dge module MODE7 v0.106.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13501,7 +13614,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.104.4: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.106.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13868,7 +13981,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module REWIND v0.104.4: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.106.1: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13928,7 +14041,7 @@ E.Rewind = Rewind;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.104.4: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.106.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14135,7 +14248,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.104.4: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.106.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14324,7 +14437,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.104.4: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.106.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14507,7 +14620,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.104.4: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.106.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14840,7 +14953,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.104.4: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.106.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14994,7 +15107,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.104.4: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.106.1: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15202,7 +15315,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.104.4: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.106.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -15644,7 +15757,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.104.4: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.106.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
