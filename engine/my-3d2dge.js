@@ -1189,6 +1189,12 @@ class Input {
   /** the pointer in screen pixels [x, y] (the HUD's space): the mouse's, or the pad's cursor while it is in use
    *  (padCursor); null before the mouse has moved over the canvas */
   pointer() { return this._fedAt || (this.padCursor && this.lastDevice === 'gamepad' && this._padPt ? this._padPt.slice() : null) || (this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null); }
+  /** which of a HUD's boxes ([x, y, w, h] or { x, y, w, h }, screen pixels) a point is over: its index, or -1. p: the
+   *  pointer (the mouse, or the pad's cursor) by default; hit(boxes, input.clicked()) the one clicked or tapped */
+  hit(boxes, p = this.pointer()) {
+    if (!p) return -1;
+    return (boxes || []).findIndex(b => { if (!b) return false; const [x, y, w, h] = Array.isArray(b) ? b : [b.x, b.y, b.w, b.h]; return p[0] >= x && p[0] < x + w && p[1] >= y && p[1] < y + h; });
+  }
   /** put the pad's cursor at [x, y] in screen pixels (a game's cycling through hotspots) */
   setPointer(x, y) { this._padPt = [x, y]; this.mouse.t = this.clock; }
   /** points the pad's cursor eases onto when the stick lets go near one ([[x, y]] or { x, y }, screen pixels; null: none),
@@ -1214,7 +1220,12 @@ class Input {
       if (best && bd > .5) { const k = Math.min(1, dt * 12); P[0] += (best[0] - P[0]) * k; P[1] += (best[1] - P[1]) * k; this.mouse.t = this.clock; }
     }
     P[0] = clamp(P[0], 0, W - 1); P[1] = clamp(P[1], 0, H - 1);
-    if (this._freshCodes.has('Pad0')) this._click = [P[0], P[1]];   // ✕: a click where the cursor is
+    // ✕ is the cursor's left button: pressed, held and moved it draws a box (box()), let go where it went down it clicks
+    // (clicked()), twice quickly a double tap (doubleTap()), as a mouse does
+    const D = this._padDown;
+    if (this._freshCodes.has('Pad0') && !D) { this._padDown = { x: P[0], y: P[1] }; this._gesture('down', P[0], P[1], { touch: false, button: 0, id: 'pad' }); }
+    else if (D && this.held.has('Pad0')) this._gesture('move', P[0], P[1]);
+    else if (D) { this._padDown = null; if (Math.hypot(P[0] - D.x, P[1] - D.y) < 4) this._click = [P[0], P[1]]; this._gesture('up', P[0], P[1]); }
   }
   /** the pointer's gestures, read each step in screen pixels (the HUD's space), from a mouse or one finger:
    *  box() -> { x0, y0, x1, y1, from, to, done } while a box is drawn (a mouse's left button dragged; on a touch screen a long
@@ -1458,6 +1469,9 @@ const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift',
   BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
   PadAxisUp: 'L stick ↑', PadAxisDown: 'L stick ↓', PadAxisLeft: 'L stick ←', PadAxisRight: 'L stick →',
   PadRAxisUp: 'R stick ↑', PadRAxisDown: 'R stick ↓', PadRAxisLeft: 'R stick ←', PadRAxisRight: 'R stick →', WheelUp: 'Wheel up', WheelDown: 'Wheel down' };
+/** the moves and the menu's keys alone: a game's own preset starts from it ({ ...E.Input.MENU, fire: [...] }), so the
+ *  Controls screen lists only the actions it reads (not DEFAULT's attack, dash, skill and jump) */
+Input.MENU = { up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'], ...MENU_KEYS };
 /** top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks */
 Input.DEFAULT = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
@@ -3513,9 +3527,10 @@ class Game {
   _freeCam(dt) {
     const c = this.cam, F = c.free === true ? {} : c.free, I = this.input, S = this.screen, z = this._zoomTo || this.zoom;
     let dx = 0, dy = 0, moved = false;
-    if (F.keys !== false && !(this.shell && this.shell.screen) && !I.stickOn) { const m = I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }   // (a finger pans by its drag, not as a stick)
+    const cur = I.padCursor && I.lastDevice === 'gamepad';   // (the pad's cursor: its left stick is the cursor's, the right stick pans, the cursor at an edge pushes)
+    if (F.keys !== false && !(this.shell && this.shell.screen) && !I.stickOn) { const m = cur ? I.padAim || [0, 0] : I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }   // (a finger pans by its drag, not as a stick)
     const p = I.pointer(), e = F.edge === undefined ? 10 : F.edge;
-    if (e > 0 && p && I.lastDevice !== 'touch' && I.mouse.active && !I._fedAt) { const sp = (F.speed || 300) * dt; if (p[0] < e) dx -= sp; else if (p[0] > S.W - e) dx += sp; if (p[1] < e) dy -= sp; else if (p[1] > S.H - e) dy += sp; }
+    if (e > 0 && p && I.lastDevice !== 'touch' && (I.mouse.active || cur) && !I._fedAt) { const sp = (F.speed || 300) * dt; if (p[0] < e) dx -= sp; else if (p[0] > S.W - e) dx += sp; if (p[1] < e) dy -= sp; else if (p[1] > S.H - e) dy += sp; }
     const pan = F.drag !== false && I.pan(); if (pan) { dx -= pan[0]; dy -= pan[1]; moved = true; }
     if (dx || dy) { const [gx, gy] = this._screenToGround(dx, dy); c.tx += gx; c.ty += gy; moved = true; }
     // a zoom keeps the world point under its pointer (or pinch) where it was: the focus moves toward it by (1 - 1/k) of the way
