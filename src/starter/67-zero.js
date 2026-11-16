@@ -103,6 +103,7 @@ const ZERO = (() => {
   function versus() { G = { vs: true, pts: CAST.map(() => 0) }; if (game.players.length >= 2) go('city', true); else { mode = 'join'; A.sfx('select'); } }
   /** a race on a track: six machines on the grid (the players' at the back), three laps */
   function go(which, vs) {
+    if (!vs) for (const q of game.players.slice(1)) if (q.half) game.removePlayer(q);   // (a race of one: player 1 has the whole keyboard back; a pad's player stays for the next VS)
     track = which; mode = 'race'; over = 0; t = 0;
     if (which === 'city' && !city) city = buildCity(); if (which === 'sky' && !sky) sky = buildSky();
     race = new E.Race({ path: which === 'city' ? CITY : RIB, laps: 3, width: which === 'city' ? HALF * .8 : HW * .7, checkpoints: 12, items: [], heights: which === 'sky' });
@@ -110,7 +111,7 @@ const ZERO = (() => {
     for (let k = 0; k < 6; k++) {
       const ci = (k + n) % 6, g = grid[k], human = ci < n && !auto, car = new E.Car(Object.assign({ top: 300, accel: 160, turn: 2.05, grip: 14, drag: .4, kart: false, r: 9, surfaces: { pit: { top: .75 }, kerb: { top: .8 } } }, g));
       const R = race.add(car, human ? { name: E.t(CAST[ci].name), input: game.players[ci] || game.input } : { name: E.t(CAST[ci].name), ai: { skill: .9 + ci * .014, rubber: .25 } });
-      R.cast = CAST[ci]; R.ci = ci; R.energy = 100; R.calm = 9; R.stuck = 0; if (ci < n) players[ci] = R;
+      R.cast = CAST[ci]; R.ci = ci; R.energy = 100; R.calm = 9; R.stuck = 0; R.stuckMax = 0; if (ci < n) players[ci] = R;
     }
     cams = players.map(R => ({ x: R.car.x, y: R.car.y, h: 22, angle: R.car.angle, pitch: 9, fov: 66 }));
     game.splitScreen(n > 1 ? n : 0, { layout: n === 2 ? 'rows' : 'grid' }); A.music(SONG); game.input.consumeAll();
@@ -119,8 +120,9 @@ const ZERO = (() => {
   function update(dt) {
     const I = game.input; I.touchSet('boost', null, mode === 'race');
     t += dt;
-    if (mode === 'menu') { menu.update(dt); idle = I.anyPressed() ? 0 : idle + dt; if (idle > 25) { idle = 0; attract = true; auto = true; G = { gp: false, pts: CAST.map(() => 0) }; go(Math.floor(t / 25) % 2 ? 'sky' : 'city'); } return; }   // (left alone, it races by itself: an attract mode)
-    if (attract && I.anyPressed()) { attract = false; auto = false; toMenu(); return; }
+    const touched = I.anyPressed() || !!I.clicked();   // (a phone's tap presses no key)
+    if (mode === 'menu') { menu.update(dt); idle = touched ? 0 : idle + dt; if (idle > 25) { idle = 0; attract = true; auto = true; G = { gp: false, pts: CAST.map(() => 0) }; go(Math.floor(t / 25) % 2 ? 'sky' : 'city'); } return; }   // (left alone, it races by itself: an attract mode)
+    if (attract && touched) { attract = false; auto = false; toMenu(); return; }
     if (mode === 'join') { if (game.players.length >= 2 && I.pressed('confirm')) go('city', true); else if (I.pressed('cancel')) mode = 'menu'; return; }   // (up to four join; player 1 starts it)
     if (mode === 'results') { if (attract && (over += dt) > 8) toMenu(); else after.update(dt); return; }
     for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch';
@@ -135,7 +137,7 @@ const ZERO = (() => {
       }
       if (c.bumped && R.calm > .4) { R.energy = Math.max(0, R.energy - 3); if (players.includes(R)) A.sfx('bump', { vol: .35 }); } else if (R.calm < .25) R.energy = Math.max(0, R.energy - 6 * dt);   // (a knock costs 3; grinding along a barrier, 6 a second)
       R.calm = c.bumped ? 0 : R.calm + dt;
-      R.stuck = race.go && !R.finished && Math.abs(c.speed) < 12 ? R.stuck + dt : 0;
+      R.stuck = race.go && !R.finished && Math.abs(c.speed) < 12 ? R.stuck + dt : 0; R.stuckMax = Math.max(R.stuckMax, R.stuck);   // (the bot's check)
       if (R.input && c.o.auto && R.stuck > 1.5) { const P = track === 'city' ? CITY : RIB, p = P.at(P.nearest(c.x, c.y, track === 'sky' ? c.z : undefined) + 30); Object.assign(c, { x: p.x, y: p.y, angle: p.angle, vx: 0, vy: 0 }); if (track === 'sky') ride(R); R.stuck = 0; }   // (a phone has no reverse: stuck against a wall, it is set back on the line)
       if (c.surface === 'pit' || (track === 'sky' && R.pit)) R.energy = Math.min(100, R.energy + 50 * dt);
       const want = R.lap >= 1 && R.energy > 30 && (R.input ? R.input.pressed('boost') : (auto || !R.input) && c.boostT <= 0 && Math.floor((t + R.ci) * .7) % 4 === 0 && R.energy > 50);
@@ -166,7 +168,9 @@ const ZERO = (() => {
     const W = r.W, H = r.H;
     if (mode === 'menu' || mode === 'join') {
       if (!city) city = buildCity(); const p = CITY.at(t * 120); city.m7.cam = { x: p.x, y: p.y, h: 50, angle: p.angle, pitch: 12, fov: 70 }; towersOf(city.m7.cam); city.m7.draw(r);
-      r.overlay(g => { E.font.title(g, E.t('zero.title'), W / 2, 20, { scale: 4, align: 'center', colors: ['#ffffff', '#a8f0ff', '#3ae0ff', '#c83ae8'], depth: 3 }); if (mode === 'join') E.font.text(g, E.t('zero.join'), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false }); if (mode === 'join' && game.players.length >= 2) E.font.text(g, E.t('zero.join.go', { n: game.players.length, key: game.input.label('confirm') }), W / 2, H / 2 + 16, '#ffe060', { align: 'center', shadow: '#000', outline: false }); });
+      r.overlay(g => { E.font.title(g, E.t('zero.title'), W / 2, 20, { scale: 4, align: 'center', colors: ['#ffffff', '#a8f0ff', '#3ae0ff', '#c83ae8'], depth: 3 }); if (mode !== 'join') return;
+        const j = E.font.text(g, E.t('zero.join'), W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false, wrap: W - 16 });   // (two lines on the GBA's 240)
+        if (game.players.length >= 2) E.font.text(g, E.t('zero.join.go', { n: game.players.length, key: game.input.label('confirm') }), W / 2, H / 2 + j.h + 7, '#ffe060', { align: 'center', shadow: '#000', outline: false }); });
       if (mode === 'menu') { menu.y = Math.round(H / 2) - 10; menu.draw(r); }
       return;
     }
@@ -206,13 +210,14 @@ const ZERO = (() => {
   }
   // the results: every machine's place and time, and the Grand Prix's points
   function board(r) {
-    const W = r.W, H = r.H;
+    const W = r.W, H = r.H, mh = 2 * (E.font.lineHeight() + 2) + 8;   // (the menu's height)
+    after.y = Math.min(Math.round(H / 2) + 50, H - mh - 18);   // (on the GBA's 160: on it, above the energy bar)
     r.overlay(g => {
-      const w = 200, rows = race.racers.slice().sort((a, b) => a.place - b.place), h = 18 + rows.length * 11, x = Math.round((W - w) / 2), y = Math.round(H / 2 - h / 2 - 24);
+      const w = 200, rows = race.racers.slice().sort((a, b) => a.place - b.place), h = 18 + rows.length * 11, x = Math.round((W - w) / 2), y = Math.max(24, Math.min(Math.round(H / 2 - h / 2 - 24), after.y - h - 2));   // (under the place and lap, above the menu)
       E.ui.box(g, x, y, w, h, { bg: '#10142a', border: '#a8f0ff' });
       rows.forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? Math.floor(R.time / 60) + "'" + (R.time % 60).toFixed(2).padStart(5, '0') : '--'; E.font.text(g, E.t('zero.row', { place: R.place, name: R.name }), x + 8, yy, players.includes(R) ? '#ffe04a' : '#e8e8f0', { outline: false }); E.font.text(g, (G && G.gp ? G.pts[R.ci] + ' ' : '') + fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
     });
-    after.y = Math.round(H / 2) + 50; after.draw(r);
+    after.draw(r);
   }
 
   /** the bot (tools/kits-test.mjs): the Grand Prix with every machine driven by its driver (yours too): both tracks to
@@ -222,13 +227,17 @@ const ZERO = (() => {
     try {
       game.go('zero', null, { fade: 0 }); game.advance(1 / 120); auto = true; const out = {};
       G = { gp: true, pts: CAST.map(() => 0) };
-      for (const tr of ['city', 'sky']) { go(tr); let n = 0, stuck = 0; for (; n < 220 && !race.over; n++) { game.advance(1); for (const R of race.racers) stuck = Math.max(stuck, R._stuck || 0); } out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +stuck.toFixed(2), energy: race.racers.map(R => Math.round(R.energy)) }; if (race.over) finish(); }
+      for (const tr of ['city', 'sky']) { go(tr); let n = 0; for (; n < 220 && !race.over; n++) game.advance(1); out[tr] = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, stuck: +Math.max(...race.racers.map(R => R.stuckMax)).toFixed(2), energy: race.racers.map(R => Math.round(R.energy)) }; if (race.over) finish(); }   // (stuck: the longest any stood still)
       out.points = G.pts.slice(); auto = false;
-      toMenu(); idle = 30; game.advance(1 / 60); out.attract = attract && mode === 'race'; toMenu();   // (left alone on the title: it races by itself)
+      toMenu(); idle = 30; game.advance(1 / 60); out.attract = attract && mode === 'race';   // (left alone on the title: it races by itself)
+      const I = game.input, dev = I.lastDevice; for (const e of ['down', 'up']) I.feed(e, game.W / 2, game.H * .3, { touch: true }); game.advance(1 / 60);
+      out.tapBack = !attract && mode === 'menu'; I.lastDevice = dev; toMenu();   // (a phone's tap ends it)
       game.go('zero', { part: 'gba' }, { fade: 0 }); game.advance(1 / 60); out.gba = [game.W, game.H]; game.go('zero', null, { fade: 0 }); game.advance(1 / 60); auto = false;
       while (game.players.length < 4) game.addPlayer({ keys: game.players.length === 1 ? 'right' : undefined });
       G = { vs: true, pts: CAST.map(() => 0) }; go('city', true); for (const P of game.players) P.hold('gas'); game.advance(8); for (const P of game.players) P.hold('gas', false);
       out.vs = { viewports: game.viewports.length, prog: players.map(R => Math.round(R.prog)) };
+      const gas = () => ['ArrowUp', 'KeyW', 'KeyZ'].filter(c => game.input.map.gas.includes(c)).length;   // (a race of one after it: player 1's gas on the whole keyboard again)
+      out.solo = [gas()]; go('city'); out.solo.push(gas(), game.players.filter(P => P.half).length);
       toMenu(); while (game.players.length > 1) game.removePlayer(game.players.length);
       return Object.assign(out, { errors: game.errors.length });
     } finally { Math.random = was; auto = false; }

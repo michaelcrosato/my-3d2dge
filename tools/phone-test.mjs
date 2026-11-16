@@ -23,7 +23,7 @@
 //  12. metroidvania: three thumb-sized buttons (JUMP, FIRE, MAP; DASH once found); the stick walks the hero and aims
 //  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers
 //  13c. blaster: the jet's MISSILE and ROLL thumb-sized; the stick banks it; in the valley a tap shoots where it lands
-//  13d. road: BRAKE and REWIND thumb-sized; it accelerates by itself; the stick steers
+//  13d. road: BRAKE and REWIND thumb-sized; it accelerates by itself; the stick steers; the striker shows FIRE alone
 //  13f. special: JUMP thumb-sized on the planet; in the fort the stick turns the soldier (and the world under him)
 //  13e. zero: BOOST thumb-sized; it accelerates by itself; the stick steers
 //  13b. sky: GAS and SLOW thumb-sized in the plane (ACT only where it acts: the chute, a landing); the stick banks the
@@ -595,6 +595,12 @@ if (want('road')) {
     check(`road ${label}: it accelerates by itself; the stick held right moves it right`, s0.speed > 30 && s1.x > s0.x + .2 && !errors.length, `speed ${s0.speed}, x ${s0.x} -> ${s1.x}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
+  {   // the striker flies at its own speed: no BRAKE beside its FIRE
+    const { page, ctx, errors } = await open('road', SIDE, 'road/striker'); await page.touchscreen.tap(SIDE.width / 2, SIDE.height * .3); await wait(1500);
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => b.dataset.act + ':' + b.textContent.trim()).sort().join());
+    check('road striker: FIRE alone (it flies at its own speed: no BRAKE)', btns === 'nitro:FIRE' && !errors.length, `buttons ${btns}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
 }
 
 /* 13e. zero: its button, the gas by itself, the stick steering */
@@ -610,6 +616,10 @@ if (want('zero')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `zero-${label.replace(/ /g, '-')}.png`) });
     check(`zero ${label}: BOOST, a thumb's size`, acts === 'boost' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`zero ${label}: it accelerates by itself; the stick held right turns it right`, s0.auto && s0.speed > 30 && E_turn(s0.angle, s1.angle) > .3 && !errors.length, `speed ${s0.speed}, turned ${E_turn(s0.angle, s1.angle).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    // its menu left alone 26 seconds races by itself; a tap (a phone presses no key) brings the menu back (state(): null there)
+    const demo = await ev(page, () => { const g = window.__game.game; g.go('zero', null, { fade: 0 }); g.advance(26); const s = window.__game.scenes.zero.state(); return s && s.mode; });
+    await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(400); const back = await ev(page, () => window.__game.scenes.zero.state());
+    check(`zero ${label}: left alone it races by itself, and a tap brings the menu back`, demo === 'race' && back === null && !errors.length, `before the tap ${demo}, after it ${back ? back.mode : 'the menu'}`);
     await ctx.close();
   }
 }

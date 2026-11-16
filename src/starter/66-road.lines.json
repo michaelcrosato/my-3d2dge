@@ -62,7 +62,8 @@
   "road.striker.fire": "{key}: FIRE",
   "road.striker.won": "THROUGH THE CITY!",
   "road.striker.down": "SHIELD GONE",
-  "road.drift": "DRIFT"
+  "road.drift": "DRIFT",
+  "road.rewinds.touch": "REWIND x{n}"
  },
  "notes": {
   "road.title": "The driving game's title, on its menu: a run along a coast road.",
@@ -117,6 +118,7 @@
   "road.striker.fire": "{key} is the key or button that shoots ahead.",
   "road.striker.won": "The flight is over: you reached the end of the road.",
   "road.striker.down": "The flight is over: your shield ran out.",
-  "road.drift": "The car is sliding sideways through a bend; the bar under it is the boost it charges."
+  "road.drift": "The car is sliding sideways through a bend; the bar under it is the boost it charges.",
+  "road.rewinds.touch": "On a touch screen, beside its REWIND button: {n} rewinds are left."
  }
 }

@@ -10,10 +10,12 @@
  * road: up and down rise and fall, left and right cross it, FIRE at the drones and the cars that come at you; reach the
  * end with your shield.
  * Deep links: #road/car, #road/bike, #road/rash, #road/duel, #road/chase, #road/striker; #road/hd the coast run at
- * 960 x 540 (today's resolution, Horizon Chase's). In the car, brake while steering hard at speed to drift: let go
- * after a long one for a boost (Victory Heat Rally's).
- * KEYS: left / right steer, up / Z gas, down / X brake, C / L nitro (the chase) or punch (the rash), R rewind (held). A pad: the stick, A
- * gas, X brake, B nitro, LB rewind. TOUCH: the stick steers, it accelerates by itself; BRAKE, REWIND (NITRO).
+ * 960 x 540 at least (today's resolution, Horizon Chase's; grown to the window's shape, the HUD with it). In the car,
+ * brake while steering hard at speed to drift: let go after a long one for a boost (Victory Heat Rally's).
+ * KEYS: left / right steer, up / Z gas, down / X brake, C / L nitro (the chase), punch (the rash) or fire (the striker),
+ * R rewind (held). The duel on one keyboard: WASD player 1's (W gas, S brake), the arrows player 2's; a solo mode gives
+ * player 1 the whole keyboard again. A pad: the stick, A gas, X brake, B nitro, LB rewind. TOUCH: the stick steers, it
+ * accelerates by itself; BRAKE (not in the striker), REWIND (NITRO: PUNCH, FIRE).
  * HOW IT WORKS: E.Road (the road module) draws the road, its hills, tunnels and forks (split, branch), the scenery, and
  * through road.mesh the cars as low-poly models (the mesh module); E.Rewind (the rewind module) keeps the last seconds;
  * this file the stages and their forks, the car and the bike, the traffic, the chase and the HUD.
@@ -21,6 +23,8 @@
 const ROAD = (() => {
   const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0', 'Pad7'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2', 'Pad6'], nitro: ['KeyC', 'KeyL', 'Pad1', 'Pad5'], rewind: ['KeyR', 'Pad4'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
+  KEYS.halves = { left: { gas: ['KeyW'], brake: ['KeyS'] }, right: { gas: ['ArrowUp'], brake: ['ArrowDown'] } };   // (the duel on one keyboard: each half's up and down its gas and brake, as alone; Input.halfKeys)
+  const ui = (w, h) => Math.max(1, Math.floor(Math.min(w, h) / 270));   // the HUD's scale: 1 at the PS1's 320 x 240 (and a duel's half), 2 and up at today's resolution (#road/hd), its share of the screen kept
   const SEG = 200, W = 2000, TOP = 6000, KMH = .048, GAP = 2.4, CK = 38;   // a segment, half the road, top speed (units a second), units to km/h, the fork's gap, a car model's units
   /* ---- THE MODELS (x forward, y right, z up; a unit about 2.6 cm: scale CK) ---- */
   const wheels = (x0, x1, y, r) => [['tube', [x0, y, r], r, 1.4, '#1a1a1e', { axis: 'y', n: 8, mirror: true }], ['tube', [x1, y, r], r, 1.4, '#1a1a1e', { axis: 'y', n: 8, mirror: true }]];
@@ -94,16 +98,20 @@ const ROAD = (() => {
   const rw = new E.Rewind({ seconds: 6, every: 1 / 20 });
   const menu = new E.Menu(game, [E.t('road.menu.car'), E.t('road.menu.bike'), E.t('road.menu.rash'), E.t('road.menu.duel'), E.t('road.menu.chase'), E.t('road.menu.striker'), E.t('road.menu.back')], { onPick: i => i === 6 ? game.go('title') : i === 5 ? start('striker') : i === 4 ? start('chase') : i === 3 ? duel() : i === 2 ? start('rash') : radio(i ? 'bike' : 'car') });
   const after = new E.Menu(game, [E.t('road.menu.again'), E.t('road.menu.menu')], { onPick: i => i === 0 ? (DUO ? start('duel') : P.chase ? start('chase') : P.rash ? start('rash') : P.striker ? start('striker') : radio(ride)) : toMenu() });
-  function toMenu() { mode = 'menu'; P = null; DUO = null; game.splitScreen(0); A.music('title'); }
-  function duel() { if (game.players.length >= 2) start('duel'); else { mode = 'join'; A.sfx('select'); } }   // (Top Gear's and Lotus's two players: the second joins first)
-  function radio(r) { ride = r; mode = 'radio'; A.music(SONGS[song]); game.input.consumeAll(); }
-  /** a run: the car (or bike) at the start of the beach, the clock at 60 (the chase: the city at night, a getaway car ahead) */
-  function start(what) {
+  /** who plays: the menu lets a second player join (for the duel; one who joined stays for the next); a solo mode (and
+   *  another scene) has player 1 alone, the joined gone and none let in, so the whole keyboard is theirs again */
+  function players(solo) { if (!solo) { game.allowJoin({ max: 2 }); return; } game.allowJoin(false); while (game.players.length > 1) game.removePlayer(game.players.length); }
+  function toMenu() { mode = 'menu'; P = null; DUO = null; game.splitScreen(0); players(false); A.music('title'); }
+  function duel() { if (game.players.length >= 2) start('duel'); else { mode = 'join'; players(false); A.sfx('select'); } }   // (Top Gear's and Lotus's two players: the second joins first)
+  function radio(r) { ride = r; mode = 'radio'; players(true); A.music(SONGS[song]); game.input.consumeAll(); }
+  /** a run: the car (or bike) at the start of the beach, the clock at 60 (the chase: the city at night, a getaway car
+   *  ahead); keep: the duel's own call, its two players kept */
+  function start(what, keep) {
     if (what === 'duel') {   // two cars on one road to its finish, a screen each (no clock, no rewind)
-      start('rash'); ride = 'car'; const L = P.L; Object.assign(P, { rash: false, rivals: null, bike: false }); DUO = [P, Object.assign({}, P, { x: .66, route: [3] })]; P.x = -.66; DUO.forEach((Q, i) => Object.assign(Q, { duel: true, n: i, L, clock: 999, rewinds: 0 }));
+      start('rash', true); ride = 'car'; const L = P.L; Object.assign(P, { rash: false, rivals: null, bike: false }); DUO = [P, Object.assign({}, P, { x: .66, route: [3] })]; P.x = -.66; DUO.forEach((Q, i) => Object.assign(Q, { duel: true, n: i, L, clock: 999, rewinds: 0 }));
       game.splitScreen(2, { layout: 'rows' }); return;
     }
-    DUO = null; game.splitScreen(0);
+    DUO = null; game.splitScreen(0); if (!keep) players(true);
     if (what === 'striker') {   // Night Striker: the city at night, flown over; no clock, a shield of five
       ride = 'car'; start('rash'); Object.assign(P, { rash: false, rivals: null, bike: false, striker: true, L: leg(4, 0, false, true), alt: 260, shield: 5, shots: [], foes: [], bolts: [], fire: 0, spawn: 2, kills: 0, hurt: 0 }); A.music('boss'); return;
     }
@@ -125,7 +133,8 @@ const ROAD = (() => {
   let banner = null, bannerT = 0; const say = (s, secs = 2) => { banner = s; bannerT = secs; };
   function update(dt) {
     const I = game.input;
-    I.touchSet('brake', null, mode === 'drive'); I.touchSet('rewind', null, !!(mode === 'drive' && P && !P.chase && !P.rash && !P.striker && !P.duel && (P.rewinds > 0 || P.rewinding))); I.touchSet('nitro', P && P.rash ? E.t('road.punch') : P && P.striker ? E.t('road.fire') : null, !!(mode === 'drive' && P && (P.chase || P.rash || P.striker)));   // (a strict true or false: undefined would leave the button as it was)   // (the last rewind's button stays under the finger while it runs)
+    menu.scale = after.scale = ui(game.W, game.H);   // (the menus at the HUD's scale)
+    I.touchSet('brake', null, mode === 'drive' && !(P && P.striker)); I.touchSet('rewind', null, !!(mode === 'drive' && P && !P.chase && !P.rash && !P.striker && !P.duel && (P.rewinds > 0 || P.rewinding))); I.touchSet('nitro', P && P.rash ? E.t('road.punch') : P && P.striker ? E.t('road.fire') : null, !!(mode === 'drive' && P && (P.chase || P.rash || P.striker)));   // (a strict true or false: undefined would leave the button as it was)   // (the last rewind's button stays under the finger while it runs)
     t += dt; if (bannerT > 0) bannerT -= dt;
     if (mode === 'menu') { menu.update(dt); return; }
     if (mode === 'join') { if (game.players.length >= 2) start('duel'); else if (I.pressed('cancel')) mode = 'menu'; return; }
@@ -137,8 +146,9 @@ const ROAD = (() => {
       return;
     }
     const k = auto ? pilot() : pad();
-    // rewinding: the last seconds walked back while R is held (a rewind used up as it starts)
-    if (k.rewind && !P.chase && !P.rash && !P.striker && !P.over && (P.rewinding || P.rewinds > 0) && rw.seconds > .2) { if (!P.rewinding) { P.rewinding = true; P.rewinds--; A.sfx('warp'); } const s = rw.back(dt, 2); if (s) Object.assign(P, JSON.parse(s.json), { L: s.L, traffic: undefined }), s.L.traffic.forEach((c, i) => Object.assign(c, s.cars[i])); return; }
+    // rewinding: the last seconds walked back while R is held (a rewind used up as it starts, with a moment kept to go
+    // back to; held past the oldest, it waits there until let go, the same rewind)
+    if (k.rewind && !P.chase && !P.rash && !P.striker && !P.over && (P.rewinding || (P.rewinds > 0 && rw.seconds > .2))) { if (!P.rewinding) { P.rewinding = true; P.rewinds--; A.sfx('warp'); } const s = rw.back(dt, 2); if (s) Object.assign(P, JSON.parse(s.json), { L: s.L, traffic: undefined }), s.L.traffic.forEach((c, i) => Object.assign(c, s.cars[i])); return; }
     P.rewinding = false;
     if (DUO) {   // the duel: each player's car on the one road; the first over the line wins; they bump each other
       DUO.forEach((Q, i) => { Q.z0 = Q.z; if (Q.over) { Q.over.t += dt; Q.speed = Math.max(0, Q.speed - 3000 * dt); Q.z += Q.speed * dt; } else drive(Q, dt, auto ? pilot(Q) : pad(game.players[i] || I), i > 0); });
@@ -247,7 +257,7 @@ const ROAD = (() => {
   /** the autopilot (the bot, and a demo): the lane clear of traffic, the gas, a brake into the hardest bends, left at
    *  the first fork and right at the next; in the chase, at the getaway car with the nitro */
   function pilot(P = ROAD_P()) {
-    if (P.striker) { const f = P.foes.filter(o => o.z > P.z + 2000).sort((a, b) => a.z - b.z)[0], bolt = P.bolts.find(b => b.z - P.z < 5000 && Math.abs(b.x + b.vx * (b.z - P.z) / 7000 - P.x) < .35); return { x: clamp(((f ? f.x : P.L.road.centers(P.z)[0]) + (bolt ? .5 : 0) - P.x) * 4, -1, 1), y: clamp((P.alt - (f ? f.alt : 300)) / 120, -1, 1), fire: !!f && Math.abs(f.x - P.x) < .3, gas: true }; }   // (STRIKER: line up the nearest foe ahead and fire; a bolt coming: step aside)
+    if (P.striker) { const f = P.foes.filter(o => o.z > P.z + 2000).sort((a, b) => a.z - b.z)[0], bolt = P.bolts.find(b => b.z - P.z < 5000 && Math.abs(b.x + b.vx * (b.z - P.z) / 7000 - P.x) < .35); return { x: clamp(((f ? f.x : P.L.road.centers(P.z)[0]) + (bolt ? .5 : 0) - P.x) * 4, -1, 1), y: clamp((P.alt - Math.max(150, f ? f.alt : 300)) / 120, -1, 1), fire: !!f && Math.abs(f.x - P.x) < .3, gas: true }; }   // (STRIKER: line up the nearest foe ahead and fire; a bolt coming: step aside; never under 150, over the traffic and an armoured car's ram, its shots still reaching one)
     const L = P.L, road = L.road, cs = road.centers(P.z), forkNear = !L.last && L.fork - P.z < 70 * SEG + 4000, side = P.route.length % 2 ? 1 : 0, want0 = forkNear ? (cs.length > 1 ? cs[side] : cs[0] + (side ? .66 : -.66)) : cs.reduce((a, c) => Math.abs(P.x - c) < Math.abs(P.x - a) ? c : a);
     let want = want0, top = -1e9;
     for (const lane of [0, -2 / 3, 2 / 3]) { const x = want0 + lane, block = L.traffic.filter(c => c.z > P.z - 1600 && Math.abs(road.centers(c.z)[0] + c.lane - x) < .5).reduce((a, c) => Math.min(a, c.z - P.z), 1e9), sc = Math.min(block, 9000) - Math.abs(x - P.x) * 900 - Math.abs(lane) * 200; if (sc > top) { top = sc; want = x; } }   // (the lane whose next car is farthest)
@@ -259,17 +269,17 @@ const ROAD = (() => {
 
   /* ---- the look ---- */
   function draw(r) {
-    const W0 = r.W, H = r.H;
+    const W0 = r.W, H = r.H, u = ui(W0, H);
     if (mode === 'menu' || mode === 'radio' || mode === 'join') {
       const L = demoLeg || (demoLeg = leg(0, 0, false)), z = (t * 2600) % (L.end - SEG * 20);
       L.road.draw(r, { z, x: Math.sin(t * .4) * .4, h: 1000, turn: (t * 40) % 4000, cars: [] });
-      r.overlay(g => { E.font.title(g, E.t('road.title'), W0 / 2, 18, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#ff7a2a', '#d02a5a'], depth: 3 }); });
-      if (mode === 'menu') { menu.y = Math.round(H / 2) - 6; menu.draw(r); return; }
-      if (mode === 'join') { r.overlay(g => E.font.text(g, E.t('road.duel.join'), W0 / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false })); return; }
+      r.overlay(g => { E.font.title(g, E.t('road.title'), W0 / 2, 18 * u, { scale: 4 * u, align: 'center', colors: ['#fff6d0', '#ffd060', '#ff7a2a', '#d02a5a'], depth: 3 * u }); });
+      if (mode === 'menu') { menu.y = Math.round(H / 2) - 6 * u; menu.draw(r); return; }
+      if (mode === 'join') { r.overlay(g => E.font.text(g, E.t('road.duel.join'), W0 / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false, scale: u })); return; }
       r.overlay(g => {   // the radio: three songs to pick from
-        E.font.text(g, E.t('road.radio'), W0 / 2, H * .34, '#ffffff', { align: 'center', shadow: '#000', outline: false });
-        SONGS.forEach((s, i) => { const w = Math.min(120, W0 / 3 - 8), x = Math.round(W0 * (i + .5) / 3 - w / 2), y = Math.round(H / 2 - 10); E.ui.box(g, x, y, w, 26, { bg: i === song ? '#3a2a6a' : '#141a3a', border: i === song ? '#ffe04a' : '#8888aa' }); E.font.text(g, E.t(s.name), x + w / 2, y + 9, i === song ? '#ffe890' : '#c8c8e0', { align: 'center', outline: false }); });
-        E.font.text(g, E.t('road.radio.go', { key: game.input.label('confirm') }), W0 / 2, H / 2 + 26, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, E.t('road.radio'), W0 / 2, H * .34, '#ffffff', { align: 'center', shadow: '#000', outline: false, scale: u });
+        SONGS.forEach((s, i) => { const w = Math.min(120 * u, W0 / 3 - 8 * u), x = Math.round(W0 * (i + .5) / 3 - w / 2), y = Math.round(H / 2 - 10 * u); E.ui.box(g, x, y, w, 26 * u, { bg: i === song ? '#3a2a6a' : '#141a3a', border: i === song ? '#ffe04a' : '#8888aa' }); E.font.text(g, E.t(s.name), x + w / 2, y + 9 * u, i === song ? '#ffe890' : '#c8c8e0', { align: 'center', outline: false, scale: u }); });
+        E.font.text(g, E.t('road.radio.go', { key: game.input.label('confirm') }), W0 / 2, H / 2 + 26 * u, '#ffffff', { align: 'center', shadow: '#000', outline: false, scale: u });
       });
       return;
     }
@@ -277,14 +287,15 @@ const ROAD = (() => {
   }
   /** a player's screen: the road, the cars (the other duellist's too), the HUD, in its viewport */
   function view(r, P) {
-    const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }, W0 = vp.w, H = vp.h;
+    const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }, W0 = vp.w, H = vp.h, u = ui(W0, H);
+    const lit = Q => !auto && !Q.striker && (DUO ? game.players[Q.n] || game.input : game.input).down('brake') ? '#ff6060' : '#a82020';   // (the tail lights: the brake of the player who drives that car)
     const L = P.L, road = L.road, h = P.striker ? 1000 + P.alt * .35 : P.bike ? 760 : 1000, camZ = P.z - road.ahead(h, r) - 1700, cars = [], tt = t;
     if (P.striker) {   // the foes, your shots and theirs, at their heights over the road; your shadow on it under you
       cars.push({ z: P.z, x: P.x, w: 900, draw: (g, sx, sy, sc) => px.ell(g, sx, sy, 520 * sc, 110 * sc, '#14141c') });
       for (const f of P.foes) if (f.z > camZ) cars.push(road.mesh(f.air ? DRONE : SEDAN, f.z, f.x, { scale: CK, y: f.alt, yaw: Math.PI, colors: { body: f.air ? '#4a4a5a' : '#3a4a3a', glass: '#ff3a3a', roof: '#2a3a2a' } }));
       for (const o of P.shots.concat(P.bolts)) if (o.z > camZ) cars.push({ z: o.z, x: o.x, w: 80, draw: (g, sx, sy, sc) => px.disc(g, sx, sy - o.alt * sc, Math.max(1, 50 * sc), P.shots.includes(o) ? '#ffe060' : '#ff4a8a') });
     }
-    if (DUO) { const Q = DUO[1 - P.n]; if (Q.z > camZ && Q.z - camZ < 210 * SEG) cars.push(road.mesh(CAR, Q.z, Q.x, { scale: CK, yaw: Q.steer * .14 + Q.spin, roll: -Q.steer * .05, y: Q.hop, colors: { body: Q.n ? '#2a6ae8' : '#e8202a', shirt: '#f0f0f0', tail: '#a82020' } })); }
+    if (DUO) { const Q = DUO[1 - P.n]; if (Q.z > camZ && Q.z - camZ < 210 * SEG) cars.push(road.mesh(CAR, Q.z, Q.x, { scale: CK, yaw: Q.steer * .14 + Q.spin, roll: -Q.steer * .05, y: Q.hop, colors: { body: Q.n ? '#2a6ae8' : '#e8202a', shirt: '#f0f0f0', tail: lit(Q) } })); }
     for (const c of L.traffic) if (c.z > (P.striker ? P.z - 600 : camZ) && c.z - camZ < 210 * SEG) cars.push(road.mesh(c.model, c.z, road.centers(c.z)[0] + c.lane, { scale: CK, colors: { body: c.col, glass: '#2a3a4a', roof: c.col } }));
     if (P.chase) { const T = P.target, tc = road.centers(T.z)[0]; cars.push(road.mesh(SEDAN, T.z, tc + T.x, { scale: CK, yaw: T.damage >= 100 ? .3 : 0, colors: { body: T.damage > 60 ? '#6a2a2a' : '#c8202a', glass: '#1a1a22', roof: '#c8202a' } })); }
     if (P.rash) for (const v of P.rivals) if (v.z > camZ && v.z - camZ < 210 * SEG) {   // the riders: a punch leans one into it, a fall tumbles it
@@ -294,59 +305,66 @@ const ROAD = (() => {
     if (P.drift) for (const d of [-.13, .13]) for (let i = 0; i < 3; i++) cars.push({ z: P.z - 260 - i * 220 - (t * 3000 % 220), x: P.x + d - P.drift * i * .05, w: 120, draw: (g, sx, sy, sc) => { const a = g.globalAlpha; g.globalAlpha = .45 - i * .12; px.disc(g, sx, sy - 40 * sc, Math.max(1, (50 + i * 30) * sc), '#e0e0e8'); g.globalAlpha = a; } });   // (tyre smoke, thinning behind)
     const o = { scale: CK, yaw: P.steer * .14 + P.spin + (P.drift || 0) * .4, roll: P.bike ? P.lean * .7 + (P.punch > .2 ? P.side * .5 : 0) : P.striker ? -P.steer * .4 : -P.steer * .05, y: P.striker ? P.alt : P.hop };
     if (P.bike) { cars.push(road.mesh(BIKE, P.z, P.x, Object.assign({ colors: { body: '#e8402a' } }, o))); cars.push(road.mesh(RIDER, P.z, P.x, Object.assign({ colors: { suit: '#2a3a8a', helm: '#f0f0f0' } }, o))); }
-    else { cars.push(road.mesh(CAR, P.z, P.x, Object.assign({ colors: { body: P.chase ? '#f0f0f0' : P.n ? '#2a6ae8' : '#e8202a', shirt: '#f0f0f0', tail: game.input.down('brake') && !auto ? '#ff6060' : '#a82020' } }, o))); if (P.chase) cars.push(road.mesh(LIGHTS, P.z, P.x, Object.assign({ colors: { l1: tt * 6 % 2 < 1 ? '#ff2a2a' : '#5a1010', l2: tt * 6 % 2 < 1 ? '#1a1a5a' : '#3a6aff' } }, o))); }
+    else { cars.push(road.mesh(CAR, P.z, P.x, Object.assign({ colors: { body: P.chase ? '#f0f0f0' : P.n ? '#2a6ae8' : '#e8202a', shirt: '#f0f0f0', tail: lit(P) } }, o))); if (P.chase) cars.push(road.mesh(LIGHTS, P.z, P.x, Object.assign({ colors: { l1: tt * 6 % 2 < 1 ? '#ff2a2a' : '#5a1010', l2: tt * 6 % 2 < 1 ? '#1a1a5a' : '#3a6aff' } }, o))); }
     road.draw(r, { z: camZ, x: P.x, h, turn: P.turn || 0, cars });
     r.overlay(g => { g.save(); g.translate(vp.x, vp.y);   // (in its viewport: the duel's two screens)
-      const txt = (s, x, y, c = '#ffffff', o2 = {}) => E.font.text(g, s, x, y, c, Object.assign({ shadow: '#100818', outline: false }, o2)), lh = E.font.lineHeight(), right = (r.viewport ? W0 : cornerX()) - 4;
-      if (P.striker) { for (let i = 0; i < 5; i++) px.rect(g, W0 / 2 - 24 + i * 10, 6, 8, 6, i < P.shield ? (P.hurt > 0 && Math.floor(t * 12) % 2 ? '#ffffff' : '#40e0ff') : '#2a2a3a'); txt(E.t('road.striker.kills', { n: P.kills }), W0 / 2, 16, '#ffffff', { align: 'center' }); }
-      else if (P.duel) { const Q = DUO[1 - P.n], d = Math.round((P.z - Q.z) / 380); txt(E.t('road.duel.you', { n: P.n + 1 }), W0 / 2, 4, P.n ? '#80b0ff' : '#ff9090', { align: 'center' }); txt(E.t(d >= 0 ? 'road.duel.ahead' : 'road.duel.behind', { m: Math.abs(d) }), W0 / 2, 6 + lh, '#ffffff', { align: 'center' }); }
-      else if (!P.rash) { txt(E.t('road.time'), W0 / 2, 4, '#ffe890', { align: 'center' }); txt(String(Math.ceil(P.clock)), W0 / 2, 6 + lh, P.clock < 10 && Math.floor(t * 4) % 2 ? '#ff6060' : '#ffffff', { align: 'center', scale: 2 }); }
-      txt(E.t('road.score', { n: Math.round(P.score) }), 6, 6, '#ffffff'); txt(E.t('road.stage.' + STAGES[L.i].id), 6, 6 + lh, '#a8d8ff');
-      txt(E.t('road.kmh', { n: Math.round(P.speed * KMH) }), right, 6, '#ffffff', { align: 'right' });
-      if (P.drift) { const y = 10 + lh * 3; txt(E.t('road.drift'), W0 / 2, y, P.charge > .6 ? '#ffe040' : '#ffffff', { align: 'center' }); px.rect(g, W0 / 2 - 30, y + lh + 2, Math.round(60 * Math.min(1, P.charge / 2)), 3, P.charge > .6 ? '#ffe040' : '#a0a0b0'); }
-      if (P.striker) txt(E.t('road.striker.fire', { key: game.input.label('nitro') }), right, 6 + lh, '#c8c8e0', { align: 'right' });
-      if (!P.chase && !P.rash && !P.duel && !P.striker) txt(E.t('road.rewinds', { n: P.rewinds, key: game.input.label('rewind') }), right, 6 + lh, P.rewinding ? '#80c8ff' : '#c8c8e0', { align: 'right' });
-      if (P.rash) { txt(E.t('road.rash.place', { n: P.place, of: P.rivals.length + 1 }), right, 6 + lh, P.place <= 3 ? '#80ffa0' : '#ffb0b0', { align: 'right' }); const w = 60, x = right - w, y = 8 + lh * 2; px.rect(g, x - 1, y - 1, w + 2, 6, '#100818'); px.rect(g, x, y, Math.round(w * P.hp / 6), 4, P.hp <= 2 ? '#ff4040' : '#ffd040'); txt(E.t('road.rash.punch', { key: game.input.label('nitro') }), right, y + 8, '#c8c8e0', { align: 'right' }); }
+      // (u: the HUD's scale, its sizes and gaps with it; on touch the buttons name their actions: no '{key}:' hints)
+      const touch = game.input.lastDevice === 'touch', txt = (s, x, y, c = '#ffffff', o2 = {}) => E.font.text(g, s, x, y, c, Object.assign({ shadow: '#100818', outline: false }, o2, { scale: (o2.scale || 1) * u })), lh = E.font.lineHeight({ scale: u }), right = (r.viewport ? W0 : cornerX()) - 4 * u;
+      if (P.striker) { for (let i = 0; i < 5; i++) px.rect(g, W0 / 2 + (i * 10 - 24) * u, 6 * u, 8 * u, 6 * u, i < P.shield ? (P.hurt > 0 && Math.floor(t * 12) % 2 ? '#ffffff' : '#40e0ff') : '#2a2a3a'); txt(E.t('road.striker.kills', { n: P.kills }), W0 / 2, 16 * u, '#ffffff', { align: 'center' }); }
+      else if (P.duel) { const Q = DUO[1 - P.n], d = Math.round((P.z - Q.z) / 380); txt(E.t('road.duel.you', { n: P.n + 1 }), W0 / 2, 4 * u, P.n ? '#80b0ff' : '#ff9090', { align: 'center' }); txt(E.t(d >= 0 ? 'road.duel.ahead' : 'road.duel.behind', { m: Math.abs(d) }), W0 / 2, 6 * u + lh, '#ffffff', { align: 'center' }); }
+      else if (!P.rash) { txt(E.t('road.time'), W0 / 2, 4 * u, '#ffe890', { align: 'center' }); txt(String(Math.ceil(P.clock)), W0 / 2, 6 * u + lh, P.clock < 10 && Math.floor(t * 4) % 2 ? '#ff6060' : '#ffffff', { align: 'center', scale: 2 }); }
+      txt(E.t('road.score', { n: Math.round(P.score) }), 6 * u, 6 * u, '#ffffff'); txt(E.t('road.stage.' + STAGES[L.i].id), 6 * u, 6 * u + lh, '#a8d8ff');
+      txt(E.t('road.kmh', { n: Math.round(P.speed * KMH) }), right, 6 * u, '#ffffff', { align: 'right' });
+      if (P.drift) { const y = 10 * u + lh * 3; txt(E.t('road.drift'), W0 / 2, y, P.charge > .6 ? '#ffe040' : '#ffffff', { align: 'center' }); px.rect(g, W0 / 2 - 30 * u, y + lh + 2 * u, Math.round(60 * u * Math.min(1, P.charge / 2)), 3 * u, P.charge > .6 ? '#ffe040' : '#a0a0b0'); }
+      if (P.striker && !touch) txt(E.t('road.striker.fire', { key: game.input.label('nitro') }), right, 6 * u + lh, '#c8c8e0', { align: 'right' });
+      if (!P.chase && !P.rash && !P.duel && !P.striker) txt(touch ? E.t('road.rewinds.touch', { n: P.rewinds }) : E.t('road.rewinds', { n: P.rewinds, key: game.input.label('rewind') }), right, 6 * u + lh, P.rewinding ? '#80c8ff' : '#c8c8e0', { align: 'right' });
+      if (P.rash) { txt(E.t('road.rash.place', { n: P.place, of: P.rivals.length + 1 }), right, 6 * u + lh, P.place <= 3 ? '#80ffa0' : '#ffb0b0', { align: 'right' }); const w = 60 * u, x = right - w, y = 8 * u + lh * 2; px.rect(g, x - u, y - u, w + 2 * u, 6 * u, '#100818'); px.rect(g, x, y, Math.round(w * P.hp / 6), 4 * u, P.hp <= 2 ? '#ff4040' : '#ffd040'); if (!touch) txt(E.t('road.rash.punch', { key: game.input.label('nitro') }), right, y + 8 * u, '#c8c8e0', { align: 'right' }); }
       if (P.chase) {
-        const T = P.target, d = Math.max(0, Math.round((T.z - P.z) / 380)), w = 70, x = right - w, y = 8 + lh * 2;
-        txt(E.t('road.target', { m: d }), right, 6 + lh, '#ffb0b0', { align: 'right' }); px.rect(g, x - 1, y - 1, w + 2, 6, '#100818'); px.rect(g, x, y, Math.round(w * T.damage / 100), 4, '#ff4040');
-        txt(E.t('road.nitro', { n: P.nitro }), right, y + 8, '#80ffa0', { align: 'right' });
+        const T = P.target, d = Math.max(0, Math.round((T.z - P.z) / 380)), w = 70 * u, x = right - w, y = 8 * u + lh * 2;
+        txt(E.t('road.target', { m: d }), right, 6 * u + lh, '#ffb0b0', { align: 'right' }); px.rect(g, x - u, y - u, w + 2 * u, 6 * u, '#100818'); px.rect(g, x, y, Math.round(w * T.damage / 100), 4 * u, '#ff4040');
+        txt(E.t('road.nitro', { n: P.nitro }), right, y + 8 * u, '#80ffa0', { align: 'right' });
       }
       if (!P.chase && !P.rash && !P.duel && !P.striker) {   // the route: the pyramid of stages, the ones driven lit
-        const ox = 8, oy = H - 34; for (let i = 0; i < 6; i++) { const rw2 = ROW(i), col = i - (rw2 === 0 ? 0 : rw2 === 1 ? 1 : 3), x = ox + 12 + (col - rw2 / 2) * 12, y = oy + rw2 * 10; px.rect(g, x, y, 9, 7, P.route.includes(i) ? (i === L.i ? (Math.floor(t * 4) % 2 ? '#ffe890' : '#ff9a30') : '#ffd040') : '#3a3a5a'); }
+        const ox = 8 * u, oy = H - 34 * u; for (let i = 0; i < 6; i++) { const rw2 = ROW(i), col = i - (rw2 === 0 ? 0 : rw2 === 1 ? 1 : 3), x = ox + (12 + (col - rw2 / 2) * 12) * u, y = oy + rw2 * 10 * u; px.rect(g, x, y, 9 * u, 7 * u, P.route.includes(i) ? (i === L.i ? (Math.floor(t * 4) % 2 ? '#ffe890' : '#ff9a30') : '#ffd040') : '#3a3a5a'); }
       }
-      if (P.rewinding) { px.rect(g, 0, 0, W0, 2, '#80c8ff'); px.rect(g, 0, H - 2, W0, 2, '#80c8ff'); txt(E.t('road.rewinding'), W0 / 2, H * .62, '#80c8ff', { align: 'center' }); }
+      if (P.rewinding) { px.rect(g, 0, 0, W0, 2 * u, '#80c8ff'); px.rect(g, 0, H - 2 * u, W0, 2 * u, '#80c8ff'); txt(E.t('road.rewinding'), W0 / 2, H * .62, '#80c8ff', { align: 'center' }); }
       if (!L.last && P.z > L.end - SEG * 30 && P.z < L.fork) txt(E.t('road.fork'), W0 / 2, H * .36, '#ffffff', { align: 'center' });
       if (bannerT > 0 && banner) txt(banner, W0 / 2, Math.round(H * .26), '#ffffff', { align: 'center', scale: 2 });
-      if (mode === 'results') { txt(E.t('road.final', { n: Math.round(P.score) }), W0 / 2, Math.round(H * .26) + lh * 2 + 6, '#ffffff', { align: 'center' }); txt(E.t('road.best', { n: P.best }), W0 / 2, Math.round(H * .26) + lh * 3 + 8, '#c8b8f0', { align: 'center' }); if (P.over && P.over.won !== undefined) txt(P.striker ? E.t(P.over.won ? 'road.striker.won' : 'road.striker.down') : P.duel ? E.t('road.duel.won', { n: DUO.find(Q => Q.over && Q.over.won) ? DUO.find(Q => Q.over && Q.over.won).n + 1 : 1 }) : P.rash ? E.t(P.over.won ? 'road.rash.won' : 'road.rash.lost', { n: P.place }) : E.t(P.over.won ? (P.chase ? 'road.arrest' : 'road.goal') : (P.chase ? 'road.escaped' : 'road.timeup')), W0 / 2, Math.round(H * .26), '#ffe890', { align: 'center', scale: 2 }); }
+      if (mode === 'results') { txt(E.t('road.final', { n: Math.round(P.score) }), W0 / 2, Math.round(H * .26) + lh * 2 + 6 * u, '#ffffff', { align: 'center' }); txt(E.t('road.best', { n: P.best }), W0 / 2, Math.round(H * .26) + lh * 3 + 8 * u, '#c8b8f0', { align: 'center' }); if (P.over && P.over.won !== undefined) txt(P.striker ? E.t(P.over.won ? 'road.striker.won' : 'road.striker.down') : P.duel ? E.t('road.duel.won', { n: DUO.find(Q => Q.over && Q.over.won) ? DUO.find(Q => Q.over && Q.over.won).n + 1 : 1 }) : P.rash ? E.t(P.over.won ? 'road.rash.won' : 'road.rash.lost', { n: P.place }) : E.t(P.over.won ? (P.chase ? 'road.arrest' : 'road.goal') : (P.chase ? 'road.escaped' : 'road.timeup')), W0 / 2, Math.round(H * .26), '#ffe890', { align: 'center', scale: 2 }); }
       g.restore();
     });
-    if (mode === 'results' && (!r.viewport || r.viewport.i === 0)) { after.y = Math.round(H / 2) + 30; after.draw(r); }
+    if (mode === 'results' && (!r.viewport || r.viewport.i === 0)) { after.y = Math.round(H / 2) + 30 * u; after.draw(r); }
   }
   let demoLeg = null;
 
   /** the bot (tools/kits-test.mjs): a coast run by the autopilot from the beach to the goal (left at the first fork,
-   *  right at the next), a rewind, the bike's first stage, and the chase to the arrest */
+   *  right at the next), a rewind held past its oldest moment (one of the three), a drift, the bike's first stage, the
+   *  rash, the duel on one keyboard (each half's gas), a solo mode after it (player 1 alone again), the striker, the chase
+   *  to the arrest, and #road/hd's size */
   function bot(s = 1) {
     const was = Math.random; Math.random = E.rng(s);
     try {
       game.go('road', null, { fade: 0 }); game.advance(1 / 120); auto = true; const out = {};
       ride = 'car'; start('car'); let n = 0; for (; n < 260 && mode === 'drive'; n++) game.advance(1);
       out.coast = { goal: !!(P.over && P.over.won), route: P.route.map(i => STAGES[i].id), clock: Math.round(P.clock), score: Math.round(P.score), seconds: n };
-      ride = 'car'; start('car'); game.advance(5); const z0 = P.z; P.rewinds = 1; auto = false; game.input.hold('rewind'); game.advance(1); game.input.hold('rewind', false); auto = true; out.rewind = { back: Math.round(z0 - P.z), left: P.rewinds };
+      ride = 'car'; start('car'); game.advance(3); const z0 = P.z; auto = false; game.input.hold('rewind'); game.advance(2.5); out.rewind = { back: Math.round(z0 - P.z), left: P.rewinds }; game.input.hold('rewind', false); auto = true;   // (held past the oldest moment kept: one rewind of the three, waiting there until let go)
       ride = 'car'; start('car'); auto = false; const I = game.input; I.hold('gas'); game.advance(2.2); I.hold('brake'); I.hold('right'); game.advance(.9); const ch = P.charge; I.hold('brake', false); I.hold('right', false); game.advance(.05); out.drift = { charge: +ch.toFixed(2), boost: +P.boost.toFixed(2) }; I.hold('gas', false); auto = true;   // (a drift on the beach's first straight, let go into a boost)
       ride = 'bike'; start('bike'); for (n = 0; n < 80 && P.route.length < 2 && mode === 'drive'; n++) game.advance(1); out.bike = { forked: P.route.length > 1, seconds: n };
       start('rash'); for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1); out.rash = { finished: !!P.over && P.z >= P.L.end - SEG * 3, place: P.place, downs: P.downs, seconds: n };
-      if (game.players.length < 2) game.addPlayer({ keys: 'right' }); start('duel'); for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1);
-      out.duel = { viewports: game.viewports.length, finished: !!DUO && DUO.some(Q => Q.over && Q.over.won), seconds: n }; toMenu(); while (game.players.length > 1) game.removePlayer(game.players.length);
-      start('striker'); for (n = 0; n < 200 && mode === 'drive'; n++) game.advance(1); out.striker = { finished: !!(P.over && P.over.won), kills: P.kills, shield: P.shield, seconds: n };
+      if (game.players.length < 2) game.addPlayer({ keys: 'right' }); start('duel'); const gas = q => q.map.gas.filter(c => !c.startsWith('Pad') && !c.startsWith('Act:')).join(), halves = [gas(game.input), gas(game.players[1])];   // (one keyboard: each half's gas key)
+      for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1);
+      out.duel = { viewports: game.viewports.length, finished: !!DUO && DUO.some(Q => Q.over && Q.over.won), halves, seconds: n }; toMenu();
+      start('striker'); out.solo = { players: game.players.length, gas: gas(game.input), confirm: game.input.map.confirm.includes('Enter') };   // (a solo mode: player 1 alone, the whole keyboard back)
+      for (n = 0; n < 200 && mode === 'drive'; n++) game.advance(1); out.striker = { finished: !!(P.over && P.over.won), kills: P.kills, shield: P.shield, seconds: n };
       start('chase'); for (n = 0; n < 200 && mode === 'drive'; n++) game.advance(1); out.chase = { arrested: !!(P.over && P.over.won), damage: Math.round(P.target.damage), seconds: n };
+      game.go('road', { part: 'hd' }, { fade: 0 }); game.advance(.25); out.hd = { size: [game.W, game.H], coast: mode === 'drive' && !P.chase && !P.rash && !P.striker && !P.bike, hud: ui(game.W, game.H) };   // (#road/hd: the coast run at today's resolution, its HUD scaled)
+      game.go('road', null, { fade: 0 }); game.advance(1 / 60);
       toMenu(); return Object.assign(out, { errors: game.errors.length });
     } finally { Math.random = was; auto = false; }
   }
 
   return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['brake', 'rewind', 'nitro'], camera: { zoom: false },
-    exit() { game.splitScreen(0); game.allowJoin(false); },
+    exit() { game.splitScreen(0); players(true); },   // (the joined leave with the scene: the next has the whole keyboard)
     enter(d) { mode = 'menu'; P = null; DUO = null; auto = false; menu.i = 0; game.allowJoin({ max: 2 }); game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); game.screen.setOptions({ res: d && d.part === 'hd' ? [960, 540] : 'ps1' });   // (#road/hd: the coast run at today's resolution, Horizon Chase's and Slipstream's)
       if (d && d.part) { if (d.part === 'duel') duel(); else if (d.part === 'chase' || d.part === 'rash' || d.part === 'striker') start(d.part); else { ride = d.part === 'bike' ? 'bike' : 'car'; start(ride); } } },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'radio' || mode === 'results' || mode === 'join') { toMenu(); return true; } return false; },
