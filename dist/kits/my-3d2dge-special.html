@@ -1355,8 +1355,8 @@ const SPECIAL = (() => {
   /* ---- ROOM: Super Castlevania IV's turning room: a side view drawn as a Mode 7 floor, seen straight down and turned a
    * quarter at a time; the hero falls down the screen whichever way the room stands ---- */
   const RN = 20, RT = 24, ROOM_ROWS = ['####################', '#..................#', '#.o.....#.......o..#', '#.####..#....#####.#', '#.......#..........#', '#.......#..........#',
-    '#...........###....#', '#..##.......#......#', '#..#........#......#', '#..#....####.......#', '#.......#..#.......#', '#.......####....#..#', '#...#...........#..#', '#...#...........##.#',
-    '#...###............#', '#............#.....#', '#..o.....#####.....#', '#..................#', '#..............D...#', '####################'];   // (the door on the floor line: stood in, it's reached)
+    '#...........###....#', '#..##.......#......#', '#..#........#......#', '#..#....####.......#', '#.......#..#.......#', '#.......####....#..#', '#.o.#...........#..#', '#...#...........##.#',
+    '#...###............#', '#............#.....#', '#........#####.....#', '#..................#', '#..............D...#', '####################'];   // (the door on the floor line: stood in, it's reached)
   const rsolid = (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT); return i < 0 || j < 0 || i >= RN || j >= RN || ROOM_ROWS[j][i] === '#'; };
   const rcells = ch => { const out = []; ROOM_ROWS.forEach((row, j) => [...row].forEach((c, i) => { if (c === ch) out.push({ x: (i + .5) * RT, y: (j + .5) * RT }); })); return out; };
   const room = new E.Mode7({ floor: (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT), u = x % RT, v = y % RT; if (rsolid(x, y)) return (v < 2 || (u + (j & 1) * 12) % RT < 2) ? [60, 44, 40] : [120 + (i * 7 + j * 3) % 20, 84, 70]; return (i + j) & 1 ? [34, 28, 52] : [40, 32, 60]; }, size: [RN * RT, RN * RT], texel: 2, outside: '#100c18', sky: ['#100c18', '#100c18'], far: 4000 });
