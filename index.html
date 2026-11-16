@@ -86879,10 +86879,10 @@ const SHOOT = (() => {
 scenes.shooter = SHOOT;
 
 /* =====================================================================================
- * SLICE 24  BLASTER  (Space Harrier, After Burner, Yoshi's Safari / Battle Clash, HyperZone, Super Star Wars). @modules mode7 mesh
+ * SLICE 24  BLASTER  (Space Harrier, After Burner, Thunder Blade, Yoshi's Safari, HyperZone, Super Star Wars). @modules mode7 mesh
  * Shooters into the screen, five stages in a row (or one picked on the menu). HARRIER: a hero with a jet pack over a
  * checkered plain, anywhere on the screen, firing into it at saucers and jets; columns to dodge; a serpent at the end.
- * BURNER: a jet over the sea, the horizon tilting as it banks: its cannon, missiles at what the reticle has locked, a
+ * BURNER: a jet over the sea (seen first from overhead, as Thunder Blade opens), the horizon tilting as it banks: its cannon, missiles at what the reticle has locked, a
  * barrel roll that shakes off missiles; a bomber at the end. SAFARI: first person on rails through a valley, a cursor
  * to aim: slimes and bats out from behind the rocks (a rock stops a shot), a walker with three weak points at the end.
  * ZONE (HyperZone): a craft along a winding course over a neon grid, the camera banking into its bends: pods to
@@ -87069,7 +87069,10 @@ const BLASTER = (() => {
     /** the sea: the jet's heading, bank, height and a barrel roll; bandits ahead and behind; the lock-on; the bomber */
     burner: {
       start() { R.j = { x: 4096, y: 4096, z: 420, yaw: -Math.PI / 2, roll: 0, pitch: 0, spin: 0, speed: 560, missiles: 60 }; R.locks = []; },
-      cam() { const j = R.j, back = 90 * (game.H > game.W ? 1.4 : 1); return { x: j.x - Math.cos(j.yaw) * back, y: j.y - Math.sin(j.yaw) * back, h: j.z + 34 - j.pitch * 40, angle: j.yaw, pitch: 12 - j.pitch * 25, fov: game.H > game.W ? 84 : 68, roll: j.roll * 34 + (j.spin > 0 ? (1 - j.spin / .9) * 360 : 0) }; },
+      cam() {   // (the stage opens overhead, Thunder Blade's way, the camera swinging down behind the jet after 5 s)
+        const j = R.j, back = 90 * (game.H > game.W ? 1.4 : 1), n = { x: j.x - Math.cos(j.yaw) * back, y: j.y - Math.sin(j.yaw) * back, h: j.z + 34 - j.pitch * 40, angle: j.yaw, pitch: 12 - j.pitch * 25, fov: game.H > game.W ? 84 : 68, roll: j.roll * 34 + (j.spin > 0 ? (1 - j.spin / .9) * 360 : 0) }, u = E.ease.inOutQuad(clamp((R.t - 5) / 2.5, 0, 1));
+        return u >= 1 ? n : Object.assign(n, { x: j.x + (n.x - j.x) * u, y: j.y + (n.y - j.y) * u, h: n.h + (j.z + 420 - n.h) * (1 - u), pitch: n.pitch + (90 - n.pitch) * (1 - u), roll: n.roll * u });
+      },
       update(dt, k) {
         const j = R.j;
         j.roll += (clamp(k.x, -1, 1) * 1.15 - j.roll) * Math.min(1, dt * 3); j.yaw += Math.sin(j.roll) * 1.5 * dt;

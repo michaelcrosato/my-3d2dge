@@ -39,7 +39,7 @@ mode it shares with others, the line says so, and what of the game is not there.
 
 | Game | Kit: mode | Deep link | What it needs, and where it is | Checked by |
 | --- | --- | --- | --- | --- |
-| After Burner, Thunder Blade, Galaxy Force | BLASTER: BURNER | `#blaster/burner` | the horizon rolled with the craft, lock-on missiles; Thunder Blade's top-down stretches are not there | kits: the bomber's fall; phone: the stick banks the jet |
+| After Burner, Thunder Blade, Galaxy Force | BLASTER: BURNER | `#blaster/burner` | the horizon rolled with the craft, lock-on missiles; the stage opens overhead and the camera swings down behind the jet (Thunder Blade's opening); Thunder Blade's helicopter and city streets are not there | kits: the bomber's fall; phone: the stick banks the jet |
 | Space Harrier | BLASTER: HARRIER | `#blaster/harrier` | a hero anywhere on the screen (the camera follows to keep it there), firing into it | kits: the serpent's fall |
 | Panorama Cotton | BLASTER: HARRIER, and ROAD: STRIKER | `#blaster/harrier`, `#road/striker` | a flyer anywhere on the screen firing into it (HARRIER, on a flat floor), and a flyer over a road that winds, rises and falls (STRIKER, on the road module's hills); the two are not one game here | kits: the serpent's fall; the striker through the city |
 | Night Striker | ROAD: STRIKER | `#road/striker` | a car that flies over the road, foes in the air and on it | kits: through the city, ten or more shot down |
