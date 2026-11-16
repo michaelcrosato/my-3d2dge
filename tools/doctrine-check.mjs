@@ -181,7 +181,7 @@ if (opt('baseline')) {
 {
   let count = null;
   try { const { countTokens } = await import('gpt-tokenizer/encoding/cl100k_base'); count = countTokens; } catch (e) { /* optional */ }
-  const KIT = 216000, KIT2D = { rpg: 264000, shooter: 242000, adventure: 228000, sim: 229000, rts: 227000, brawler: 225000, zero: 222000, special: 225000, kart: 218000, blaster: 221000 };   // (D83: languages, each kit's lines in its head)   // (D69; D80, D81: the matrix plan's engine, past Part 0's room)   // (a 2D kit; the six that can't get there without losing what they play: D69; ZERO's models: D92; SPECIAL's four stages: D93; KART's: D94; BLASTER's five: D95)
+  const KIT = 216000, KIT2D = { rpg: 264000, shooter: 242000, adventure: 228000, sim: 229000, rts: 227000, brawler: 225000, zero: 222000, special: 229000, kart: 218000, blaster: 221000 };   // (D83: languages, each kit's lines in its head)   // (D69; D80, D81: the matrix plan's engine, past Part 0's room)   // (a 2D kit; the six that can't get there without losing what they play: D69; ZERO's models: D92; SPECIAL's five stages: D93, D96; KART's: D94; BLASTER's five: D95)
   const KIT3D = { action: 250000, platformer: 244500, shooter: 322000, horror: 268000, racing: 257000, flight: 258000, crawler: 262000 };   // (D83)   // (a 3D kit: D51, the horror kit's D61, the racing and flight kits' D64; back from D63 by the 3D diet: D70; the crawler's D72)
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');

@@ -1720,3 +1720,15 @@ An entry:
   its own, and is easier for a builder to find.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.102.0
+
+## D96 · 2026-11-16 · SPECIAL's budget raised to 229,000 tokens
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and D93 (SPECIAL's own budget, 225,000)
+- **Call:** Super Castlevania IV's turning room was on the owner's list (its rotation, with Contra III's) and SPECIAL's
+  TURN plays only Contra III's half of it: a fort seen from above. ROOM, a fifth stage, plays the other: a side-on room
+  drawn as a Mode 7 floor, seen straight down and turned a quarter at a time, the hero's fall turned with it. That takes
+  SPECIAL to about 226,000; its budget goes to 229,000.
+- **Why:** the stage reuses the fort's camera and the kit's hero, so it costs a few thousand tokens where a kit of its
+  own would cost two hundred thousand; a builder looking for the rotating room finds it beside the turning fort.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.103.0
