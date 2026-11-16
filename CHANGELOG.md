@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.104.2 (2026-11-16)
+
+A fix from Codex's review of v0.104.0.
+
+- **Engine**: fixed: the road module's `road.mesh` called a corner more than half a lap ahead behind the camera, so on a short loop drawn whole a car in its far half lost its faces; each corner is now measured from its car's own place round the lap. A contract check draws such a loop.
+
 ## 0.104.1 (2026-11-16)
 
 Token budgets made soft, the owner's call (D98).
