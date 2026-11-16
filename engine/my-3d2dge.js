@@ -815,11 +815,12 @@ class Input {
     this._pinching = false; this._zoomAcc = 1; this._zoomNow = 1; this._zoomOn = false; this._wheelOn = false; this._fingers = new Map();
     // the pointer's gestures (box, longPress, doubleTap, pan): the press followed (_g), what this step reads, what the next will
     this._g = null; this._gBox = null; this._gLong = null; this._gTap2 = null; this._gPan = null; this._lastTap = null; this._zoomPt = null; this._fedAt = null;
-    this._boxAt = null; this._longAt = null; this._tap2At = null; this._panAt = null;
-    /** glyphs: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' |
-     *  'nintendo' | 'generic' (positions); rumbleScale: vibration strength 0..1 (0 = off; game.settings.rumble sets it);
-     *  padLost: true for the step after the gamepad in use was unplugged (a pausable scene pauses) */
-    this.glyphs = 'auto'; this.rumbleScale = .6; this.padLost = false;
+    this._boxAt = null; this._longAt = null; this._tap2At = null; this._panAt = null; this._swipeAt = null; this._gSwipe = null;
+    /** glyphs: the gamepad's button symbols for label(): 'playstation' (the default: the standard is a DualSense) |
+     *  'xbox' (the Controller setting's other choice) | 'auto' (from the controller's name) | 'nintendo' | 'generic'
+     *  (positions); rumbleScale: vibration strength 0..1 (0 = off; game.settings.rumble sets it); padLost: true for the
+     *  step after the gamepad in use was unplugged (a pausable scene pauses) */
+    this.glyphs = 'playstation'; this.rumbleScale = .6; this.padLost = false;
     /** names: the actions' names on the Controls screen ({ attack: 'Sword' }; false hides one from rebinding: the
      *  game's menu.controls); onBindings(b): called with the player's new bindings (the game saves and applies them) */
     this.names = null; this._onBindings = null;
@@ -940,7 +941,7 @@ class Input {
     const L = this._layout && this._layout.get && this._layout.get(code);
     if (/^Key[A-Z]$/.test(code)) return (L || code.slice(3)).toUpperCase();
     if (/^Digit\d$/.test(code)) return L || code.slice(5);
-    if (/^Pad\d+$/.test(code)) { const gl = (PAD_GLYPHS[this.padStyle()] || PAD_GLYPHS.xbox)[+code.slice(3)] || code, w = /^(D-pad|L stick|R stick|Bottom|Right|Left|Top|Select|Start|Home)/.exec(gl); return w ? ENG('pad.' + PAD_WORDS[w[1]]) + gl.slice(w[1].length) : gl; }
+    if (/^Pad\d+$/.test(code)) { const gl = (PAD_GLYPHS[this.padStyle()] || PAD_GLYPHS.xbox)[+code.slice(3)] || code, w = /^(D-pad|L stick|R stick|Bottom|Right|Left|Top|Select|Start|Home|Touchpad)/.exec(gl); return w ? ENG('pad.' + PAD_WORDS[w[1]]) + gl.slice(w[1].length) : gl; }
     const lbl = CODE_LABELS[code]; if (lbl) return /[A-Za-z]{2}/.test(lbl) ? ENG('key.' + idPart(code)) : lbl;   // (a name with words in it is a line: engine.key.space)
     return code.startsWith('Numpad') ? ENG('key.numpad', { key: code.slice(6) }) : code.startsWith('Act:') ? code.slice(4).toUpperCase() : code;
   }
@@ -1089,7 +1090,7 @@ class Input {
     for (const a of this._codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; this._swipeAt = null; }
   /** the page went full screen or back: the keys and mouse buttons let go (one held through the change may never come up),
    *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
    *  first tap, the one that went full screen, is a JUMP */
@@ -1121,6 +1122,16 @@ class Input {
    *  after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to
    *  it; a HUD button of your own can: if (hit(input.clicked())) ... */
   clicked() { return this._clickAt; }
+  /** a quick one-finger flick on the canvas (a touch screen): { dir: 'left' | 'right' | 'up' | 'down', x, y } (where it
+   *  began, in screen pixels) during the step after the finger lifted, else null. take: true uses it up, so nothing
+   *  else reads it this step. Swiping away is the touch standard's way out of what is temporary: E.Dialog skips its
+   *  text, E.Menu cancels, game.note and the Shell's toast, card and screens go by themselves; a game's own canvas
+   *  menu or banner reads it: if (input.swipe(true)) close() */
+  swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
+  /** true while the player plays by touch (lastDevice 'touch') and Settings, Touch assists is on (the default): the
+   *  time for a game's touch assists (an attack or a shot by itself, the throttle held, aim nudged onto a target).
+   *  Never true on a gamepad, keyboard or mouse, so an assist gated on it leaves their play as it is */
+  get assist() { return this.lastDevice === 'touch' && !(this._settings && this._settings.assists === false); }
   /** how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while
    *  no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction */
   drag() { return this._drag || null; }
@@ -1146,9 +1157,11 @@ class Input {
   /** a pointer event in screen pixels, as the browser's would give: feed('down' | 'move' | 'up', x, y, { touch: false,
    *  button: 0, id: 0 (which finger, for zones) }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses,
    *  double taps and pans follow; a finger in one of the zones holds its act), or
-   *  feed('zoom', x, y, { k: 1.1 }): a wheel's notch or a pinch about that point */
+   *  feed('zoom', x, y, { k: 1.1 }): a wheel's notch or a pinch about that point, or feed('swipe', x, y, { dir: 'left' }):
+   *  a flick that began there (swipe() reads it next step) */
   feed(type, x, y, o = {}) {
     if (type === 'zoom') { this._zoomAcc *= o.k || 1.1; this._zoomPt = [x, y]; return; }
+    if (type === 'swipe') { this._gSwipe = { dir: o.dir || 'left', x, y }; return; }   // (a flick there, read by swipe() next step)
     if (!o.touch) this._fedAt = [x, y];
     const S = this.screen, z = o.touch && type === 'down' && this.zones && this._zone(x / S.W, y / S.H);
     if (z) { this._zoneDown('fed' + (o.id || 0), z); return; }   // (a finger in a zone: its act, no gesture)
@@ -1174,6 +1187,10 @@ class Input {
       return;
     }
     this._g = null;   // up
+    if (g.touch && g.mode === 'pan' && this.clock - g.t <= .35) {   // a flick: quick, far enough, mostly along one axis (swipe())
+      const dx = x - g.x0, dy = y - g.y0, ax = Math.abs(dx), ay = Math.abs(dy), S = this.screen, min = Math.max(18, Math.min(S.W || 320, S.H || 240) * .08);
+      if (Math.max(ax, ay) >= min && Math.max(ax, ay) >= 1.5 * Math.min(ax, ay)) this._gSwipe = { dir: ax > ay ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'), x: g.x0, y: g.y0 };
+    }
     if (g.mode === 'box' && this._gBox) this._gBox.done = true;
     else if (!g.moved) {
       const L = this._lastTap;
@@ -1213,7 +1230,7 @@ class Input {
       const ra = this.padAim || [0, 0], rd = [ra[1] < -.5, ra[1] > .5, ra[0] < -.5, ra[0] > .5];
       ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'].forEach((c, i) => rd[i] ? this.press(c) : this.release(c));   // (the right stick past halfway: codes to bind)
       if (this.padAim || Math.hypot(...this.padMove) > 0) { this.aimSource = 'pad'; this.lastDevice = 'gamepad'; }
-      p.buttons.forEach((b, i) => { const on = b.pressed; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });
+      p.buttons.forEach((b, i) => { const on = b.pressed && i !== 16; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });   // (16, the PS or Guide button, is the host's: the 52in1 hub opens its bar on it)
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
@@ -1225,7 +1242,7 @@ class Input {
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
-    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._gLong = this._gTap2 = this._gPan = null;
+    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._gLong = this._gTap2 = this._gPan = this._gSwipe = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
@@ -1311,18 +1328,19 @@ const MENU_KEYS = {
 };
 /* rebinding: the codes a player may bind (not Escape, Enter, the F keys, Start or Home: the menus and the browser keep
    them), the arrow keys and d-pad that stay on the moves whatever is bound, and which codes are a gamepad's */
-const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Wheel(Up|Down)|Pad([0-8]|1[0-5])|PadRAxis(Up|Down|Left|Right))$/;
+const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Wheel(Up|Down)|Pad([0-8]|1[0-5]|17)|PadRAxis(Up|Down|Left|Right))$/;
 const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15', 'PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']);
 /* the left stick past halfway presses the direction actions, as the d-pad does (menus, dialog choices, ladders) */
 const STICK_CODES = { up: 'PadAxisUp', down: 'PadAxisDown', left: 'PadAxisLeft', right: 'PadAxisRight' };
 const padCode = c => c.startsWith('Pad'), RSTICK = ['PadRAxisUp', 'PadRAxisDown', 'PadRAxisLeft', 'PadRAxisRight'];   // (the right stick's codes, past halfway)
 /* a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders and triggers, 8 back, 9 start,
-   10-11 stick clicks, 12-15 d-pad, 16 home), as each family prints them */
+   10-11 stick clicks, 12-15 d-pad, 16 home, 17 a DualSense's touchpad click (Chrome reports it; Pad17), as each family
+   prints them. Home is never pressed into a game: it is the host's (the 52in1 hub's bar) */
 const PAD_GLYPHS = {
-  xbox: ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'LS', 'RS', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Guide'],
-  playstation: ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS'],
-  nintendo: ['B', 'A', 'Y', 'X', 'L', 'R', 'ZL', 'ZR', '−', '+', 'L stick', 'R stick', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home'],
-  generic: ['Bottom', 'Right', 'Left', 'Top', 'L1', 'R1', 'L2', 'R2', 'Select', 'Start', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home']
+  xbox: ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'LS', 'RS', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Guide', 'Share'],
+  playstation: ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS', 'Touchpad'],
+  nintendo: ['B', 'A', 'Y', 'X', 'L', 'R', 'ZL', 'ZR', '−', '+', 'L stick', 'R stick', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home', 'Capture'],
+  generic: ['Bottom', 'Right', 'Left', 'Top', 'L1', 'R1', 'L2', 'R2', 'Select', 'Start', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home', 'Touchpad']
 };
 const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift', ControlLeft: 'Ctrl', ControlRight: 'R Ctrl', AltLeft: 'Alt', AltRight: 'R Alt',
   Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Esc', Backspace: 'Backspace', Tab: 'Tab', CapsLock: 'Caps', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
@@ -1356,6 +1374,39 @@ Input.SHMUP = {
   fire: ['Space', 'KeyZ', 'KeyJ', 'Mouse0', 'Pad0', 'Pad7'], bomb: ['KeyX', 'KeyK', 'Mouse2', 'Pad1', 'Pad6'], ...MENU_KEYS
 };
 E.Input = Input;
+/** the touch standard's assists (docs/CONTROLS.md): what makes up for a thumb on glass. Gate each on input.assist, so a
+ *  gamepad, a keyboard or a mouse plays as before. Targets are { x, y } objects (bodies, foes) or [x, y] pairs, in
+ *  the same space as the point given (world units, or screen pixels) */
+E.assist = {
+  /** the target nearest (x, y) within range, or null: nearest(hero.x, hero.y, foes, 120) (a target with dead or hp
+   *  <= 0 is skipped) */
+  nearest(x, y, targets, range = Infinity) {
+    let best = null, bd = range * range;
+    for (const t of targets || []) {
+      if (!t || t.dead || (typeof t.hp === 'number' && t.hp <= 0)) continue;
+      const tx = Array.isArray(t) ? t[0] : t.x, ty = Array.isArray(t) ? t[1] : t.y, d = (tx - x) * (tx - x) + (ty - y) * (ty - y);
+      if (d <= bd) { bd = d; best = t; }
+    }
+    return best;
+  },
+  /** aim assist: the direction (dx, dy) from (x, y) turned onto the target that lies nearest it within cone radians
+   *  either side (default .35, about 20 degrees) and range, as a unit vector [dx, dy]; the direction given, made a
+   *  unit, when none does (or [0, 0] for none). o: { cone, range } */
+  aim(x, y, dx, dy, targets, o = {}) {
+    const l = Math.hypot(dx, dy); if (!(l > 0)) return [0, 0];
+    const ux = dx / l, uy = dy / l, cone = o.cone === undefined ? .35 : o.cone, range = o.range === undefined ? Infinity : o.range;
+    let best = null, score = Infinity;
+    for (const t of targets || []) {
+      if (!t || t.dead || (typeof t.hp === 'number' && t.hp <= 0)) continue;
+      const tx = (Array.isArray(t) ? t[0] : t.x) - x, ty = (Array.isArray(t) ? t[1] : t.y) - y, d = Math.hypot(tx, ty);
+      if (!(d > 0) || d > range) continue;
+      const a = Math.acos(clamp((tx * ux + ty * uy) / d, -1, 1)); if (a > cone) continue;
+      const sc = a / cone + d / (range === Infinity ? d * 4 : range) * .5;   // (the angle first, nearer breaks a tie)
+      if (sc < score) { score = sc; best = [tx / d, ty / d]; }
+    }
+    return best || [ux, uy];
+  }
+};
 
 /* =============================================================================
  * 6. PIXEL FONTS  the 5x7 text font (the default) and the 3x5 one for in-world numbers and labels
@@ -1380,6 +1431,9 @@ const parseFont = (src, mono) => {   // -> { char: { w, runs: [[x, y, n] ...] } 
   }
   return out;
 };
+/* the PlayStation face buttons' colours: input.label() gives ✕ ○ □ △ for a controller, and text draws them in their own
+   colours, as the console's prompts do (o.glyphs: false draws them in the text's colour) */
+const PS_INK = { '✕': '#7fa8ff', '○': '#ff7070', '□': '#f293d6', '△': '#3fd9aa' }, XB_INK = { A: '#62c552', B: '#ec5a46', X: '#4a96f2', Y: '#f2c230' };
 const FONTS = {
   normal: { key: 'normal', glyphs: parseFont(G57), h: 7, desc: 2, gap: 1, space: 3, upper: false },
   tiny: { key: 'tiny', glyphs: parseFont(GLYPHS, 3), h: 5, desc: 0, gap: 2, space: 3, upper: true, mono: 3 }
@@ -1388,7 +1442,8 @@ const FONTS = {
  * Pixel fonts. 'normal' (default) is a 5x7 proportional font with lower case; 'tiny' is the 3x5 upper-case font.
  * text(g, str, x, y, color, opts) where opts is an outline color, false, or
  *   { font: 'normal' | 'tiny', outline: '#0b0814' | false, shadow: '#000' (1 px drop shadow), gradient: ['#fff', '#8ad'] (top to bottom),
- *     scale: 1, align: 'left' | 'center' | 'right', wrap: maxWidthPx, lineGap }
+ *     scale: 1, align: 'left' | 'center' | 'right', wrap: maxWidthPx, lineGap, glyphs: false (✕ ○ □ △ in the text's colour,
+ *     not the PlayStation buttons' own: prompts from input.label() draw them in theirs) }
  * '\n' starts a new line. Returns { w, h } of the drawn block. title(...) draws big logo text. A letter the font lacks
  * (Chinese, Cyrillic, Arabic, Hindi ...) is drawn with the device's font, a run at a time (section 6b): a line with letters
  * written right to left is drawn whole, and in a box (wrap) starts at its right edge; in a language whose text needs the
@@ -1450,30 +1505,30 @@ E.font = {
     const grad = o.gradient && o.gradient.length ? o.gradient : null, top = m.asc - f.h * sc, has = this._has(f), ds = LANG_DEV.size(f.h + f.desc, sc);
     x = Math.round(x); y = Math.round(y);
     let w = 0;
-    const glyphs = (line, lx, ly, ox, oy, c, useGrad) => {   // the pixel font's letters of a line (or a run) from lx
+    const glyphs = (line, lx, ly, ox, oy, c, useGrad, main) => {   // the pixel font's letters of a line (or a run) from lx
       let cx = 0;
       for (const ch of line) {
         if (ch === ' ') { cx += f.space + 1; continue; }
         const g0 = this._g(f, ch); if (!g0 && LANG_DEV.ZW.test(ch)) continue;
-        const gl = g0 || f.glyphs['?'], off = f.mono ? Math.floor((f.mono - gl.w) / 2) : 0;
+        const gl = g0 || f.glyphs['?'], off = f.mono ? Math.floor((f.mono - gl.w) / 2) : 0, ink = main && o.glyphs !== false && PS_INK[ch];   // (a PlayStation button in its colour)
         for (const [rx, ry, rn] of gl.runs) {
-          px.col(g, useGrad ? grad[Math.min(grad.length - 1, Math.floor(ry / Math.max(1, f.h) * grad.length))] : c);
+          px.col(g, ink || (useGrad ? grad[Math.min(grad.length - 1, Math.floor(ry / Math.max(1, f.h) * grad.length))] : c));
           g.fillRect(lx + (cx + off + rx) * sc + ox, ly + ry * sc + oy, rn * sc, sc);
         }
         cx += (f.mono || gl.w) + 1;
       }
     };
     const RS = lines.map(line => LANG_DEV.runs(has, line, f.key)), LW = lines.map((line, li) => RS[li] ? this._lw(f, line, sc, g) : this._lineW(f, line) * sc);   // (each line measured once, not once a pass)
-    const draw = (ox, oy, c, useGrad) => {
+    const draw = (ox, oy, c, useGrad, main) => {
       lines.forEach((line, li) => {
         const R = RS[li], lw = LW[li], ly = y + li * lh;
         const rtl = !!R && R.length === 1 && LANG_DEV.RTL.test(line), box = rtl && o.wrap && (!o.align || o.align === 'left');   // (right to left in a box: from its right edge)
         const al = box ? 'right' : o.align, lx = (box ? x + Math.round(o.wrap) : x) + (al === 'center' ? -Math.round(lw / 2) : al === 'right' ? -lw : 0);
         w = Math.max(w, lw);
-        if (!R) { glyphs(line, lx, ly + top, ox, oy, c, useGrad); return; }
+        if (!R) { glyphs(line, lx, ly + top, ox, oy, c, useGrad, main); return; }
         let cx = 0;
         for (const [d, t] of R) {
-          if (!d) { glyphs(t, lx + cx, ly + top, ox, oy, c, useGrad); cx += this._lineW(f, t) * sc + sc; continue; }
+          if (!d) { glyphs(t, lx + cx, ly + top, ox, oy, c, useGrad, main); cx += this._lineW(f, t) * sc + sc; continue; }
           const u = f.upper ? E.lang.upper(t) : t;
           if (useGrad && g.createLinearGradient) { const gr = g.createLinearGradient(0, ly + oy, 0, ly + oy + m.rows); grad.forEach((k, i) => gr.addColorStop(i / Math.max(1, grad.length - 1), k)); g.fillStyle = gr; g._c = null; }
           else px.col(g, useGrad ? grad[0] : c);
@@ -1483,7 +1538,7 @@ E.font = {
     };
     if (o.shadow) draw(sc, sc, o.shadow, false);
     if (outline) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) draw(ox, oy, outline, false);   // 1 px at every scale, so 8 and 0 keep their holes
-    draw(0, 0, color, !!grad);
+    draw(0, 0, color, !!grad, true);
     return { w, h: lh * (lines.length - 1) + m.rows };
   },
   /**
@@ -1777,14 +1832,14 @@ const idPart = s => String(s).replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase
 const ENG = (id, v) => E.lang.t('engine.' + id, v);
 for (const c in CODE_LABELS) if (/[A-Za-z]{2}/.test(CODE_LABELS[c])) ENGINE_LINES['engine.key.' + idPart(c)] = CODE_LABELS[c];   // (the key names with words in them: Space, Left click)
 for (const a of ['up', 'down', 'left', 'right', 'attack', 'dash', 'skill', 'jump', 'start', 'pause', 'confirm', 'cancel', 'sprint', 'crouch', 'interact', 'block', 'dodge', 'use', 'map', 'fire', 'bomb', 'menu']) ENGINE_LINES['engine.action.' + a] = a.charAt(0).toUpperCase() + a.slice(1);   // (the presets' actions, named on the controls screen)
-const PAD_WORDS = { 'D-pad': 'dpad', 'L stick': 'lstick', 'R stick': 'rstick', Bottom: 'bottom', Right: 'right', Left: 'left', Top: 'top', Select: 'select', Start: 'start', Home: 'home' };   // (a gamepad's words; its makers' names, A or Options, stay)
+const PAD_WORDS = { 'D-pad': 'dpad', 'L stick': 'lstick', 'R stick': 'rstick', Bottom: 'bottom', Right: 'right', Left: 'left', Top: 'top', Select: 'select', Start: 'start', Home: 'home', Touchpad: 'touchpad' };   // (a gamepad's words; its makers' names, A or Options, stay)
 for (const w in PAD_WORDS) ENGINE_LINES['engine.pad.' + PAD_WORDS[w]] = w;
 for (const k in E.VIEWS) ENGINE_LINES['engine.view.' + k] = E.VIEWS[k]._label;   // (the standard views' names: Isometric, Side)
 Object.assign(ENGINE_LINES, {
   'engine.key.numpad': 'Num {key}',
   // the standard menu (E.Shell's screens), its notices and the corner's button
   'engine.shell.paused': 'Paused', 'engine.shell.paused_by': 'Paused by P{player}', 'engine.shell.resume': 'Resume', 'engine.shell.settings': 'Settings',
-  'engine.shell.controls': 'Controls', 'engine.shell.help': 'Help', 'engine.shell.map': 'Map', 'engine.shell.back': 'Back', 'engine.shell.close': 'Close',
+  'engine.shell.controls': 'Controls', 'engine.shell.help': 'Help', 'engine.shell.map': 'Map', 'engine.shell.back': 'Back', 'engine.shell.select': 'Select', 'engine.shell.tabs': 'Tabs', 'engine.shell.close': 'Close',
   'engine.shell.restore': 'Restore defaults', 'engine.shell.fullscreen': 'Full screen', 'engine.shell.fullscreen_leave': 'Leave full screen', 'engine.shell.save_session': 'Save session',
   'engine.shell.quit': 'Quit', 'engine.shell.quit_to_title': 'Quit to title', 'engine.shell.quit_to': 'Quit to {scene}', 'engine.shell.quit_title': 'Leave this game?',
   'engine.shell.quit_text': 'Progress since the last save is lost.', 'engine.shell.keep_playing': 'Keep playing', 'engine.shell.on': 'On', 'engine.shell.off': 'Off',
@@ -3296,6 +3351,9 @@ class Game {
     this._ownRun('input', dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast(ENG('note.pad_lost'), ENG('note.pad_lost_text')); else this.note(E.lang.upper(ENG('note.pad_lost')), 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
+    if (this.shownNote && this.real < this.shownNote.end) {   // a notice swiped away: a flick up or sideways that began in the screen's top quarter, where it shows
+      const sw = this.input.swipe(); if (sw && sw.dir !== 'down' && sw.y < this.H * .25) { this.input.swipe(true); this.shownNote = null; }
+    }
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
     if (this._fade) { const out = this._fade.out; this._fadeStep(dt); if (out) return; }   // the old scene freezes while it fades out
     const s = this.scene;
@@ -3381,8 +3439,8 @@ E.Game = Game;
  *      checked when it loads, a bad one falls back to its default), applied at once. A game adds its own with
  *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints;
  *      one with a standard key and no label changes that setting, its other fields kept: { key: 'glyphs', value:
- *      'playstation', options: [['playstation', 'PlayStation'], ['xbox', 'Xbox']] } shows PlayStation symbols unless the
- *      player picks Xbox (game.settings.set('glyphs', 'xbox') switches); one with a label of its own is the game's, in the
+ *      'xbox' } shows Xbox symbols unless the player picks PlayStation (the standard's default is PlayStation:
+ *      game.settings.set('glyphs', 'xbox') switches); one with a label of its own is the game's, in the
  *      standard one's place (a map's 'zoom'). The controller's settings reach every player, and one who joins later.
  *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there, and a game
  *      started by a tap does again; turning it off (the corner's button, the menu) is the player's choice, kept.
@@ -3422,12 +3480,13 @@ const STANDARD_SETTINGS = {
   invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertAimY = !!v; } },
   invertMoveX: { group: 'Controller', label: 'Invert move left and right', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertMoveX = !!v; } },
   invertMoveY: { group: 'Controller', label: 'Invert move up and down', type: 'toggle', value: false, apply: (g, v) => { for (const q of g._players || [g.input]) q.invertMoveY = !!v; } },
-  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { for (const q of g._players || [g.input]) q.glyphs = v; } },
+  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'playstation', options: [['playstation', 'PlayStation'], ['xbox', 'Xbox']], help: 'The buttons prompts show for a controller: ✕ ○ □ △, or A B X Y', apply: (g, v) => { for (const q of g._players || [g.input]) q.glyphs = v; } },
   rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { for (const q of g._players || [g.input]) q.rumbleScale = v; } },
   touch: { group: 'Touch', label: 'Touch buttons', type: 'select', value: 'auto', options: [['auto', 'Automatic'], ['on', 'Always'], ['off', 'Hidden']], apply: g => g.input._touchSync() },
   hand: { group: 'Touch', label: 'Buttons on', type: 'select', value: 'right', options: [['right', 'Right'], ['left', 'Left']], apply: g => g.input._touchSync() },
   touchSize: { group: 'Touch', label: 'Button size', type: 'slider', value: 62, min: 44, max: 88, step: 2, unit: ' px', apply: g => g.input._touchSync() },
-  touchOpacity: { group: 'Touch', label: 'Button opacity', type: 'slider', value: .8, min: .3, max: 1, step: .05, apply: g => g.input._touchSync() }
+  touchOpacity: { group: 'Touch', label: 'Button opacity', type: 'slider', value: .8, min: .3, max: 1, step: .05, apply: g => g.input._touchSync() },
+  assists: { group: 'Touch', label: 'Touch assists', type: 'toggle', value: true, help: 'On a touch screen the game does the simple things by itself where it offers to: a basic attack, firing, the throttle, aim nudged onto a target' }
 };
 for (const k in STANDARD_SETTINGS) {   // their words are the engine's lines: engine.setting.<key>, .help, .<option>; their groups engine.group.<group>
   const sp = STANDARD_SETTINGS[k], id = 'engine.setting.' + idPart(k);
@@ -8206,7 +8265,8 @@ class ChipAudio {
    * opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03), step: a step of the music playing (it
    * sounds on that step of the music clock, scheduled with the music: a rhythm game's calls and claps), pan: -1 (left)
    * .. 1 (right), loop: true (it sounds on until stopped: an engine, rain; through the effects' bus, so it follows the
-   * volume and the mute) }. Returns its handle: { stop(fade .03), set({ pan, vol }), playing, pan }: a handle that does
+   * volume and the mute), bus: an AudioNode on audio.ctx to play it into instead of the effects' bus (a speaker of the
+   * game's own: the dualsense module's controller speaker) }. Returns its handle: { stop(fade .03), set({ pan, vol }), playing, pan }: a handle that does
    * nothing when nothing plays (headless, before the first key, an unknown name)
    */
   sfx(what, o = {}) {
@@ -8220,8 +8280,9 @@ class ChipAudio {
     const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this._rnd() * 2 - 1));
     const C = this.song, at = o.step !== undefined && C && C.anchor ? Math.max(now + .005, C.anchor.ctx + (this._timeOf(C, o.step) - C.anchor.clk) - this.offset) : now + .005;
     const live = o.loop || o.pan !== undefined, out = live ? c.createGain() : null, pan = out && c.createStereoPanner ? c.createStereoPanner() : null, srcs = [];   // (a looped or panned one: its own gain and pan before the bus)
-    if (out) { if (pan) { pan.pan.value = H.pan; out.connect(pan); pan.connect(this._sfxBus); } else out.connect(this._sfxBus); }
-    try { for (const v of Array.isArray(p) ? p : [p]) srcs.push(...this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), out || this._sfxBus, at, mul, !!o.loop)); }
+    const into = o.bus && typeof o.bus.connect === 'function' ? o.bus : this._sfxBus;   // (o.bus: a node of the game's own: the controller's speaker, the dualsense module's)
+    if (out) { if (pan) { pan.pan.value = H.pan; out.connect(pan); pan.connect(into); } else out.connect(into); }
+    try { for (const v of Array.isArray(p) ? p : [p]) srcs.push(...this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), out || into, at, mul, !!o.loop)); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); return H; }
     H.playing = true;
     H.stop = (fade = .03) => { if (!H.playing) return; H.playing = false; const t = c.currentTime; if (out) out.gain.setTargetAtTime(0, t, Math.max(.001, fade / 3)); for (const s of srcs) try { s.stop(t + (out ? fade + .05 : 0)); } catch (e) { /* stopped already */ } };
@@ -9585,6 +9646,14 @@ class Dialog {
     }
     if (this._rest > 0) this._rest -= dt;
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
+    // swiped away (a touch screen): the rest of its text skipped, the box closed; a question goes to its last page (it
+    // waits for an answer). A box play goes on under (modal: false) goes only for a swipe that began on it
+    const sw = !asking && inp.swipe && inp.swipe(), sd = sw && this._dims();
+    if (sw && (this.modal || (sw.x >= sd.x && sw.x < sd.x + sd.w && sw.y >= sd.y - 14 && sw.y < sd.y + sd.h))) {
+      inp.swipe(true);
+      if (this.choices) { this.i = this.pages.length - 1; this.shown = this.pageLen; this._hold = 0; this._held = -1; return this.modal; }
+      this.close(); if (this.onDone) this.onDone(); return false;
+    }
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {   // pages turn and the box closes by itself
       this._wait = 0;
       if (last) { this.open = false; if (this.onDone) this.onDone(); } else { this.i++; this.shown = 0; this._held = -1; }
@@ -9703,7 +9772,8 @@ class Menu {
     if (tap >= 0) this.i = tap;
     if (this.i !== old) { if (this.sound) this.game.audio.sfx('select'); if (this.onMove) this.onMove(this.i, this.items[this.i]); }
     if ((any(I => I.pressed('confirm')) || tap >= 0) && !this._off(this.items[this.i])) { if (this.sound) this.game.audio.sfx('confirm'); P.forEach(I => I.consumeAll()); if (this.onPick) this.onPick(this.i, this.items[this.i]); return true; }
-    if (any(I => I.pressed('cancel')) && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); P.forEach(I => I.consumeAll()); this.onCancel(); return true; }
+    const sw = this.onCancel && inp.swipe && inp.swipe(), away = sw && (sw.dir === 'left' || sw.dir === 'right');   // (a sideways swipe on a touch screen goes back, as the Shell's screens do)
+    if ((any(I => I.pressed('cancel')) || away) && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); P.forEach(I => I.consumeAll()); this.onCancel(); return true; }
     return false;
   }
   /** draw it to the overlay */
@@ -9798,6 +9868,14 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-sel{min-width:136px;text-align:center!important}.esh input[type=range]{height:30px}.esh-status{min-height:20px;margin-top:8px;color:var(--accent);font-size:12px}
 .esh-bind{display:grid;grid-template-columns:1fr minmax(92px,auto) minmax(92px,auto);gap:6px 10px;align-items:center;margin-top:8px}.esh-bind small{color:var(--muted);font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-align:center}
 .esh-bind button{text-align:center;text-transform:none;letter-spacing:.02em;font-size:12px;padding:8px 10px}.esh-bind button.cap{outline:2px dashed var(--accent);outline-offset:2px}
+.esh-bind.one{grid-template-columns:1fr minmax(120px,auto)}.esh-bind.one>span{font-size:14px}
+.esh-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px;align-items:center}.esh-tabs button{min-height:40px!important;padding:8px 12px;text-align:center;font-size:12px;background:transparent;border-color:var(--line)}
+.esh-tabs button.on{background:var(--accent);border-color:var(--accent);color:#16130e}.esh-tabs kbd{font-size:10px;padding:1px 5px;opacity:.75}
+.esh-desc{min-height:2.9em;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.4}
+.esh-row{min-height:52px}.esh-row>span{font-size:14px}
+.esh kbd.esh-pb{display:inline-grid;place-items:center;min-width:1.9em;height:1.9em;padding:0 .45em;border-radius:1em;border:1px solid #ffffff55;border-bottom-width:1px;background:#12161f;color:#f1f1f1;font:700 12px var(--font);line-height:1}
+.esh kbd.esh-face{width:1.9em;padding:0;color:var(--c);border-color:var(--c);font-size:14px}.esh kbd.esh-ms{border-radius:10px}
+.esh-toast.on,.esh-tut{touch-action:none;cursor:default}.esh-toast.on{pointer-events:auto}
 @keyframes esh-in{from{opacity:0}}`;
 const SHELL_THEME = { ink: '#f1e8d6', paper: 'rgba(14,18,22,.86)', accent: '#d9b77c', muted: '#a49d8c', danger: '#e8836a', line: 'rgba(217,183,124,.3)', font: 'system-ui, sans-serif', titleFont: 'Georgia, serif' };
 /** the settings screen's groups, in order (the standard ones; a game's own are 'Game' unless they name another) */
@@ -9812,8 +9890,9 @@ class Shell {
    * new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings',
    * meters: .125, standard: true }): an HTML interface over the game (see the section's header)
    * - theme: CSS variables (ink, paper, accent, muted, danger, line, font: a family, titleFont), and scale: the whole
-   *   interface that many times (a number, or a function of the window) for a TV across a room; tv: true picks one by
-   *   the window's width (14 px text at 875 px, up to 30 at 1,875)
+   *   interface that many times (a number, or a function of the window). By default it grows with the window for a TV
+   *   across a room (14 px text up to 875 px wide, 30 at 1,875: the 10-foot standard); tv: true starts at 18 px, tv:
+   *   false keeps it at 14
    * - screens: specs ui.show(name) starts from (the pause screen follows game.paused; screens: { pause: false } leaves it out)
    * - settings: settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max,
    *   step, options, value } (kept in game.settings, beside the standard ones)
@@ -9838,11 +9917,12 @@ class Shell {
     addEventListener('keydown', e => { const c = this._cap; if (!c) return; e.preventDefault(); e.stopImmediatePropagation(); if (e.code === 'Escape') this._capEnd(ENG('controls.not_changed')); else if (c.device === 'keys' && !e.repeat) this._capBind(e.code); }, { capture: true, signal });
     addEventListener('pointerdown', e => { const c = this._cap; if (!c || c.device !== 'keys' || e.pointerType !== 'mouse') return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind('Mouse' + e.button); }, { capture: true, signal });
     addEventListener('wheel', e => { const c = this._cap; if (!c || c.device !== 'keys' || !e.deltaY) return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind(e.deltaY < 0 ? 'WheelUp' : 'WheelDown'); }, { capture: true, signal, passive: false });
+    addEventListener('keydown', e => { if (this._cap || !this._tabGo || !this._stack.length || e.repeat || (e.code !== 'KeyQ' && e.code !== 'KeyE')) return; e.preventDefault(); this._tabGo(e.code === 'KeyE' ? 1 : -1); }, { signal });   // (Q and E turn a screen's tabs, as L1 and R1 do)
     if (!document.getElementById('esh-css')) { const st = document.createElement('style'); st.id = 'esh-css'; st.textContent = SHELL_CSS; document.head.appendChild(st); }
     const r = this.root = this._el('div', 'esh' + (game._corner ? ' esh-cornered' : '')), th = Object.assign({}, SHELL_THEME, o.theme);   // (the top-right column starts below the corner's buttons)
     for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
     if (th.font && /\d|\b(bold|italic|normal|oblique)\b/.test(th.font)) warn('shell:font', 'E.Shell theme.font is a family ("Georgia, serif"), not a CSS shorthand ("' + th.font + '"): the size comes from theme.scale');
-    const K = th.scale !== undefined ? th.scale : o.tv ? () => clamp(innerWidth * .016, 18, 30) / 14 : 1;   // (for ten feet: the whole interface that many times, still filling the window)
+    const K = th.scale !== undefined ? th.scale : o.tv === false ? 1 : o.tv === true ? () => clamp(innerWidth * .016, 18, 30) / 14 : () => clamp(innerWidth * .016, 14, 30) / 14;   // (for ten feet, by default: the whole interface larger in a larger window, a TV's 1,920 px about twice a laptop's; a phone's as it is)
     if (K !== 1) { const fit = () => { const k = Math.max(.25, +(typeof K === 'function' ? K(window) : K) || 1); Object.assign(r.style, { transform: 'scale(' + k + ')', transformOrigin: '0 0', inset: 'auto', left: '0', top: '0', width: 100 / k + 'vw', height: 100 / k + 'vh' }); }; fit(); addEventListener('resize', fit, { signal }); }
     const host = document.body; host.appendChild(r);
     const E2 = (cls, parent = r, tag = 'div') => { const e = this._el(tag, cls); e.hidden = true; parent.appendChild(e); return e; };
@@ -9851,6 +9931,12 @@ class Shell {
     this._els = { hb: E2('esh-hb', col), obj: E2('esh-obj esh-pan'), vit: E2('esh-vit esh-pan', col), place: E2('esh-place', col), tip: E2('esh-tip esh-pan'), pr: E2('esh-pr esh-pan'), keys: E2('esh-keys'),
       tut: E2('esh-tut esh-pan'), mini: E2('esh-mini', r, 'canvas'), toast: E2('esh-toast esh-pan'), scr: this._el('div', '') };
     r.appendChild(this._els.scr); this._els.toast.hidden = false;
+    // what is temporary goes at a touch (the touch standard): the toast at a tap or a swipe, the tutorial card at a swipe
+    // (its × takes a tap)
+    const away = (el, fn) => { let at = null; el.addEventListener('pointerdown', e => { at = [e.clientX, e.clientY]; e.stopPropagation(); }); el.addEventListener('pointercancel', () => { at = null; });
+      el.addEventListener('pointerup', e => { if (!at) return; const d = Math.hypot(e.clientX - at[0], e.clientY - at[1]); at = null; fn(d); }); };
+    away(this._els.toast, () => { this._els.toast.classList.remove('on'); this._toastEnd = 0; });
+    away(this._els.tut, d => { if (d > 40) this.tutorial(null); });
     const mini = this._els.mini; mini.width = 176; mini.height = 158;
     mini.onclick = e => { const m = this._miniLast, X = mini._xf; if (!m || !m.onClick) return; const rc = mini.getBoundingClientRect(), u = (e.clientX - rc.left) * mini.width / (rc.width || 1), v = (e.clientY - rc.top) * mini.height / (rc.height || 1); m.onClick(X ? (u - X.ox) / X.k : 0, X ? (v - X.oy) / X.k : 0); };   // (the world point clicked: a strategy game's camera goes there)
   }
@@ -9959,12 +10045,12 @@ class Shell {
       for (const [k, v] of cnt || []) { const e = this._el('div', 'esh-cnt', k); e.appendChild(this._el('b', '', v)); out.push(e); }
       return out;
     });
-    const pr = s.prompt && Object.assign({}, s.prompt, { key: s.prompt.key || (s.prompt.act ? this._game.input.label(s.prompt.act) : 'E') });   // (the key follows the device in use)
+    const pr = s.prompt && Object.assign({}, s.prompt, { key: s.prompt.key || (s.prompt.act ? this._game.input.label(s.prompt.act) : 'E'), pad: !s.prompt.key && !!s.prompt.act && this._game.input.lastDevice === 'gamepad' });   // (the key follows the device in use: a controller's button drawn as one)
     this._piece('pr', play && pr, p => {
       const box = this._el('div'), bar = this._el('div', 'esh-bar'), f = this._el('i'); f.style.width = clamp(p.progress || 0, 0, 1) * 100 + '%'; bar.appendChild(f);
       box.append(this._el('div', 'esh-k', p.hint || ENG(p.progress !== undefined ? 'shell.hold_to_interact' : 'shell.interact')), this._el('b', '', p.label || ''));
       if (p.progress !== undefined) box.appendChild(bar);
-      return [this._el('kbd', '', p.key), box];
+      return [this._chip(p.key, p.pad), box];
     });
     this._btns = s.buttons || [];   // (clicks call this step's: the functions may be new every step)
     this._piece('hb', play && s.buttons && s.buttons.map(b => b[0]), labels => labels.map((l, i) => { const b = this._el('button', '', l); b.onclick = () => { const f = this._btns[i] && this._btns[i][1]; if (typeof f === 'function') f(); else if (f) { this._game.input.tap(f); this._held.add(f); } }; return b; }));
@@ -9989,24 +10075,29 @@ class Shell {
   }
   /** a settings value changed: game.settings checks, saves and applies it, and tells the game */
   _set(key, v) { return this._game.settings.set(key, v); }
-  /** one settings row: its label (and help), and a control for its type: a switch, a slider with its value, a choice
-   *  that turns with left and right, full screen (with why not, where it can't) */
+  /** one settings row: its label, and a control for its type: a switch, a slider with its value, a choice that turns
+   *  with left and right, full screen (with why not, where it can't). Its help shows below the list while it has the
+   *  focus (a screen of short rows, not a page of small print); why it can't be changed shows on the row itself: full
+   *  screen where the browser has none, a setting locked by its spec's locked(game) (a reason, or null: a permission the
+   *  player has not given the game, such as the microphone's in 52in1's Settings) */
   _row(key) {
     const S = this._game.settings, sp = S.spec(key); if (!sp) return null;
     const lbl = settingWords(key, sp, 'label', sp.label || actionName(key)), row = this._el('div', 'esh-row'), lab = this._el('span', '', lbl), fs = this._game.fullscreen;
     row.appendChild(lab);
-    const help = t => { if (t) lab.appendChild(this._el('small', '', t)); };
+    const note = t => { if (t) lab.appendChild(this._el('small', '', t)); };
+    row._help = settingWords(key, sp, 'help', sp.help) || '';
+    let lock = null; try { lock = typeof sp.locked === 'function' ? sp.locked(this._game) : null; } catch (e) { lock = null; }
+    note(lock);
     if (sp.type === 'fullscreen') {
       const can = fs.supported && !fs.standalone, b = this._el('button', '', ENG(!can ? (fs.standalone ? 'shell.app' : 'shell.not_here') : fs.on ? 'shell.on' : 'shell.off'));
       b.disabled = !can; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(fs.on)); b.onclick = () => { fs.toggle(); };
-      help(fs.standalone ? ENG('shell.fullscreen_app') : !fs.supported ? ENG(/iP(hone|od)/.test(navigator.userAgent) ? 'shell.fullscreen_iphone' : 'shell.fullscreen_blocked') : '');
+      note(fs.standalone ? ENG('shell.fullscreen_app') : !fs.supported ? ENG(/iP(hone|od)/.test(navigator.userAgent) ? 'shell.fullscreen_iphone' : 'shell.fullscreen_blocked') : '');
       row.appendChild(b); return row;
     }
-    help(settingWords(key, sp, 'help', sp.help));
     if (sp.type === 'slider') {
       const box = this._el('span', 'esh-ctl'), r = this._el('input'), out = this._el('output'), lo = sp.min === undefined ? 0 : sp.min, hi = sp.max === undefined ? 1 : sp.max;
       const fmt = v => hi <= 1 && lo >= 0 ? E.lang.num(v, { style: 'percent' }) : E.lang.num(Math.round(v * 100) / 100) + (sp.unit || '');   // (in the player's language: 70 %, 1,5)
-      Object.assign(r, { type: 'range', min: lo, max: hi, step: sp.step || (hi - lo) / 20, value: S[key] }); r.setAttribute('aria-label', lbl); out.textContent = fmt(S[key]);
+      Object.assign(r, { type: 'range', min: lo, max: hi, step: sp.step || (hi - lo) / 20, value: S[key], disabled: !!lock }); r.setAttribute('aria-label', lbl); out.textContent = fmt(S[key]);
       r.oninput = () => { out.textContent = fmt(this._set(key, +r.value)); };
       box.append(r, out);
       if (sp.calibrate) { const b = this._el('button', 'esh-sel', ENG('shell.calibrate')); b.onclick = () => this._calibrate(key); box.appendChild(b); }
@@ -10016,56 +10107,78 @@ class Shell {
       const opts = (sp.options || []).map(o => Array.isArray(o) ? o : [o, String(o)]).map(o => [o[0], settingWords(key, sp, o[0], o[1])]), b = this._el('button', 'esh-sel');
       const show = () => { const o = opts.find(o => o[0] === S[key]) || opts[0]; b.textContent = '‹ ' + (o ? o[1] : '') + ' ›'; b.setAttribute('aria-label', lbl + ': ' + (o ? o[1] : '')); };
       b._cycle = d => { const i = opts.findIndex(o => o[0] === S[key]); this._set(key, opts[((i < 0 ? 0 : i) + d + opts.length) % opts.length][0]); show(); };
-      b.onclick = () => b._cycle(1); show(); row.appendChild(b); return row;
+      b.disabled = !!lock; b.onclick = () => b._cycle(1); show(); row.appendChild(b); return row;
     }
     if (sp.type !== 'toggle') return null;
-    const b = this._el('button', '', ENG(S[key] ? 'shell.on' : 'shell.off')); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(!!S[key]));
+    const b = this._el('button', '', ENG(S[key] ? 'shell.on' : 'shell.off')); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(!!S[key])); b.disabled = !!lock;
     b.onclick = () => { const v = this._set(key, !S[key]); b.textContent = ENG(v ? 'shell.on' : 'shell.off'); b.setAttribute('aria-checked', String(!!v)); };
     row.appendChild(b); return row;
   }
-  /** the settings screen's rows: Display, Sound and Comfort, then the game's own (standard: false, the game's items only) */
-  _settingsRows(add) {
+  /** a row of tabs over a screen's list (the settings' groups, the controls' devices): L1 and R1, Q and E, a click or a
+   *  tap change it. tabs: [[id, words]]; on: the one shown; go(id) shows another */
+  _tabs(tabs, on, go) {
+    const box = this._el('div', 'esh-tabs'), I = this._game.input, pad = I.lastDevice === 'gamepad', chips = tabs.length > 1 && I.lastDevice !== 'touch';   // (a finger taps a tab: no keys shown for it)
+    box.setAttribute('role', 'tablist'); this._tabGo = d => { const i = tabs.findIndex(t => t[0] === on); go(tabs[(i + d + tabs.length) % tabs.length][0]); };
+    if (chips) box.appendChild(this._chip(pad ? I.codeLabel('Pad4') : 'Q', pad));
+    for (const [id, words] of tabs) { const b = this._el('button', id === on ? 'on' : '', words); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(id === on)); b.onclick = () => go(id); box.appendChild(b); }
+    if (chips) box.appendChild(this._chip(pad ? I.codeLabel('Pad5') : 'E', pad));
+    if (tabs.length < 2) this._tabGo = null;
+    return box;
+  }
+  /** a key or button as the player sees it on their device: a keycap ('E', 'Space'), or a controller's button (pad:
+   *  true), its PlayStation or Xbox face button in its own colour */
+  _chip(t, pad) {
+    const e = this._el('kbd', pad ? 'esh-pb' : /click|wheel/i.test(t) ? 'esh-ms' : '', t);
+    const c = pad && (PS_INK[t] || (this._game.input.padStyle() === 'xbox' && XB_INK[t])); if (c) { e.classList.add('esh-face'); e.style.setProperty('--c', c); }
+    return e;
+  }
+  /** the settings screen: a tab for each group (Display, Sound, Comfort, then the game's own), the rows of the one shown
+   *  (show('settings', { tab: 'Sound' }) opens on another), and the focused row's help below them; standard: false, the
+   *  game's items only */
+  _settingsRows(add, top) {
     const S = this._game.settings, own = this._items().map(i => i.key);
     if (!this._std) { for (const k of own) add(this._row(k)); return; }
-    const groups = SHELL_GROUPS.concat([...new Set(S.keys().map(k => S.spec(k).group))].filter(g => !SHELL_GROUPS.includes(g) && !['Controls', 'Controller', 'Touch'].includes(g)));
-    for (const g of groups) {
-      const keys = S.keys(g).filter(k => (k !== 'scale' || this._game.screen._fixedRes()) && (k !== 'fullscreen' || this._game.o.fullscreen !== false) && (k !== 'zoom' || !this._game._zoomStd() || this._game._zooms()) && S.spec(k).type !== 'value');
-      if (!keys.length) continue;
-      add(this._el('div', 'esh-k esh-sec', groupWords(g)));
-      if (g === 'Display' && E.lang.offer()) { const row = this._el('div', 'esh-row'), b = this._el('button', 'esh-sel', '‹ ' + E.lang.name(E.lang.code) + ' ›'); b.onclick = () => this._languages(); row.append(this._el('span', '', ENG('shell.language')), b); add(row); }   // (the Language menu: E.lang.offer())
-      for (const k of keys) add(this._row(k));
-    }
+    const keysOf = g => S.keys(g).filter(k => (k !== 'scale' || this._game.screen._fixedRes()) && (k !== 'fullscreen' || this._game.o.fullscreen !== false) && (k !== 'zoom' || !this._game._zoomStd() || this._game._zooms()) && S.spec(k).type !== 'value');
+    const groups = SHELL_GROUPS.concat([...new Set(S.keys().map(k => S.spec(k).group))].filter(g => !SHELL_GROUPS.includes(g) && !['Controls', 'Controller', 'Touch'].includes(g))).filter(g => keysOf(g).length);
+    if (!groups.length) return;
+    const tab = groups.includes(top.s.tab) ? top.s.tab : groups[0];
+    add(this._tabs(groups.map(g => [g, groupWords(g)]), tab, g => this.show('settings', { tab: g, tabFocus: true })));
+    if (tab === 'Display' && E.lang.offer()) { const row = this._el('div', 'esh-row'), b = this._el('button', 'esh-sel', '‹ ' + E.lang.name(E.lang.code) + ' ›'); b.onclick = () => this._languages(); row.append(this._el('span', '', ENG('shell.language')), b); add(row); }   // (the Language menu: E.lang.offer())
+    for (const k of keysOf(tab)) add(this._row(k));
   }
   /** the controls screen: each action's keys and buttons (press a new one to rebind), the controller's and the touch
    *  buttons' settings */
   /** the input the Controls screen edits: player 1's, or another player's page (several players: game.players) */
   _ctlI() { const P = this._game._players; return (P && P[this._pl || 0]) || this._game.input; }
-  _controls(add) {
-    const I = this._ctlI(), names = I.names || {}, st = this._el('div', 'esh-status', this._status || ''); st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite');
+  _controls(add, top) {
+    const I = this._ctlI(), st = this._el('div', 'esh-status', this._status || ''); st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite');
     const P = this._game._players; if (P && P.length > 1) {   // a page per player
       const row = this._el('div', 'esh-btns');
       P.forEach((q, k) => { const b = this._el('button', k === (this._pl || 0) ? 'pri' : '', ENG(q.device === 'gamepad' ? 'controls.player_pad' : q.half === 'left' ? 'controls.player_left' : q.half === 'right' ? 'controls.player_right' : 'controls.player', { player: k + 1 })); b.onclick = () => { this._pl = k; this._capEnd(''); this._render(); }; row.appendChild(b); });
       add(row);
     }
-    add(this._el('p', 'esh-m', ENG('controls.how')), st);
     const S = this._game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = I._touchArgs && (coarse || I._touched || S.touch === 'on');
-    const touchRows = () => { add(this._el('div', 'esh-k esh-sec', groupWords('Touch'))); for (const k of S.keys('Touch')) add(this._row(k)); }, first = touch && I.lastDevice === 'touch';
-    if (first) touchRows();   // (a phone in hand: its buttons first)
-    const grid = this._el('div', 'esh-bind'); grid.append(this._el('span'), this._el('small', '', ENG('controls.keyboard')), this._el('small', '', ENG('controls.controller')));
+    // a tab for each way to play: the keyboard and mouse, the controller, and the touch buttons where there are some; it
+    // opens on the one the player used last (show('controls', { tab: 'pad' }) on another)
+    const devs = [['keys', ENG('controls.keyboard')], ['pad', ENG('controls.controller')]].concat(touch ? [['touch', groupWords('Touch')]] : []);
+    const tab = devs.some(d => d[0] === top.s.tab) ? top.s.tab : I.lastDevice === 'gamepad' ? 'pad' : I.lastDevice === 'touch' && touch ? 'touch' : 'keys';
+    add(this._tabs(devs, tab, d => { this._capEnd(''); this.show('controls', { tab: d, tabFocus: true }); }));
+    if (tab === 'touch') { for (const k of S.keys('Touch')) add(this._row(k)); return; }
+    add(this._el('p', 'esh-m', ENG('controls.how')), st);
+    const grid = this._el('div', 'esh-bind one'), pad = tab === 'pad';
     for (const a of Object.keys(I.map).filter(a => I.rebindable(a))) {
-      const name = actionWords(I, a); grid.appendChild(this._el('span', '', name));
-      for (const d of ['keys', 'pad']) {
-        const codes = I.map[a].filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis') && padCode(c) === (d === 'pad')), cap = this._cap && this._cap.a === a && this._cap.device === d;
-        const b = this._el('button', cap ? 'cap' : '', cap ? ENG('controls.press') : codes.map(c => I.codeLabel(c)).join(' / ') || '—');
-        b.setAttribute('aria-label', ENG(d === 'pad' ? 'controls.bind_pad' : 'controls.bind_keys', { action: name, keys: codes.map(c => I.codeLabel(c)).join(', ') || ENG('controls.none') }));   // (what a screen reader says)
-        b.onclick = () => this._capStart(a, d, name); grid.appendChild(b);
-      }
+      const name = actionWords(I, a), codes = I.map[a].filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis') && padCode(c) === pad), cap = this._cap && this._cap.a === a && this._cap.device === tab;
+      const b = this._el('button', cap ? 'cap' : ''); grid.appendChild(this._el('span', '', name));
+      if (cap) b.textContent = ENG('controls.press');
+      else if (!codes.length) b.textContent = '—';
+      else codes.forEach((c, i) => { if (i) b.append(' / '); b.appendChild(this._chip(I.codeLabel(c), pad)); });   // (each key or button as the player's device shows it)
+      b.setAttribute('aria-label', ENG(pad ? 'controls.bind_pad' : 'controls.bind_keys', { action: name, keys: codes.map(c => I.codeLabel(c)).join(', ') || ENG('controls.none') }));   // (what a screen reader says)
+      b.onclick = () => this._capStart(a, tab, name); grid.appendChild(b);
     }
     add(grid);
-    const pad = I.padId ? ENG('controls.pad_found', { name: I.padId.replace(/\s*\(.*$/, '') }) : ENG('controls.pad_none');
-    add(this._el('div', 'esh-k esh-sec', groupWords('Controller')), this._el('p', 'esh-m', pad));
+    if (!pad) return;
+    add(this._el('p', 'esh-m', I.padId ? ENG('controls.pad_found', { name: I.padId.replace(/\s*\(.*$/, '') }) : ENG('controls.pad_none')));
     for (const k of S.keys('Controller')) add(this._row(k));
-    if (touch && !first) touchRows();
   }
   _capStart(a, device, name) {
     const CI = this._ctlI(); this._cap = { a, device, name, prev: CI.padPrev.slice(), prevR: RSTICK.filter(k => CI.held.has(k)) };
@@ -10105,7 +10218,7 @@ class Shell {
     const scr = this._els.scr, top = this._stack[this._stack.length - 1];
     if (!top) { scr.replaceChildren(); return; }
     for (const k of ['hb', 'obj', 'vit', 'place', 'tip', 'pr', 'keys', 'mini']) { this._els[k].hidden = true; this._last[k] = null; }   // the HUD hides under a screen (a paused game calls no hud())
-    const { name, s } = top, v = x => typeof x === 'function' ? x() : x, title = name === 'title';
+    const { name, s } = top, v = x => typeof x === 'function' ? x() : x, title = name === 'title'; this._tabGo = null;
     const sh = this._el('div', 'esh-sh' + (title ? ' esh-ttl' : '')), box = this._el('div', title ? '' : 'esh-pan esh-mod' + (name === 'map' ? ' esh-wide' : ''));
     sh.appendChild(box); sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-label', v(s.title || s.name) || name);
     const add = (...c) => box.append(...c.filter(Boolean));
@@ -10114,8 +10227,10 @@ class Shell {
     else add(this._el('h2', '', v(s.title) || { pause: this._game._players && this._game._players.length > 1 && this._game.pausedBy ? ENG('shell.paused_by', { player: this._game.pausedBy }) : ENG('shell.paused'), settings: ENG('shell.settings'), controls: ENG('shell.controls'), help: ENG('shell.help'), map: ENG('shell.map') }[name] || ''));   // (several players: who paused)
     add(v(s.text) && this._el('p', title ? '' : 'esh-m', v(s.text)));
     for (const key of v(s.rows) || []) add(key[0] === '#' ? this._el('div', 'esh-k esh-sec', key.slice(1)) : this._row(key));   // (setting rows on a screen of the game's own: '#' a heading)
-    if (name === 'settings') this._settingsRows(add);
-    if (name === 'controls') this._controls(add);
+    if (name === 'settings') this._settingsRows(add, top);
+    if (name === 'controls') this._controls(add, top);
+    const desc = (name === 'settings' || name === 'controls' || (v(s.rows) || []).length) && this._el('p', 'esh-desc');   // (the focused row's help, under the list)
+    add(desc);
     if (s.keys) { const g = this._el('div', 'esh-grid'); for (const [k, w] of v(s.keys)) g.append(this._el('kbd', '', k), this._el('span', '', w)); add(g); }
     for (const [h, t] of v(s.sections) || []) add(this._el('div', 'esh-k esh-sec', h), this._el('p', 'esh-m', t));
     if (s.stats) { const g = this._el('div', 'esh-stats'); for (const [val, lab] of v(s.stats)) { const c = this._el('div'); c.append(this._el('b', '', val), this._el('small', '', lab)); g.appendChild(c); } add(g); }
@@ -10133,6 +10248,7 @@ class Shell {
     const btns = this._el('div', 'esh-btns'), lists = name === 'settings' || name === 'controls'; acts.forEach((a, i) => btns.appendChild(this._btn(a, i, !lists))); add(btns);
     if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
     add(s.footer && this._el('div', 'esh-m', v(s.footer)));
+    add(this._hints(title));
     const keep = top.focus !== undefined ? top.focus : this._shown === top ? this._focusAt() : -1; this._shown = top;   // (redrawn in place: the focus stays where it was)
     // the way out, always in sight: close at the top right (where the menu button was), back at the top left over another
     // screen, and a sideways swipe goes back (a phone's edge swipe would leave the page)
@@ -10140,9 +10256,26 @@ class Shell {
     if (!title) nav.push(this._navBtn('x', ENG('shell.close'), 'M6 6l12 12M18 6L6 18', () => this._close()));
     if (this._stack.length > 1) nav.push(this._navBtn('bk', ENG('shell.back'), 'M15 5l-7 7 7 7', () => this.back()));
     this._swipe(sh, box, title);
+    // the mouse moved over a button or slider gives it the focus (the keys and the pad go on from there), and the focused
+    // row's help shows below the list
+    sh.addEventListener('pointermove', e => {
+      if (e.pointerType !== 'mouse') return; const t = e.target.closest && e.target.closest('button:not(:disabled), input:not(:disabled)');
+      if (t && box.contains(t) && document.activeElement !== t) t.focus({ preventScroll: true });
+    });
+    if (desc) box.addEventListener('focusin', e => { const r = e.target.closest && e.target.closest('.esh-row'); desc.textContent = (r && r._help) || ''; });
     this._els.scr.replaceChildren(sh, ...nav);
-    const all = this._focusables(), f = all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
-    top.focus = undefined; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
+    const all = this._focusables(), tabbed = s.tabFocus && sh.querySelector('.esh-tabs button.on'), f = tabbed || all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
+    top.focus = undefined; delete s.tabFocus; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
+  }
+  /** a line of the buttons that work the open screen, on the device the player used last (✕ Select ○ Back, or Enter and
+   *  Esc; L1 R1 for its tabs): none on a touch screen, whose buttons are under the finger */
+  _hints(title) {
+    const I = this._game.input, dev = I.lastDevice, pad = dev === 'gamepad'; if (dev === 'touch') return null;
+    const box = this._el('div', 'esh-tags esh-hints'), one = (code, words) => { if (!code) return; const e = this._el('span'); e.append(this._chip(code, pad), ' ' + words); box.appendChild(e); };
+    const lab = a => I.map[a] && I.label(a, pad ? 'gamepad' : 'keyboard');
+    one(lab('confirm'), ENG('shell.select')); if (!title) one(lab('cancel'), ENG('shell.back'));
+    if (this._tabGo) one(pad ? I.codeLabel('Pad4') + ' ' + I.codeLabel('Pad5') : 'Q E', ENG('shell.tabs'));
+    return box.childNodes.length ? box : null;
   }
   /** the Language menu: the page's languages, each in its own language (E.lang.name); a choice starts the game again in it
    *  (E.lang.choose). The settings' Display group and a title screen offer it while E.lang.offer() */
@@ -10213,12 +10346,14 @@ class Shell {
       if (this._tutEnd && now > this._tutEnd) this.tutorial(null);
       this.root.classList.toggle('esh-still', !!g.reduceMotion);
     }
+    const pb = I.padPrev || [], l1 = !!pb[4] && !this._l1, r1 = !!pb[5] && !this._r1; this._l1 = !!pb[4]; this._r1 = !!pb[5];   // (L1 and R1 this step: a screen's tabs)
     if (!this._stack.length) return;
     const keep = this._held; this._held = new Set();
     const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), closeAll = has('pause') && I.pressed('pause'), mv = I.move();
     const hit = ['up', 'down', 'left', 'right'].find(a => has(a) && I.pressed(a)), dir = Math.abs(mv[1]) > .5 ? (mv[1] < 0 ? 'up' : 'down') : Math.abs(mv[0]) > .5 ? (mv[0] < 0 ? 'left' : 'right') : null;
     for (const a in I.map) if (!keep.has(a)) I.suppress(a);   // the game doesn't see what the menu used
     if (this._cap) { this._capPad(); return; }   // binding: the next button is the answer, not a move in the menu
+    if (this._tabGo && this.root && (l1 || r1)) { this._tabGo(r1 ? 1 : -1); return; }   // L1 and R1 turn a screen's tabs
     if (!this.root) { if (cancel) this.back(); else if (closeAll) this.hide(); return; }
     if (hit) { this._dir = hit; this._dirT = now + .35; this._nav(hit); }   // a press (however short), then the held direction repeats
     else if (dir !== this._dir) { this._dir = dir; this._dirT = now + .35; if (dir) this._nav(dir); }
