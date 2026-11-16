@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.103.0 (2026-11-16)
+
+More of the owner's Mode 7 list played whole: Pole Position's qualifying lap, Chase H.Q.'s fork, Pilotwings' rocket belt and Super Castlevania IV's turning room.
+
+- **Engine**: ROAD's CIRCUIT starts with a qualifying lap alone against the clock (Pole Position): its time sets your slot on the grid, the pack in the rest. The duel starts from the grid as before.
+- **Engine**: ROAD's CHASE forks (Chase H.Q.): the radio says which way the getaway car went, and the other road lets it pull far ahead.
+- **Engine**: SKY's ROCKET BELT (Pilotwings; `#sky/belt`): up off the ground on a jet pack (GAS climbs, let go and it sinks; the stick leans and turns you), five low rings on the fuel it has, then down softly on the pad, scored out of 100. The diver under its canopy now faces its heading, so the camera behind sees its back.
+- **Engine**: SPECIAL's ROOM (Super Castlevania IV's turning room; `#special/room`): a side-on room drawn as a Mode 7 floor under a straight-down camera, turned a quarter at a time, gravity always down the screen; take its three gems, then out by its door in 90 seconds.
+- **Tools**: the kits test runs the qualifying lap, the chase through its fork, the rocket belt and the turning room.
+- **Docs**: `docs/MODE7.md`'s Pilotwings, Pole Position, Chase H.Q. and Super Castlevania IV rows say what now plays them; D96: SPECIAL's budget 229,000.
+
 ## 0.102.0 (2026-11-16)
 
 The last gaps in the owner's Mode 7 list played: Pole Position's and Top Gear's lap race against a pack (ROAD's CIRCUIT, and the duel on it), Super Star Wars' free roam (BLASTER's SPEEDER); an audit of the six Mode 7 kits, each finding fixed and checked; two engine fixes it turned up.

@@ -174,13 +174,16 @@ scenes.over = {
  * of them by each of its three gates. ARENA: four karts, three balloons each, shells that bounce off the walls; the last
  * with a balloon wins (two to four players in a split screen, joined in the menu: 2 on the keys, Start on a pad; a stage
  * of one sends them off). TURN: a fort seen from straight above that turns as you do (Contra III); clear its three nests.
- * Deep links: #special/planet, #special/tube, #special/arena, #special/turn.
+ * ROOM: a room seen side on that turns a quarter at a time (Super Castlevania IV's), gravity always down the screen, so
+ * a floor becomes a wall; take its three gems, then out by its door before the time runs out.
+ * Deep links: #special/planet, #special/tube, #special/arena, #special/turn, #special/room.
  * KEYS: left / right turn or steer (TURN: up / down walk), up / Z gas (ARENA), Space / X jump or fire. A pad: the
  * stick, A gas, B jump or fire. TOUCH: the stick; JUMP or FIRE (ARENA: it drives by itself, the stick pulled down backs
  * it up).
  * HOW IT WORKS: E.Mode7 (the mode7 module): the planet a floor with curve (a globe) and wrap; the tube m7.quad strips
  * along an E.Path, the camera rolled with the runner so the pipe's floor stays down; the arena a floor of cells and its
- * walls as quads, the karts E.Car (the drive module); the fort the camera at pitch 90 (straight down), turned with you.
+ * walls as quads, the karts E.Car (the drive module); the fort the camera at pitch 90 (straight down), turned with you;
+ * the room the same camera over a side view, turned by itself, the hero's fall turned with it.
  * ===================================================================================== */
 const SPECIAL = (() => {
   const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0', 'Pad7'], brake: ['ArrowDown', 'KeyS', 'Pad2', 'Pad6'], fire: ['Space', 'KeyX', 'KeyC', 'Pad1', 'Pad5'] });
@@ -190,9 +193,9 @@ const SPECIAL = (() => {
     { wave: 'square', vol: .05, notes: 'E5 . G5 . A5 . G5 E5 | D5 . E5 . G5 . . . | E5 . G5 . A5 . C6 A5 | G5 . E5 . D5 . . . | C5 . E5 . G5 . E5 C5 | D5 . G5 . B5 . . . | A5 . G5 . E5 . D5 . | E5 . . . . . . .' },
     { wave: 'triangle', vol: .09, notes: 'C3 C3 G3 C3 A2 A2 E3 A2 | F2 F2 C3 F2 G2 G2 D3 G2 | C3 C3 G3 C3 A2 A2 E3 A2 | F2 F2 C3 F2 G2 G2 G2 . ' },
     { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s h h .' }] };
-  const PARTS = ['planet', 'tube', 'arena', 'turn'];
+  const PARTS = ['planet', 'tube', 'arena', 'turn', 'room'];
   let mode = 'menu', part = null, S = null, t = 0, auto = false, result = null;
-  const menu = new E.Menu(game, [...PARTS.map(p => E.t('special.menu.' + p)), E.t('special.menu.back')], { onPick: i => i === 4 ? game.go('title') : start(PARTS[i]) });
+  const menu = new E.Menu(game, [...PARTS.map(p => E.t('special.menu.' + p)), E.t('special.menu.back')], { onPick: i => i === PARTS.length ? game.go('title') : start(PARTS[i]) });
   const after = new E.Menu(game, [E.t('special.again'), E.t('special.menu.menu')], { onPick: i => i === 0 ? start(part) : toMenu() });
   // players join in the menu only (2 on the keyboard, Start on a pad); a stage of one sends the others off, so player 1
   // has the whole keyboard again (the arrows, Space), and no one joining mid-stage takes half of it
@@ -458,11 +461,56 @@ const SPECIAL = (() => {
     },
     state: S => ({ x: Math.round(S.x), y: Math.round(S.y), a: +S.a.toFixed(3), lives: S.lives, nests: S.nests.map(n => n.hp), kills: S.kills, foes: S.foes.map(f => [Math.round(f.x), Math.round(f.y)]), shots: S.shots.length })
   };
-  const STAGE = { planet: PLANET, tube: TUBE, arena: ARENA, turn: TURN };
+  /* ---- ROOM: Super Castlevania IV's turning room: a side view drawn as a Mode 7 floor, seen straight down and turned a
+   * quarter at a time; the hero falls down the screen whichever way the room stands ---- */
+  const RN = 20, RT = 24, ROOM_ROWS = ['####################', '#..................#', '#.o.....#.......o..#', '#.####..#....#####.#', '#.......#..........#', '#.......#..........#',
+    '#...........###....#', '#..##.......#......#', '#..#........#......#', '#..#....####.......#', '#.......#..#.......#', '#.......####....#..#', '#...#...........#..#', '#...#...........##.#',
+    '#...###............#', '#............#.....#', '#..o.....#####.....#', '#..............D...#', '#..................#', '####################'];
+  const rsolid = (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT); return i < 0 || j < 0 || i >= RN || j >= RN || ROOM_ROWS[j][i] === '#'; };
+  const rcells = ch => { const out = []; ROOM_ROWS.forEach((row, j) => [...row].forEach((c, i) => { if (c === ch) out.push({ x: (i + .5) * RT, y: (j + .5) * RT }); })); return out; };
+  const room = new E.Mode7({ floor: (x, y) => { const i = Math.floor(x / RT), j = Math.floor(y / RT), u = x % RT, v = y % RT; if (rsolid(x, y)) return (v < 2 || (u + (j & 1) * 12) % RT < 2) ? [60, 44, 40] : [120 + (i * 7 + j * 3) % 20, 84, 70]; return (i + j) & 1 ? [34, 28, 52] : [40, 32, 60]; }, size: [RN * RT, RN * RT], texel: 2, outside: '#100c18', sky: ['#100c18', '#100c18'], far: 4000 });
+  const RVIEW = new Map(), rview = k => { const q = Math.max(1 / 8, Math.round(k * 8) / 8); let v = RVIEW.get(q); if (!v) RVIEW.set(q, v = new E.View('room', 'Room', 0, 0, q, 1)); return v; };   // (the hero seen side on, whatever the camera)
+  const ROOM = {
+    start() { return { x: 3.5 * RT, y: 17.5 * RT, vx: 0, vy: 0, rot: 0, t: 0, time: 90, dir: 1, ground: false, gems: rcells('o'), got: 0, door: rcells('D')[0], stuck: 0 }; },
+    // the room's turn: 4 s still, then a quarter in 2.5 s; the camera's heading, and down and right on the screen in the room
+    axes(S) { const a = -Math.PI / 2 + S.rot; return { a, down: [-Math.cos(a), -Math.sin(a)], right: [-Math.sin(a), Math.cos(a)] }; },
+    update(S, dt, I) {
+      S.t += dt; S.time -= dt; const ph = S.t % 6.5; S.rot = (Math.floor(S.t / 6.5) + E.ease.inOutQuad(clamp((ph - 4) / 2.5, 0, 1))) * Math.PI / 2;
+      const { down, right } = this.axes(S); let [mx] = I.move(), jump = I.pressed('fire');
+      if (auto) {   // to the nearest gem (the door once all three are in): across toward it, a jump when it's above or when stuck
+        const g = S.gems.length ? S.gems.slice().sort((a, b) => Math.hypot(a.x - S.x, a.y - S.y) - Math.hypot(b.x - S.x, b.y - S.y))[0] : S.door, dx = g.x - S.x, dy = g.y - S.y, dr = dx * right[0] + dy * right[1], du = -(dx * down[0] + dy * down[1]);
+        mx = Math.abs(dr) > 6 ? clamp(dr / 20, -1, 1) : 0; jump = S.ground && (du > 18 && Math.abs(dr) < 90 || S.stuck > .4);
+      }
+      const vr = S.vx * right[0] + S.vy * right[1], dv = (mx * 110 - vr) * Math.min(1, dt * 10); S.vx += right[0] * dv; S.vy += right[1] * dv; if (Math.abs(mx) > .2) S.dir = Math.sign(mx);
+      S.vx += down[0] * 560 * dt; S.vy += down[1] * 560 * dt;
+      if (jump && S.ground) { const vd = S.vx * down[0] + S.vy * down[1]; S.vx -= down[0] * (vd + 250); S.vy -= down[1] * (vd + 250); S.ground = false; A.sfx('jump', { vol: .5 }); }
+      const was = [S.x, S.y]; let bx = 0, by = 0;
+      for (let k = 0; k < 2; k++) {   // each axis on its own, a half step at a time: blocked, its speed gone and which way noted
+        const nx = S.x + S.vx * dt / 2; if ([-7, 7].some(ox => [-7, 7].some(oy => rsolid(nx + ox, S.y + oy)))) { bx = Math.sign(S.vx); S.vx = 0; } else S.x = nx;
+        const ny = S.y + S.vy * dt / 2; if ([-7, 7].some(ox => [-7, 7].some(oy => rsolid(S.x + ox, ny + oy)))) { by = Math.sign(S.vy); S.vy = 0; } else S.y = ny;
+      }
+      S.ground = bx * down[0] + by * down[1] > .3; S.stuck = Math.abs(mx) > .5 && Math.hypot(S.x - was[0], S.y - was[1]) < 20 * dt ? S.stuck + dt : 0;
+      for (const g of S.gems) if (Math.hypot(g.x - S.x, g.y - S.y) < 14) { g.got = true; S.got++; A.sfx('coin'); }
+      S.gems = S.gems.filter(g => !g.got);
+      HERO.update(dt, { x: 0, y: 0, z: 0, vx: S.ground ? Math.abs(vr) : 0, vy: 0, facing: S.dir > 0 ? 0 : Math.PI, air: !S.ground });
+      if (!S.gems.length && Math.hypot(S.door.x - S.x, S.door.y - S.y) < 16) end(true, E.t('special.room.out'));
+      else if (S.time <= 0) end(false, E.t('special.room.late'));
+    },
+    draw(S, r) {
+      const V = room, { a } = this.axes(S), tall = r.H > r.W, cam = { x: RN * RT / 2, y: RN * RT / 2, h: tall ? 520 : 420, angle: a, pitch: 90, fov: 64 };
+      for (const g of S.gems) V.add(g.x, g.y, 0, (gg, sx, sy, k) => { const s = (5 + Math.sin(t * 6) * 1) * k; px.disc(gg, sx, sy, s * 1.4, '#3a1a5a'); px.disc(gg, sx, sy, s, '#ff60d0'); px.disc(gg, sx - s * .3, sy - s * .3, s * .35, '#ffe0f8'); });
+      V.add(S.door.x, S.door.y, 0, (g, sx, sy, k) => { const w = 9 * k, h = 11 * k; px.rect(g, sx - w, sy - h, w * 2, h * 2, S.gems.length ? '#4a3020' : (Math.floor(t * 4) % 2 ? '#ffe040' : '#ffb020')); px.rect(g, sx - w * .6, sy - h * .7, w * 1.2, h * 1.7, S.gems.length ? '#2a1a10' : '#fff4c0'); });
+      V.add(S.x, S.y, 0, (g, sx, sy, k) => HERO.draw(g, Math.round(sx), Math.round(sy + 7 * k), rview(k * 1.7)));   // (upright on the screen, its feet at its box's foot: the room turns, not him)
+      V.draw(r, cam);
+      r.overlay(g => { E.font.text(g, E.t('special.room.gems', { n: S.got }), 8, 8, '#ff90e0', { shadow: '#000', outline: false }); E.font.text(g, Math.ceil(Math.max(0, S.time)) + '', r.W / 2, 8, S.time < 15 ? '#ff6a4a' : '#ffffff', { align: 'center', shadow: '#000', outline: false }); });
+    },
+    state: S => ({ x: Math.round(S.x), y: Math.round(S.y), rot: +S.rot.toFixed(3), got: S.got, ground: S.ground, time: Math.round(S.time) })
+  };
+  const STAGE = { planet: PLANET, tube: TUBE, arena: ARENA, turn: TURN, room: ROOM };
 
   function update(dt) {
     const I = game.input; t += dt;
-    I.touchSet('fire', mode === 'play' ? E.t(part === 'planet' || part === 'tube' ? 'special.jump' : 'special.fire') : null, mode === 'play');
+    I.touchSet('fire', mode === 'play' ? E.t(part === 'planet' || part === 'tube' || part === 'room' ? 'special.jump' : 'special.fire') : null, mode === 'play');
     if (mode === 'menu') { menu.update(dt); pickOnStart(menu); return; }
     if (mode === 'over') { after.update(dt); pickOnStart(after); return; }
     STAGE[part].update(S, dt, I);
@@ -514,7 +562,7 @@ const SPECIAL = (() => {
     exit() { game.splitScreen(0); game.allowJoin(false); },
     back() { if (mode === 'menu') { game.go('title'); return true; } toMenu(); return true; },
     update, draw, hud, bot,
-    /** a stage played by its autopilot (a demo; the bot's): 'planet', 'tube', 'arena' or 'turn' */
+    /** a stage played by its autopilot (a demo; the bot's): 'planet', 'tube', 'arena', 'turn' or 'room' */
     demo(p) { auto = true; start(STAGE[p] ? p : 'planet'); },
     state: () => S && Object.assign({ mode, part }, STAGE[part].state(S)),
     /** the proof: the planet, a turn queued at the second crossing, a jump; then the fort, turning and firing */

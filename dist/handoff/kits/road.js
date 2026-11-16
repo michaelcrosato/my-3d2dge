@@ -240,9 +240,9 @@ const ROAD = (() => {
   const mk = st => new E.Road({ segment: SEG, width: W, lanes: 3, rumble: 3, draw: 210, fov: 100, height: 1000, square: true,
       colors: { road: st.road || ['#6a6a72', '#646470'], grass: st.grass, rumble: st.rumble, lane: st.lane || '#d8d8d8', wall: ['#5a4a3a', '#4a3a2a'], roof: '#2a2420', portal: '#6a5a48' }, fog: null, sky: sky(st.sky) });
   function leg(i, from, chase, rash) {
-    const st = STAGES[i], last = !KIDS(i) || chase || rash, road = mk(st);
+    const st = STAGES[i], last = chase ? chase === 2 : !KIDS(i) || rash, road = mk(st);   // (chase: 1 its first leg, to a fork; 2 the rest, after it)
     if (from) road.add(30, { branch: from });
-    for (const [n, curve = 0, hill = 0, tun] of (chase ? st.parts.concat(st.parts, st.parts) : rash ? st.parts.concat(st.parts) : st.parts)) road.add(n, { curve, hill, tunnel: !!tun });
+    for (const [n, curve = 0, hill = 0, tun] of (chase === 2 ? st.parts.concat(st.parts) : rash ? st.parts.concat(st.parts) : st.parts)) road.add(n, { curve, hill, tunnel: !!tun });
     const end = road.length; if (!last) road.add(70, { split: GAP }); road.add(160, last ? {} : { split: GAP });   // (past the end: more of the same, never reached)
     scenery(road, st); road.place(end - SEG * 2, 0, ARCH(E.t(last ? (chase ? 'road.arch.end' : rash ? 'road.arch.finish' : 'road.arch.goal') : 'road.arch.check'), last ? '#d02a2a' : '#2a8a3a'), 1);
     const traffic = [], R = E.rng(31 + i);
@@ -292,25 +292,32 @@ const ROAD = (() => {
     DUO = null; game.splitScreen(0); if (!keep) players(true);
     if (what === 'circuit') {   // Pole Position's, Top Gear's: three laps against seven cars, you at the back of the grid
       ride = 'car'; start('rash', keep); Object.assign(P, { rash: false, bike: false, circuit: true, L: lapRoad(1), route: [1], lap: 1, laps: 3, lapT: 0, bestLap: 0 });
-      P.rivals.forEach(v => Object.assign(v, { pace: .83 + v.k * .016, col: RIVALS[v.k][1], suit: RIVALS[v.k][0] })); A.music(SONGS[0]); return;
+      P.rivals.forEach(v => Object.assign(v, { pace: .83 + v.k * .016, col: RIVALS[v.k][1], suit: RIVALS[v.k][0] })); A.music(SONGS[0]);
+      if (!keep) { P.qual = { t: 0 }; P.z = P.L.line - SEG; say(E.t('road.qual'), 2.5); }   // (alone: Pole Position's qualifying lap first, from the line, the pack off the track)
+      return;
     }
     if (what === 'striker') {   // Night Striker: the city at night, flown over; no clock, a shield of five
       ride = 'car'; start('rash'); Object.assign(P, { rash: false, rivals: null, bike: false, striker: true, L: leg(4, 0, false, true), alt: 260, shield: 5, shots: [], foes: [], bolts: [], fire: 0, spawn: 2, kills: 0, hurt: 0 }); A.music('boss'); return;
     }
     const chase = what === 'chase', rash = what === 'rash'; if (chase) ride = 'car'; if (rash) ride = 'bike';
-    P = { chase, rash, hp: 6, punch: 0, side: 1, place: 8, downs: 0, bike: ride === 'bike', L: leg(chase ? 4 : rash ? 3 : 0, 0, chase, rash), z: SEG * 4, x: 0, speed: 0, steer: 0, lean: 0, clock: chase ? 55 : 44, crash: 0, spin: 0, hop: 0, score: 0, route: [chase ? 4 : 0], rewinds: 3, rewinding: false, nitro: 3, boost: 0, over: null, bump: 0, near: 0 };
-    if (chase) P.target = { z: SEG * 70, x: 0, speed: 4000, damage: 0, swerve: 0, met: false };
+    P = { chase, rash, hp: 6, punch: 0, side: 1, place: 8, downs: 0, bike: ride === 'bike', L: leg(chase ? 4 : rash ? 3 : 0, 0, chase ? 1 : 0, rash), z: SEG * 4, x: 0, speed: 0, steer: 0, lean: 0, clock: chase ? 55 : 44, crash: 0, spin: 0, hop: 0, score: 0, route: [chase ? 4 : 0], rewinds: 3, rewinding: false, nitro: 3, boost: 0, over: null, bump: 0, near: 0 };
+    if (chase) P.target = { z: SEG * 70, x: 0, speed: 4000, damage: 0, swerve: 0, met: false, side: Math.random() < .5 ? 0 : 1, told: false };   // (side: the way it takes at the fork)
     if (rash) { P.clock = 999; P.rivals = RIVALS.map((c, k) => ({ k, z: SEG * 4 + (k + 1) * 700, x: [-2 / 3, 0, 2 / 3][k % 3], goal: [-2 / 3, 0, 2 / 3][k % 3], speed: 0, pace: .9 + k * .012, hp: 3, punch: 1 + k * .3, swing: 0, wob: 0, fall: 0, col: c[0], suit: c[1] })); }   // (the grid: you at the back)
     rw.clear(); mode = 'drive'; A.music(chase ? 'boss' : rash ? SONGS[2] : SONGS[song]); game.input.consumeAll();
   }
   const pad = (I = game.input) => { const [x, y] = I.move(); return { x, y, fire: I.down('nitro'), gas: I.down('gas') || I.lastDevice === 'touch', brake: I.down('brake'), nitro: I.pressed('nitro'), rewind: I.down('rewind') }; };
   /** the next leg at a fork's end: the side the car is on is the way it goes; the rest of the run on that road */
   function fork() {
-    const L = P.L, cs = L.road.centers(P.z), side = P.x < 0 ? 0 : 1, kid = KIDS(L.i)[side], off = cs[side];
+    const L = P.L, cs = L.road.centers(P.z), side = P.x < 0 ? 0 : 1, kid = KIDS(L.i) && KIDS(L.i)[side], off = cs[side];
+    if (P.chase) {   // Chase H.Q.'s fork: the rest of the chase on the road taken; the wrong one and the getaway car pulls away
+      const T = P.target; P.L = leg(4, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), 2); P.z -= L.fork; P.x -= off; T.z -= L.fork; T.x = 0; P.forks = (P.forks || 0) + 1;
+      if (side !== T.side && T.damage < 100) { T.z = Math.max(T.z, P.z) + 9000; say(E.t('road.chase.wrong'), 2.5); A.sfx('hurt'); } T.side = 0; return;
+    }
     const N = leg(kid, (side ? -1 : 1) * Math.abs(cs[1] - cs[0]), false);
     P.L = N; P.z -= L.fork; P.x -= off; P.route.push(kid); P.clock += 30; P.score += 2000;
     A.sfx('oneup'); say(E.t('road.stage.' + STAGES[kid].id), 2.5);
   }
+  const tcx = (road, T) => { const c = road.centers(T.z); return c[Math.min(c.length - 1, T.side || 0)]; };   // the middle of the road the getaway car is on (at the fork: its side)
   const ROAD_P = () => P;   // (the player the autopilot drives when none is named)
   let banner = null, bannerT = 0; const say = (s, secs = 2) => { banner = s; bannerT = secs; };
   function update(dt) {
@@ -346,6 +353,12 @@ const ROAD = (() => {
   }
   /** a step of the drive: the gas, the brake and the steering; the bends pull outward, the grass slows; scenery hit fast
    *  spins the car out; traffic bumps it; the clock; the forks; the chase */
+  /** the grid after the qualifying lap (q seconds): the quicker, the nearer the front (8 slots, the pack in the rest) */
+  function grid(P, q) {
+    const s = clamp(Math.round((q - 20) / .8), 0, 7), at = j => ({ z: SEG * 4 + (7 - j) * 700, x: [-2 / 3, 0, 2 / 3][j % 3] }); let j = 0;
+    for (const v of P.rivals) { if (j === s) j++; Object.assign(v, at(j++), { speed: 0 }); v.goal = v.x; }
+    Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0 }); P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');
+  }
   /** a car of the pack and a player's touch: pushed apart; the one behind loses its speed */
   function bump(P, v, gap) { const sd = P.x < v.x ? -1 : 1; P.x += sd * .12; v.x -= sd * .12; v.goal = v.x; if (gap > 0) P.speed = Math.min(P.speed, v.speed) * .85; else v.speed *= .85; P.bump = .5; A.sfx('bump'); game.shake(2); }
   function drive(P, dt, k, still) {   // (still: the traffic moved already this step, by the duel's first car)
@@ -375,14 +388,15 @@ const ROAD = (() => {
       if (P.crash <= 0 && P.bump <= 0 && Math.abs(c.z - P.z) < 1500 && Math.abs(cx - P.x) < .42) { P.bump = .6; P.speed = Math.min(P.speed, c.speed) * .7; P.x += P.x > cx ? .3 : -.3; A.sfx('bump'); game.shake(3); }
     }
     if (P.chase) {   // the getaway car: weaves round the traffic; caught up, rammed until its damage is full
-      const T = P.target, tc = road.centers(T.z)[0];
+      const T = P.target, tc = tcx(road, T);
+      if (!T.told && !L.last && T.z > L.end - SEG * 20) { T.told = true; say(E.t(T.side ? 'road.chase.right' : 'road.chase.left'), 2.5); A.sfx('blip'); }   // (the radio: which way it went)
       T.z += T.speed * dt; const ahead = L.traffic.find(c => c.z > T.z && c.z - T.z < 3000 && Math.abs(c.lane - T.x) < .4); T.x += ((ahead ? (T.x > 0 ? -2 / 3 : 2 / 3) : T.x) - T.x) * dt * 2;
       if (!T.met && T.z - P.z < 4000) { T.met = true; P.clock += 30; say(E.t('road.close'), 2); A.sfx('secret'); }
       if (Math.abs(T.z - P.z) < 1400 && Math.abs(tc + T.x - P.x) < .5 && P.bump <= 0) { const hit = Math.max(10, (P.speed - T.speed) / 80); T.damage = Math.min(100, T.damage + hit); P.bump = .5; P.speed = T.speed - 150; T.x += P.x < tc + T.x ? .25 : -.25; A.sfx('hit'); game.shake(5); P.score += 500; }
       if (T.damage >= 100 && !P.over) { P.over = { won: true, t: 0 }; say(E.t('road.arrest'), 3); A.sfx('secret'); A.music('victory'); }
       if (T.damage >= 100) T.speed = Math.max(0, T.speed - 3000 * dt);
     }
-    if (P.rash || P.circuit) {   // Road Rash: seven riders who race and fight; a punch at the one beside you (three and he goes down), theirs at you (the circuit: seven cars who race; bump one and both lose speed)
+    if (P.rash || P.circuit && !P.qual) {   // Road Rash: seven riders who race and fight; a punch at the one beside you (three and he goes down), theirs at you (the circuit: seven cars who race; bump one and both lose speed)
       P.punch = Math.max(0, P.punch - dt);
       const beside = P.rivals.filter(v => v.fall <= 0 && Math.abs(v.z - P.z) < 700 && Math.abs(v.x - P.x) < .6).sort((a, b) => Math.abs(a.z - P.z) - Math.abs(b.z - P.z))[0];
       if (P.rash && k.nitro && P.punch <= 0 && P.crash <= 0) {
@@ -405,7 +419,8 @@ const ROAD = (() => {
       }
       P.place = 1 + P.rivals.filter(v => v.z > P.z).length + (DUO ? DUO.filter(Q => Q !== P && Q.z > P.z).length : 0);
     }
-    if (P.circuit) {   // the laps: counted from the line; each one's time, the best kept
+    if (P.qual) { P.qual.t += dt; if (P.z >= L.line - SEG + L.road.length) grid(P, P.qual.t); }   // the qualifying lap: once round, timed
+    else if (P.circuit) {   // the laps: counted from the line; each one's time, the best kept
       const n = Math.min(P.laps, Math.floor(Math.max(0, P.z - L.line) / L.road.length) + 1); if (!P.over) P.lapT += dt;
       if (n > P.lap) { P.bestLap = P.bestLap ? Math.min(P.bestLap, P.lapT) : P.lapT; P.lapT = 0; P.lap = n; say(E.t(n === P.laps ? 'road.lap.final' : 'road.lap', { n }), 1.5); A.sfx('oneup'); }
       if (!P.over && P.z >= L.goal) P.bestLap = P.bestLap ? Math.min(P.bestLap, P.lapT) : P.lapT;
@@ -449,11 +464,11 @@ const ROAD = (() => {
    *  the first fork and right at the next; in the chase, at the getaway car with the nitro */
   function pilot(P = ROAD_P()) {
     if (P.striker) { const f = P.foes.filter(o => o.z > P.z + 2000).sort((a, b) => a.z - b.z)[0], bolt = P.bolts.find(b => b.z - P.z < 5000 && Math.abs(b.x + b.vx * (b.z - P.z) / 7000 - P.x) < .35); return { x: clamp(((f ? f.x : P.L.road.centers(P.z)[0]) + (bolt ? .5 : 0) - P.x) * 4, -1, 1), y: clamp((P.alt - Math.max(150, f ? f.alt : 300)) / 120, -1, 1), fire: !!f && Math.abs(f.x - P.x) < .3, gas: true }; }   // (STRIKER: line up the nearest foe ahead and fire; a bolt coming: step aside; never under 150, over the traffic and an armoured car's ram, its shots still reaching one)
-    const L = P.L, road = L.road, cs = road.centers(P.z), forkNear = !L.last && L.fork - P.z < 70 * SEG + 4000, side = P.route.length % 2 ? 1 : 0, want0 = forkNear ? (cs.length > 1 ? cs[side] : cs[0] + (side ? .66 : -.66)) : cs.reduce((a, c) => Math.abs(P.x - c) < Math.abs(P.x - a) ? c : a);
+    const L = P.L, road = L.road, cs = road.centers(P.z), forkNear = !L.last && L.fork - P.z < 70 * SEG + 4000, side = P.chase ? P.target.side : P.route.length % 2 ? 1 : 0, want0 = forkNear ? (cs.length > 1 ? cs[side] : cs[0] + (side ? .66 : -.66)) : cs.reduce((a, c) => Math.abs(P.x - c) < Math.abs(P.x - a) ? c : a);
     let want = want0, top = -1e9;
-    const obs = P.circuit ? P.rivals.concat(DUO ? DUO.filter(Q => Q !== P) : []).map(v => ({ z: v.z, x: v.x })) : L.traffic.map(c => ({ z: c.z, x: road.centers(c.z)[0] + c.lane }));   // (what's in the way: the traffic, or the pack and the other player)
+    const obs = P.qual ? [] : P.circuit ? P.rivals.concat(DUO ? DUO.filter(Q => Q !== P) : []).map(v => ({ z: v.z, x: v.x })) : L.traffic.map(c => ({ z: c.z, x: road.centers(c.z)[0] + c.lane }));   // (what's in the way: the traffic, or the pack and the other player)
     for (const lane of [0, -2 / 3, 2 / 3]) { const x = want0 + lane, block = obs.filter(c => c.z > P.z - 1600 && Math.abs(c.x - x) < .5).reduce((a, c) => Math.min(a, c.z - P.z), 1e9), sc = Math.min(block, 9000) - Math.abs(x - P.x) * 900 - Math.abs(lane) * 200; if (sc > top) { top = sc; want = x; } }   // (the lane whose next car is farthest)
-    if (P.chase) { const T = P.target; if (T.z - P.z < 5000) want = road.centers(T.z)[0] + T.x; }
+    if (P.chase) { const T = P.target; if (T.z - P.z < 5000) want = tcx(road, T) + T.x; }
     const c = road.curveAt(P.z + 3000);
     const fight = P.rash && P.rivals.some(v => v.fall <= 0 && Math.abs(v.z - P.z) < 600 && Math.abs(v.x - P.x) < .55);
     return { x: clamp((want - P.x) * 3 + c * (P.speed / TOP) ** 2 * .2, -1, 1), gas: true, brake: Math.abs(c) > 4.5 && P.speed > TOP * .8, nitro: P.chase ? P.target.z - P.z > 6000 : fight, rewind: false };
@@ -489,8 +504,8 @@ const ROAD = (() => {
     }
     if (DUO) { const Q = DUO[1 - P.n]; if (Q.z > camZ && Q.z - camZ < 210 * SEG) cars.push(road.mesh(CAR, Q.z, Q.x, { scale: CK, yaw: Q.steer * .14 + Q.spin, roll: -Q.steer * .05, y: Q.hop, colors: { body: Q.n ? '#2a6ae8' : '#e8202a', shirt: '#f0f0f0', tail: lit(Q) } })); }
     for (const c of L.traffic) if (c.z > (P.striker ? P.z - 600 : camZ) && c.z - camZ < 210 * SEG) cars.push(road.mesh(c.model, c.z, road.centers(c.z)[0] + c.lane, { scale: CK, colors: { body: c.col, glass: '#2a3a4a', roof: c.col } }));
-    if (P.chase) { const T = P.target, tc = road.centers(T.z)[0]; cars.push(road.mesh(SEDAN, T.z, tc + T.x, { scale: CK, yaw: T.damage >= 100 ? .3 : 0, colors: { body: T.damage > 60 ? '#6a2a2a' : '#c8202a', glass: '#1a1a22', roof: '#c8202a' } })); }
-    if (P.circuit) for (const v of P.rivals) if (v.z > camZ && v.z - camZ < 210 * SEG) cars.push(road.mesh(CAR, v.z, v.x, { scale: CK, colors: { body: v.col, shirt: v.suit, tail: '#a82020' } }));   // the pack
+    if (P.chase) { const T = P.target, tc = tcx(road, T); cars.push(road.mesh(SEDAN, T.z, tc + T.x, { scale: CK, yaw: T.damage >= 100 ? .3 : 0, colors: { body: T.damage > 60 ? '#6a2a2a' : '#c8202a', glass: '#1a1a22', roof: '#c8202a' } })); }
+    if (P.circuit && !P.qual) for (const v of P.rivals) if (v.z > camZ && v.z - camZ < 210 * SEG) cars.push(road.mesh(CAR, v.z, v.x, { scale: CK, colors: { body: v.col, shirt: v.suit, tail: '#a82020' } }));   // the pack
     if (P.rash) for (const v of P.rivals) if (v.z > camZ && v.z - camZ < 210 * SEG) {   // the riders: a punch leans one into it, a fall tumbles it
       const ro = { scale: CK, yaw: v.fall > 0 ? v.fall * 4 : 0, roll: (v.swing > 0 ? Math.sign(P.x - v.x) * .5 : 0) + (v.wob > 0 ? Math.sin(v.wob * 30) * .2 : 0), y: v.fall > 0 ? Math.abs(Math.sin(v.fall * 5)) * 300 * v.fall / 2.4 : 0 };
       cars.push(road.mesh(BIKE, v.z, v.x, Object.assign({ colors: { body: v.col } }, ro))); if (v.fall <= 1.2) cars.push(road.mesh(RIDER, v.z, v.x, Object.assign({ colors: { suit: v.suit, helm: v.col } }, ro)));
@@ -505,14 +520,14 @@ const ROAD = (() => {
       const touch = game.input.lastDevice === 'touch', txt = (s, x, y, c = '#ffffff', o2 = {}) => E.font.text(g, s, x, y, c, Object.assign({ shadow: '#100818', outline: false }, o2, { scale: (o2.scale || 1) * u })), lh = E.font.lineHeight({ scale: u }), right = (r.viewport ? W0 : cornerX()) - 4 * u;
       if (P.striker) { for (let i = 0; i < 5; i++) px.rect(g, W0 / 2 + (i * 10 - 24) * u, 6 * u, 8 * u, 6 * u, i < P.shield ? (P.hurt > 0 && Math.floor(t * 12) % 2 ? '#ffffff' : '#40e0ff') : '#2a2a3a'); txt(E.t('road.striker.kills', { n: P.kills }), W0 / 2, 16 * u, '#ffffff', { align: 'center' }); }
       else if (P.duel) { const Q = DUO[1 - P.n], d = Math.round((P.z - Q.z) / 380); txt(E.t('road.duel.you', { n: P.n + 1 }), W0 / 2, 4 * u, P.n ? '#80b0ff' : '#ff9090', { align: 'center' }); txt(E.t(d >= 0 ? 'road.duel.ahead' : 'road.duel.behind', { m: Math.abs(d) }), W0 / 2, 6 * u + lh, '#ffffff', { align: 'center' }); }
-      else if (P.circuit) { txt(E.t('road.lap.hud', { n: P.lap, of: P.laps }), W0 / 2, 4 * u, '#ffe890', { align: 'center' }); txt(P.lapT.toFixed(1), W0 / 2, 6 * u + lh, '#ffffff', { align: 'center', scale: 2 }); }   // the lap, its time
+      else if (P.circuit) { txt(P.qual ? E.t('road.qual') : E.t('road.lap.hud', { n: P.lap, of: P.laps }), W0 / 2, 4 * u, '#ffe890', { align: 'center' }); txt((P.qual ? P.qual.t : P.lapT).toFixed(1), W0 / 2, 6 * u + lh, '#ffffff', { align: 'center', scale: 2 }); }   // the lap, its time
       else if (!P.rash) { txt(E.t('road.time'), W0 / 2, 4 * u, '#ffe890', { align: 'center' }); txt(String(Math.ceil(P.clock)), W0 / 2, 6 * u + lh, P.clock < 10 && Math.floor(t * 4) % 2 ? '#ff6060' : '#ffffff', { align: 'center', scale: 2 }); }
       txt(E.t('road.score', { n: Math.round(P.score) }), 6 * u, 6 * u, '#ffffff'); txt(P.duel ? E.t('road.lap.hud', { n: P.lap, of: P.laps }) : E.t('road.stage.' + STAGES[L.i].id), 6 * u, 6 * u + lh, '#a8d8ff'); if (P.circuit && P.bestLap) txt(E.t('road.lap.best', { t: P.bestLap.toFixed(2) }), 6 * u, 6 * u + lh * 2, '#c8c8e0');
       txt(E.t('road.kmh', { n: Math.round(P.speed * KMH) }), right, 6 * u, '#ffffff', { align: 'right' });
       if (P.drift) { const y = 10 * u + lh * 3; txt(E.t('road.drift'), W0 / 2, y, P.charge > .6 ? '#ffe040' : '#ffffff', { align: 'center' }); px.rect(g, W0 / 2 - 30 * u, y + lh + 2 * u, Math.round(60 * u * Math.min(1, P.charge / 2)), 3 * u, P.charge > .6 ? '#ffe040' : '#a0a0b0'); }
       if (P.striker && !touch) txt(E.t('road.striker.fire', { key: game.input.label('nitro') }), right, 6 * u + lh, '#c8c8e0', { align: 'right' });
       if (!P.chase && !P.rash && !P.circuit && !P.striker) txt(touch ? E.t('road.rewinds.touch', { n: P.rewinds }) : E.t('road.rewinds', { n: P.rewinds, key: game.input.label('rewind') }), right, 6 * u + lh, P.rewinding ? '#80c8ff' : '#c8c8e0', { align: 'right' });
-      if (P.circuit) txt(E.t('road.rash.place', { n: P.place, of: P.rivals.length + (DUO ? DUO.length : 1) }), right, 6 * u + lh, P.place <= 3 ? '#80ffa0' : '#ffb0b0', { align: 'right' });
+      if (P.circuit && !P.qual) txt(E.t('road.rash.place', { n: P.place, of: P.rivals.length + (DUO ? DUO.length : 1) }), right, 6 * u + lh, P.place <= 3 ? '#80ffa0' : '#ffb0b0', { align: 'right' });
       if (P.rash) { txt(E.t('road.rash.place', { n: P.place, of: P.rivals.length + 1 }), right, 6 * u + lh, P.place <= 3 ? '#80ffa0' : '#ffb0b0', { align: 'right' }); const w = 60 * u, x = right - w, y = 8 * u + lh * 2; px.rect(g, x - u, y - u, w + 2 * u, 6 * u, '#100818'); px.rect(g, x, y, Math.round(w * P.hp / 6), 4 * u, P.hp <= 2 ? '#ff4040' : '#ffd040'); if (!touch) txt(E.t('road.rash.punch', { key: game.input.label('nitro') }), right, y + 8 * u, '#c8c8e0', { align: 'right' }); }
       if (P.chase) {
         const T = P.target, d = Math.max(0, Math.round((T.z - P.z) / 380)), w = 70 * u, x = right - w, y = 8 * u + lh * 2;
@@ -545,14 +560,14 @@ const ROAD = (() => {
       ride = 'car'; start('car'); game.advance(3); const z0 = P.z; auto = false; game.input.hold('rewind'); game.advance(2.5); out.rewind = { back: Math.round(z0 - P.z), left: P.rewinds }; game.input.hold('rewind', false); auto = true;   // (held past the oldest moment kept: one rewind of the three, waiting there until let go)
       ride = 'car'; start('car'); auto = false; const I = game.input; I.hold('gas'); game.advance(2.2); I.hold('brake'); I.hold('right'); game.advance(.9); const ch = P.charge; I.hold('brake', false); I.hold('right', false); game.advance(.05); out.drift = { charge: +ch.toFixed(2), boost: +P.boost.toFixed(2) }; I.hold('gas', false); auto = true;   // (a drift on the beach's first straight, let go into a boost)
       ride = 'bike'; start('bike'); for (n = 0; n < 80 && P.route.length < 2 && mode === 'drive'; n++) game.advance(1); out.bike = { forked: P.route.length > 1, seconds: n };
-      start('circuit'); for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1); out.circuit = { finished: !!P.over && P.z >= P.L.goal, lap: P.lap, best: +P.bestLap.toFixed(2), place: P.place, seconds: n };
+      start('circuit'); for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1); out.circuit = { finished: !!P.over && P.z >= P.L.goal, qual: +(P.qualT || 0).toFixed(2), slot: P.slot || 0, lap: P.lap, best: +P.bestLap.toFixed(2), place: P.place, seconds: n };
       start('rash'); for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1); out.rash = { finished: !!P.over && P.z >= P.L.end - SEG * 3, place: P.place, downs: P.downs, seconds: n };
       if (game.players.length < 2) game.addPlayer({ keys: 'right' }); start('duel'); const gas = q => q.map.gas.filter(c => !c.startsWith('Pad') && !c.startsWith('Act:')).join(), halves = [gas(game.input), gas(game.players[1])];   // (one keyboard: each half's gas key)
       for (n = 0; n < 240 && mode === 'drive'; n++) game.advance(1);
       out.duel = { viewports: game.viewports.length, finished: !!DUO && DUO.some(Q => Q.over && Q.over.won), laps: DUO ? DUO.map(Q => Q.lap) : [], pack: DUO ? DUO[0].rivals.length : 0, halves, seconds: n }; toMenu();
       start('striker'); out.solo = { players: game.players.length, gas: gas(game.input), confirm: game.input.map.confirm.includes('Enter') };   // (a solo mode: player 1 alone, the whole keyboard back)
       for (n = 0; n < 200 && mode === 'drive'; n++) game.advance(1); out.striker = { finished: !!(P.over && P.over.won), kills: P.kills, shield: P.shield, seconds: n };
-      start('chase'); for (n = 0; n < 200 && mode === 'drive'; n++) game.advance(1); out.chase = { arrested: !!(P.over && P.over.won), damage: Math.round(P.target.damage), seconds: n };
+      start('chase'); for (n = 0; n < 200 && mode === 'drive'; n++) game.advance(1); out.chase = { arrested: !!(P.over && P.over.won), damage: Math.round(P.target.damage), forks: P.forks || 0, seconds: n };
       game.go('road', { part: 'hd' }, { fade: 0 }); game.advance(.25); out.hd = { size: [game.W, game.H], coast: mode === 'drive' && !P.chase && !P.rash && !P.striker && !P.bike, hud: ui(game.W, game.H) };   // (#road/hd: the coast run at today's resolution, its HUD scaled)
       game.go('road', null, { fade: 0 }); game.advance(1 / 60);
       toMenu(); return Object.assign(out, { errors: game.errors.length });
@@ -567,7 +582,7 @@ const ROAD = (() => {
     update, draw, bot,
     /** a run driven by the autopilot (a demo; the bot's): 'car', 'bike', 'rash' or 'chase' */
     demo(what) { if (['chase', 'rash', 'duel', 'striker', 'circuit'].includes(what)) start(what); else { ride = what === 'bike' ? 'bike' : 'car'; start(ride); } auto = true; },
-    state: () => P && { mode, drift: P.drift || 0, charge: +(P.charge || 0).toFixed(2), boost: +(P.boost || 0).toFixed(2), striker: P.striker && { alt: Math.round(P.alt), shield: P.shield, kills: P.kills, foes: P.foes.length }, rash: P.rash, circuit: P.circuit && { lap: P.lap, lapT: +P.lapT.toFixed(2), best: +P.bestLap.toFixed(2) }, place: P.place, hp: P.hp, downs: P.downs, chase: P.chase, bike: P.bike, z: Math.round(P.z), x: +P.x.toFixed(3), speed: Math.round(P.speed), clock: +P.clock.toFixed(2), stage: STAGES[P.L.i].id, route: P.route.slice(), crash: P.crash > 0, rewinds: P.rewinds, rewinding: P.rewinding, target: P.target && { z: Math.round(P.target.z), damage: Math.round(P.target.damage) }, score: Math.round(P.score) },
+    state: () => P && { mode, drift: P.drift || 0, charge: +(P.charge || 0).toFixed(2), boost: +(P.boost || 0).toFixed(2), striker: P.striker && { alt: Math.round(P.alt), shield: P.shield, kills: P.kills, foes: P.foes.length }, rash: P.rash, circuit: P.circuit && { lap: P.lap, lapT: +P.lapT.toFixed(2), best: +P.bestLap.toFixed(2), qual: !!P.qual, slot: P.slot || 0 }, place: P.place, hp: P.hp, downs: P.downs, chase: P.chase, bike: P.bike, z: Math.round(P.z), x: +P.x.toFixed(3), speed: Math.round(P.speed), clock: +P.clock.toFixed(2), stage: STAGES[P.L.i].id, route: P.route.slice(), crash: P.crash > 0, rewinds: P.rewinds, rewinding: P.rewinding, target: P.target && { z: Math.round(P.target.z), damage: Math.round(P.target.damage) }, score: Math.round(P.score) },
     /** the proof: a coast run, the gas held, a weave left and right through the first bends, a brake */
     run: (n = 600) => proof('road', n, (i, k) => {
       if (i === 2) { ride = 'car'; start('car'); }
