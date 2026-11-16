@@ -934,6 +934,11 @@ function views(E, ed) {
     try { tg.start({ update() {}, draw(r) { polys = 0; tm.mesh(tower, 2000, 850, 0); tm.draw(r, { x: 2000, y: 2000, h: 250, angle: -Math.PI / 2, pitch: 17.9, fov: 64 }); } }); tg.advance(.02); } finally { E.px.poly = tfill; }
     tm.begin({ W: 320, H: 240 }, { x: 2000, y: 2000, h: 250, angle: -Math.PI / 2, pitch: 17.9, fov: 64 }); const foot = tm.project(2000, 850, 0), top = tm.project(2000, 850, 60);
     check(`${ed}: views: mode7: curve: a tall model whose foot is past a globe's edge still shows what stands above it, and the floor drawn after it whole (not at its fog)`, foot === null && !!top && polys > 0 && floorAlpha === 1, JSON.stringify({ foot, top: !!top, polys, floorAlpha }));
+    const lr = [], lg = new E.Game({ headless: true, draw: true, res: [320, 180] }), lm = new E.Mode7({ floor: () => [200, 180, 120], size: [256, 256], far: 300, sky: ['#123456', '#abcdef'] }), lrect = E.px.rect;   // (a camera low over a floor whose far edge falls short of the horizon: BLASTER's dunes)
+    E.px.rect = (g, x, y, w, h, c) => { if (c === '#abcdef') lr.push(w >= 320 && h >= 180); return lrect(g, x, y, w, h, c); };
+    try { for (const roll of [0, 10]) { let n = lr.length; lg.start({ update() {}, draw(r) { lm.draw(r, { x: 128, y: 128, h: 40, angle: 0, pitch: 7, fov: 70, roll }); } }); lg.advance(.05); lr.push(lr.slice(n).some(Boolean) ? 'whole' : 'none'); } } finally { E.px.rect = lrect; }
+    const lw = lr.filter(v => typeof v === 'string');
+    check(`${ed}: views: mode7: under the floor, the sky's lowest color: the rows between a short far edge and the horizon have no stale or empty band, the camera rolled or not`, lw.length === 2 && lw.every(v => v === 'whole'), lw.join());
     const nq = [], ng = new E.Game({ headless: true, draw: true, res: [320, 180] }), nm = new E.Mode7({ floor: () => [40, 90, 40], size: [256, 256] }), nfill = E.px.poly;   // (a camera riding a track: the stretch under it)
     E.px.poly = (g, pts, c) => { nq.push(c); return nfill(g, pts, c); };
     try { ng.start({ update() {}, draw(r) { nq.length = 0; nm.quad([[118, 330, 0], [138, 330, 0], [138, 200, 0], [118, 200, 0]], '#abcdef'); nm.draw(r, { x: 128, y: 230, h: 20, angle: -Math.PI / 2, pitch: 6, fov: 70 }); } }); ng.advance(.05); } finally { E.px.poly = nfill; }
