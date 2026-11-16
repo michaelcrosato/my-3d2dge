@@ -119,7 +119,7 @@ rewrite to add later.
 ## Checks
 
 Each thing the engine promises has a check. The checks run on every engine change, chosen by what changed:
-- the manual's examples run and fit its budget;
+- the manual's examples run, and its size is measured against its budget (a soft one since D98: past it, trimmed later);
 - the API boundary holds;
 - no banned APIs are used;
 - vendored versions and checksums match;
@@ -250,7 +250,7 @@ to copy for each genre, and the 3D engine for survival horror, and the package c
 
 ### The checks here
 
-- `node tools/doctrine-check.mjs`: assets, the manuals' budgets (the index's too), the API boundary, the logs that are never cleaned up (decisions and feedback), and the API index (current, every public name described, its lookups answered), and a builder's copy (the manuals a builder reads say the engine is theirs to change, D76). Quick, no
+- `node tools/doctrine-check.mjs`: assets, the manuals' and the kits' budgets, soft since D98 (counted and reported, never a failure; the index's too), the API boundary, the logs that are never cleaned up (decisions and feedback), and the API index (current, every public name described, its lookups answered), and a builder's copy (the manuals a builder reads say the engine is theirs to change, D76). Quick, no
   browser; `npm run test:changed` and `npm test` always run it, beside the version and syntax checks.
 - `node tools/determinism-test.mjs`: Emberdeep and a starter game, recorded twice under the harness, must match pixel for
   pixel. It runs when the engine, Emberdeep, the starters or the harness change.

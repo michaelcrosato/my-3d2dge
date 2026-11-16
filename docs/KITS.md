@@ -88,7 +88,8 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   films each kit beside a build from before.
 - A core addition that not every game calls goes in a section of its own (a `/* ====` banner) with a line in `DIET`; a
   part that only some kits reach goes in one too, even inside another (21g, the solid shapes, out of 21e's shapes).
-- **Budgets** (`doctrine-check` counts them): a 2D kit 216,000 cl100k tokens (D83), ten of their own (`KIT2D`: RPG,
+- **Budgets**, soft since D98 (`doctrine-check` counts and reports them; past one is a note, never a failure, trimmed
+  later, not a reason to hold back a feature): a 2D kit 216,000 cl100k tokens (D83), ten of their own (`KIT2D`: RPG,
   SHOOTER, ADVENTURE, SIM, RTS and BRAWLER, D69; ZERO, D92; SPECIAL, D93; KART, D94; BLASTER, D95; SPECIAL raised, D96; ZERO raised, D97); each 3D kit its own (D51, D61, D64, D70); the API card 21,000 (D59), the index
   60,000 (D57), the 3D engine's manual 8,000 (D60), a module's manual 1,500 (or its line), the agent header 10,000.
 - **What every 2D kit carries for its title:** the shell's title draws six HD heroes on a platform map's ledge before a
@@ -129,8 +130,9 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   lateral grip. A system agents may know under another engine's name (Phaser's tweens, Unity's coroutines, Godot's
   `AStarGrid2D`) says so in its manual.
 - **Budgets reported** in every pull request: the API card, the index, each manual it touched, each kit's tokens, and the
-  size of a deployment (each kit adds a few hundred KB; D49 keeps the bill down). A raise is a decision.
-- **Decisions** (a budget raised, a deviation) go in `docs/DECISIONS.md`, in a commit of their own, flagged in the pull
+  size of a deployment (each kit adds a few hundred KB; D49 keeps the bill down). Past a budget needs no raise (D98): say
+  so in the pull request, and trim later.
+- **Decisions** (a deviation) go in `docs/DECISIONS.md`, in a commit of their own, flagged in the pull
   request.
 
 ## Traps
@@ -145,7 +147,7 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   per module and write it in its manual.
 - **Per-pixel loops** (Mode 7, the road, fog, terrain): measure them on the phone test's emulated phone, at the PS1
   resolution.
-- **The manuals.** Out of room: move detail to the index first, then ask for a budget with a decision.
+- **The manuals.** Past its soft budget: write what the work needs now (D98); move detail to the index when trimming later.
 - **Timing checks on a slow machine.** The phone suite's timing checks fail in a slow container, `main` alike: run one on
   `main` in the same container before reading it as a change's, and run browser work beside `npm test` only when its
   timing checks don't matter. A check that excuses the machine's hiccups one cause at a time fails on the next cause:
