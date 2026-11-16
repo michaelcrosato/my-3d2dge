@@ -2154,7 +2154,7 @@ const SHOOT = (() => {
   return {
     view: 'iso', input: KEYS, pausable: true, touch: TOUCH,
     enter() {
-      game.settings.define(VIEW); reset(1); active = world; A.music(null); tallWas = null; touchLayout();
+      if (!game.settings.spec(VIEW.key)) game.settings.define(VIEW); reset(1); active = world; A.music(null); tallWas = null; touchLayout();
       helpOn = true; viewSet = null; ds = E.DualSense ? E.DualSense.attach(game, { gyro: true, triggers: true, light: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0;
     },
     exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene: the triggers free)

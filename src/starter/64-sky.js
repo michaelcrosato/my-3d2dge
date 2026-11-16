@@ -628,7 +628,7 @@ const SKY = (() => {
     } finally { Math.random = was; pilot = null; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['gas', 'slow', 'act'], camera: { zoom: false },
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['act', 'gas', 'slow'], camera: { zoom: false },
     enter(d) {
       game.allowJoin(false); while (game.players.length > 1) game.removePlayer(game.players.length);   // (flown alone: those who joined another game let go, the whole keyboard player 1's again)
       mode = 'menu'; S = null; ev = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); if (d && d.part) start(EVENTS.includes(d.part) ? d.part : 'plane'); },

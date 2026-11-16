@@ -720,7 +720,7 @@ const BLASTER = (() => {
     } finally { Math.random = was; auto = false; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['fire', 'missile', 'roll'], camera: { zoom: false },
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['missile', 'fire', 'roll'], camera: { zoom: false },
     enter(d) { mode = 'menu'; R = null; menu.i = 0; auto = false; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, gyro: true, speaker: true }) : null; dsKey = ''; if (d && d.part) begin(Math.max(0, STAGES.indexOf(d.part)), true); },
     exit() { if (ds) ds.clear(); dsKey = ''; },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'results') { toMenu(); return true; } return false; },

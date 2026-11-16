@@ -842,7 +842,7 @@ const SHOOT = (() => {
       if (s.warn > 0) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 70, W2, 50, '#2a0406')); E.font.title(g, E.t('shooter.warning'), mid0, 80, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(s.warn * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); }
       if (s.won && s.t - s.won > 2 && !ending) { win(Math.round(mid0) - 108, 64, 216, 52, BLUE); E.font.title(g, E.t('shooter.clear'), mid0, 70, { align: 'center', scale: 3 }); txt(g, E.t('shooter.clear.score', { score: pad(s.score) }), mid0, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
     }
-    const scene = { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [320, 240], expand: true, pausable: true, touch: ['fire', 'bomb'], propSize: 1, camera: { zoom: false },
+    const scene = { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [320, 240], expand: true, pausable: true, touch: ['bomb', 'fire'], propSize: 1, camera: { zoom: false },
       enter(d) { begin(d); w = game.W; h = game.H; game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music(CAVERN); L.enabled = false; if (gpu) gpu.enabled = false; dsOn(); game.input.steer = 'drag'; },
       exit() { game.cam.smooth = .18; held(false); dsOff(); game.input.steer = 'stick'; game.input.touchSet('bomb', null); game.input.touchSet('fire', null); }, update, draw,
       state: () => ({ x: Math.round(s.x), ship: [Math.round(s.ship.x - s.x), Math.round(s.ship.y)], score: s.score, lives: s.lives, power: [s.speed, s.missile, s.weapon, s.options, s.shield, s.cursor], boss: !!foes.find(f => f.kind === 'core'), won: !!s.won, ending, table: cab.table() }),
@@ -864,7 +864,7 @@ const SHOOT = (() => {
   })();
   scenes['shooter-horizontal'] = HS;
 
-  return { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [240, 320], pausable: true, touch: ['fire', 'bomb'], propSize: 1,
+  return { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [240, 320], pausable: true, touch: ['bomb', 'fire'], propSize: 1,
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
       if (d && d.part === 'horizontal') { game.go('shooter-horizontal', null, { fade: 0 }); return; }   // #shooter/horizontal

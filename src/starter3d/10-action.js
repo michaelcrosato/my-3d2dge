@@ -388,7 +388,7 @@ const ACTION = (() => {
   }
 
   return {
-    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: KEYS, pausable: true, touch: ['attack', 'dash', 'jump', 'skill', 'lock'], camera: { zoom: [.6, 2], tall: 1.6 },
+    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: KEYS, pausable: true, touch: ['lock', 'attack', 'dash', 'jump', 'skill'], camera: { zoom: [.6, 2], tall: 1.6 },
     enter() { reset(1); active = world; A.music('dungeon'); world.camera.set('view'); ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0; },
     exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
     update(dt) {

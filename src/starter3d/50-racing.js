@@ -27,7 +27,7 @@ const RACING = (() => {
   // still gas and brake; the touch stick held down brakes and backs up)
   const KEYS = Object.assign({}, W3.INPUT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad7', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad6', 'Pad2', 'Act:down'], drift: ['Space', 'ShiftLeft', 'ShiftRight', 'Pad5'], item: ['KeyE', 'KeyJ', 'Pad4', 'Pad1'] });
   for (const k of ['attack', 'dash', 'skill', 'jump', 'lock']) delete KEYS[k];
-  const TOUCH = ['drift', 'item', 'gas'];
+  const TOUCH = ['item', 'drift', 'gas'];   // (ITEM, which comes and goes, first in the row: its coming and going moves no other button)
   // a DualSense's extras (the dualsense module: player 1's pad, the one it addresses): the light bar and the triggers, told
   // only when they change; nothing at all without one
   let ds = null, dsWas = '';

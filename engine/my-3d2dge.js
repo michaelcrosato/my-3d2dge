@@ -1019,7 +1019,9 @@ class Input {
   }
   /** one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether
    *  it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null,
-   *  near || talking) */
+   *  near || talking). In the row layout the others close up round a hidden one, so a button that comes and goes in play
+   *  goes first in the row (the far end from the corner), where its coming and going moves no other under a thumb; one
+   *  a thumb holds while another must not move (AIM and FIRE) stays shown and is relabelled instead */
   touchSet(a, label = null, show = true) {
     const t = this._touchSet || (this._touchSet = {}); t[a] = { label, show: !!show };
     const b = this._touchBtns && this._touchBtns[a]; if (b && b.isConnected) this._touchLook(b, a);
@@ -3702,7 +3704,7 @@ class Settings {
     if (sp.key in Settings.prototype || sp.key === 'saved' || sp.key === 'onChange' || sp.key[0] === '_') { warn('setting:' + sp.key, 'a setting cannot be called "' + sp.key + '" (a name the settings object uses)'); return undefined; }
     const s = Object.assign({ group: 'Game', type: sp.options ? 'select' : typeof sp.value === 'number' ? 'slider' : typeof sp.value === 'boolean' || sp.value === undefined ? 'toggle' : 'value' }, sp);
     this._specs[s.key] = s;
-    const saved = settingValue(s, this._raw[s.key]);
+    const saved = settingValue(s, s.key in this._saved ? this._saved[s.key] : this._raw[s.key]);   // (defined again, as a scene's enter does: the player's choice this session, not the one the page loaded with)
     if (saved !== undefined) this._saved[s.key] = saved;
     this[s.key] = saved !== undefined ? saved : this.default(s.key);
     this._apply(s.key);
@@ -3725,7 +3727,7 @@ class Settings {
   }
   /** put a group's settings (or all of them) back to their defaults; a game's saves are not touched */
   reset(group) {
-    for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; this[k] = this.default(k); this._apply(k); if (this.onChange) this.onChange(k, this[k]); }
+    for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; delete this._raw[k]; this[k] = this.default(k); this._apply(k); if (this.onChange) this.onChange(k, this[k]); }
     this._save();
   }
   _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g.fail('setting "' + key + '"', e); } }

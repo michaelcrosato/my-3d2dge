@@ -250,7 +250,7 @@ const PLAT = (() => {
     return world.hash([S.coins, S.hearts, S.stars]);
   }
   return {
-    view: 'threequarter', views: ['threequarter', 'iso', 'brawler', 'topdown'], input: KEYS, pausable: true, touch: ['jump', 'dash'], camera: { zoom: [.6, 2], tall: 1.6 },
+    view: 'threequarter', views: ['threequarter', 'iso', 'brawler', 'topdown'], input: KEYS, pausable: true, touch: ['dash', 'jump'], camera: { zoom: [.6, 2], tall: 1.6 },
     enter() { reset(1); active = world; A.music('adventure'); world.camera.set('chase'); hint = true; signOff = false; ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; flashT = 0; },
     exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
     update(dt) {

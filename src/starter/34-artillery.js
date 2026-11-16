@@ -422,7 +422,7 @@ const ARTILLERY = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'artillery', views: ['artillery'], res: 'ps1', pausable: true, touch: ['jump', 'weapon'], camera: { zoom: false }, input: KEYS,
+  return { view: 'artillery', views: ['artillery'], res: 'ps1', pausable: true, touch: ['weapon', 'jump'], camera: { zoom: false }, input: KEYS,
     enter: start, update, draw, bot: botRun,
     exit() { game.input.steer = 'stick'; game.cam.bounds = null; game.cam.align = null; A.music(null); if (ds) ds.clear(); },
     back() { if (mode === 'menu') return false; start(); return true; },

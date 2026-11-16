@@ -656,7 +656,7 @@ const ROAD = (() => {
     } finally { Math.random = was; auto = false; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['brake', 'rewind', 'nitro', 'gas'], camera: { zoom: false },
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['nitro', 'rewind', 'brake', 'gas'], camera: { zoom: false },
     exit() { game.splitScreen(0); players(true); dsOff(); },   // (the joined leave with the scene: the next has the whole keyboard; the DualSense clean)
     enter(d) { mode = 'menu'; P = null; DUO = null; auto = false; menu.i = 0; game.allowJoin({ max: 2 }); game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); game.screen.setOptions({ res: d && d.part === 'hd' ? [960, 540] : 'ps1' });   // (#road/hd: the coast run at today's resolution, Horizon Chase's and Slipstream's)
       if (d && d.part) { if (d.part === 'duel') duel(); else if (['chase', 'rash', 'striker', 'circuit', 'cotton'].includes(d.part)) start(d.part); else { ride = d.part === 'bike' ? 'bike' : 'car'; start(ride); } } },

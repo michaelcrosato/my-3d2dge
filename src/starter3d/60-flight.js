@@ -229,7 +229,7 @@ const FLIGHT = (() => {
     if (Math.hypot(m[0], m[1]) > .1 || I.lastDevice === 'gamepad' || I.lastDevice === 'touch') mouseFly = false; else if (I.mouse.t !== mouseT && I.mouse.active && mouseT >= 0) mouseFly = true;
     mouseT = I.mouse.t;
     const p = mouseFly && I.pointer();
-    if (p) { const dz = v => Math.abs(v) < .06 ? 0 : v; m[0] = clamp(dz((p[0] - W / 2) / (W * .3)), -1, 1); m[1] = clamp(dz((p[1] - H / 2) / (H * .3)), -1, 1); }
+    if (p) { const dz = v => Math.abs(v) < .06 ? 0 : v; m[0] = clamp(dz((p[0] - W / 2) / (W * .3)), -1, 1); m[1] = clamp(dz((p[1] - H / 2) / (H * .3)), -1, 1) * (ship.o.invert ? -1 : 1); }   // (toward the pointer with Invert flight on too: the flyer's invert undone)
     // gyro aim (a DualSense's turn and tilt) on top of the stick
     if (ds && dt > 0) { const g = ds.gyroAim(dt); m[0] = clamp(m[0] + g[0] / dt / 160, -1, 1); m[1] = clamp(m[1] + g[1] / dt / 160, -1, 1); }   // (a step of no time: none)
     ctl.steer[0] = m[0]; ctl.steer[1] = m[1]; ctl.assist = I.assist;

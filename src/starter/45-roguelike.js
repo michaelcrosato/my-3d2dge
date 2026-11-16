@@ -343,7 +343,7 @@ const ROGUE = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: ['wait', 'potion', 'scroll', 'stairs'],
+  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: ['stairs', 'potion', 'scroll', 'wait'],
     camera: { zoom: [.75, 2], start: 1, tall: 1.25 }, update, draw, bot,
     enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hover = { mt: game.input.mouse.t, cell: null, key: '', path: [] }; start(data); },
     exit() { L.enabled = false; game.cam.bounds = null; if (ds) ds.clear(); },

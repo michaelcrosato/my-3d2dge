@@ -12,9 +12,9 @@
  * DUALSENSE: the light bar is the lantern (warm; a red pulse while one of the party is low or down); the lever and the
  * gates from its speaker; any pad rumbles on a hurt, the Warden's sweep, the darts, a gate grinding up, a bump into a
  * wall and the Warden's fall. TOUCH: the stick steps and turns, a swipe on the view steps (up, down) and turns (left,
- * right), a tap on the view or a portrait acts; MAP, HEAL (with someone hurt), BOLT (with the magic for it), ACT (PULL at
- * a lever, UNLOCK at the locked gate, FIGHT with a foe in front); the touch assists (Settings, on at first) have the
- * front rank strike by itself at a foe in front, in real time. A swipe also closes the map and takes a message away.
+ * right), a tap on the view or a portrait acts; MAP, HEAL, BOLT, ACT (PULL at a lever, UNLOCK at the locked gate,
+ * FIGHT with a foe in front); the touch assists (Settings, on at first) have the front rank strike by itself at a foe
+ * in front, in real time. A swipe also closes the map and takes a message away.
  * Gates that rise (one with an iron lock), a lever on a wall, plates in the floor (one raises a gate, one springs darts);
  * wisps, slimes, the dead of the vaults and the Warden at the bottom; the stair out behind it. Settings, Turns: REAL TIME
  * (each one's gauge fills on game time, E.Turns 'atb': Dungeon Master, Eye of the Beholder) or TURNS (the vaults wait:
@@ -391,7 +391,7 @@ const CRAWLER = (() => {
     if (dead && !ended) { ended = 2; if (!scripted) game.after(1.5, () => game.go('over', { from: 'crawler', world, lines: E.t('crawler3d.over.lost').split('\n') })); }   // (one sentence, a row a line)
     world.step(dt);
   }
-  /** the controls when the party may act: the stick or keys to step and turn, Q and E aside, J, K, H, 1 to 4 */
+  /** the controls when the party may act: the stick or keys to step and turn (Q and E turn), A and D (L1, R1) aside, J, K, H, 1 to 4 (L2, R2 on a pad) */
   function control(c) {
     const mv = c.move, turnsMode = mode === 'turns';
     let did = false;
@@ -615,12 +615,10 @@ const CRAWLER = (() => {
       if ((S.cx !== wasX || S.cy !== wasY) && S.cx === 17 && S.cy === 5 && hintT < 0) hintT = 6;   // (the controls again at the Warden's door)
       const want = foes.some(e => e.type === 'warden' && e.awake && e.hp > 0) ? FIGHT : VAULT;
       if (want !== song && !ended) { song = want; A.music(want); }
-      // the touch buttons where they act: ACT named for what it does in front (PULL, UNLOCK, FIGHT), HEAL with someone hurt
-      // and the magic for it, BOLT with the magic for it
+      // ACT named for what it does in front (PULL, UNLOCK, FIGHT); MAP, HEAL and BOLT stay in their places (one that came
+      // and went would slide another under the thumb: a heal or the map in a fight)
       const fx = S.cx + DX[S.dir], fy = S.cy + DY[S.dir], g = gateAt(fx, fy), what = levers.some(l => l.cx === S.cx && l.cy === S.cy && l.dir === S.dir) ? 'pull' : g && !g.up && g.t.locked ? 'unlock' : ahead() ? 'fight' : null;
       inp.touchSet('act', what ? E.t('crawler3d.touch.' + what) : null, true);
-      inp.touchSet('heal', null, party[2].hp > 0 && party[2].mp >= HEAL_MP && alive().some(m => m.hp < m.max));
-      inp.touchSet('spell', null, party[3].hp > 0 && party[3].mp >= BOLT_MP);
     },
     draw(r) {
       world.draw(r);
