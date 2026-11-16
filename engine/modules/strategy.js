@@ -20,10 +20,13 @@ Park, RollerCoaster Tycoon). It keeps the rules; the game draws (units are plain
   gather a resource, else move (a right click).
 - rts.train(building, kind) (paid now, made after its time, sent to building.rally), rts.cancel(building),
   rts.afford(side, cost); rts.canPlace(kind, cx, cy) (free, walkable, seen); rts.ghost(r, kind, cx, cy) draws it.
-- Selection, rts.input({ order: 'order' }) each step: a click or tap picks the player's unit under it (r.pick: draw them
-  with { pick: u }) or none; input.box() selects the units inside; Shift adds; a double tap selects that kind on screen;
-  Ctrl+1..9 keeps a group, 1..9 calls it; the order action (Mouse2) or a tap with a selection on ground, a foe or a
-  resource gives rts.smart. rts.selected; rts.draw(r) after the world: rings, health bars, the box.
+- Selection, rts.input({ order: 'order', kind: 'kind' }) each step: a click or tap picks the player's unit under it (r.pick:
+  draw them with { pick: u }) or none; input.box() selects the units inside; Shift adds; a double tap, or the kind action
+  (a pad's), selects that kind on screen; Ctrl+1..9 keeps a group, 1..9 calls it; the order action (Mouse2) or a tap with
+  a selection on ground, a foe or a resource gives rts.smart. A pad plays it by the engine's cursor (a scene's cursor:
+  true): ✕ clicks, held and moved draws the box, twice is the double tap. rts.selected; rts.hover (the unit under the
+  mouse or the cursor); rts.draw(r) after the world: rings (a dashed one under rts.hover), health bars, the box. Touch
+  assists (input.assist): a tap within 16 pixels of a unit is on it.
 - rts.fog (E.Fog: the player's sight; walls block it), rts.visible(u); rts.minimap() is E.Shell's hud({ minimap }) (the
   fog, the camera's view, dots; a click moves the camera there).
 - rts.ai(side, { build: [['worker', 5], ['barracks'], ['soldier', 6]], waves: { first: 90, every: 75, min: 4 }, script })
@@ -78,6 +81,8 @@ class Strategy {
     this.units = [];
     /** the player's selection */
     this.selected = [];
+    /** the unit under the pointer (a mouse's or a pad's cursor, not a finger's), or null: draw() rings it, dashed */
+    this.hover = null;
     /** control groups: groups[1..9], kept with Ctrl and a digit */
     this.groups = {};
     /** its events: { attack, death, made, built, gathered, ordered } */
@@ -304,17 +309,23 @@ class Strategy {
       markers: () => this.units.filter(u => this.visible(u)).map(u => ({ x: u.x, y: u.y, kind: u.building ? 'diamond' : 'dot', size: u.building ? 3 : 1.6, color: u.resource ? '#ffd860' : colors[u.side] || (u.side === this.player ? '#60c0ff' : '#ff5a4a') })) };
   }
   /** the player's pointer and keys, each step (see the manual): selection, groups, orders. o.order: the action that orders
-   *  (Mouse2 by default where it is bound); o.at(sx, sy) -> the world point under a screen point (map.pick's, by default) */
+   *  (Mouse2 by default where it is bound); o.kind: the action that takes every one of the kind under the pointer on the
+   *  screen ('kind' where it is bound: a pad's double click); o.at(sx, sy) -> the world point under a screen point
+   *  (map.pick's, by default) */
   input(o = {}) {
     const G = this.game, I = G.input, r = G.r, sh = I.held.has('ShiftLeft') || I.held.has('ShiftRight'), ctrl = I.held.has('ControlLeft') || I.held.has('ControlRight') || I.held.has('MetaLeft');
     const cam = { view: G.view, ix: Math.floor(G.cam.x), iy: Math.floor(G.cam.y) }, at = o.at || ((sx, sy) => { const h = this.map.pick(sx, sy, cam); return h ? [h.x, h.y] : G.view.toGround(sx + cam.ix, sy + cam.iy); });   // (the camera as drawn: headless too)
     const mine = u => u.side === this.player && !u.resource, onScreen = u => { const q = this._screen(u); return q[0] >= 0 && q[1] >= 0 && q[0] < G.screen.W && q[1] < G.screen.H; };
-    const under = p => { const hit = r ? r.pick(p[0], p[1]).filter(u => u && u.K && !u.dead && this.visible(u)) : []; return hit[0] || this.units.filter(u => !u.dead && this.visible(u)).map(u => [u, hyp(...this._screen(u).map((v, i) => v - p[i]))]).filter(e => e[1] < 10).sort((a, b) => a[1] - b[1]).map(e => e[0])[0] || null; };
-    const b = I.box();
+    const near = I.assist ? 16 : 10;   // (a touch assist: a tap a little off a small unit is on it)
+    const under = p => { const hit = r ? r.pick(p[0], p[1]).filter(u => u && u.K && !u.dead && this.visible(u)) : []; return hit[0] || this.units.filter(u => !u.dead && this.visible(u)).map(u => [u, hyp(...this._screen(u).map((v, i) => v - p[i]))]).filter(e => e[1] < near).sort((a, b) => a[1] - b[1]).map(e => e[0])[0] || null; };
+    const kindOf = p => { const u = p && under(p); if (u && mine(u)) this.selected = this.units.filter(v => mine(v) && v.kind === u.kind && onScreen(v)); };
+    const b = I.box(), pt = I.pointer();
+    this.hover = pt && I.lastDevice !== 'touch' ? under(pt) : null;
     if (b && b.done) { const inside = this.units.filter(u => mine(u) && !u.building && (q => q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.y0 && q[1] <= b.y1)(this._screen(u))); this.selected = sh ? [...new Set([...this.selected, ...inside])] : inside; }
     this._box = b && !b.done ? b : null;
-    const d2 = I.doubleTap(), c = I.clicked(), ord = o.order === undefined ? 'order' : o.order;
-    if (d2) { const u = under(d2); if (u && mine(u)) this.selected = this.units.filter(v => mine(v) && v.kind === u.kind && onScreen(v)); }
+    const d2 = I.doubleTap(), c = I.clicked(), ord = o.order === undefined ? 'order' : o.order, kd = o.kind === undefined ? 'kind' : o.kind;
+    if (kd && I.map[kd] && I.pressed(kd)) kindOf(pt);
+    if (d2) kindOf(d2);
     else if (c && !(b && b.done)) {
       const u = under(c);
       if (u && mine(u)) this.selected = sh ? (this.selected.includes(u) ? this.selected.filter(s => s !== u) : [...this.selected, u]) : [u];
@@ -329,12 +340,14 @@ class Strategy {
   }
   // a unit's foot on the screen (the HUD's pixels)
   _screen(u) { const G = this.game, q = G.view.p(u.x, u.y, u.z || 0); return [q[0] - Math.floor(G.cam.x), q[1] - Math.floor(G.cam.y)]; }
-  /** after the world: a ring under each selected unit, health bars over the selected and the hurt, the box being drawn */
+  /** after the world: a ring under each selected unit (a dashed one under the hovered: green the player's, red a foe's,
+   *  gold a resource's), health bars over the selected and the hurt, the box being drawn */
   draw(r) {
-    for (const u of this.selected) {
-      const R = (u.building ? u.r * 1.2 : u.r + 2), col = u.side === this.player ? '#60ff90' : '#ff6060', pts = [];
+    const hv = this.hover && !this.hover.dead && !this.selected.includes(this.hover) ? this.hover : null;
+    for (const u of hv ? [...this.selected, hv] : this.selected) {
+      const R = (u.building || u.resource ? u.r * 1.2 : u.r + 2), col = u.resource ? '#ffd860' : u.side === this.player ? '#60ff90' : '#ff6060', pts = [], faint = u === hv;
       for (let i = 0; i <= 16; i++) { const a = i / 16 * Math.PI * 2; pts.push([u.x + Math.cos(a) * R, u.y + Math.sin(a) * R]); }
-      r.decal(g => { for (let i = 0; i < 16; i++) { const [a, b] = r.w(pts[i][0], pts[i][1], 0), [c, d] = r.w(pts[i + 1][0], pts[i + 1][1], 0); px.line(g, a, b, c, d, col); } });
+      r.decal(g => { for (let i = 0; i < 16; i += faint ? 2 : 1) { const [a, b] = r.w(pts[i][0], pts[i][1], 0), [c, d] = r.w(pts[i + 1][0], pts[i + 1][1], 0); px.line(g, a, b, c, d, col); } });   // (the hovered: every other piece, a dashed ring)
     }
     r.overlay(g => {
       for (const u of this.units) {
