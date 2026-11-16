@@ -953,10 +953,10 @@ function views(E, ed) {
   }
   // the road
   const road = new E.Road({ segment: 200 }); road.add(30).add(60, { curve: 4, hill: 3000 }).add(30, { tunnel: true });
-  road.place(1000, -1.5, { w: 400, draw() {} }); road.place(1000, 1.5, { w: 400, draw() {} });
+  road.place(1000, -1.5, { w: 400, draw() {} }); road.place(1000, 1.5, { w: 400, draw() {} }); road.place(2000, 0, { w: 4800, pass: true, draw() {} });   // (a gate over the road: ROAD's arches)
   const L = 200, jumps = []; for (let k = 1; k < road.segs.length; k++) jumps.push(Math.abs(road.yAt(k * L - 1e-6) - road.yAt(k * L)));
   check(`${ed}: views: road: its lap; distance wraps; a curve eases in to its strength and out; a hill climbs smoothly to its height`, road.length === 120 * L && road.seg(-1) === road.segs[119] && road.seg(road.length + 5) === road.segs[0] && road.curveAt(30 * L) === 0 && road.curveAt(60 * L) === 4 && road.curveAt(89 * L) < 1 && Math.abs(road.segs[89].y1 - 3000) < 1e-9 && Math.max(...jumps) < 1e-3, [road.curveAt(30 * L), road.curveAt(60 * L), road.curveAt(89 * L).toFixed(2), Math.max(...jumps).toFixed(5)].join());
-  check(`${ed}: views: road: a body touches the scenery beside it, not across the road; nothing is projected before a draw`, road.hits(1100, -1.4, .1).length === 1 && road.hits(1100, 0, .1).length === 0 && road.hits(3000, -1.4, .1).length === 0 && road.project(1000, 0) === null && road.ahead(1000) === 1000 * road.depth && road.segs[95].tunnel);
+  check(`${ed}: views: road: a body touches the scenery beside it, not across the road, nor a gate over it (pass); nothing is projected before a draw`, road.hits(1100, -1.4, .1).length === 1 && road.hits(1100, 0, .1).length === 0 && road.hits(2100, 0, .1).length === 0 && road.hits(2100, 1.1, .1).length === 0 && road.hits(3000, -1.4, .1).length === 0 && road.project(1000, 0) === null && road.ahead(1000) === 1000 * road.depth && road.segs[95].tunnel);
   // forks (the ROAD kit): a split eases one road into two, a branch bends away; a model on the road
   const fk = new E.Road({ segment: 200 }); fk.add(20).add(40, { split: 2 }).add(30, { branch: 4 });
   const c0 = fk.centers(10 * 200), c1 = fk.centers(21 * 200), c2 = fk.centers(59 * 200), b0 = fk.centers(60 * 200), b1 = fk.centers(89 * 200);

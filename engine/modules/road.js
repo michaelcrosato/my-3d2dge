@@ -17,7 +17,7 @@ and road drawn smaller with its distance, bending and rising, and what stands be
   (curves eased in and out); road.centers(z): the roads' middles there, in half roads (one road: [0]; a split: two);
   road.place(z, offset, what, scale): scenery at distance z, offset across (-1 and 1: the road's edges; beyond:
   roadside); what: an E.sprite or E.anim (scale: world units a pixel, 8) or { draw(g, sx, sy, scale), w: its width in
-  units }. road.length: the lap (it loops).
+  units, pass: true (a gate over the road: drawn, never hit) }. road.length: the lap (it loops).
 - Each frame: road.draw(r, { z (the camera's distance along), x (across, in half roads), h (its height over the road),
   turn (the sky's offset: add curve * speed each step), cars: [{ z, x, w, draw(g, sx, sy, scale) }] }) as an overlay
   over the frame (in a split screen, in r.viewport). A hill's crest hides what lies past it. The player's car, drawn
@@ -95,7 +95,7 @@ class Road {
   /** the road's height at a distance */
   yAt(z) { const L = this.o.segment, s = this.seg(z), u = ((z % L) + L) % L / L; return s.y0 + (s.y1 - s.y0) * u; }
   /** the scenery a body w half roads wide at (z, x) touches */
-  hits(z, x, w) { const W = this.o.width; return this.seg(z).things.filter(t => Math.abs(t.offset - x) * W < t.w / 2 + w * W); }
+  hits(z, x, w) { const W = this.o.width; return this.seg(z).things.filter(t => !t.what.pass && Math.abs(t.offset - x) * W < t.w / 2 + w * W); }
   /** how far past the camera the player's car stands when drawn at the screen's bottom, for a camera h over the road;
    *  square, that depends on the screen's shape: give r (draw's), and draw the camera that far behind the car (keep the
    *  car's own place along the road as it was: the game plays the same on any screen) */
