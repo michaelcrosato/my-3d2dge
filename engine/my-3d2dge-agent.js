@@ -848,6 +848,13 @@ class Input {
     if (!c.out && this.clock - c.t >= .25) c.out = true;
     return c.out;
   }
+  // the move keys or stick as a prompt names them ('WASD', '↑↓←→', 'L stick', 'STICK'): {key:move} in a line
+  moveLabel(device = this.lastDevice) {
+    if (device === 'gamepad') return 'L stick';
+    if (device === 'touch') return 'STICK';
+    const k = ['up', 'left', 'down', 'right'].map(a => (this.map[a] || []).filter(c => !c.startsWith('Pad') && !c.startsWith('Act:')));
+    return k.every((c, i) => c.includes('Key' + 'WASD'[i])) ? 'WASD' : '↑↓←→';
+  }
   // a quick one-finger flick on the canvas ({ dir: 'left' | 'right' | 'up' | 'down', x, y } in the step after it, else null; take:
   // true uses it up): swipe away what is temporary (E.Dialog skips, E.Menu cancels on a sideways one)
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
