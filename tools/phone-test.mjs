@@ -1082,6 +1082,8 @@ if (want('pointclick')) {
     check(`pointclick ${label}: a long press looks`, /Salty Gull/.test(s6.line || ''), `the line: "${s6.line}"`);
     for (let i = 0; i < 10 && (await st()).line; i++) await tapGame(...await room(60, 150));
     // a tap on Finn, TALK, his question tapped to, the last choice (goodbye) by a tap on it
+    // (upright the room is drawn at 2x and scrolls with Pip: walk toward Finn until he is on the screen)
+    for (let i = 0; i < 4; i++) { const f = await spot('finn'), W = await ev(page, () => window.__game.game.W); if (f && f[0] > 8 && f[0] < W - 8) break; await tapGame(...await room(...await ev(page, () => [Math.min(window.__game.scenes.pointclick.state().pc.hero.x + 70, 215), 150]))); await idle(); }
     await tapGame(...await spot('finn')); const s7 = await st(); await tapBox(s7.boxes.find(b => b.id === 'coin:talk'));
     for (let i = 0; i < 40 && !(await st()).asking; i++) await wait(150);
     const asked = (await st()).asking, last = await ev(page, () => { const D = window.__game.scenes.pointclick.state().story.talk; return D.choiceAt(D.choices.length - 1); });
