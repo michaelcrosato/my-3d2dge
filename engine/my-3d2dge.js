@@ -785,6 +785,10 @@ class Input {
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     /** clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked()) */
     this._clickAt = null; this._click = null; this._down = null;
+    // the presses down on the canvas (_press: { dev, the layout's device as they began; ids, the pointers down; out, the
+    // steps since the last lifted }: layoutDevice); when the game last read a steer (move(), drag()); a flick of the stick's
+    // finger for the engine's menus and dialogs (_flick)
+    this._press = null; this._steerAt = -1e9; this._gStick = this._stickAt = null;
     /** stick: the touch stick's direction [x, y], length <= 1; stickOn: a finger is on it; padMove: the gamepad's
      *  left stick after the dead zone; padAim: its right stick, or null when centered; padPrev: which gamepad buttons
      *  were down at the last step; aimSource: what aims right now: 'move' | 'mouse' | 'pad' */
@@ -868,6 +872,7 @@ class Input {
     // left click fires; either let go first, the other stays held and this one lets go. A press counts on the canvas
     on(window, 'pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } });
     on(el, 'pointerdown', e => {
+      const P = this._press || (this._press = { dev: this.lastDevice, ids: new Set(), out: 0 }); P.ids.add(e.pointerId); P.out = 0;   // (the layout as drawn holds until its tap is read)
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
       if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
@@ -880,13 +885,14 @@ class Input {
       if (e.pointerType === 'mouse' || this._fingers.size === 1) this._gesture('down', ...this.screenPoint(e.clientX, e.clientY), { touch: e.pointerType !== 'mouse', button: e.button, id: e.pointerId }); else this._g = this._gBox = null;   // (a second finger: a pinch, no gesture)
     });
     on(window, 'pointerup', e => {
+      if (this._press) this._press.ids.delete(e.pointerId);
       const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none): clicked() for a step,
       // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
       if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
       if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
       if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); }
     });
-    on(window, 'pointercancel', e => { this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); });
+    on(window, 'pointercancel', e => { if (this._press) this._press.ids.delete(e.pointerId); this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); });
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
@@ -1146,14 +1152,14 @@ class Input {
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack; the pad cursor's
    *  ✕ too, so its release clicks nothing) */
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; this._swipeAt = null; this._padCancel(); }   // (the pad cursor's ✕ taken too: no click when it is let go)
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; this._swipeAt = this._stickAt = null; this._padCancel(); }   // (the pad cursor's ✕ taken too: no click when it is let go)
   /** the page went full screen or back: the keys and mouse buttons let go (one held through the change may never come up),
    *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
    *  first tap, the one that went full screen, is a JUMP */
   _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._down = null; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
-    this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
+    this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = this._press = null;
     this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._zoneOf.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
@@ -1166,7 +1172,10 @@ class Input {
   /** any action pressed this step (title screens: "press any button") */
   anyPressed() { return this._now.size > 0; }
   /** movement intent in screen directions: x right, y down, length <= 1 */
-  move() {
+  move() { this._steerAt = this.clock; return this._mv(); }
+  // the same, read where it steers nothing a flick of the stick's finger should leave alone (the engine's own camera pan by
+  // the keys and the Shell's focus: _flick)
+  _mv() {
     let x = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), y = (this.down('down') ? 1 : 0) - (this.down('up') ? 1 : 0);
     if (this.stickOn) { x = this.stick[0]; y = this.stick[1]; }
     if (Math.hypot(this.padMove[0], this.padMove[1]) > 0) { x = this.padMove[0]; y = this.padMove[1]; }
@@ -1183,8 +1192,13 @@ class Input {
    *  began, in screen pixels) during the step after the finger lifted, else null. take: true uses it up, so nothing
    *  else reads it this step. Swiping away is the touch standard's way out of what is temporary: E.Dialog skips its
    *  text, E.Menu cancels, game.note and the Shell's toast, card and screens go by themselves; a game's own canvas
-   *  menu or banner reads it: if (input.swipe(true)) close() */
+   *  menu or banner reads it: if (input.swipe(true)) close(). A flick that begins on the move stick is the stick's: none
+   *  here (E.Menu's cancel and E.Dialog's skip take it, where the game read no steer from the stick a moment before) */
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
+  // a flick as the engine's menu and dialog read it: swipe()'s, or one that began on the move stick when the game read no
+  // steer (move(), drag()) from a quarter of a second before it landed until it lifted: on a game over or a result menu
+  // the stick steers nothing, and its half backs out as the other does (in play it is the stick's alone)
+  _flick(take = false) { const s = this._swipeAt || this._stickAt; if (take) this._swipeAt = this._stickAt = null; return s; }
   /** how far a finger that is not the stick's dragged this step, in screen pixels [dx, dy], or null: a camera's look on a
    *  touch screen (the left thumb on the stick, the right one turning the view) */
   look() { return this._lookNow || null; }
@@ -1195,9 +1209,14 @@ class Input {
    *  time for a game's touch assists (an attack or a shot by itself, the throttle held, aim nudged onto a target).
    *  Never true on a gamepad, keyboard or mouse, so an assist gated on it leaves their play as it is */
   get assist() { return this.lastDevice === 'touch' && !(this._settings && this._settings.assists === false); }
+  /** the device the screen is laid out for: lastDevice, except while a press is down on the canvas and for the step that
+   *  reads its tap, when it stays the one it was as the press began. A layout sized by the device (a thumb's rows by
+   *  touch: E.Menu's, E.Dialog's choices, a menu of the game's own) reads it, so a tap answers what was under the finger
+   *  as drawn when it pressed and the rows grow after it; prompts read lastDevice */
+  get layoutDevice() { return this._press ? this._press.dev : this.lastDevice; }
   /** how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while
    *  no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction */
-  drag() { return this._drag || null; }
+  drag() { this._steerAt = this.clock; return this._drag || null; }
   /** the camera zoom the player asked for since the last step, as a factor (1.1: 10% closer, .9: farther; 1: none): the
    *  wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy) */
   zoom() { return this._zoomNow; }
@@ -1293,9 +1312,10 @@ class Input {
       return;
     }
     this._g = null;   // up
-    if (g.touch && !g.stick && g.mode === 'pan' && this.clock - g.t <= .35) {   // a flick: quick, far enough, mostly along one axis (swipe()); never the stick's finger
+    if (g.touch && g.mode === 'pan' && this.clock - g.t <= .35) {   // a flick: quick, far enough, mostly along one axis (swipe(); the stick's finger's, the engine's menus' alone)
       const dx = x - g.x0, dy = y - g.y0, ax = Math.abs(dx), ay = Math.abs(dy), S = this.screen, min = Math.max(18, Math.min(S.W || 320, S.H || 240) * .08);
-      if (Math.max(ax, ay) >= min && Math.max(ax, ay) >= 1.5 * Math.min(ax, ay)) this._gSwipe = { dir: ax > ay ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'), x: g.x0, y: g.y0 };
+      const f = Math.max(ax, ay) >= min && Math.max(ax, ay) >= 1.5 * Math.min(ax, ay) && { dir: ax > ay ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'), x: g.x0, y: g.y0 };
+      if (f && !g.stick) this._gSwipe = f; else if (f && this._steerAt < g.t - .25) this._gStick = f;   // (the stick's, with no steer read lately: the engine's menus and dialogs only, _flick)
     }
     if (g.mode === 'box' && this._gBox) this._gBox.done = true;
     else if (!g.moved) {
@@ -1350,8 +1370,9 @@ class Input {
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n; this._freshCodes.clear();
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
+    const Pr = this._press; if (Pr && !Pr.ids.size && Pr.out++) this._press = null;   // (every press lifted, and the step that read its tap gone: layoutDevice follows the device again)
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
-    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._tap2nd = null;
+    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._stickAt = this._gStick; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._gStick = this._tap2nd = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
     const la = this._lookAcc; this._lookNow = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
@@ -3561,7 +3582,7 @@ class Game {
     const c = this.cam, F = c.free === true ? {} : c.free, I = this.input, S = this.screen, z = this._zoomTo || this.zoom;
     let dx = 0, dy = 0, moved = false;
     const cur = I.padCursor && I.lastDevice === 'gamepad';   // (the pad's cursor: its left stick is the cursor's, the right stick pans, the cursor at an edge pushes)
-    if (F.keys !== false && !(this.shell && this.shell.screen) && !I.stickOn) { const m = cur ? I.padAim || [0, 0] : I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }   // (a finger pans by its drag, not as a stick)
+    if (F.keys !== false && !(this.shell && this.shell.screen) && !I.stickOn) { const m = cur ? I.padAim || [0, 0] : I._mv(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }   // (a finger pans by its drag, not as a stick)
     const p = I.pointer(), e = F.edge === undefined ? 10 : F.edge;
     if (e > 0 && p && I.lastDevice !== 'touch' && (I.mouse.active || cur) && !I._fedAt) { const sp = (F.speed || 300) * dt; if (p[0] < e) dx -= sp; else if (p[0] > S.W - e) dx += sp; if (p[1] < e) dy -= sp; else if (p[1] > S.H - e) dy += sp; }
     const pan = F.drag !== false && I.pan(); if (pan) { dx -= pan[0]; dy -= pan[1]; moved = true; }
@@ -9698,9 +9719,10 @@ E.ui = {
  * another device, so the key in it follows (a {key:} in the text itself does). By touch the choices are a thumb's size.
  */
 const MARKUP = /\{(\/?)(c|s|w|shake|wave)(?:=([^}]*))?\}/g;
-/* a thumb's size in screen pixels (44 CSS px) while the player plays by touch on a real screen, else 0: E.Menu's rows and
-   E.Dialog's choices grow to it, so a pad, keys and a mouse see them as they always were (CONTROLS.md rule 7) */
-const thumbPx = (game, I = game.input) => { const S = game.screen; return I && I.lastDevice === 'touch' && S && S.canvas ? Math.ceil(44 * S.dpr / S.S) : 0; };
+/* a thumb's size in screen pixels (44 CSS px) while the screen is laid out for touch on a real screen, else 0: E.Menu's rows
+   and E.Dialog's choices grow to it, so a pad, keys and a mouse see them as they always were (CONTROLS.md rule 7). The
+   layout's device (input.layoutDevice) holds while a press is down: a tap reads the rows the finger pressed on */
+const thumbPx = (game, I = game.input) => { const S = game.screen; return I && I.layoutDevice === 'touch' && S && S.canvas ? Math.ceil(44 * S.dpr / S.S) : 0; };
 /* the markup in a dialog's text read: { text (the letters alone), fx: each letter's look ({ c, s, shake, wave }, shared
    along a run), wait: { letter's index: seconds before it } }, or null for text with none */
 function markup(s, vars) {
@@ -9745,9 +9767,13 @@ class Dialog {
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
   /** where choice i is on the screen while the choices show: [x, y] (its middle, for a test's tap), else null */
-  choiceAt(i) { if (!this.open || !this.choices || this.typing || this.i < this.pages.length - 1 || !this.choices[i]) return null; const d = this._dims(), b = this._cbox(d); return [Math.round(b.x + b.w / 2), Math.round(b.y + 3 + (i + .5) * b.rh)]; }
+  choiceAt(i) { if (!this.open || !this.choices || this.typing || this.i < this.pages.length - 1 || !this.choices[i]) return null; const d = this._drawn(), b = this._cbox(d); return [Math.round(b.x + b.w / 2), Math.round(b.y + 3 + (i + .5) * b.rh)]; }
+  // the box where it was drawn: held while a press is down on the canvas and for the step that reads its tap, so the touch
+  // buttons a first touch brings, or a game's touchSet, move no choice from under the finger (the screen's size changed:
+  // where it is now)
+  _drawn() { const I = this.game.input, k = this._dd, W = this.game.W, H = this.game.H; return I._press && k && k.W === W && k.H === H ? k.d : (this._dd = { d: this._dims(), W, H }).d; }
   // the choices' box, over the box's right end: rows (rh) a thumb's size by touch, as the box was last drawn (a tap after
-  // another device's lands on what was shown), the text in their middle (pad)
+  // another device's lands on what was shown; the layout's device holds while a press is down), the text in their middle (pad)
   _cbox(d, th = this._dth !== undefined ? this._dth : thumbPx(this.game)) {
     const rh = Math.max(d.lh, th), w = Math.max(Math.max(...this.choices.map(c => E.font.width(c))) + 20, th && th + 4), h = this.choices.length * rh + 7;
     return { x: d.x + d.w - w - 2, y: th ? Math.max(2, d.y - h - 2) : d.y - h - 2, w, h, rh, pad: (rh - d.lh) >> 1 };
@@ -9777,7 +9803,7 @@ class Dialog {
      *  in pixels; pOpts: its options ({ zoom, turn, bg }) */
     this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {}; this._voice = o.voice;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
-    this._src = text; this._sv = o.vars; this._dth = undefined; this._build();   // (what it was given, kept: the pages are built again for a new device)
+    this._src = text; this._sv = o.vars; this._dth = undefined; this._dd = null; this._build();   // (what it was given, kept: the pages are built again for a new device)
     this.i = 0; this.shown = 0; this.open = true; this.choice = 0; this._syl = 0; this._rest = 0; this._hold = 0; this._held = -1;
     /** name: the speaker's name shown on the box; onDone: called when the last page closes; choices: the answers
      *  offered on the last page, or null; onChoice: called with the index picked */
@@ -9849,9 +9875,9 @@ class Dialog {
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing, moved = inp.mouse.t !== this._mt; this._mt = inp.mouse.t;   // (moved: the mouse or the pad's cursor this step; one resting from before the question moves no choice)
     // swiped away (a touch screen): the rest of its text skipped, the box closed; a question goes to its last page (it
     // waits for an answer). A box play goes on under (modal: false) goes only for a swipe that began on it
-    const sw = !asking && inp.swipe && inp.swipe(), sd = sw && this._dims();
+    const sw = !asking && inp.swipe && (inp.swipe() || (this.modal && inp._flick && inp._flick())), sd = sw && this._drawn();   // (a modal box: a flick on the stick's half too, where nothing steers)
     if (sw && (this.modal || (sw.x >= sd.x && sw.x < sd.x + sd.w && sw.y >= sd.y - 14 && sw.y < sd.y + sd.h))) {
-      inp.swipe(true);
+      if (inp._flick) inp._flick(true); else inp.swipe(true);
       if (this.choices) { this.i = this.pages.length - 1; this.shown = this.pageLen; this._hold = 0; this._held = -1; return this.modal; }
       this.close(); if (this.onDone) this.onDone(); return false;
     }
@@ -9861,7 +9887,7 @@ class Dialog {
       return this.modal && this.open;
     }
     if (!this.modal) return false;
-    const c = inp.clicked(), d = (c || asking) && this._dims(), tapped = !!c && c[0] >= d.x && c[0] < d.x + d.w && c[1] >= d.y && c[1] < d.y + d.h;   // a tap on the box, as confirm
+    const c = inp.clicked(), d = (c || asking) && this._drawn(), tapped = !!c && c[0] >= d.x && c[0] < d.x + d.w && c[1] >= d.y && c[1] < d.y + d.h;   // a tap on the box, as confirm
     let chose = false;
     if (asking) {
       if (inp.repeat('up') || inp.repeat('left')) { this.choice = (this.choice + this.choices.length - 1) % this.choices.length; this.game.audio.sfx('select'); }
@@ -9883,7 +9909,7 @@ class Dialog {
   draw(r) {
     if (!this.open) return;
     r.overlay(g => {
-      const d = this._dims(), ui = E.ui;
+      const d = this._drawn(), ui = E.ui;
       ui.box(g, d.x, d.y, d.w, d.h, { bg: this.bg, border: this.border, alpha: this._alpha });
       if (this.portrait) {
         const px0 = d.x + 5, py0 = d.y + Math.round((d.h - d.P) / 2);
@@ -9974,7 +10000,7 @@ class Menu {
     const P = this.input ? [this.input] : this.game._players || [this.game.input], inp = P[0], any = f => P.some(f), n = this.items.length, old = this.i, sn = this._seen;
     const b = sn && sn.th !== this._box.th ? sn : this._box;   // (the rows as drawn when the device changed since: a click lands on what it was aimed at)
     const row = p => { if (!b || !p || p[0] < b.x || p[0] >= b.x + b.w) return -1; const r = Math.floor((p[1] - b.y) / b.rowH), k = b.first + r; return r >= 0 && r < b.vis && k < n && !this._off(this.items[k]) ? k : -1; };
-    const fg = this.pointer !== false && b.th && b.vis < n && (inp.pan() || inp.drag());   // a finger dragging a list too long for the screen scrolls it, the cursor kept in view
+    const fg = this.pointer !== false && b.th && b.vis < n && (inp.pan() || inp._drag);   // a finger dragging a list too long for the screen scrolls it, the cursor kept in view (no steer: _flick)
     if (fg) {
       this._dy = (this._dy || 0) + fg[1]; const s = Math.trunc(this._dy / b.rowH);
       if (s) { const f = clamp(b.first - s, 0, n - b.vis), was = this.i; this._dy = f === b.first - s ? this._dy - s * b.rowH : 0; this._first = b.first = f; this.i = clamp(this.i, f, f + b.vis - 1); if (this.i !== was) this._skip(this.i > was ? 1 : -1); }
@@ -9987,7 +10013,7 @@ class Menu {
     if (tap >= 0) this.i = tap;
     if (this.i !== old) { if (this.sound) this.game.audio.sfx('select'); if (this.onMove) this.onMove(this.i, this.items[this.i]); }
     if ((any(I => I.pressed('confirm')) || tap >= 0) && !this._off(this.items[this.i])) { if (this.sound) this.game.audio.sfx('confirm'); P.forEach(I => I.consumeAll()); if (this.onPick) this.onPick(this.i, this.items[this.i]); return true; }
-    const sw = this.onCancel && inp.swipe && inp.swipe(), away = sw && (sw.dir === 'left' || sw.dir === 'right');   // (a sideways swipe on a touch screen goes back, as the Shell's screens do)
+    const sw = this.onCancel && inp.swipe && (inp._flick ? inp._flick() : inp.swipe()), away = sw && (sw.dir === 'left' || sw.dir === 'right');   // (a sideways swipe on a touch screen goes back, as the Shell's screens do; on the stick's half too where nothing steers)
     if ((any(I => I.pressed('cancel')) || away) && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); P.forEach(I => I.consumeAll()); this.onCancel(); return true; }
     return false;
   }
@@ -10576,7 +10602,7 @@ class Shell {
     if (this.root) {
       if (this._toastEnd && now > this._toastEnd) { this._els.toast.classList.remove('on'); this._toastEnd = 0; }
       if (this._tutEnd && now > this._tutEnd) this.tutorial(null);
-      this.root.classList.toggle('esh-still', !!g.reduceMotion); this.root.classList.toggle('esh-fingers', I.lastDevice === 'touch');   // (a toast takes a tap or a swipe on a touch screen, a mouse clicks through it; tabs and sliders a thumb's height)
+      this.root.classList.toggle('esh-still', !!g.reduceMotion); if (!this._ptr) this.root.classList.toggle('esh-fingers', I.layoutDevice === 'touch');   // (a toast takes a tap or a swipe on a touch screen, a mouse clicks through it; tabs and sliders a thumb's height, never changed under a press)
     }
     const pb = I.padPrev || [], l1 = !!pb[4] && !this._l1, r1 = !!pb[5] && !this._r1; this._l1 = !!pb[4]; this._r1 = !!pb[5];   // (L1 and R1 this step: a screen's tabs)
     const mini = this._els && this._els.mini; if (mini && !this._stack.length) {   // the pad's cursor (drawn on the canvas, under the HTML) shows through the minimap, and ✕ on it is a click there
@@ -10590,7 +10616,7 @@ class Shell {
     if (this.root && !this._cap && !this._ptr && this._drawnFor && dev !== this._drawnFor) this._render();   // the player picked up another device: the screen's hints and tab chips redrawn for it, the focus and the tab kept
     if (!this._ptr) this._drawnFor = dev;
     const keep = this._held; this._held = new Set();
-    const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), closeAll = has('pause') && I.pressed('pause'), mv = I.move();
+    const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), closeAll = has('pause') && I.pressed('pause'), mv = I._mv();
     const hit = ['up', 'down', 'left', 'right'].find(a => has(a) && I.pressed(a)), dir = Math.abs(mv[1]) > .5 ? (mv[1] < 0 ? 'up' : 'down') : Math.abs(mv[0]) > .5 ? (mv[0] < 0 ? 'left' : 'right') : null;
     for (const a in I.map) if (!keep.has(a)) I.suppress(a);   // the game doesn't see what the menu used
     if (this._cap) { this._capPad(); return; }   // binding: the next button is the answer, not a move in the menu

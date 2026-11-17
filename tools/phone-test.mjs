@@ -64,11 +64,16 @@
 //  25. menus: the engine's own under a thumb, at least 44 CSS px held either way: E.Menu's rows (kart, fighting and sky's
 //      modes, GAME OVER), a dialog's choices (Morwen's riddle, a tap a little low of one still answers it), the reference
 //      edition's FamilyMenu, the Shell's Settings and Controls tabs and sliders; sky's menu, too long on its side, scrolls
-//      under a finger to BACK, which a tap picks
+//      under a finger to BACK, which a tap picks. After the keys (a touch laptop, a phone after a keyboard or a pad) the
+//      rows are drawn small, and a finger's tap held a moment picks what it pressed on, the rows unchanged under it and a
+//      thumb's after it: kart's BACK, FamilyMenu's POINT-AND-CLICK, Morwen's A WHALE; a touch laptop's first touch on a
+//      bottom dialog's choice answers it, the touch buttons it brings moving nothing from under it
 //  26. the stick's half (stealth, roguelike, metroidvania): upright, their four or five touch buttons in two columns right
 //      of the middle (those that come and go shown too), a left thumb set down at the bottom-left steers; on its side a
 //      row; GAME OVER (upright and on its side) and the rts end menu go to the title on a sideways flick, not one in
-//      GAME OVER's first moment (a dodge mashed as the run ends)
+//      GAME OVER's first moment (a dodge mashed as the run ends); a real finger's flick that begins on the stick's half
+//      (on RETRY's row there too) backs out of GAME OVER and kart's results held either way, and in play it stays the
+//      stick's (it steers, and no swipe reaches the game or a menu)
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -122,6 +127,14 @@ async function fingers(cdp, from, to, n = 12, ms = 20) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]);
+/** one finger held still at q (CSS px) for ms, then lifted: a real tap's moment; mid() measured while it is down */
+async function hold(cdp, q, ms = 120, mid) {
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: q[0], y: q[1], id: 1 }] }); await wait(ms);
+  const m = mid ? await mid() : null; await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); return m;
+}
+const useKeys = async p => { await p.keyboard.press('ArrowDown'); await wait(100); await p.keyboard.press('ArrowUp'); await wait(400); };   // (the keys: lastDevice keyboard)
+/** the E.Menu drawn last on the page, from now on: window.__menu */
+const lastMenu = p => ev(p, () => { const M = My3D2dge.Menu.prototype, d0 = M.draw; M.draw = function (r) { window.__menu = this; return d0.call(this, r); }; });
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
@@ -1255,7 +1268,48 @@ if (want('menus')) {
       await tapText('settings'); const s = await sizes(); await ev(page, () => window.__game.game.shell.back()); await wait(200); await tapText('controls'); const c = await sizes(); const all = s.concat(c), small = all.filter(e => e[2] < 44);
       check(`menus ${label}: the Shell's Settings and Controls tabs and sliders a thumb's height`, s.length >= 4 && c.length >= 4 && !small.length && !errors.length, small.length ? 'under 44: ' + small.map(e => e.join(' ')).join(', ') : `${all.length} measured, the lowest ${Math.min(...all.map(e => e[2]))} CSS px`);
       await ctx.close(); }
+    // the keys first (a touch laptop, a phone after a keyboard or a pad): the rows drawn for them, a finger's tap held a moment
+    // answers what it pressed on (the rows don't grow under it: they grow to a thumb's once its tap has been read)
+    { const { page, ctx, errors, cdp } = await open('kart', vp); await wait(500); await hook(page); await wait(200); await useKeys(page);
+      const r = await ev(page, () => { const m = [...window.__menus][0]; return { th: m._box.th, back: m.rowAt(2), dev: window.__game.game.input.lastDevice }; });
+      const under = await hold(cdp, await toCss(page, r.back[0] + r.back[2] / 2, r.back[1] + r.back[3] / 2), 120, () => ev(page, () => [...window.__menus][0]._box.th)); await wait(600);
+      const scene = await ev(page, () => window.__game.game.sceneName);
+      check(`menus ${label}: after the keys, a finger's tap held on kart's BACK (its rows drawn small) picks BACK`, r.dev === 'keyboard' && r.th === 0 && under === 0 && scene === 'title' && !errors.length, `the device ${r.dev}, rows ${r.th ? 'a thumb\'s' : 'small'} before and ${under ? 'a thumb\'s' : 'small'} under the finger; the scene ${scene}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close(); }
+    { const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = [], cdp = await ctx.newCDPSession(page); page.on('pageerror', e => errors.push(e.message));
+      await page.goto(pathToFileURL(resolve('dist/my-3d2dge.html')).href); await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'title'); await wait(600); await useKeys(page);
+      const f = await ev(page, () => { const m = window.__game.titleMenu, k = m.slices.findIndex(s => s.id === 'pointclick'); window.__picked = []; m.onPick = i => window.__picked.push(m.slices[i].label); return { at: m.spot(k), label: m.slices[k].label, h: m.lay.rowH }; });
+      const under = await hold(cdp, await toCss(page, f.at[0], f.at[1]), 120, () => ev(page, () => window.__game.titleMenu.lay.rowH)); await wait(500);
+      const g = await ev(page, () => { const S = window.__game.game.screen; return { picked: window.__picked, h: window.__game.titleMenu.lay.rowH * S.S / S.dpr }; });
+      check(`menus ${label}: after the keys, a finger's tap held on the reference edition's ${f.label} (FamilyMenu, rows drawn small) picks it; its rows a thumb's after`, under === f.h && g.picked.join() === f.label && g.h >= 44 && !errors.length, `rows ${f.h} px before, ${under} under the finger, ${g.h.toFixed(1)} CSS px after; picked ${g.picked.join() || 'nothing'}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close(); }
+    { const { page, ctx, errors, cdp } = await open('pointclick', vp); await wait(300);
+      for (let i = 0; i < 20 && await ev(page, () => window.__game.scenes.pointclick.state().mode === 'open'); i++) { await page.touchscreen.tap(vp.width / 2, vp.height / 2); await wait(400); }
+      await ev(page, () => window.__game.scenes.pointclick.state().story.run('riddle1'));
+      for (let i = 0; i < 40; i++) { if (await ev(page, () => { const D = window.__game.scenes.pointclick.state().story.talk; if (D.open && D.typing) D.shown = D.pageLen; return D.open && D.choices && !D.typing && D.i >= D.pages.length - 1; })) break; await wait(100); }
+      await useKeys(page);
+      const q = await ev(page, () => { const D = window.__game.scenes.pointclick.state().story.talk; return { at: D.choiceAt(0), rh: D._cbox(D._dims()).rh, first: D.choices[0] }; });
+      const under = await hold(cdp, await toCss(page, q.at[0], q.at[1]), 120, () => ev(page, () => { const D = window.__game.scenes.pointclick.state().story.talk; return D._cbox(D._dims()).rh; })); await wait(500);
+      const said = await ev(page, () => (window.__game.scenes.pointclick.state().story.log.filter(e => e.who === 'choice').slice(-1)[0] || {}).text);
+      check(`menus ${label}: after the keys, a finger's tap held on Morwen's ${q.first} (the choices drawn small) answers it`, under === q.rh && said === q.first && !errors.length, `rows ${q.rh} px before, ${under} under the finger; answered ${said}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close(); }
   }
+  // a touch laptop (a fine pointer first, the touch buttons only from the first touch): its first touch, held on a bottom
+  // dialog's choice, answers that choice: neither the touch buttons it brings nor the thumb's rows move the box under it
+  { const ctx = await browser.newContext({ viewport: { width: 1024, height: 896 }, deviceScaleFactor: 1, hasTouch: true }), errors = [];
+    await ctx.addInitScript(() => { const mm = window.matchMedia.bind(window); window.matchMedia = q => /\(pointer: coarse\)/.test(q) ? mm('(min-width: 99999px)') : /any-pointer: fine/.test(q) ? mm('(min-width: 0px)') : mm(q); });
+    const dir = resolve('check-output/phone'), f = dir + '/laptop-dialog.html'; mkdirSync(dir, { recursive: true });
+    writeFileSync(f, `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#screen{width:100%;height:100%;display:block}</style><canvas id="screen"></canvas><script src="${pathToFileURL(resolve('dist/my-3d2dge.js')).href}"></script><script>
+const E = My3D2dge, game = new E.Game({ res: 'snes', menu: false, fullscreen: false }), talk = new E.Dialog(game); window.__said = [];
+game.start({ update(dt) { talk.update(dt); }, draw(r) { talk.draw(r); } }); game.input.touchButtons(['jump', 'attack', 'dash']);
+talk.say('Which way?', { choices: ['THE NORTH ROAD', 'THE RIVER', 'THE OLD MILL'], onChoice: (i, c) => __said.push(c) }); window.__t = { game, talk };</script>`);
+    const page = await ctx.newPage(), cdp = await ctx.newCDPSession(page); page.on('pageerror', e => errors.push(e.message));
+    await page.goto(pathToFileURL(f).href); await page.waitForFunction(() => window.__t && __t.talk.open); await wait(500); await ev(page, () => { __t.talk.shown = __t.talk.pageLen; }); await wait(300);
+    const b = await ev(page, () => { const S = __t.game.screen, rc = S.canvas.getBoundingClientRect(), at = __t.talk.choiceAt(0); return { dev: __t.game.input.lastDevice, buttons: !!__t.game.input.touchArea(), at, css: [rc.left + (at[0] * S.S + S.OX) / S.dpr, rc.top + (at[1] * S.S + S.OY) / S.dpr] }; });
+    const y = await hold(cdp, b.css, 120, () => ev(page, () => ({ buttons: !!__t.game.input.touchArea(), at: __t.talk.choiceAt(0) }))); await wait(400);
+    const said = await ev(page, () => __said.join());
+    check('menus: a touch laptop\'s first touch, held on a bottom dialog\'s THE NORTH ROAD, answers it (the touch buttons it brings move no choice from under it)', b.dev === 'keyboard' && !b.buttons && y.buttons && y.at[1] === b.at[1] && said === 'THE NORTH ROAD' && !errors.length, `the device ${b.dev}, touch buttons ${b.buttons} -> ${y.buttons}; the choice at y ${b.at[1]} -> ${y.at[1]} under the finger; answered ${said || 'nothing'}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close(); }
 }
 
 /* 26. the move stick's half and the end menus: upright, a kit of four or five touch buttons has them in two columns right of
@@ -1292,6 +1346,32 @@ if (want('stick')) {
     const { page, ctx, errors } = await open('rts', UP); await wait(400);
     const after = await ev(page, js => { const u = window.__game.scenes.rts.state().rts.units; for (let i = u.length - 1; i >= 0; i--) if (u[i].side === 'red' && u[i].building) u.splice(i, 1); return new Function(js)(); }, swipeAt(120));
     check('rts upright: its end menu goes to the title on a sideways flick', after === 'title' && !errors.length, `then ${after}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+  // a real finger's flick on the move stick's half: where nothing steers by the stick (a result menu) it backs out as one on
+  // the other half does; in play it is the stick's (it steers, and no flick reaches the game's swipe() or a menu)
+  const watch = p => ev(p, () => { const I = window.__game.game.input, t0 = I.tick; window.__sw = []; I.tick = function (...a) { const r = t0.apply(this, a); const s = this._swipeAt || this._stickAt; if (s) window.__sw.push((this._swipeAt ? '' : 'stick ') + s.dir); return r; }; });
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, errors, cdp } = await open('platformer', vp); await wait(400); await watch(page); await lastMenu(page);
+    await ev(page, () => window.__game.game.go('over', { from: 'platformer' }, { fade: 0 })); await wait(1000);
+    const row = await ev(page, () => window.__menu.rowAt(0)), a = await toCss(page, row[0] + 4, row[1] + row[3] / 2), from = [Math.max(a[0], vp.width * .15), a[1]];   // (on RETRY's row, on the stick's half)
+    await drag(cdp, line(from, [from[0] + vp.width * .3, from[1]], 4), 24); await wait(600);
+    const over = await ev(page, () => window.__game.game.sceneName), sw = await ev(page, () => window.__sw.splice(0));
+    check(`GAME OVER ${label}: a finger's sideways flick that begins on the stick's half, on RETRY's row, goes to the title and retries nothing`, from[0] < vp.width / 2 && over === 'title' && !errors.length, `from ${from.map(Math.round)} CSS px (RETRY's row from ${Math.round(a[0])}); the scene ${over}; read ${sw.join(', ') || 'no flick'}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ev(page, () => window.__game.game.go('platformer', null, { fade: 0 })); await wait(1200); await ev(page, () => window.__sw.splice(0));
+    let steer = 0; await drag(cdp, line([vp.width * .15, vp.height * .6], [vp.width * .42, vp.height * .6], 4), 24, async () => { steer = Math.max(steer, await ev(page, () => { const I = window.__game.game.input; return I.stickOn ? I.stick[0] : 0; })); }); await wait(500);
+    const play = await ev(page, () => ({ scene: window.__game.game.sceneName, sw: window.__sw.splice(0) }));
+    check(`platformer ${label}: in play a flick on the stick's half steers, and no flick reaches the game or a menu`, steer > .5 && play.scene === 'platformer' && !play.sw.length && !errors.length, `the stick pushed ${steer.toFixed(2)}; the scene ${play.scene}; read ${play.sw.join(', ') || 'no flick'}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, errors, cdp } = await open('kart', vp); await wait(400);
+    await ev(page, () => window.__game.game.input.tap('confirm')); await page.waitForFunction(() => window.__game.scenes.kart.race(), null, { timeout: 10000 });
+    await ev(page, () => { for (const R of window.__game.scenes.kart.race().racers) R.finished = true; });   // (every kart over the line: its results come up)
+    await page.waitForFunction(() => (window.__game.scenes.kart.state() || {}).mode === 'results', null, { timeout: 15000 }); await wait(700);
+    await drag(cdp, line([vp.width * .12, vp.height * .7], [vp.width * .42, vp.height * .7], 4), 24); await wait(600);
+    const mode = await ev(page, () => window.__game.scenes.kart.race() ? window.__game.scenes.kart.state().mode : 'menu');
+    check(`kart ${label}: its results menu backs out to its menu on a finger's sideways flick that begins on the stick's half`, mode === 'menu' && !errors.length, `then ${mode}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
