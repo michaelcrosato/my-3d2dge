@@ -569,19 +569,19 @@ function drawDrops(r) {
       labels.push(d);
     }
   }
-  // name labels above items (overlapping ones stack upward)
+  // name labels above items (overlapping ones stack upward). Tiny, or the normal font on a TV (each label 11 px tall, not 9)
   r.overlay(g => {
-    const placed = [];
+    const placed = [], nf = UI_tf({ outline: false }), lh = nf.font ? 9 : 11, so = nf.font ? 0 : 1;   // (so: the star keeps to the taller line's middle)
     for (const d of labels) {
-      let [x, y] = r.w(d.x, d.y, d.z + 16); const it = d.item, gs = !!(it.affixes && it.affixes.some(a => a.g)), w = E.font.width(it.name, { font: 'tiny' }) + 6 + (gs ? 6 : 0);   // a star marks greater lines (worth a look deep down)
+      let [x, y] = r.w(d.x, d.y, d.z + 16); const it = d.item, gs = !!(it.affixes && it.affixes.some(a => a.g)), w = E.font.width(it.name, nf) + 6 + (gs ? 6 : 0);   // a star marks greater lines (worth a look deep down)
       x = Math.round(x - w / 2); y = Math.round(y);
-      for (let k = 0; k < 8; k++) { if (placed.some(p => x < p[0] + p[2] && x + w > p[0] && Math.abs(y - p[1]) < 9)) y -= 9; else break; }
-      placed.push([x, y, w]); d.lab = [x, y, w, 9];
-      const hov = UI.mouse && UI.mouse.x >= x && UI.mouse.x < x + w && UI.mouse.y >= y && UI.mouse.y < y + 9;
-      px.blend(g, .8, 'normal', () => px.rect(g, x, y, w, 9, hov ? '#2a2440' : '#0c0818'));
+      for (let k = 0; k < 8; k++) { if (placed.some(p => x < p[0] + p[2] && x + w > p[0] && Math.abs(y - p[1]) < lh)) y -= lh; else break; }
+      placed.push([x, y, w]); d.lab = [x, y, w, lh];
+      const hov = UI.mouse && UI.mouse.x >= x && UI.mouse.x < x + w && UI.mouse.y >= y && UI.mouse.y < y + lh;
+      px.blend(g, .8, 'normal', () => px.rect(g, x, y, w, lh, hov ? '#2a2440' : '#0c0818'));
       px.rect(g, x, y, w, 1, RARITY[it.rarity].color);
-      if (gs) { px.rect(g, x + 2, y + 4, 5, 1, '#ffe070'); px.rect(g, x + 4, y + 2, 1, 5, '#ffe070'); px.dot(g, x + 4, y + 4, '#ffffff'); }   // a four-point star, like the tooltip's
-      E.font.text(g, it.name, x + 3 + (gs ? 6 : 0), y + 2, RARITY[it.rarity].color, { font: 'tiny', outline: false });
+      if (gs) { px.rect(g, x + 2, y + 4 + so, 5, 1, '#ffe070'); px.rect(g, x + 4, y + 2 + so, 1, 5, '#ffe070'); px.dot(g, x + 4, y + 4 + so, '#ffffff'); }   // a four-point star, like the tooltip's
+      E.font.text(g, it.name, x + 3 + (gs ? 6 : 0), y + 2, RARITY[it.rarity].color, nf);
       if (hov) UI.hotItem = d;
     }
   });

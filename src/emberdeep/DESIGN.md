@@ -169,6 +169,7 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
 - **UI kit**, inside an `r.overlay(g => ...)` or a panel's `draw(g, x, y, w, h)`:
   - widgets: `button(g, x, y, w, h, label, onClick, {focus, disabled, tip, color, active})`, `slider(...)`, `hot(x, y, w, h, { click, rclick, tip: lines | fn })`;
   - drawing: `tipBox(g, lines, x, y)`, `panelBox(...)`, `E.ui.box`, `E.font.text(g, s, x, y, color, { font: 'tiny', align, outline, shadow })`;
+  - on a TV (`UI_tv()`: a window 1,600 CSS px wide or more) every text a player reads is in the normal font: `UI_tf(o)` adds `{ font: 'tiny' }` only off a TV, `UI_tfit(s, w, o)` also where s won't fit in w; give it the 7 rows it needs (the tiny font has 5), and where a line is too long on a TV, shorter words or a line less rather than the tiny font. Only art keeps the tiny font there (the lettering painted on a sign);
   - `UI.mouse.x / y` are in screen pixels;
   - tooltip lines are `[{ t: 'text', c: '#color', big, sep }]`;
   - text: `notify(text, color, dur)` for the feed, `showCard(title, sub, mechLike, dur)`.

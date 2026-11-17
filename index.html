@@ -20595,7 +20595,7 @@ BUS.on('draw', ({ r }) => {
     try {
       const x = f.W - 92, y = f.H - 45;
       for (let i = 0; i < DAN_SACS; i++) { const lit = i < h.brood, cx = x + i * 7; px.ell(g, cx, y, 2.5, 3.2, lit ? DAN_COL.ripe : '#3a2c46'); px.dot(g, cx - 1, y - 1, lit ? DAN_COL.glow : '#5a4a66'); }
-      E.font.text(g, 'BROOD', x + 17, y + 6, DAN_COL.glow, { font: 'tiny', align: 'center' });
+      const bf = UI_tf({ align: 'center' }); E.font.text(g, 'BROOD', x + 17, y + (bf.font ? 6 : 5), DAN_COL.glow, bf);   // (the normal font on a TV)
     } finally { HUD_out(g); }
   });
 });
@@ -23367,10 +23367,11 @@ const PRG_V = { cx: 0, cy: 0, z: 1, zt: 1, anchor: null, go: null, drag: null, h
 /** a thumb's target in screen pixels (44 CSS px: UI_finger) where the touch buttons show (a phone, a tablet), else 0:
  *  the buttons of the tree and of the skills grow to it there, and keep their size on a desktop and a TV */
 const PRG_thumb = () => TOUCH.el && ctlDevice() === 'touch' ? UI_finger() : 0;   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
-/** the longest wording of a line that fits in w, and its font: on a TV (UI_tv) the normal font first, read from the
- *  sofa; else, or where none fits, the tiny one. Returns [text, font options] */
+/** the longest wording of a line that fits in w, and its font: on a TV (UI_tv) the normal font, read from the sofa (and
+ *  where none fits, nothing if the list allows it: an empty wording; the tiny one only past that); elsewhere the tiny
+ *  one. Returns [text, font options] */
 function PRG_fit(list, w) {
-  if (UI_tv()) { const q = list.find(q => q && E.font.width(q) <= w); if (q !== undefined) return [q, {}]; }   // (an empty wording, the last resort, is the tiny pass's)
+  if (UI_tv()) { const q = list.find(q => q && E.font.width(q) <= w); if (q !== undefined) return [q, {}]; if (list.includes('')) return ['', {}]; }
   return [list.find(q => E.font.width(q, { font: 'tiny' }) <= w) || list[list.length - 1], { font: 'tiny' }];
 }
 const PRG_GOLDT = E.tones('#e8b04a'), PRG_BRONZE = E.tones('#6e5a48'), PRG_SILVER = E.tones('#a8a0c0');
@@ -23728,7 +23729,7 @@ function PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t, op) {
     : dev === 'touch' ? ['DRAG TO PAN  •  PINCH OR - + TO ZOOM  •  TAP A STAR']
     : (W > 470 ? ['DRAG OR ' + [K('up'), K('left'), K('down'), K('right')].join('') + ' PAN  •  WHEEL OR ' + K('zoomOut') + ' ' + K('zoomIn') + ' ZOOM  •  CLICK ALLOCATE  •  RIGHT CLICK UNDO  •  ' + K('totals') + ' TOTALS  •  ' + K('centre') + ' CENTRE  •  ' + K('tree') + ' CLOSE'] : [])
       .concat(['DRAG PAN • WHEEL/' + K('zoomOut') + ' ' + K('zoomIn') + ' ZOOM • CLICK TAKE • RCLICK UNDO • ' + K('totals') + ' TOTALS • ' + K('centre') + ' CENTRE']);   // (the keys of the device in use)
-  const [hint, hf] = PRG_fit(hints, W - 8);
+  const [hint, hf] = PRG_fit(hints.concat(UI_tv() ? [dev === 'gamepad' ? 'L STICK PAN • R STICK ZOOM • ' + K('confirm') + ' TAKE • ' + K('alt') + ' UNDO • ' + K('cancel') + ' BACK' : 'DRAG PAN • WHEEL ZOOM • CLICK TAKE • RIGHT CLICK UNDO'] : []), W - 8);   // (a TV's shortest wording, in the normal font)
   PRG_txt(g, hint, x0 + W / 2, y0 + H - (hf.font ? 8 : 9), '#8a80a8', Object.assign({ align: 'center' }, hf));
   // zoom buttons left of TOTALS: the tree zooms without a wheel, keys or a pinch (a finger, a mouse alone)
   button(g, mbx, by, zw, bb, '-', () => PRG_zoomBy(.8, V.ox, V.oy), { tip: [{ t: 'Zoom out', c: GOLD }] });
@@ -23809,7 +23810,7 @@ function PRG_treeUpdate(dt) {
  * row (○ backs out, so its slot and R2's are chosen there), L2 R2 go to the bag and the passives. Every hint names the
  * device in use (keyLabel).
  * ============================================================================= */
-const PRG_KINDS = { basic: { label: 'BASIC', note: 'free, and every hit makes Ember', color: '#d8c8a8' }, core: { label: 'CORE', note: 'your main damage, spends Ember', color: '#ff9a4a' }, mobility: { label: 'MOBILITY', note: 'move, leap and reposition', color: '#8fe3ff' }, ultimate: { label: 'ULTIMATE', note: 'long cooldowns, huge effects', color: '#d8a0ff' } };
+const PRG_KINDS = { basic: { label: 'BASIC', note: 'free, and every hit makes Ember', short: 'makes Ember', color: '#d8c8a8' }, core: { label: 'CORE', note: 'your main damage, spends Ember', short: 'spends Ember', color: '#ff9a4a' }, mobility: { label: 'MOBILITY', note: 'move, leap and reposition', short: 'moves you', color: '#8fe3ff' }, ultimate: { label: 'ULTIMATE', note: 'long cooldowns, huge effects', short: 'huge effects', color: '#d8a0ff' } };   // (short: the note on a TV where the whole won't fit)
 const PRG_KIND_ORDER = ['basic', 'core', 'mobility', 'ultimate'];
 const PRG_K = { sel: null, armed: null, slotRow: false, slotFocus: 0, scroll: 0, follow: false, rows: [], flash: [0, 0, 0, 0, 0, 0], fx: [], pulse: null, runeShow: null, press: null, maxS: 0, rowH: 20, dirty: false, hud: false };
 /** the list rows: a header per kind, then its skills (by unlock level, then name). Works with any registered set */
@@ -23863,13 +23864,15 @@ function PRG_pip(g, x, y, c, edge) {
 }
 function PRG_lock(g, x, y) { px.rect(g, x - 3, y - 1, 7, 6, '#0a0812'); px.rect(g, x - 2, y, 5, 4, '#8a7a6a'); px.rect(g, x - 2, y, 5, 1, '#c8b8a0'); px.rect(g, x - 2, y - 4, 1, 4, '#8a7a6a'); px.rect(g, x + 2, y - 4, 1, 4, '#8a7a6a'); px.rect(g, x - 1, y - 5, 3, 1, '#8a7a6a'); px.dot(g, x, y + 1, '#2a2030'); }
 /** a slot of the six: its skill's icon (a plus when empty) and its key in the corner. s = 2 draws it twice the size (held
- *  upright on a phone, where it is a thumb's target), its key then in the normal font */
-function PRG_slotBox(g, h, i, x, y, armed, t, s = 1) {
+ *  upright on a phone, where it is a thumb's target), its key then in the normal font. kf: the key's font under the slot
+ *  instead (on a TV: UI_keyFonts) */
+function PRG_slotBox(g, h, i, x, y, armed, t, s = 1, kf = null) {
   const id = h.slots[i], fl = PRG_K.flash[i], S = id && REG.skills[id], B = 18 * s, c = x + (B >> 1);
   E.ui.box(g, x - 1, y - 1, B + 2, B + 2, { bg: '#141020', border: armed ? (Math.sin(t * 10) > 0 ? '#fff6c8' : GOLD) : fl > 0 ? '#fff6c8' : '#5a4a70', shadow: false, gradient: false });
   if (S) drawSkillIcon(g, id, x + 1, y + 1, s); else { px.rect(g, x + 4 * s, y + 8 * s, 10 * s, 2 * s, '#241e36'); px.rect(g, x + 8 * s, y + 4 * s, 2 * s, 10 * s, '#241e36'); }
   if (fl > 0) px.blend(g, fl, 'add', () => px.rect(g, x + 1, y + 1, 16 * s, 16 * s, '#fff0c0'));
-  const sk = slotKey(i), kf = s > 1 ? {} : { font: 'tiny' }, kh = s > 1 ? 9 : 7, kw = E.font.width(sk, kf) + 3; px.rect(g, x + B - kw, y + B - kh + 1, kw + 1, kh, '#0c0818'); E.font.text(g, sk, x + B - kw + 2, y + B - kh + 2, armed ? GOLD : '#c8c0d8', Object.assign({ outline: false }, kf));
+  if (kf) E.font.text(g, slotKey(i), x + (B >> 1), y + B + 2 + (kf.font ? 1 : 0), armed ? GOLD : '#c8c0d8', Object.assign({ align: 'center', outline: false }, kf));
+  else { const sk = slotKey(i), kf = s > 1 ? {} : { font: 'tiny' }, kh = s > 1 ? 9 : 7, kw = E.font.width(sk, kf) + 3; px.rect(g, x + B - kw, y + B - kh + 1, kw + 1, kh, '#0c0818'); E.font.text(g, sk, x + B - kw + 2, y + B - kh + 2, armed ? GOLD : '#c8c0d8', Object.assign({ outline: false }, kf)); }
   if (PRG_K.slotRow && PRG_K.slotFocus === i && UI.keyNav) E.ui.box(g, x - 2, y - 2, B + 4, B + 4, { bg: null, border: Math.sin(t * 8) > 0 ? '#fff6c8' : GOLD, shadow: false, gradient: false });   // (a controller's focus on the slot row)
   if (armed) { const bob = Math.round(Math.sin(t * 8)); px.poly(g, [[c - 4, y - 7 + bob], [c + 4, y - 7 + bob], [c, y - 3 + bob]], GOLD); px.dot(g, c, y - 4 + bob, '#fff6c8'); }
 }
@@ -23896,7 +23899,9 @@ function PRG_skillsDraw(g, x, y, w, hh) {
   const pts = h.pts.skill || 0, blink = pts > 0 && Math.floor(t * 2.5) % 2, thb = PRG_thumb(), tall = UI_tall() && hh > 400;
   const gx = x + 12, gy = y + 25; px.poly(g, [[gx, gy - 5], [gx + 5, gy], [gx, gy + 5], [gx - 5, gy]], '#0a0812'); px.poly(g, [[gx, gy - 4], [gx + 4, gy], [gx, gy + 4], [gx - 4, gy]], pts ? '#ffb347' : '#3a3450'); px.poly(g, [[gx, gy - 4], [gx - 4, gy], [gx, gy]], pts ? '#ffe9a0' : '#4a4466');
   PRG_txt(g, pts ? pts + ' SKILL POINT' + (pts > 1 ? 'S' : '') : 'NO SKILL POINTS', x + 21, y + 21, pts ? (blink ? '#fff6c8' : GOLD) : '#6a6488');
-  const ss = tall && thb >= 40 ? 2 : 1, SC = Math.max(18 * ss + 2, thb), sbw = 6 * SC + 4, sbx = x + w - 10 - sbw, row2 = !!thb && sbx - 30 - (x + 21) < 120, scy = row2 ? y + 40 : y + 21, room = row2 ? w - 31 : sbx - 30 - (x + 21) - (UI_tv() ? 10 : 0);
+  // (on a TV a slot's key goes under it in the normal font: kb. The slots rise 3 px for it and the list starts 3 px lower)
+  const ss = tall && thb >= 40 ? 2 : 1, SC = Math.max(18 * ss + 2, thb), sbw = 6 * SC + 4, sbx = x + w - 10 - sbw, row2 = !!thb && sbx - 30 - (x + 21) < 120, kb = UI_tv() && !thb && ss === 1, scy = row2 ? y + 40 : kb ? y + 18 : y + 21, room = row2 ? w - 31 : sbx - 30 - (x + 21) - (UI_tv() ? 10 : 0);
+  const sMid = i => sbx - 1 + i * SC + (i >= 2 ? 4 : 0) + (SC >> 1), skf = kb ? UI_keyFonts(SLOT_ACTS.map((a, i) => slotKey(i)), sMid, sbx - 1, sbx - 1 + sbw) : [];
   const dev = ctlDevice(), Kk = a => keyLabel(a, true), slots = SLOT_ACTS.map(a => Kk(a)).filter(Boolean);   // (the keys of the device in use)
   const [hint, hf] = PRG_fit(K.armed !== null ? ['NOW CHOOSE A SKILL FOR SLOT ' + slotKey(K.armed) + (dev === 'touch' ? '' : '  •  ' + Kk('cancel') + ' CANCELS'), 'CHOOSE A SKILL FOR SLOT ' + slotKey(K.armed) + (dev === 'touch' ? '' : ' • ' + Kk('cancel') + ' CANCELS'), 'CHOOSE A SKILL FOR SLOT ' + slotKey(K.armed)]
     : K.slotRow && dev === 'gamepad' ? [Kk('menuLeft') + ' ' + Kk('menuRight') + ' SLOT  •  ' + Kk('confirm') + ' CHOOSE IT  •  ' + Kk('menuDown') + ' BACK TO THE LIST', Kk('confirm') + ' CHOOSE THE SLOT']
@@ -23907,14 +23912,14 @@ function PRG_skillsDraw(g, x, y, w, hh) {
   const lf = UI_tf(); PRG_txt(g, 'SLOTS', sbx - 4, scy + ((SC - (lf.font ? 5 : 7)) >> 1), '#7a7098', Object.assign({ align: 'right' }, lf));
   for (let i = 0; i < 6; i++) {
     const cx = sbx - 1 + i * SC + (i >= 2 ? 4 : 0), id = h.slots[i];   // (the slot's square; its box drawn in the middle of it)
-    PRG_slotBox(g, h, i, cx + ((SC - 18 * ss - 2) >> 1) + 1, scy + ((SC - 18 * ss - 2) >> 1) + 1, K.armed === i, t, ss);
+    PRG_slotBox(g, h, i, cx + ((SC - 18 * ss - 2) >> 1) + 1, scy + ((SC - 18 * ss - 2) >> 1) + 1, K.armed === i, t, ss, kb ? skf[i] : null);
     hot(cx, scy, SC, SC, { click: () => { if (K.armed === i) K.armed = null; else { K.armed = i; if (id) K.sel = id; K.follow = true; } sfx('select', { vol: .5 }); }, rclick: () => { if (h.slots[i]) { h.slots[i] = null; K.dirty = true; sfx('cancel', { vol: .5 }); } },
       tip: () => (id && REG.skills[id] ? skillTip(h, id) : [{ t: 'Empty slot  ' + slotKey(i), c: '#9a90b0' }]).concat([{ t: '', sep: true }, { t: ctlDevice() === 'touch' ? (K.armed === i ? 'Now tap a skill to put it here.' : 'Tap, then tap a skill to put it here.') : K.armed === i ? 'Now click a skill to put it here.' : 'Click, then click a skill to put it here. Right click empties it.', c: '#c8c0d8' }]) });
   }
   // the list
   // held upright (a phone), the list runs the panel's width with rows a finger tall and the skill's page sits under it;
   // on its side the rows are a thumb tall too (PRG_thumb), and a finger drags the list to scroll it (PRG_listPress)
-  const RH = thb ? clamp(thb + 1, 20, 49) : tall ? clamp(UI_finger(), 20, 48) : 20, LX = x + 8, LY = Math.max(y + 45, scy + SC + 4), LW = tall ? w - 16 : clamp(Math.round(w * .43), 150, 196), LH = tall ? Math.round((hh - (LY - y) - 8) * .5) : hh - (LY - y) - 8, rh = r0 => r0.head ? 12 : RH;
+  const RH = thb ? clamp(thb + 1, 20, 49) : tall ? clamp(UI_finger(), 20, 48) : 20, LX = x + 8, LY = Math.max(y + 45, scy + SC + (kb ? 10 : 4)), LW = tall ? w - 16 : clamp(Math.round(w * .43), 150, 196), LH = tall ? Math.round((hh - (LY - y) - 8) * .5) : hh - (LY - y) - 8, rh = r0 => r0.head ? 12 : RH;
   const rowTop = []; let acc = 0; for (const r0 of rows) { rowTop.push(acc); acc += rh(r0); }
   const total = acc, maxS = (() => { let s = 0; while (s < rows.length && total - rowTop[s] > LH) s++; return s; })();
   if (K.follow) { K.follow = false; const si = rows.findIndex(r0 => r0.id === K.sel); if (si >= 0) { if (si <= K.scroll) K.scroll = si > 0 && rows[si - 1].head ? si - 1 : si; while (K.scroll < si && rowTop[si] + RH - rowTop[K.scroll] > LH) K.scroll++; } }
@@ -23924,7 +23929,7 @@ function PRG_skillsDraw(g, x, y, w, hh) {
   for (let i = K.scroll, yy = LY; i < rows.length && yy + rh(rows[i]) <= LY + LH + 1; yy += rh(rows[i]), i++) {
     const r0 = rows[i];
     if (r0.head) {   // a kind header: its name, a rule, and what the kind is for (the normal font on a TV where it fits)
-      const kd = PRG_KINDS[r0.head] || { label: r0.head.toUpperCase(), note: '', color: '#c8c0d8' }, C = E.tones(kd.color), kf = UI_tf(), lw = E.font.width(kd.label, kf), [note, nf] = PRG_fit([kd.note.toUpperCase(), ''], rw - lw - 23), nw = E.font.width(note, nf), room = rw - lw - nw - 16;
+      const kd = PRG_KINDS[r0.head] || { label: r0.head.toUpperCase(), note: '', color: '#c8c0d8' }, C = E.tones(kd.color), kf = UI_tf(), lw = E.font.width(kd.label, kf), [note, nf] = PRG_fit([kd.note.toUpperCase()].concat(UI_tv() && kd.short ? [kd.short.toUpperCase()] : [], ['']), rw - lw - 23), nw = E.font.width(note, nf), room = rw - lw - nw - 16;
       PRG_txt(g, kd.label, LX + 2, yy + (kf.font ? 3 : 2), kd.color, kf);
       if (note) { px.rect(g, LX + lw + 6, yy + 5, room, 1, C.deep); px.dot(g, LX + lw + 6 + room, yy + 5, C.sh); PRG_txt(g, note, LX + rw - 2, yy + (nf.font ? 3 : 2), C.sh, Object.assign({ align: 'right' }, nf)); } else px.rect(g, LX + lw + 6, yy + 5, rw - lw - 8, 1, C.deep);
       hot(LX, yy, rw, 11, { drag: thb ? PRG_listPress(null, false) : undefined, tip: [{ t: kd.label, c: kd.color }, { t: cap(kd.note), c: '#c8c0d8' }] }); continue;
@@ -23951,7 +23956,9 @@ function PRG_skillRow(g, h, id, rx, ry0, rw, t, m, RH = 20, thb = 0) {   // (RH:
   if (locked) PRG_lock(g, rx + 10, ry + 10);
   if (K.pulse && K.pulse.id === id && K.pulse.t < .5) px.blend(g, 1 - K.pulse.t * 2, 'add', () => px.rect(g, rx + 2, ry + 2, 16, 16, '#fff0c0'));
   const mast = PRG_mast(h, id), tier = mast ? PRG_tier(h, id) : 0, gear = eff - base - Math.max(0, tier - 1);   // ranks from gear (a deeper rune tier is its own rank)
-  const pc = cr.ok ? pw || 14 : 0, maxName = rw - 22 - (slot >= 0 ? 22 : 0) - pc - (locked ? 24 : 0); let nm = S.name; while (nm.length > 3 && E.font.width(nm) > maxName) nm = nm.slice(0, -1); if (nm !== S.name) nm = nm.slice(0, -1).trimEnd() + '.';
+  // the key of the slot it sits in: a tiny badge, the normal font on a TV (the name keeps clear of the wider one)
+  const sk = slot >= 0 ? slotKey(slot) : '', skf = UI_tf({ outline: false }), skw = E.font.width(sk, skf) + 4;
+  const pc = cr.ok ? pw || 14 : 0, maxName = rw - 22 - (slot >= 0 ? (skf.font ? 22 : Math.max(22, skw + 5)) : 0) - pc - (locked ? 24 : 0); let nm = S.name; while (nm.length > 3 && E.font.width(nm) > maxName) nm = nm.slice(0, -1); if (nm !== S.name) nm = nm.slice(0, -1).trimEnd() + '.';
   PRG_txt(g, nm, rx + 22, ry + 2, base ? (sel ? '#fff6d8' : '#e8e0f8') : locked ? '#5a5478' : '#a8a0c0');
   const lit = K.pulse && K.pulse.id === id && K.pulse.t < .4;
   for (let i = 0; i < 5; i++) PRG_pip(g, rx + 22 + i * 6, ry + 12, i < base ? (i === base - 1 && lit && !mast ? '#fff6d8' : '#ffc040') : i < base + gear ? '#6a9aff' : null, i < base ? '#6a3a0a' : i < base + gear ? '#1a2a6a' : '#3a3252');
@@ -23961,7 +23968,7 @@ function PRG_skillRow(g, h, id, rx, ry0, rw, t, m, RH = 20, thb = 0) {   // (RH:
   if (mast) { PRG_spark(g, mx + 3, ry + 14, lit ? '#ffffff' : '#c8b0ff', '#6a4aa8'); const s = String(mast); PRG_txt(g, s, mx + 8, ny, lit ? '#ffffff' : '#d8c8ff', nf); mx += 11 + E.font.width(s, nf); }
   if (base + gear > 5) PRG_txt(g, '+' + (base + gear - 5), mx, ny, '#8ab4ff', nf);
   let rx1 = rx + rw - 3 - pc;
-  if (slot >= 0) { const sk = slotKey(slot), kw = E.font.width(sk, { font: 'tiny' }) + 4; E.ui.box(g, rx1 - kw, ry + 6, kw, 8, { bg: '#0c0818', border: '#6a5a88', shadow: false, gradient: false }); E.font.text(g, sk, rx1 - kw + 2, ry + 7, '#c8c0d8', { font: 'tiny', outline: false }); rx1 -= kw + 3; }
+  if (slot >= 0) { const tv = !skf.font; E.ui.box(g, rx1 - skw, ry + (tv ? 5 : 6), skw, tv ? 10 : 8, { bg: '#0c0818', border: '#6a5a88', shadow: false, gradient: false }); E.font.text(g, sk, rx1 - skw + 2, ry + (tv ? 6 : 7), '#c8c0d8', skf); rx1 -= skw + 3; }
   if (locked) PRG_txt(g, 'LV ' + lv, rx1, ry + (nf.font ? 7 : 6), '#8a6a7a', Object.assign({ align: 'right' }, nf));
   if (plusR) {   // a gold plus for a rank; a violet one (starlight) for a mastery rank
     const glow = .5 + .5 * Math.sin(t * 5), M = cr.mastery, hiC = M ? '#c8b0ff' : GOLD, mid = M ? '#5a3a8a' : '#8a5a1a', [qx, qy, s] = plusR, w0 = s >= 18 ? 2 : 1, c0 = (s - w0) >> 1;
@@ -24009,13 +24016,14 @@ function PRG_skillPage(g, h, id, dx, dy, dw, dh, t) {
   let rx0 = tx + E.font.width(rk) + 6;
   if (mast) { PRG_spark(g, rx0 + 3, iy + 13, '#c8b0ff', '#6a4aa8'); PRG_txt(g, ms, rx0 + 9, iy + 10, '#d8c8ff'); rx0 += mw(ms); }
   if (gear > 0 && rx0 + E.font.width('+' + gear + ' gear') <= tr) PRG_txt(g, '+' + gear + ' gear', rx0, iy + 10, '#8ab4ff');
-  // its kind and tags, then what it costs and its cooldown: the normal font on a TV (the tiny one where a line won't fit)
-  const tv = UI_tv(), tl = [kd.label].concat((S.tags || []).map(s => s.toUpperCase())).concat(S.el && S.el !== 'phys' ? [EL(S.el).name.toUpperCase()] : []), tf = tv && tx + E.font.width(tl.join(' • ')) <= tr ? {} : { font: 'tiny' };
+  // its kind and tags, then what it costs and its cooldown: the normal font on a TV, where the tags a line can't hold go
+  // (the tooltip has them all) and the costs take shorter words (COSTS 12, +5 EMBER); the tiny one elsewhere
+  const tv = UI_tv(), tl = [kd.label].concat((S.tags || []).map(s => s.toUpperCase())).concat(S.el && S.el !== 'phys' ? [EL(S.el).name.toUpperCase()] : []), tf = tv ? {} : { font: 'tiny' };
   while (tl.length > 1 && tx + E.font.width(tl.join(' • '), tf) > tr) tl.splice(tl.length > 2 && S.el && S.el !== 'phys' ? tl.length - 2 : tl.length - 1, 1);   // the element stays: it says the most
   PRG_txt(g, tl.join(' • '), tx, iy + (tv ? 20 : 21), kd.color, tf);
-  const cost = skillCost(h, S), bits = []; if (cost) bits.push(['COSTS ' + cost + ' EMBER', '#ffb070']); if (S.gen) bits.push(['GENERATES ' + S.gen + ' EMBER', '#ffb070']); if (S.cd) bits.push([skillCd(h, S).toFixed(1) + 'S COOLDOWN', '#8fe3ff']); if (!bits.length) bits.push(['FREE', '#c8c0d8']);
-  const bf = tv && tx + bits.reduce((a, [s]) => a + E.font.width(s) + 8, -8) <= dx + dw - 4 ? {} : { font: 'tiny' };
-  let bx0 = tx; for (const [s, c] of bits) { if (bx0 + E.font.width(s, bf) > dx + dw - 4) break; PRG_txt(g, s, bx0, iy + 29, c, bf); bx0 += E.font.width(s, bf) + 8; }
+  const cost = skillCost(h, S), bits = []; if (cost) bits.push([['COSTS ' + cost + ' EMBER', 'COSTS ' + cost], '#ffb070']); if (S.gen) bits.push([['GENERATES ' + S.gen + ' EMBER', '+' + S.gen + ' EMBER'], '#ffb070']); if (S.cd) bits.push([[skillCd(h, S).toFixed(1) + 'S COOLDOWN'], '#8fe3ff']); if (!bits.length) bits.push([['FREE'], '#c8c0d8']);
+  const word = (q, k) => q[Math.min(k, q.length - 1)], fits = k => tx + bits.reduce((a, [q]) => a + E.font.width(word(q, k)) + 8, -8) <= dx + dw - 4, bk = tv ? [0, 1].find(fits) : undefined, bf = bk !== undefined ? {} : { font: 'tiny' };
+  let bx0 = tx; for (const [q, c] of bits) { const s = word(q, bk || 0); if (bx0 + E.font.width(s, bf) > dx + dw - 4) break; PRG_txt(g, s, bx0, iy + 29, c, bf); bx0 += E.font.width(s, bf) + 8; }
   // the lower half is measured first. The rune cards grow until their whole text shows and the description takes the
   // rest (the small font when the normal one won't fit). When the page is too short for both, the description keeps
   // its room, the cards keep at least two lines each (cut at a word), and the description block shows the hovered
@@ -24066,11 +24074,13 @@ function PRG_skillPage(g, h, id, dx, dy, dw, dh, t) {
     px.poly(g, [[gx, gy - 5], [gx + 4, gy], [gx, gy + 5], [gx - 4, gy]], rc.deep); px.poly(g, [[gx, gy - 4], [gx + 3, gy], [gx, gy + 4], [gx - 3, gy]], rc.base); px.line(g, gx, gy - 2, gx, gy + 2, rc.hi); px.dot(g, gx - 1, gy - 1, rc.lt);
     if (on) PRG_glow(g, gx, gy, 8, '#ff8a3a', .25);
     // the name: the normal font, the small one when it is too long, a cut only if even that fails
-    const nc = on ? '#ffd0a0' : open ? '#e8e0f8' : '#6a6488', ts = on && tier >= 2 ? PRG_roman(tier) : '', tbw = ts ? E.font.width(ts, { font: 'tiny' }) + 5 : 0, nmW = cw - 18 - (tbw ? tbw + 1 : 0);   // (the tier tab keeps its corner)
+    // (on a TV the name and the tier are in the normal font: a name too long is cut at a word, whole in the tooltip)
+    const nc = on ? '#ffd0a0' : open ? '#e8e0f8' : '#6a6488', ts = on && tier >= 2 ? PRG_roman(tier) : '', tsf = UI_tf(), tbw = ts ? E.font.width(ts, tsf) + 5 : 0, nmW = cw - 18 - (tbw ? tbw + 1 : 0);   // (the tier tab keeps its corner)
     if (E.font.width(ru.name) <= nmW) PRG_txt(g, ru.name, cx + 14, cy + 3, nc);
+    else if (tv) { let nm = ru.name; while (/\s/.test(nm.trim()) && E.font.width(nm) > nmW) nm = nm.replace(/\.\.$/, '').replace(/\s*\S+$/, '') + '..'; PRG_txt(g, nm, cx + 14, cy + 3, nc); }
     else { let nm = ru.name.toUpperCase(); while (/\s/.test(nm.trim()) && E.font.width(nm, { font: 'tiny' }) > nmW) nm = nm.replace(/\.\.$/, '').replace(/\s*\S+$/, '') + '..'; PRG_txt(g, nm, cx + 14, cy + 4, nc, { font: 'tiny' }); }
     PRG_clip(rl[i], nL).forEach((l, j) => PRG_txt(g, l, cx + 14, cy + 12 + j * rlh, on ? '#e8c0a0' : open ? '#a8a0c0' : '#5a5478', rf));
-    if (ts) { const bx = cx + cw - tbw - 3; E.ui.box(g, bx, cy - 3, tbw, 9, { bg: ['#6a3a14', '#3a1e0a'], border: '#ffb070', shadow: false, gradient: false }); PRG_txt(g, ts, bx + 3, cy - 1, '#fff0c8', { font: 'tiny' }); }   // the tier, on a small gold tab over the card's corner
+    if (ts) { const bx = cx + cw - tbw - 3, by = cy - (tsf.font ? 3 : 1); E.ui.box(g, bx, by, tbw, tsf.font ? 9 : 11, { bg: ['#6a3a14', '#3a1e0a'], border: '#ffb070', shadow: false, gradient: false }); PRG_txt(g, ts, bx + 3, by + 2, '#fff0c8', tsf); }   // the tier, on a small gold tab over the card's corner (on a TV taller, so it drops 2 px: clear of the RUNES line)
     hot(cx, cy, cw, ch, { click: () => PRG_setRune(h, id, ru.id), tip: (cut[i] ? [{ t: ru.name, c: '#ff9a4a' }] : [{ t: ru.name, c: '#ff9a4a' }, { t: ru.desc || '', c: '#e8e0f8' }]).concat([{ t: '', sep: true }, { t: !open ? 'Reach rank 2 to choose a rune.' : ctlDevice() === 'touch' ? (on ? 'Chosen. Tap to clear it.' : 'Tap to choose this rune.') : on ? 'Chosen. Click to clear it.' : 'Click to choose this rune.', c: open ? GOLD : '#ff8a7a' }]) });
   });
   if (!runes.length) PRG_txt(g, 'THIS SKILL HAS NO RUNES', dx + dw / 2, cy + 5, '#5a5478', Object.assign({ align: 'center' }, lf));
@@ -24831,10 +24841,8 @@ BUS.on("draw", ({ r }) => {
 				c,
 			);
 		}
-		E.font.text(g, "SCRIPT", x + 13, y + 7, CX.paper, {
-			font: "tiny",
-			align: "center",
-		});
+		const sf = UI_tf({ align: "center" }); // (the normal font on a TV)
+		E.font.text(g, "SCRIPT", x + 13, y + (sf.font ? 7 : 6), CX.paper, sf);
 		} finally {
 			HUD_out(g);
 		}
@@ -25258,14 +25266,15 @@ function drawFoeBars(r) {
       if (m.elite === 2) names.push({ m, x, y: y - 9 });   // rares only (a champion pack reads by its blue bars; its names crowded the fight)
     }
     // names never pile up: bottom to top on screen, a name that would overlap one already placed moves up a line (a few
-    // at most), and a copy of a name already shown there (an illusionist's decoys) is left out: one name per group
-    names.sort((a, b) => b.y - a.y); const placed = [];
+    // at most), and a copy of a name already shown there (an illusionist's decoys) is left out: one name per group. Tiny,
+    // or the normal font on a TV (its lines 10 px apart, not 8, the first 2 px higher: it keeps clear of the life bar)
+    names.sort((a, b) => b.y - a.y); const placed = [], nf = UI_tf({ align: 'center', outline: '#0c0818' }), ls = nf.font ? 8 : 10;
     for (const n of names) {
-      const hw = E.font.width(n.m.name, { font: 'tiny' }) / 2 + 2, hit = y => placed.find(p => Math.abs(p.x - n.x) < p.hw + hw && Math.abs(p.y - y) < 8);
-      let y = n.y, p = hit(y); if (p && p.name === n.m.name) continue;
-      for (let k = 0; k < 3 && p; k++) { y = p.y - 8; p = hit(y); }
+      const hw = E.font.width(n.m.name, nf) / 2 + 2, hit = y => placed.find(p => Math.abs(p.x - n.x) < p.hw + hw && Math.abs(p.y - y) < ls);
+      let y = n.y - (nf.font ? 0 : 2), p = hit(y); if (p && p.name === n.m.name) continue;
+      for (let k = 0; k < 3 && p; k++) { y = p.y - ls; p = hit(y); }
       placed.push({ x: n.x, y, hw, name: n.m.name });
-      E.font.text(g, n.m.name, n.x, y, n.m.elite === 2 ? '#ffd36a' : '#9ab8ff', { align: 'center', font: 'tiny', outline: '#0c0818' });
+      E.font.text(g, n.m.name, n.x, y, n.m.elite === 2 ? '#ffd36a' : '#9ab8ff', nf);
     }
   });
 }
@@ -30255,19 +30264,19 @@ function drawDrops(r) {
       labels.push(d);
     }
   }
-  // name labels above items (overlapping ones stack upward)
+  // name labels above items (overlapping ones stack upward). Tiny, or the normal font on a TV (each label 11 px tall, not 9)
   r.overlay(g => {
-    const placed = [];
+    const placed = [], nf = UI_tf({ outline: false }), lh = nf.font ? 9 : 11, so = nf.font ? 0 : 1;   // (so: the star keeps to the taller line's middle)
     for (const d of labels) {
-      let [x, y] = r.w(d.x, d.y, d.z + 16); const it = d.item, gs = !!(it.affixes && it.affixes.some(a => a.g)), w = E.font.width(it.name, { font: 'tiny' }) + 6 + (gs ? 6 : 0);   // a star marks greater lines (worth a look deep down)
+      let [x, y] = r.w(d.x, d.y, d.z + 16); const it = d.item, gs = !!(it.affixes && it.affixes.some(a => a.g)), w = E.font.width(it.name, nf) + 6 + (gs ? 6 : 0);   // a star marks greater lines (worth a look deep down)
       x = Math.round(x - w / 2); y = Math.round(y);
-      for (let k = 0; k < 8; k++) { if (placed.some(p => x < p[0] + p[2] && x + w > p[0] && Math.abs(y - p[1]) < 9)) y -= 9; else break; }
-      placed.push([x, y, w]); d.lab = [x, y, w, 9];
-      const hov = UI.mouse && UI.mouse.x >= x && UI.mouse.x < x + w && UI.mouse.y >= y && UI.mouse.y < y + 9;
-      px.blend(g, .8, 'normal', () => px.rect(g, x, y, w, 9, hov ? '#2a2440' : '#0c0818'));
+      for (let k = 0; k < 8; k++) { if (placed.some(p => x < p[0] + p[2] && x + w > p[0] && Math.abs(y - p[1]) < lh)) y -= lh; else break; }
+      placed.push([x, y, w]); d.lab = [x, y, w, lh];
+      const hov = UI.mouse && UI.mouse.x >= x && UI.mouse.x < x + w && UI.mouse.y >= y && UI.mouse.y < y + lh;
+      px.blend(g, .8, 'normal', () => px.rect(g, x, y, w, lh, hov ? '#2a2440' : '#0c0818'));
       px.rect(g, x, y, w, 1, RARITY[it.rarity].color);
-      if (gs) { px.rect(g, x + 2, y + 4, 5, 1, '#ffe070'); px.rect(g, x + 4, y + 2, 1, 5, '#ffe070'); px.dot(g, x + 4, y + 4, '#ffffff'); }   // a four-point star, like the tooltip's
-      E.font.text(g, it.name, x + 3 + (gs ? 6 : 0), y + 2, RARITY[it.rarity].color, { font: 'tiny', outline: false });
+      if (gs) { px.rect(g, x + 2, y + 4 + so, 5, 1, '#ffe070'); px.rect(g, x + 4, y + 2 + so, 1, 5, '#ffe070'); px.dot(g, x + 4, y + 4 + so, '#ffffff'); }   // a four-point star, like the tooltip's
+      E.font.text(g, it.name, x + 3 + (gs ? 6 : 0), y + 2, RARITY[it.rarity].color, nf);
       if (hov) UI.hotItem = d;
     }
   });
@@ -31554,6 +31563,9 @@ function LOT_tabBtn(g, x, y, w, label, on, fn, key, th = 12) {   // (th: its hei
 /** a line a player must read: the normal font on a TV (UI_tv) and held upright, the tiny 3 x 5 one elsewhere and
  *  wherever the normal one would not fit in w (o: the text's other options) */
 const LOT_rf = (s, w, o = {}) => Object.assign({ outline: false }, o, (UI_tv() || UI_tall()) && E.font.width(s) <= w ? {} : { font: 'tiny' });
+/** a panel's footer on a TV: in the normal font, the hints that won't fit in w dropped from its end (each footer names the
+ *  most needed first: a pad's ○ BACK goes before its ✕). Elsewhere the footer as it is */
+const LOT_footTV = (s, w) => { if (!UI_tv()) return s; const P = s.split('  •  '); while (P.length > 1 && E.font.width(P.join('  •  ')) > w) P.pop(); return P.join('  •  '); };
 /* ---------- a finger's size: the shops on a phone ----------
  * Held upright (UI_tall) a shop stacks its counter (Cobb's stock, Harrow's anvil, Seren's altar, the chest's tabs) over
  * the bag, every cell, tab and button a finger wide (UI_finger: 44 CSS px), with a strip at its foot for a finger's item
@@ -31599,7 +31611,7 @@ function LOT_end(g) {
   for (const f of LOT_UI.fx) {
     if (f.t < 0) continue;
     if (f.kind === 'coin') { px.ell(g, f.x, f.y + 1, 2.4, 1.6, '#8a6a1a'); px.ell(g, f.x, f.y, 2.4, 1.6, '#ffd23a'); px.dot(g, f.x - 1, f.y - 1, '#fff6c0'); }
-    else if (f.kind === 'text') { const a = clamp(Math.min(f.t / .08, (f.max - f.t) / .45), 0, 1); px.blend(g, a, 'normal', () => E.font.text(g, f.s, f.x, f.y, f.c, { align: 'center', font: 'tiny', outline: '#0c0818' })); }
+    else if (f.kind === 'text') { const a = clamp(Math.min(f.t / .08, (f.max - f.t) / .45), 0, 1); px.blend(g, a, 'normal', () => E.font.text(g, f.s, f.x, f.y, f.c, UI_tf({ align: 'center', outline: '#0c0818' }))); }   // (what a salvage gave: the normal font on a TV)
     else { const k = 1 - f.t / f.max, R = Math.round(k * 2.5); px.rect(g, f.x - R, f.y, R * 2 + 1, 1, f.c); px.rect(g, f.x, f.y - R, 1, R * 2 + 1, f.c); px.dot(g, f.x, f.y, '#ffffff'); }
   }
   // a finger's chosen item: its actions as buttons along the panel's foot, drawn over everything; the tooltip keeps above them
@@ -31879,34 +31891,39 @@ function LOT_dollDraw(g, x, y, w, h, hero) {
   // drag to turn him around
   const over = LOT_hot(x, y, w, h, { drag: mx => { if (D.dragX !== undefined && UI.mouse.down) D.face -= (mx - D.dragX) * .045; D.dragX = mx; D.user = 3; }, tip: [{ t: 'Drag to turn', c: '#c8c0d8' }] });
   if (!UI.mouse.down) D.dragX = undefined;
-  E.font.text(g, 'LEVEL ' + hero.level, cx, y + 4, over ? '#fff6d8' : GOLD, { align: 'center', font: 'tiny', outline: '#0c0818' });
+  E.font.text(g, 'LEVEL ' + hero.level, cx, y + 4, over ? '#fff6d8' : GOLD, UI_tfit('LEVEL ' + hero.level, w - 4, { align: 'center', outline: '#0c0818' }));   // (the normal font on a TV)
 }
-/** under the doll: level and experience, life, damage, armor, resistances, speeds */
+/** under the doll: level and experience, life, damage, armor, resistances, speeds. Tiny, three to a line; on a TV in the
+ *  normal font, two to a line (three won't fit the doll's column), so one line more (the column has room under it) */
 function LOT_readout(g, x, y, w, h) {
-  const need = SCALE.xpNeed(h.level), tiny = { font: 'tiny', outline: false }, pw = LOT_power(h);
-  E.font.text(g, 'XP', x, y, '#b88aff', tiny);
-  const bx = x + 12, bw = w - 12; px.rect(g, bx, y, bw, 5, '#0c0818'); px.rect(g, bx + 1, y + 1, Math.round((bw - 2) * clamp(h.xp / need, 0, 1)), 3, '#b88aff'); px.rect(g, bx + 1, y + 1, Math.round((bw - 2) * clamp(h.xp / need, 0, 1)), 1, '#e0c8ff');
-  LOT_hot(bx, y - 1, bw, 7, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
-  const y2 = y + 9, third = Math.floor(w / 3);
-  // life (a heart), damage (a sword), armor (a shield)
-  E.font.text(g, '♥', x, y2 - 1, '#ff5a6a', { outline: false }); E.font.text(g, fmt(h.maxHp), x + 8, y2, '#ffb0b0', tiny);
-  const sx = x + third; px.line(g, sx, y2 + 5, sx + 5, y2, '#dce8f1'); px.line(g, sx, y2 + 3, sx + 2, y2 + 5, '#e8b04e'); E.font.text(g, fmt(pw), sx + 8, y2, '#fff2c4', tiny);
-  const ax = x + third * 2; px.poly(g, [[ax, y2], [ax + 5, y2], [ax + 5, y2 + 3], [ax + 2.5, y2 + 5.5], [ax, y2 + 3]], '#8a94a8'); px.rect(g, ax + 1, y2 + 1, 2, 2, '#c8d0e0'); E.font.text(g, fmt(h.armor), ax + 8, y2, '#c8d0e0', tiny);
-  LOT_hot(x, y2 - 1, third - 2, 8, { tip: [{ t: 'Life ' + fmt(Math.ceil(h.hp)) + ' / ' + fmt(h.maxHp), c: '#ff8a8a' }, { t: (h.stats.lifeRegen || 0).toFixed(1) + ' per second', c: '#c8c0d8' }] });
-  LOT_hot(sx, y2 - 1, third - 2, 8, { tip: [{ t: 'Damage ' + pw.toFixed(1), c: '#fff2c4' }, { t: 'An average swing of your weapon with every increase, attack speed and critical strikes folded in.', c: '#c8c0d8' }] });
-  LOT_hot(ax, y2 - 1, third - 2, 8, { tip: [{ t: 'Armor ' + Math.round(h.armor), c: '#c8d0e0' }, { t: 'Armor soaks physical hits; big hits get through more.', c: '#c8c0d8' }] });
+  const need = SCALE.xpNeed(h.level), tv = UI_tv(), tiny = { font: 'tiny', outline: false }, pw = LOT_power(h), io = tv ? 1 : 0;   // (io: the icons and the bar drop to the normal font's middle)
+  const tf = (s, room) => UI_tfit(s, room, { outline: false }), ty = f => tv && f.font ? 1 : 0;   // (a number too wide for its place on a TV: the tiny one, in the line's middle)
+  E.font.text(g, 'XP', x, y, '#b88aff', tv ? { outline: false } : tiny);
+  const xl = tv ? 14 : 12, bx = x + xl, bw = w - xl, by = y + io; px.rect(g, bx, by, bw, 5, '#0c0818'); px.rect(g, bx + 1, by + 1, Math.round((bw - 2) * clamp(h.xp / need, 0, 1)), 3, '#b88aff'); px.rect(g, bx + 1, by + 1, Math.round((bw - 2) * clamp(h.xp / need, 0, 1)), 1, '#e0c8ff');
+  LOT_hot(bx, by - 1, bw, 7, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
+  // life (a heart), damage (a sword), armor (a shield): a third of the line each, or on a TV life and damage, then armor
+  // and the critical chance
+  const third = Math.floor(w / 3), half = Math.floor(w / 2), cw2 = tv ? half : third, y2 = y + (tv ? 10 : 9), yA = tv ? y2 + 10 : y2, lh = tv ? 9 : 8;
+  const sx = x + cw2, ax = tv ? x : x + third * 2, iy = y2 + io, ia = yA + io, num = (s, nx, ny, c) => { const f = tf(s, (nx < x + cw2 ? x + cw2 - 2 : x + w) - nx); E.font.text(g, s, nx, ny + ty(f), c, f); };   // (to the next stat's place or the line's end)
+  E.font.text(g, '♥', x, y2 - 1 + io, '#ff5a6a', { outline: false }); num(fmt(h.maxHp), x + 8, y2, '#ffb0b0');
+  px.line(g, sx, iy + 5, sx + 5, iy, '#dce8f1'); px.line(g, sx, iy + 3, sx + 2, iy + 5, '#e8b04e'); num(fmt(pw), sx + 8, y2, '#fff2c4');
+  px.poly(g, [[ax, ia], [ax + 5, ia], [ax + 5, ia + 3], [ax + 2.5, ia + 5.5], [ax, ia + 3]], '#8a94a8'); px.rect(g, ax + 1, ia + 1, 2, 2, '#c8d0e0'); num(fmt(h.armor), ax + 8, yA, '#c8d0e0');
+  LOT_hot(x, y2 - 1, cw2 - 2, lh, { tip: [{ t: 'Life ' + fmt(Math.ceil(h.hp)) + ' / ' + fmt(h.maxHp), c: '#ff8a8a' }, { t: (h.stats.lifeRegen || 0).toFixed(1) + ' per second', c: '#c8c0d8' }] });
+  LOT_hot(sx, y2 - 1, cw2 - 2, lh, { tip: [{ t: 'Damage ' + pw.toFixed(1), c: '#fff2c4' }, { t: 'An average swing of your weapon with every increase, attack speed and critical strikes folded in.', c: '#c8c0d8' }] });
+  LOT_hot(ax, yA - 1, cw2 - 2, lh, { tip: [{ t: 'Armor ' + Math.round(h.armor), c: '#c8d0e0' }, { t: 'Armor soaks physical hits; big hits get through more.', c: '#c8c0d8' }] });
   // resistances: five chips in their element colors
-  const y3 = y2 + 10, cw = Math.floor(w / 5);
+  const y3 = yA + 10, cw = Math.floor(w / 5);
   ['fire', 'frost', 'storm', 'void', 'venom'].forEach((el, i) => {
-    const e = EL(el), v = Math.round(h.res[el] * 100), cx0 = x + i * cw;
-    px.rect(g, cx0, y3, 5, 5, e.dark); px.rect(g, cx0, y3, 5, 1, e.light); px.rect(g, cx0 + 1, y3 + 1, 3, 3, e.color);
-    E.font.text(g, String(v), cx0 + 7, y3, v >= 75 ? '#ffffff' : v > 0 ? e.light : '#6a6488', tiny);
-    LOT_hot(cx0, y3 - 1, cw - 1, 7, { tip: [{ t: e.name + ' resistance ' + v + '%', c: e.light }, { t: 'Capped at 75%.', c: '#c8c0d8' }] });
+    const e = EL(el), v = Math.round(h.res[el] * 100), cx0 = x + i * cw, cy = y3 + io, f = tv ? tf(String(v), cw - 8) : tiny;
+    px.rect(g, cx0, cy, 5, 5, e.dark); px.rect(g, cx0, cy, 5, 1, e.light); px.rect(g, cx0 + 1, cy + 1, 3, 3, e.color);
+    E.font.text(g, String(v), cx0 + 7, y3 + ty(f), v >= 75 ? '#ffffff' : v > 0 ? e.light : '#6a6488', f);
+    LOT_hot(cx0, y3 - 1, cw - 1, tv ? 9 : 7, { tip: [{ t: e.name + ' resistance ' + v + '%', c: e.light }, { t: 'Capped at 75%.', c: '#c8c0d8' }] });
   });
-  const y4 = y3 + 9, sp = v => (v >= 0 ? '+' : '') + Math.round(v) + '%';
-  E.font.text(g, 'CRIT ' + (h.critChance * 100).toFixed(0) + '%', x, y4, '#ffd23a', tiny);
-  E.font.text(g, 'ATK ' + sp((h.atkMul / DIFF.heroSpeed - 1) * 100), x + third, y4, '#e8e0f8', tiny);
-  E.font.text(g, 'RUN ' + sp((h.speedMul / DIFF.heroSpeed - 1) * 100), x + third * 2, y4, '#8fe3ff', tiny);
+  // the critical chance (on a TV beside the armor), the attack and running speeds
+  const y4 = y3 + (tv ? 10 : 9), sp = v => (v >= 0 ? '+' : '') + Math.round(v) + '%', cs = 'CRIT ' + (h.critChance * 100).toFixed(0) + '%';
+  if (tv) num(cs, x + half, yA, '#ffd23a'); else E.font.text(g, cs, x, y4, '#ffd23a', tiny);
+  num('ATK ' + sp((h.atkMul / DIFF.heroSpeed - 1) * 100), tv ? x : x + third, y4, '#e8e0f8');
+  num('RUN ' + sp((h.speedMul / DIFF.heroSpeed - 1) * 100), tv ? x + half : x + third * 2, y4, '#8fe3ff');
 }
 
 /* ---------- the character sheet: short pages, one stat a row in the normal font ----------
@@ -31987,8 +32004,8 @@ function LOT_drawStats(g, x, y, w, h, hero, T = 0) {
     LOT_btn(g, ax, y + 2, AW, AH, '', () => LOT_statTurn(d), { key: d < 0 ? 'statPrev' : 'statNext', color: '#241c3a' });
     const k = big ? 2 : 1; E.font.text(g, s, ax + AW / 2, y + 2 + Math.round((AH - 7 * k) / 2), GOLD, Object.assign({ align: 'center', scale: k }, sh));
   }
-  const num = (pi + 1) + '/' + n, ns = LOT_sc(big, w - 2 * AW - 20, P.name), nw = E.font.width(P.name, { scale: ns }), cw = E.font.width(num, { font: 'tiny' }), nx = x + Math.round((w - nw - cw - 6) / 2), ny = y + 2 + Math.round((AH - 7 * ns) / 2);
-  E.font.text(g, P.name, nx, ny, GOLD, Object.assign({ scale: ns }, sh)); E.font.text(g, num, nx + nw + 6, ny + 7 * ns - 5, '#6a6488', { font: 'tiny', outline: false });
+  const num = (pi + 1) + '/' + n, ns = LOT_sc(big, w - 2 * AW - 20, P.name), nw = E.font.width(P.name, { scale: ns }), nf = UI_tf({ outline: false }), cw = E.font.width(num, nf), nx = x + Math.round((w - nw - cw - 6) / 2), ny = y + 2 + Math.round((AH - 7 * ns) / 2);
+  E.font.text(g, P.name, nx, ny, GOLD, Object.assign({ scale: ns }, sh)); E.font.text(g, num, nx + nw + 6, ny + 7 * ns - (nf.font ? 5 : 7), '#6a6488', nf);   // (its number in the normal font on a TV)
   // the lines: the name on the left, the value on the right, the line in focus lit
   const ry0 = y + AH + 6; let det = null;
   if ((LOT_UI.focus || '').startsWith('stat:') && +LOT_UI.focus.slice(5) >= P.rows.length) LOT_UI.focus = 'stat:' + (P.rows.length - 1);   // (a shorter page: the last line)
@@ -32043,7 +32060,8 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
     const th = tall ? T : Math.max(12, F);   // (a finger's, on a touch screen)
     LOT_tabBtn(g, cx0, ty, 38 * tw, 'BAG', LOT_UI.tab === 'bag', () => { LOT_UI.tab = 'bag'; }, 'bag', th);
     LOT_tabBtn(g, cx0 + 40 * tw, ty, 62 * tw, 'CHARACTER', LOT_UI.tab === 'stats', () => { LOT_UI.tab = 'stats'; }, 'stats', th);
-    E.font.text(g, LOT_foot(keyLabel('pageNext', true), keyLabel('pagePrev', true) + ' ' + keyLabel('pageNext', true), ''), cx0 + 104 * tw + 2, ty + Math.round((th - 5) / 2), '#4a4468', { font: 'tiny', outline: false });   // (the tab keys: Tab, L1 R1)
+    const tk = LOT_foot(keyLabel('pageNext', true), keyLabel('pagePrev', true) + ' ' + keyLabel('pageNext', true), ''), tkf = UI_tfit(tk, cx0 + cw - (cx0 + 104 * tw + 2), { outline: false });   // (the tab keys: Tab, L1 R1; the normal font on a TV)
+    E.font.text(g, tk, cx0 + 104 * tw + 2, ty + Math.round((th - (tkf.font ? 5 : 7)) / 2), '#4a4468', tkf);
     const gy = ty + th + 3, foot = y + hh - 11;
     if (LOT_UI.tab === 'bag') {
       const cols = tall ? 8 : 10, rows = tall ? 5 : 4, CS = tall ? clamp(Math.floor(cw / cols), 16, T + 2) : Math.max(clamp(Math.floor(cw / cols), 16, 26), Math.min(F, Math.floor(cw / cols))), gx = cx0 + Math.floor((cw - CS * cols) / 2);
@@ -32055,9 +32073,9 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
       LOT_btn(g, gx + cols * CS - sw, by, sw, sh, 'SORT', () => LOT_sort(h), { key: 'sort' });
       // the powers he wears
       let py = by + sh + 5;
-      if (!h.powers.length && py < foot - 8) { E.font.text(g, 'NO LEGENDARY POWERS YET', gx, py, '#6a6488', { font: 'tiny', outline: false }); E.font.text(g, 'Orange and gold items carry them: each one changes how you fight.', gx, py + 9, '#4a4468', { outline: false, wrap: cols * CS }); }
+      if (!h.powers.length && py < foot - 8) { E.font.text(g, 'NO LEGENDARY POWERS YET', gx, py, '#6a6488', UI_tfit('NO LEGENDARY POWERS YET', cols * CS, { outline: false })); E.font.text(g, 'Orange and gold items carry them: each one changes how you fight.', gx, py + 9, '#4a4468', { outline: false, wrap: cols * CS }); }
       if (h.powers.length && py < foot - 8) {
-        E.font.text(g, 'LEGENDARY POWERS', gx, py, '#9a90b0', { font: 'tiny', outline: false }); py += 8;
+        const lf = UI_tfit('LEGENDARY POWERS', cols * CS, { outline: false }); E.font.text(g, 'LEGENDARY POWERS', gx, py, '#9a90b0', lf); py += lf.font ? 8 : 10;   // (the normal font on a TV)
         let px0 = gx;
         for (const id of h.powers) {
           const p = powerSpec(id); if (!p) continue; const tw = E.font.width(p.name) + 10;
@@ -32069,7 +32087,8 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
       }
     } else LOT_drawStats(g, cx0, gy, cw, foot - gy - 2, h, tall ? T : F);
     const shop = LOT_shopOpen();
-    E.font.text(g, shop ? LOT_foot('RIGHT-CLICK OR DRAG OUT TO SELL TO ' + LOT_npcName(shop), '{key:alt} SELLS TO ' + LOT_npcName(shop) + '  •  {key:cancel} BACK', 'TAP AN ITEM, THEN SELL  •  OR DRAG IT OUT TO ' + LOT_npcName(shop)) : LOT_foot('CLICK EQUIP  •  DRAG MOVE  •  RIGHT-CLICK DROP  •  {key:bag} CLOSES', '{key:confirm} EQUIP  •  {key:alt} DROP  •  {key:pagePrev} {key:pageNext} TABS  •  {key:panelNext} SKILLS  •  {key:cancel} BACK', 'TAP AN ITEM, THEN WHAT TO DO WITH IT  •  DRAG MOVES'), x + w / 2, foot + 2, '#5a5478', { align: 'center', font: 'tiny', outline: false });
+    const fs = LOT_footTV(shop ? LOT_foot('RIGHT-CLICK OR DRAG OUT TO SELL TO ' + LOT_npcName(shop), '{key:alt} SELLS TO ' + LOT_npcName(shop) + '  •  {key:cancel} BACK', 'TAP AN ITEM, THEN SELL  •  OR DRAG IT OUT TO ' + LOT_npcName(shop)) : LOT_foot('CLICK EQUIP  •  DRAG MOVE  •  RIGHT-CLICK DROP  •  {key:bag} CLOSES', '{key:confirm} EQUIP  •  {key:alt} DROP  •  {key:pagePrev} {key:pageNext} TABS  •  {key:panelNext} SKILLS  •  {key:cancel} BACK', 'TAP AN ITEM, THEN WHAT TO DO WITH IT  •  DRAG MOVES'), w - 14), ff = UI_tfit(fs, w - 14, { align: 'center', outline: false });   // (the normal font on a TV)
+    E.font.text(g, fs, x + w / 2, foot + (ff.font ? 2 : 1), '#5a5478', ff);
     LOT_end(g);
   } };
 
@@ -32124,7 +32143,7 @@ function LOT_npcHeader(g, x, y, w, svc) {
   const typing = LOT_SAY.svc === svc && LOT_SAY.t * 45 < LOT_SAY.text.length; rig._talk = typing;
   rig.drawPortrait(g, x + 2, y + 2, PS, { zoom: 2.3, turn: .45, bg: D.bg, border: D.border });
   const nx = x + PS + 9; E.font.text(g, name, nx, y, GOLD, { outline: false, shadow: '#05040a' });
-  E.font.text(g, (title || '').toUpperCase(), nx + E.font.width(name) + 5, y + 2, '#9a90b0', { font: 'tiny', outline: false });
+  const tt = (title || '').toUpperCase(), tf = UI_tfit(tt, x + w - nx - E.font.width(name) - 5, { outline: false }); E.font.text(g, tt, nx + E.font.width(name) + 5, y + (tf.font ? 2 : 0), '#9a90b0', tf);   // (the normal font on a TV)
   const bx = nx - 2, by = y + 9, bw = x + w - bx, text = LOT_SAY.svc === svc ? LOT_SAY.text : '', lines = E.font.wrap(text, bw - 8).slice(0, 3), bh = Math.max(20, lines.length * 9 + 5);
   E.ui.box(g, bx, by, bw, bh, { bg: ['#f4ecdc', '#d8ccb4'], border: '#3a2a3a', shadow: false });
   px.poly(g, [[bx + 1, by + 5], [bx - 4, by + 8], [bx + 1, by + 11]], '#3a2a3a'); px.poly(g, [[bx + 2, by + 6], [bx - 1, by + 8], [bx + 2, by + 10]], '#ece2d0');
@@ -32320,12 +32339,12 @@ LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }
         LOT_itemCell(g, cx, cy, CS - 1, it, { key: 'stock:' + i, cmp: true, dim: !can, click: () => LOT_buy(h, it, list, price, [cx, cy]), alt: () => LOT_buy(h, it, list, price, [cx, cy]),
           drop: T => { if (T && T.kind === 'bag') LOT_buy(h, it, list, price, [cx, cy], T.i); },
           tipO: { price: { t: (T0 === 'buy' ? 'BUY FOR ' : 'BUY BACK FOR ') + fmt(price) + ' GOLD', c: can ? GOLD : '#ff7a6a' }, hint: [{ t: LOT_foot('CLICK OR DRAG TO THE BAG TO BUY', '{key:confirm}: BUY', 'TAP OR DRAG TO THE BAG TO BUY'), c: '#8a80a8' }] } });
-        const ps = fmt(price), pf = LOT_rf(ps, pitch - 9), pw0 = E.font.width(ps, pf) + 6, px0 = cx + Math.max(CS - pitch, Math.floor((CS - 1 - pw0) / 2)), py = cy + CS + (pf.font ? 1 : 2);
+        const ps = UI_tv() && price >= 1000 && E.font.width(fmt(price)) > pitch - 9 ? Math.round(price / 100) / 10 + 'K' : fmt(price), pf = LOT_rf(ps, pitch - 9), pw0 = E.font.width(ps, pf) + 6, px0 = cx + Math.max(CS - pitch, Math.floor((CS - 1 - pw0) / 2)), py = cy + CS + (pf.font ? 1 : 2);   // (on a TV 8.3K where 8348 won't fit: the tooltip has it whole)
         LOT_coin(g, px0, py + (pf.font ? 0 : 1), true); E.font.text(g, ps, px0 + 6, py, can ? GOLD : '#a04a4a', pf);
       }
     }
     LOT_shopBag(g, rx, tall ? ay + ah + 6 : top, rw, tall ? y + hh - LOT_footR() : foot - 4, h, { kind: 'vendor' }, false, false, T);
-    const fs = LOT_foot('CLICK BUY  •  RIGHT-CLICK OR DRAG TO ' + LOT_npcName('vendor') + ' SELLS  •  {key:pageNext} TABS', '{key:confirm} BUY  •  {key:alt} SELLS  •  {key:pagePrev} {key:pageNext} TABS  •  {key:cancel} BACK', 'TAP BUYS  •  TAP YOUR ITEM, THEN SELL');
+    const fs = LOT_footTV(LOT_foot('CLICK BUY  •  RIGHT-CLICK OR DRAG TO ' + LOT_npcName('vendor') + ' SELLS  •  {key:pageNext} TABS', '{key:confirm} BUY  •  {key:alt} SELLS  •  {key:pagePrev} {key:pageNext} TABS  •  {key:cancel} BACK', 'TAP BUYS  •  TAP YOUR ITEM, THEN SELL'), w - 14);   // (a TV: the normal font, the hints that won't fit dropped)
     E.font.text(g, fs, x + w / 2, foot + 1, '#5a5478', LOT_rf(fs, w - 14, { align: 'center' }));
     LOT_end(g);
   } };
@@ -32399,7 +32418,7 @@ LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, 
       drawItemIconEx(g, it, ix, iy, 2);
       if (LOT_SMITH.flash > 0) px.blend(g, LOT_SMITH.flash / .15, 'add', () => px.ell(g, icx, iy + 16, 16, 16, '#fff0c0'));
       const over = LOT_hot(ix, iy, 32, 32, {}); if (over && !UI.keyNav) LOT_UI.tip = { it, anchor: [ix, iy, 32, 32], o: { equipped: !!LOT_worn(h, it), compare: false } };
-    } else E.font.text(g, 'PICK AN ITEM FROM YOUR BAG', icx, ay + 8, '#c89a6a', LOT_rf('PICK AN ITEM FROM YOUR BAG', lw - 8, { align: 'center', outline: '#0c0806' }));
+    } else { const s = 'PICK AN ITEM FROM YOUR BAG', hw = E.font.width(s) / 2; E.font.text(g, s, UI_tv() ? clamp(icx, x + pad + 4 + hw, x + pad + lw - 4 - hw) : icx, ay + 8, '#c89a6a', LOT_rf(s, lw - 8, { align: 'center', outline: '#0c0806' })); }   // (on a TV kept inside the box: the anvil stands left of its middle)
     // the name and the three services
     let by = ay + ah + 3;
     if (it) { const nc = tall ? 58 : 30, lv = 'ITEM LEVEL ' + it.ilvl + (LOT_worn(h, it) ? '  •  WORN' : ''); E.font.text(g, it.name.length > nc ? it.name.slice(0, nc - 1) + '.' : it.name, cx, by, RARITY[it.rarity].color, { align: 'center', outline: false, shadow: '#05040a' }); E.font.text(g, lv, cx, by + 9, '#8a80a8', LOT_rf(lv, lw, { align: 'center' })); }
@@ -32421,7 +32440,7 @@ LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, 
       if (!it) return LOT_say('smith', 'pick'); if (worn) return; if (LOT_salvage(h, it, [icx - 8, icy])) { LOT_SMITH.sel = null; LOT_forgeFx(icx, icy, it); }
     }, { key: 'salvage', disabled: !it || !!worn, color: '#4a2a2a', gain: true, tip: [{ t: 'Salvage', c: GOLD }, { t: 'Break it into materials for crafting (no gold: sell to Cobb for that). A legendary also gives up its power as an essence Seren can imprint on another item.', c: '#c8c0d8' }] });
     LOT_shopBag(g, rx, tall ? by + BH + 4 : top, rw, tall ? y + hh - LOT_footR() : foot - (T ? 2 : 4), h, { kind: 'smith', sel: it, select: LOT_SMITH.select }, true, true, T);
-    const fs = LOT_foot('CLICK OR DRAG AN ITEM TO THE ANVIL  •  RIGHT-CLICK SALVAGES INTO MATERIALS', '{key:confirm} PUTS IT ON THE ANVIL  •  {key:alt} SALVAGES  •  {key:cancel} BACK', 'TAP AN ITEM, THEN TO ANVIL OR SALVAGE');
+    const fs = LOT_footTV(LOT_foot('CLICK OR DRAG AN ITEM TO THE ANVIL  •  RIGHT-CLICK SALVAGES INTO MATERIALS', '{key:confirm} PUTS IT ON THE ANVIL  •  {key:alt} SALVAGES  •  {key:cancel} BACK', 'TAP AN ITEM, THEN TO ANVIL OR SALVAGE'), w - 14);   // (a TV: the normal font, the hints that won't fit dropped)
     E.font.text(g, fs, x + w / 2, foot + 1, '#5a5478', LOT_rf(fs, w - 14, { align: 'center' }));
     LOT_end(g);
   } };
@@ -32521,10 +32540,14 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
     if (it) {
       const iy = ay + 4 + Math.round(Math.sin(t * 2.4) * 1.5); drawItemIconEx(g, it, ox - 16, iy, 2);
       const over = LOT_hot(ox - 16, iy, 32, 32, {}); if (over && !UI.keyNav) LOT_UI.tip = { it, anchor: [ox - 16, iy, 32, 32], o: { equipped: !!LOT_worn(h, it), compare: false } };
-      const nl = E.font.wrap(it.name, lw - 50).slice(0, 2), rl = RARITY[it.rarity].name.toUpperCase() + '  •  ITEM LEVEL ' + it.ilvl;
+      const RN = RARITY[it.rarity].name.toUpperCase(), nl = E.font.wrap(it.name, lw - 50).slice(0, 2), rl = [RN + '  •  ITEM LEVEL ' + it.ilvl].concat(UI_tv() ? [RN + ' • ITEM LEVEL ' + it.ilvl, RN + ' • LEVEL ' + it.ilvl] : []).find(q => !UI_tv() || E.font.width(q) <= lw - 48) || RN;   // (shorter on a TV, in the normal font)
       nl.forEach((l, i) => E.font.text(g, l, ax + 44, ay + 5 + i * 9, RARITY[it.rarity].color, { outline: false, shadow: '#05040a' }));
       E.font.text(g, rl, ax + 44, ay + 7 + nl.length * 9, '#8a80a8', LOT_rf(rl, lw - 48));
-    } else { px.blend(g, .7, 'add', () => px.disc(g, ox, oy, 6, '#b070ff')); px.disc(g, ox, oy, 3, '#ecd8ff'); E.font.text(g, 'PLACE AN ITEM ON THE ALTAR', ax + 44, oy - 3, '#8a6aa8', LOT_rf('PLACE AN ITEM ON THE ALTAR', lw - 48)); }
+    } else {
+      px.blend(g, .7, 'add', () => px.disc(g, ox, oy, 6, '#b070ff')); px.disc(g, ox, oy, 3, '#ecd8ff');
+      const s = 'PLACE AN ITEM ON THE ALTAR', L = UI_tv() ? E.font.wrap(s, lw - 48).slice(0, 2) : [s];   // (on a TV the normal font, on two lines where one won't do)
+      L.forEach((l, i) => E.font.text(g, l, ax + 44, oy - 3 - (L.length - 1) * 5 + i * 9, '#8a6aa8', LOT_rf(l, lw - 48)));
+    }
     // transmute, imprint and respec: at the foot of the column, or (a finger's) under the altar
     const BH = Math.max(13, T), by = T ? ay + ah + 4 : foot - 3 * (BH + 3), tcost = it && it.rarity < 2 ? LOT_COST.transmute(it) : 0, tm = it && it.rarity < 2 ? LOT_MATCOST.transmute(it) : null, rcost = LOT_COST.respec(h);
     LOT_costBtn(g, ax, by, lw, BH, it ? (it.rarity >= 2 ? 'TRANSMUTE (RARE IS THE LIMIT)' : 'TRANSMUTE TO ' + RARITY[it.rarity + 1].name.toUpperCase()) : 'TRANSMUTE', tcost, tm, h, () => {
@@ -32545,7 +32568,7 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
     const mode = { kind: 'mystic', sel: it, select: LOT_MYST.select };
     if (!T) { if (it) LOT_altarLines(g, ax, ay + ah + 3, lw, foot - 3 * (BH + 3) - 1, it, h, ox, oy, 0); LOT_shopBag(g, rx, top, rw, foot - 4, h, mode, true, true); }
     else { const ry = tall ? by + 3 * (BH + 3) + 1 : top, rb = tall ? y + hh - LOT_footR() : foot - 2; if (it) LOT_altarLines(g, rx, ry, rw, rb, it, h, ox, oy, T); else LOT_shopBag(g, rx, ry, rw, rb, h, mode, true, true, T); }
-    const fs = LOT_foot('CLICK OR DRAG AN ITEM TO THE ALTAR', '{key:confirm} PLACES IT ON THE ALTAR  •  {key:cancel} BACK', it && T ? (LOT_MYST.imp ? 'TAP A POWER TO IMPRINT IT' : 'TAP A LINE TO ENCHANT IT  •  YOUR BAG TO CHOOSE ANOTHER') : 'TAP AN ITEM, THEN TO ALTAR');
+    const fs = LOT_footTV(LOT_foot('CLICK OR DRAG AN ITEM TO THE ALTAR', '{key:confirm} PLACES IT ON THE ALTAR  •  {key:cancel} BACK', it && T ? (LOT_MYST.imp ? 'TAP A POWER TO IMPRINT IT' : 'TAP A LINE TO ENCHANT IT  •  YOUR BAG TO CHOOSE ANOTHER') : 'TAP AN ITEM, THEN TO ALTAR'), w - 14);   // (a TV: the normal font, the hints that won't fit dropped)
     E.font.text(g, fs, x + w / 2, foot + 1, '#5a5478', LOT_rf(fs, w - 14, { align: 'center' }));
     LOT_end(g);
   } };
@@ -32580,7 +32603,8 @@ function LOT_altarLines(g, ax, ly, lw, bottom, it, h, ox, oy, T = 0) {
   } else if (it.rarity === 4) E.font.text(g, 'A UNIQUE CANNOT BE ENCHANTED.', ax + 2, ly + 2, '#8a80a8', tf('A UNIQUE CANNOT BE ENCHANTED.'));
   else if (!it.affixes.length) E.font.text(g, 'NO AFFIXES TO ENCHANT. TRANSMUTE IT FIRST.', ax + 2, ly + 2, '#8a80a8', tf('NO AFFIXES TO ENCHANT. TRANSMUTE IT FIRST.'));
   else {
-    const cost = LOT_COST.enchant(it), em = LOT_MATCOST.enchant(it), S = LOT_stash(h), s = 'ENCHANT ONE LINE  ' + fmt(cost) + ' GOLD  +' + em.dust + ' DUST', rh = T || 11;
+    const cost = LOT_COST.enchant(it), em = LOT_MATCOST.enchant(it), S = LOT_stash(h), s0 = 'ENCHANT ONE LINE  ' + fmt(cost) + ' GOLD  +' + em.dust + ' DUST', rh = T || 11;
+    const s = UI_tv() && E.font.width(s0) > lw - 4 ? 'ENCHANT  ' + fmt(cost) + ' GOLD  +' + em.dust + ' DUST' : s0;   // (shorter on a TV, in the normal font)
     E.font.text(g, s, ax + 2, ly, h.gold >= cost && (S.mats.dust || 0) >= em.dust ? '#c890ff' : '#c87a8a', tf(s)); ly += T ? 12 : 8;
     it.affixes.forEach((a, i) => {
       if (ly + rh > lastY) return; const locked = it.enchIdx !== undefined && it.enchIdx !== i, label = statText(a.stat, a.v), nc = T ? mc - 2 : 32;
@@ -32707,7 +32731,7 @@ LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 
     const nx = x + pad + 48, total = S.tabs.reduce((a, q, t) => a + LOT_stashCount(S, t), 0), kept = total + ' / ' + LOT_STASH_TABS * LOT_STASH_N, my = side ? top + 11 : top + 21;
     E.font.text(g, 'THE STASH', nx, top + 1, GOLD, { outline: false, shadow: '#05040a' });
     if (side) E.font.text(g, kept, nx + E.font.width('THE STASH') + 6, top + 2, '#8a80a8', { font: 'tiny', outline: false });
-    else { const s = kept + ' KEPT  •  SAFE BETWEEN DESCENTS'; E.font.text(g, s, nx, top + 11, '#8a80a8', LOT_rf(s, x + pad + lw - nx)); }
+    else { const rw0 = x + pad + lw - nx, s = [kept + ' KEPT  •  SAFE BETWEEN DESCENTS'].concat(UI_tv() ? [kept + ' KEPT  •  ALWAYS SAFE', kept + ' KEPT'] : []).find(q => !UI_tv() || E.font.width(q) <= rw0) || kept; E.font.text(g, s, nx, top + 11, '#8a80a8', LOT_rf(s, rw0)); }   // (shorter on a TV, in the normal font)
     const mo = LOT_rf('MATERIALS', 60); E.font.text(g, 'MATERIALS', nx, my, '#9a90b0', mo); LOT_matsRow(g, nx + (mo.font ? 40 : E.font.width('MATERIALS') + 6), my, h);
     // the tabs (an item dragged onto one goes into it): under the chest, or beside it on a touch screen on its side
     const th = Math.max(12, T), ty = side ? top + 21 : top + 40, tx0 = side ? nx : x + pad, tw = Math.floor((x + pad + lw - tx0 - 6) / LOT_STASH_TABS);
@@ -32727,7 +32751,7 @@ LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 
     }
     // the bag, on the right (under the chest held upright): a click stores
     LOT_shopBag(g, rx, tall ? gy + rows * CS + 8 : top, rw, tall ? y + hh - LOT_footR() : foot - 4, h, { kind: 'stash', select: it => LOT_toStash(h, it) }, false, false, T);
-    const fs = LOT_foot('CLICK MOVES BETWEEN BAG AND STASH  •  DRAG PLACES  •  RIGHT-CLICK WEARS  •  {key:pageNext}: NEXT TAB', '{key:confirm} MOVES BETWEEN BAG AND STASH  •  {key:alt} WEARS  •  {key:pagePrev} {key:pageNext} TABS', 'TAP AN ITEM, THEN STORE, TAKE OR WEAR  •  DRAG PLACES');
+    const fs = LOT_footTV(LOT_foot('CLICK MOVES BETWEEN BAG AND STASH  •  DRAG PLACES  •  RIGHT-CLICK WEARS  •  {key:pageNext}: NEXT TAB', '{key:confirm} MOVES BETWEEN BAG AND STASH  •  {key:alt} WEARS  •  {key:pagePrev} {key:pageNext} TABS', 'TAP AN ITEM, THEN STORE, TAKE OR WEAR  •  DRAG PLACES'), w - 14);   // (a TV: the normal font, the hints that won't fit dropped)
     E.font.text(g, fs, x + w / 2, foot + 1, '#5a5478', LOT_rf(fs, w - 14, { align: 'center' }));
     LOT_end(g);
   } };
@@ -34501,7 +34525,8 @@ function MKB_rushHud(r, L0) {
     const x = f.W - 8, y = 64 + HUD_under(), sh = S.shake * S.shake, jx = Math.round((Math.random() * 2 - 1) * sh * 3), jy = Math.round((Math.random() * 2 - 1) * sh * 2);
     if (S.n >= 1 || S.t > 0) {
       const sc = (S.n >= 50 ? 4 : 3) + (S.pop > 0 ? 1 : 0), hot = S.pop > 0, cols = hot ? ['#ffffff', '#ffffff', '#ffd0d0', '#ff6a7a'] : S.mul >= MKB_BR.cap ? ['#fff6d0', '#ffd36a', '#ff5a2a', '#8a1010'] : ['#fff0f0', '#ff8a8a', '#e0202e', '#7a0614'];
-      E.font.text(g, 'KILL STREAK', x, y, '#ff8a8a', { align: 'right', font: 'tiny', outline: '#1a0008' });
+      const sf = UI_tf({ align: 'right', outline: '#1a0008' }), sy = sf.font ? 0 : 2;   // (its words in the normal font on a TV, 2 px higher: the same foot)
+      E.font.text(g, 'KILL STREAK', x, y - sy, '#ff8a8a', sf);
       const tw = E.font.title(g, String(S.n), x + jx, y + 8 + jy - (hot ? 3 : 0), { scale: sc, colors: cols, depth: 2, depthColor: '#2a0008', outline: '#12000a', align: 'right' });
       E.font.title(g, 'x', x + jx - tw.w - 2, y + 8 + jy + 7 * sc - 14, { scale: 2, colors: ['#ffc0c0', '#e0202e'], depth: 1, depthColor: '#2a0008', outline: '#12000a', align: 'right' });
       const bw = 62, by = y + 12 + 7 * (S.n >= 50 ? 4 : 3), u = clamp(S.t / MKB_BR.win, 0, 1), warn = u < .3 && Math.floor(game.real * 10) % 2;
@@ -34509,11 +34534,11 @@ function MKB_rushHud(r, L0) {
       px.rect(g, x - bw + 1, by + 1, Math.round((bw - 2) * u), 3, warn ? '#ffffff' : '#e0202e'); px.rect(g, x - bw + 1, by + 1, Math.round((bw - 2) * u), 1, warn ? '#ffffff' : '#ff8a8a');
       const st = Math.min(MKB_BR.stacks, S.n);
       E.font.text(g, 'XP x' + S.mul.toFixed(2).replace(/0$/, ''), x, by + 8, S.mul >= MKB_BR.cap ? '#ffd36a' : '#ffc0a0', { align: 'right', outline: '#1a0008' });
-      if (st) E.font.text(g, '+' + Math.round(st * MKB_BR.mv) + '% SPEED  +' + Math.round(st * MKB_BR.as) + '% ATTACK', x, by + 18, '#e8a0a8', { align: 'right', font: 'tiny', outline: '#1a0008' });
+      if (st) E.font.text(g, '+' + Math.round(st * MKB_BR.mv) + '% SPEED  +' + Math.round(st * MKB_BR.as) + '% ATTACK', x, by + 18, '#e8a0a8', sf);
     } else if (S.endT > 0) {
       const a = clamp(S.endT / .6, 0, 1);
       px.blend(g, a, 'normal', () => {
-        E.font.text(g, 'STREAK ENDED', x, y, '#c88a90', { align: 'right', font: 'tiny', outline: '#1a0008' });
+        const sf = UI_tf({ align: 'right', outline: '#1a0008' }); E.font.text(g, 'STREAK ENDED', x, y - (sf.font ? 0 : 2), '#c88a90', sf);   // (the normal font on a TV)
         E.font.title(g, 'x' + S.last, x, y + 8, { scale: 2, colors: ['#e8c8c8', '#a84050'], depth: 1, depthColor: '#2a0008', outline: '#12000a', align: 'right' });
         if (S.lastXp >= 1) E.font.text(g, '+' + fmt(S.lastXp) + ' BONUS XP', x, y + 26, '#ffd36a', { align: 'right', outline: '#1a0008' });
       });
@@ -37478,14 +37503,15 @@ function drawNPC(n, r) {
   // name tag when the hero is near (not over an open panel); a speech bubble if there is one
   if ((n.near && !UI.modal) || n.bubble) r.overlay(g => {
     const [x, y] = r.w(n.x, n.y, (n.z || 0) + (n.rig.o.size || 1) * 34);
+    const nf = UI_tf({ align: 'center', outline: false }), tv = !nf.font;   // (tiny, or the normal font on a TV)
     if (n.bubble) {   // wrapped to a few short lines, kept on screen, with a tail down to the speaker; it rises into place as it appears
-      const B = n.bubble, lines = B.lines || (B.lines = E.font.wrap(B.text, 118, { font: 'tiny' })), lh = 7, w = Math.max(...lines.map(l => E.font.width(l, { font: 'tiny' }))) + 8, hh = lines.length * lh + 4;
+      const B = n.bubble, lines = B.lines && B.tv === tv ? B.lines : (B.tv = tv, B.lines = E.font.wrap(B.text, tv ? 150 : 118, nf)), lh = tv ? 9 : 7, w = Math.max(...lines.map(l => E.font.width(l, nf))) + 8, hh = lines.length * lh + 4;
       const age = B.max - B.t, pop = age < .12 ? age / .12 : 1, bx = Math.round(clamp(x - w / 2, 2, r.W - w - 2)), by = Math.round(y - 11 - hh + (1 - pop) * 3);
       E.ui.box(g, bx, by, w, hh, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false });
       const tx = Math.round(clamp(x, bx + 4, bx + w - 5)); px.poly(g, [[tx - 2, by + hh - 1], [tx + 2, by + hh - 1], [tx, by + hh + 3]], '#3a2a3a'); px.rect(g, tx - 1, by + hh - 1, 2, 2, '#f0e8d8');
-      lines.forEach((l, i) => E.font.text(g, l, bx + w / 2, by + 3 + i * lh, '#2a1a2a', { align: 'center', font: 'tiny', outline: false }));
+      lines.forEach((l, i) => E.font.text(g, l, bx + w / 2, by + 3 + i * lh, '#2a1a2a', nf));
     }
-    else { E.font.text(g, S.name, x, y - 12, '#ffd36a', { align: 'center', font: 'tiny', outline: '#0c0818' }); if (S.title) E.font.text(g, S.title, x, y - 6, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#0c0818' }); }
+    else { const tf = Object.assign({}, nf, { outline: '#0c0818' }); E.font.text(g, S.name, x, y - (tv ? 17 : 12), '#ffd36a', tf); if (S.title) E.font.text(g, S.title, x, y - (tv ? 8 : 6), '#c8c0d8', tf); }
   });
 }
 const say = (n, text, t = 2.5) => { n.bubble = { text, t, max: t }; };
@@ -39005,7 +39031,7 @@ function catThing(x, y) {
       r.actor(this.x, this.y, this.z, (g, ox, oy) => { if (curled) curledCat(g, ox, oy, r.view, f, aw, h ? Math.atan2(h.y - this.y, h.x - this.x) : f); else b.draw(g, ox, oy, r.view); }, { outline: true });
       const x = this.x, y = this.y;
       if (this.zs) for (const zz of this.zs) r.queue(x, y, 0, g => { const u = zz.t / 2, [sx, sy] = r.w(x + 3 + u * 7, y - u * 3, 13 + u * 14); px.blend(g, u < .15 ? u / .15 : 1 - u, 'normal', () => E.font.text(g, u > .5 ? 'Z' : 'z', Math.round(sx + Math.sin(u * 6) * 2), Math.round(sy), '#c8d0ff', { outline: '#1a1428' })); }, { bias: .05 });
-      if (this.bub) { const s = this.bub.s; r.overlay(g => { const [sx, sy] = r.w(x, y, 16), w = E.font.width(s, { font: 'tiny' }) + 6; E.ui.box(g, sx - w / 2, sy - 11, w, 9, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false }); E.font.text(g, s, sx, sy - 9, '#2a1a2a', { align: 'center', font: 'tiny', outline: false }); }); }
+      if (this.bub) { const s = this.bub.s; r.overlay(g => { const [sx, sy] = r.w(x, y, 16), f = UI_tf({ align: 'center', outline: false }), bh = f.font ? 9 : 11, w = E.font.width(s, f) + 6; E.ui.box(g, sx - w / 2, sy - 2 - bh, w, bh, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false }); E.font.text(g, s, sx, sy - bh, '#2a1a2a', f); }); }   // (the normal font on a TV)
     } };
 }
 
@@ -39397,6 +39423,22 @@ const UI_tall = () => game.H > game.W * 1.3;
  *  takes it: text a player must read (tooltips, totals, the HUD's numbers and labels) is drawn in the normal font there,
  *  not the 3 x 5 tiny one; tf(o) adds { font: 'tiny' } to a text's options only off a TV */
 const UI_tv = () => typeof innerWidth === 'number' && innerWidth >= 1600, UI_tf = (o = {}) => UI_tv() ? o : Object.assign({}, o, { font: 'tiny' });
+/** UI_tf for a text s with only w pixels: the normal font on a TV where s fits in w, else the tiny one */
+const UI_tfit = (s, w, o = {}) => UI_tv() && E.font.width(s) <= w ? o : Object.assign({}, o, { font: 'tiny' });
+/** the skill slots' keys in a line under the slots (on a TV, where a slot's corner is too small for LMB in the normal
+ *  font): each centred at mid(i) in the normal font, but one too wide to keep 2 px clear of its neighbours and inside
+ *  x0..x1 (a slot rebound to Shift beside Ctrl) the tiny one there, so no two run together. Returns each key's options */
+function UI_keyFonts(keys, mid, x0, x1) {
+  const n = keys.length, kf = keys.map(() => ({})), kw = i => E.font.width(keys[i], kf[i]);
+  for (let pass = 0, hit = true; hit && pass < n; pass++) {
+    hit = false;
+    for (let b = 0; b <= n; b++) {   // the room between key b - 1 and key b (x0 before the first, x1 after the last)
+      const a = b - 1, L = a < 0 ? x0 - 1 : mid(a) + kw(a) / 2 + 1, R = b >= n ? x1 + 1 : mid(b) - kw(b) / 2 - 1;
+      if (L > R) { const j = a < 0 ? b : b >= n ? a : kw(a) >= kw(b) ? a : b; if (!kf[j].font) { kf[j] = { font: 'tiny' }; hit = true; } }
+    }
+  }
+  return kf;
+}
 /** how many game pixels make a finger's target (44 CSS pixels) on this screen */
 const UI_finger = () => { const sc = game.screen; return Math.ceil(44 * (sc.dpr || 1) / (sc.S || 1)); };
 const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y < r0.y + r0.h;
@@ -39550,7 +39592,7 @@ function drawTimedIcon(g, x, y, c, bg, o, stacks, paint) {
   E.ui.box(g, x, y, S, S, { bg, border: blink ? '#ffffff' : c, shadow: false, gradient: false });
   paint();
   if (T < 999 && o._uiMax > 0) { const k = Math.round((S - 2) * (1 - clamp(T / o._uiMax, 0, 1))); if (k > 0) px.blend(g, .62, 'normal', () => px.rect(g, x + 1, y + 1, S - 2, k, '#05040a')); }
-  if (stacks > 1) E.font.text(g, String(stacks), x + S, y + S - 5, '#ffffff', { align: 'right', font: 'tiny', outline: '#0c0818' });
+  if (stacks > 1) { const f = UI_tfit(String(stacks), S - 2, { align: 'right', outline: '#0c0818' }); E.font.text(g, String(stacks), x + S, y + S - (f.font ? 5 : 7), '#ffffff', f); }   // (the normal font on a TV)
 }
 function drawHUD(r) {
   const h = ED.hero; if (!h) return;
@@ -39570,11 +39612,14 @@ function HUD_out(g) { if (UI.hotO) { g.restore(); UI.hotO = null; } }
 function HUD_under() { const F = UI.frame; return F.barB > 0 ? Math.max(0, Math.ceil(F.barB - F.t) + 1) : 0; }
 function drawHudInner(g, r, h) {
   {
-    const W = r.W, H = r.H, cx = Math.round(W / 2), by = H - 24;
     // on a TV the labels a player reads (the orbs' numbers, the potion key, LV, the gold, the points, the timer, the
-    // exit's distance, a cooldown) are in the normal font (UI_tf); ty lifts each by a pixel so it keeps its middle (the
-    // normal font is 7 rows to the tiny one's 5). Elsewhere they stay tiny, where they were
-    const tv = UI_tv(), ty = tv ? 1 : 0;
+    // exit's distance, a cooldown, the slots' keys) are in the normal font (UI_tf); ty lifts each by a pixel so it keeps
+    // its middle (the normal font is 7 rows to the tiny one's 5). Elsewhere they stay tiny, where they were. The slots'
+    // keys go under the slots there (LMB is too wide for a slot's corner), so the bar rises 9 px over them (kb). A window
+    // too narrow for the potions' key, LV, that bar and the gold in one line (under 356 game px: a 4:3 one) keeps them in
+    // the slots' corners, as it had them
+    const W = r.W, H = r.H, cx = Math.round(W / 2), tv = UI_tv(), ty = tv ? 1 : 0, touch = ctlDevice() === 'touch', keys = touch ? [] : SLOT_ACTS.map((a, i) => slotKey(i));
+    const kb = tv && keys.length > 0 && W >= 356, by = H - 24 - (kb ? 9 : 0);
     // orbs
     const OR = 17;
     orb(g, 22, H - 22, OR, h.hp / h.maxHp, h.st.poison ? '#6ac03a' : '#d8303a', '#2a0c14');
@@ -39584,14 +39629,14 @@ function drawHudInner(g, r, h) {
     E.font.text(g, fmt(Math.ceil(h.hp)), 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
     E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
     // potions beside the life orb, with their key or button (none on touch: the Potion button says it)
-    const touch = ctlDevice() === 'touch';
     for (let i = 0; i < h.maxPotions; i++) { const x = 44 + i * 7, y = H - 12, full = i < h.potions; px.rect(g, x + 1, y - 7, 2, 2, full ? '#c8b890' : '#4a4050'); px.disc(g, x + 2, y - 2, 2.6, full ? '#e03a4a' : '#2a2030'); if (full) px.dot(g, x + 1, y - 3, '#ffc0c8'); }
     if (!touch) E.font.text(g, keyLabel('potion', true), 44 + h.maxPotions * 7 + 2, H - 13 - ty, '#9a90b0', UI_tf({ outline: '#0c0818' }));
     // skill bar
-    const SW = 18, gap = 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);
-    // the slots' key badges: the normal font on a TV when every badge fits a slot's corner (a pad's □ R1 R2, the keys 1-4),
-    // else all tiny (LMB is too wide), so one bar never mixes the two
-    const keys = touch ? [] : SLOT_ACTS.map((a, i) => slotKey(i)), bf = tv && keys.every(k => E.font.width(k) + 3 <= SW - 4) ? {} : { font: 'tiny' }, bh = bf.font ? 7 : 9;
+    const SW = 18, gap = kb ? 4 : 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);   // (a TV's keys under the slots: 2 px more between them)
+    // the slots' keys: a badge in a slot's corner, tiny (on a TV too narrow for kb the normal font when every badge fits a
+    // corner: a pad's □ R1 R2); on a TV (kb) a line under the slots, each key centred under its slot in the normal font
+    // (UI_keyFonts), clear of the LV and the gold beside the bar
+    const bf = tv && keys.every(k => E.font.width(k) + 3 <= SW - 4) ? {} : { font: 'tiny' }, bh = bf.font ? 7 : 9, km = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2, kf = kb ? UI_keyFonts(keys, km, bx - 3, bx + bw + 3) : [];
     for (let i = 0; i < n; i++) {
       const x = bx + i * (SW + gap) + (i >= 2 ? 4 : 0), y = by, id = h.slots[i], S = id && REG.skills[id];
       E.ui.box(g, x - 1, y - 1, SW + 2, SW + 2, { bg: '#141020', border: h.cdWarn && h.cdWarn.slot === i && h.cdWarn.t > 0 ? '#ff5a5a' : h.act && h.act.slot === i ? GOLD : '#5a4a70', shadow: false, gradient: false });
@@ -39601,14 +39646,16 @@ function drawHudInner(g, r, h) {
         if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 2), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
-      if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
+      if (kb) E.font.text(g, keys[i], km(i), y + SW + 2 + (kf[i].font ? 1 : 0), '#c8c0d8', Object.assign({ align: 'center', outline: '#0c0818' }, kf[i]));
+      else if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
       hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel ({key:skills}).', c: '#c8c0d8' }], click: touch ? null : () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
     }
     // on touch the bar is ONE target a finger's height (44 CSS px), not six 18 px squares: a tap opens the Skills panel for
-    // the slot nearest it (a near miss arms the next slot, which the panel changes in a tap). The points chip, drawn
-    // after, keeps its own target where the two meet
+    // the slot nearest it (a near miss arms the next slot, which the panel changes in a tap). Its top (t0) is where the
+    // points chip's own target begins, over it
+    const t0 = touch ? Math.min(by - 1, H - Math.max(UI_finger(), SW + 2)) : by - 1;
     if (touch) {
-      const F = Math.max(UI_finger(), SW + 2), t0 = Math.min(by - 1, H - F), ox = UI.hotO ? UI.hotO[0] : 0, mid = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2;
+      const ox = UI.hotO ? UI.hotO[0] : 0, mid = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2;
       hot(bx - 2, t0, bw + 4, H - t0, { label: 'SKILL BAR', click: () => { if (!UI.panels.skills) return; const mx = UI.mouse.x - ox; let k = 0; for (let i = 1; i < n; i++) if (Math.abs(mid(i) - mx) < Math.abs(mid(k) - mx)) k = i; UI.open('skills', { slot: k }); } });
     }
     if (h.cdWarn) h.cdWarn.t -= 1 / 60;
@@ -39624,17 +39671,22 @@ function drawHudInner(g, r, h) {
     // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
     const ck = h.pts.skill + ':' + h.pts.passive + ':' + h.level, cs = typeof PRG_canSpend !== 'function' ? null : UI.csKey === ck && game.real - UI.csT < 2 ? UI.cs : (UI.csKey = ck, UI.csT = game.real, UI.cs = PRG_canSpend(h));
     const skN = cs && !cs.skill ? 0 : h.pts.skill, paN = cs && !cs.passive ? 0 : h.pts.passive;
+    UI.chipLift = 0;   // (how far the chip rose over the bar's target on touch: the prompt and the quick lines rise with it)
     if (skN + paN > 0) {   // '2 SKILL POINTS (K)', '1 PASSIVE POINT (P)', '2 SKILL + 1 PASSIVE POINTS (K / P)'; a controller has no key for
       // them: the menu's button; on touch the line is a chip a tap opens the panel from
       const blink = Math.floor(game.real * 2) % 2, sk = skN, pa = paN, dev = ctlDevice(), K = keyLabel('skills', true), Pk = keyLabel('tree', true);
       const keys = touch ? '' : K || Pk ? (sk && pa ? ' (' + [K, Pk].filter(Boolean).join(' / ') + ')' : sk && K ? ' (' + K + ')' : pa && Pk ? ' (' + Pk + ')' : '') : dev === 'gamepad' ? ' (' + keyLabel('pause', true) + ')' : '';
       const s = (sk ? sk + ' SKILL' : '') + (sk && pa ? ' + ' : '') + (pa ? pa + ' PASSIVE' : '') + ' POINT' + (sk + pa > 1 ? 'S' : '') + keys, sw0 = E.font.width(s, UI_tf());
-      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, by - 18 - ty * 2, sw0 + 8, 10 + ty * 2, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
-      E.font.text(g, s, cx, by - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
+      // on touch the chip and its target sit wholly over the bar's finger-tall target (t0), which reaches higher than the
+      // bar's drawing where a finger is more than 27 game pixels (a phone held upright): the chip rises by that much
+      const lift = UI.chipLift = touch ? Math.max(0, by - 3 - t0) : 0, cy0 = by - lift;
+      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, cy0 - 18 - ty * 2, sw0 + 8, 10 + ty * 2, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
+      E.font.text(g, s, cx, cy0 - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
       // a tap opens where the points go (a mouse's click there swings, as before). The chip is a short line, so its
-      // target is a finger's (44 CSS px) square or more, reaching up from just over the skill bar: never over a slot
-      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); hot(Math.round(cx - fw / 2), by - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
+      // target is a finger's (44 CSS px) square or more, reaching up from the top of the bar's: never over the bar
+      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); hot(Math.round(cx - fw / 2), cy0 - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
     }
+    UI.overBar = by - 26 - UI.chipLift;   // the line over all that: the interaction prompt, then the quick notices over it
     E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9 - ty, GOLD, UI_tf({ align: 'right', outline: '#0c0818' }));
     // top left: where we are, the level's elements, buffs
     const L0 = ED.L; let leftW = 0;   // how far the place names reach (the boss bar keeps clear of them)
@@ -39665,7 +39717,7 @@ function drawHudInner(g, r, h) {
       if (ex < m || ex > W - m || ey < m || ey > H - m) {
         // (on a TV the arrow and its larger label keep clear of what always sits in the corners: above the HUD bar and the
         // orbs, below the place names and the minimap)
-        const mb = tv ? 44 : m, mt = tv ? 62 + HUD_under() : m, dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - (dy > 0 ? mb : mt)) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
+        const mb = tv ? 44 + (kb ? 9 : 0) : m, mt = tv ? 62 + HUD_under() : m, dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - (dy > 0 ? mb : mt)) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
         px.poly(g, [[ax + Math.cos(a) * 6, ay + Math.sin(a) * 6], [ax + Math.cos(a + 2.4) * 5, ay + Math.sin(a + 2.4) * 5], [ax + Math.cos(a - 2.4) * 5, ay + Math.sin(a - 2.4) * 5]], c);
         const dd = Math.round(Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) / T16), ad = tv ? 13 : 9;   // (the wider normal-font label sits further back from the arrow)
         E.font.text(g, dd + 'm', ax - Math.cos(a) * ad, ay - Math.sin(a) * ad - 2 - ty, c, UI_tf({ align: 'center', outline: '#0c0818' }));
@@ -39685,7 +39737,7 @@ function drawHudInner(g, r, h) {
     UI.hudDrawn = true;
     // interaction prompt (not under a panel or a conversation: '[E] Talk to ILSA' while Ilsa is talking reads as a bug)
     UI.promptShown = !!UI.prompt && !UI.modal && !(typeof talk !== 'undefined' && talk.open);
-    if (UI.promptShown) E.font.text(g, promptText(UI.prompt), cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });   // ('[E] Talk to Bram', '[L3] ...'; on touch the Use button says it)
+    if (UI.promptShown) E.font.text(g, promptText(UI.prompt), cx, UI.overBar, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });   // ('[E] Talk to Bram', '[L3] ...'; on touch the Use button says it)
     // the level card: name, depth, the new element
     if (UI.card && UI.cardT > 0) drawLevelCard(g, W, H, cx, UI.card);
   }
@@ -39829,7 +39881,7 @@ function drawNoticeFeed(g, W, H, rect, hud) {
     if (rows.length) NT.rect = [fx - ww / 2 - 8 + o0[0], y0 - 8 + o0[1], ww + 16, rows.length * 10 + 16];   // (where a flick sweeps it away: screen pixels)
   }
   // quick feedback over the skill bar (above the interaction prompt when one shows)
-  let qy = H - 24 - 26 - (UI.promptShown ? 11 : 0); const qy1 = qy + 10, o1 = UI.hotO || [0, 0];
+  let qy = (UI.overBar !== undefined ? UI.overBar : H - 50) - (UI.promptShown ? 11 : 0); const qy1 = qy + 10, o1 = UI.hotO || [0, 0];
   for (let i = NT.quick.length - 1; i >= 0; i--) { const n = NT.quick[i], a = NT_alpha(n); if (a <= 0) continue; line(label(n), cx, qy, n.color, a, false); qy -= 10; }
   if (qy < qy1 - 10) NT.qRect = [cx - 90 + o1[0], qy + 4 + o1[1], 180, qy1 - qy + 4];
 }
@@ -40121,11 +40173,12 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : D
 /* the waystone's list: the panel is as tall as its depths need (it scrolls past ten). ONE row is lit: the focus, which
    the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view */
 const WAY = { top: 0 };
-UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : 200, 52 + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * (UI_rowH() + 1)), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
+UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : 200, 52 + (UI_tv() ? 4 : 0) + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * (UI_rowH() + 1)), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
   const rs = UI_rowH() + 1, rb = rs - 3;   // (a row's step and its button: a finger's held upright)
-  const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, { font: 'tiny' }).slice(0, 2);
-  sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * 7, '#9a90b0', { align: 'center', font: 'tiny', outline: false }));
-  const top = y + 21 + sub.length * 7, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
+  const sf = UI_tf({ align: 'center', outline: false }), sl = sf.font ? 7 : 9;   // (the line under the title: the normal font on a TV, the panel 4 px taller for it)
+  const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, sf).slice(0, 2);
+  sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * sl, '#9a90b0', sf));
+  const top = y + 21 + sub.length * sl, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
   WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top;
   list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name; if (button(g, x + 12, top + i * rs, w - 24, rb, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k; });
   if (list.length > rows) { const th = Math.max(6, Math.round((rows * rs - 3) * rows / list.length)), ty = top + Math.round((rows * rs - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * rs - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }
@@ -41736,7 +41789,7 @@ function devDraw(r) {
 	r.overlay((g) => {
 		let y = 4 + UI.frame.t;
 		const line = (t, c) => {
-			E.font.text(g, t, r.W / 2, y, c, { align: "center", font: "tiny" });
+			E.font.text(g, t, r.W / 2, y, c, UI_tf({ align: "center" })); // (the normal font on a TV)
 			y += 9;
 		};
 		if (tuned) line("TUNED", "#8fe3ff");
@@ -41847,7 +41900,7 @@ function updateCharacterPreview(dt) {
 		160,
 		197,
 		"#83f4df",
-		{ align: "center", font: "tiny" },
+		UI_tf({ align: "center" }), // (the normal font on a TV)
 	);
 }
 UI.def("characters", {
@@ -42314,19 +42367,29 @@ function loadHeroOrNew(identity = CHAR.selected) { const s = loadSave(identity);
 function startGame(fresh) { if (fresh) { E.store.remove(characterSaveKey()); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
 /** The title menu grows upward from the key legend; shorter windows use tighter rows, a phone held upright taller ones
  *  (a finger's target: about 44 CSS pixels) */
-function titleMenu(n) { const tall = !!TOUCH.el && UI_tall(), T = clamp(UI_finger(), 13, 60), step = tall ? T + 4 : game.H < 260 ? 14 : 16, rowH = tall ? T : 13, y = game.H - UI.frame.b - 29 - n * step; return { y, step, rowH, bw: tall ? Math.min(game.W - 40, 240) : 118 }; }
+function titleMenu(n) { const tall = !!TOUCH.el && UI_tall(), T = clamp(UI_finger(), 13, 60), step = tall ? T + 4 : game.H < 260 ? 14 : 16, rowH = tall ? T : 13, y = game.H - UI.frame.b - 8 - legendRows()[2] - n * step; return { y, step, rowH, bw: tall ? Math.min(game.W - 40, 240) : 118 }; }
 /** the title's two lines of controls, for the device in use: the thumbs on touch, the stick and the buttons on a
  *  controller (glyphs), the keys and the mouse on a keyboard (every key from the engine's labels, as bound now) */
-function legend(g, cx, y) {
+function legendLines() {
   const dev = ctlDevice(), K = a => { const l = keyLabel(a, false, dev); return l.length > 6 ? keyLabel(a, true, dev) : l; }, alt = CONTROL.handed === 'left';   // (Space, but LMB and ↑ for the long names)
-  const L = dev === 'touch' || (TOUCH.el && dev !== 'gamepad' && UI.keyT < 0) ? [   // touch buttons showing (and no key pressed yet): the thumbs, not the keys
+  return dev === 'touch' || (TOUCH.el && dev !== 'gamepad' && UI.keyT < 0) ? [   // touch buttons showing (and no key pressed yet): the thumbs, not the keys
     'DRAG ON THE ' + (alt ? 'RIGHT' : 'LEFT') + ' TO MOVE  •  THE BUTTONS ON THE ' + (alt ? 'LEFT' : 'RIGHT') + ' FIGHT',
     'MENU  BAG  MAP  PORTAL: THE BUTTONS AT THE TOP']
     : dev === 'gamepad' ? ['L STICK MOVES  •  R STICK AIMS  •  ' + SLOT_ACTS.map(a => K(a)).join(' ') + ' SKILLS  •  ' + K('dodge') + ' DODGE  •  ' + K('potion') + ' POTION',
       K('interact') + ' USE  •  ' + K('portal') + ' PORTAL  •  ' + K('bag') + ' BAG  •  ' + K('map') + ' MAP  •  ' + K('labels') + ' LOOT  •  ' + K('pause') + ' MENU']
     : [[K('up'), K('left'), K('down'), K('right')].join('') + ' MOVE  MOUSE AIMS  ' + SLOT_ACTS.map(a => K(a)).join(' ') + ' SKILLS  ' + K('dodge') + ' DODGE  ' + K('potion') + ' POTION',
       K('interact') + ' USE  ' + K('portal') + ' PORTAL  ' + K('bag') + ' BAG  ' + K('skills') + ' SKILLS  ' + K('tree') + ' PASSIVES  ' + K('camView') + ' VIEW  ' + K('pause') + ' MENU'];
-  L.forEach((l, i) => E.font.text(g, l, cx, y + i * 7, '#b8b0d0', { align: 'center', font: 'tiny', outline: false }));
+}
+/** the legend as drawn: [its rows, their step, the band's height]. The two lines in the tiny font; on a TV in the normal
+ *  font, each wrapped to the screen (a pad's first line is wider than a 4K TV's 405 game pixels), the band as tall as
+ *  they need (the title menu stands on it) */
+function legendRows() {
+  const L = legendLines(); if (!UI_tv()) return [L, 7, 21];
+  const R = L.flatMap(l => E.font.wrap(l, game.W - 12)); return [R, 9, R.length * 9 + 5];
+}
+function legend(g, cx, Hb) {
+  const [R, lh, bh] = legendRows(), f = UI_tf({ align: 'center', outline: false });
+  R.forEach((l, i) => E.font.text(g, l, cx, Hb - bh + 4 + i * lh, '#b8b0d0', f));
 }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
 const KATA = ['slash', 'backslash', 'spin', 'thrust'];
@@ -42391,13 +42454,13 @@ const titleScene = {
       const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1), F = UI.frame, top = F.t, Hb = H - F.b;   // clear of a phone's status bar and home bar
       px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64 + top; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
       E.font.title(g, 'EMBERDEEP', cx, top + (H < 260 ? 5 : 14), { scale: H < 260 ? 3 : 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
-      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, top + (H < 260 ? 34 : 50), characterOf(h).color, { align: 'center', font: 'tiny', shadow: '#05040a', outline: false });
+      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, top + (H < 260 ? 34 : 50), characterOf(h).color, UI_tf({ align: 'center', shadow: '#05040a', outline: false }));   // (the normal font on a TV)
       const items = titleItems(), M = titleMenu(items.length), bw = M.bw;   // laid out up from the key legend, so every item shows
       items.forEach(([label, fn], i) => { if (button(g, cx - bw / 2, M.y + i * M.step, bw, M.rowH, label, () => { TITLE.menu = i; FS.auto(); fn(); }, { focus: TITLE.menu === i }) && !UI.keyNav) TITLE.menu = i; });   // (the mouse moves the one highlight; keys and a pad go on from it)
-      const h2 = ED.titleHero; if (characterSave()) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
-      px.blend(g, .7, 'normal', () => px.rect(g, 0, Hb - 21, W, 21 + F.b, '#05040a'));
-      legend(g, cx, Hb - 17);
-      E.font.text(g, ('v' + E.version + ' • ' + E.build).toUpperCase(), W - F.r - 4, Hb - 29, '#6f6788', { align: 'right', font: 'tiny', outline: false });   // which release and build this is
+      const h2 = ED.titleHero; if (characterSave()) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', UI_tf({ align: 'center', outline: '#05040a' }));
+      const lb = legendRows()[2]; px.blend(g, .7, 'normal', () => px.rect(g, 0, Hb - lb, W, lb + F.b, '#05040a'));   // (the band: taller on a TV, its rows in the normal font)
+      legend(g, cx, Hb);
+      E.font.text(g, ('v' + E.version + ' • ' + E.build).toUpperCase(), W - F.r - 4, Hb - lb - (UI_tv() ? 10 : 8), '#6f6788', UI_tf({ align: 'right', outline: false }));   // which release and build this is
     });
     drawPanels(r);
   }
@@ -42956,7 +43019,7 @@ const galleryScene = {
       px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, 31 + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor
       E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
       const sp = Math.min(60, (W - 16) / GAL.reels.length);   // (six reels fit a phone held upright)
-      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, 10, { click: () => { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } } }); E.font.text(g, n, rx, 22 + T, i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }); });   // (a click picks a reel)
+      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, 10, { click: () => { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } } }); const nf = UI_tfit(n, sp - 2, { align: 'center', outline: '#0c0818' }); E.font.text(g, n, rx, 22 + T - (nf.font ? 0 : 1), i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', nf); });   // (a click picks a reel; the normal font on a TV)
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
@@ -42965,9 +43028,11 @@ const galleryScene = {
       else if (GAL.reel === 5) { const S = E.SHAPES[GAL.cur]; title = String(GAL.cur); sub = (S && S.about || '') + '  ·  r.shape(\'' + GAL.cur + '\', x, y, z), docs/ASSETS.md; the Asset Lab (/asset-lab) has the whole store'; }
       else { const p = GAL_POSES[GAL.cur] || GAL_POSES[0]; title = p[0]; sub = p[2]; }
       E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
-      E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
       const dev = ctlDevice(), K = a => keyLabel(a, true, dev);   // the keys of the device in use (the touch bar names its own)
-      E.font.text(g, (GAL.i + 1) + ' / ' + items.length + (dev === 'touch' ? '   SWIPE TO PICK   SLOW' + (GAL.slow ? ' (ON)' : '') : '   ' + K('menuLeft') + ' ' + K('menuRight') + ' pick   ' + K('menuUp') + ' ' + K('menuDown') + ' reel   ' + K('confirm') + ' replay   ' + (dev === 'gamepad' ? K('alt') : K('labels')) + ' slow' + (GAL.slow ? ' (ON)' : '') + (dev === 'gamepad' ? '' : '   ' + K('camView') + ' view') + '   ' + K('cancel') + ' back'), cx, H - 6, '#a89ec8', { align: 'center', font: 'tiny', outline: false });
+      // the keys line: tiny; on a TV the normal font, on two lines where one won't hold it (the description then keeps one)
+      const fs = (GAL.i + 1) + ' / ' + items.length + (dev === 'touch' ? '   SWIPE TO PICK   SLOW' + (GAL.slow ? ' (ON)' : '') : '   ' + K('menuLeft') + ' ' + K('menuRight') + ' pick   ' + K('menuUp') + ' ' + K('menuDown') + ' reel   ' + K('confirm') + ' replay   ' + (dev === 'gamepad' ? K('alt') : K('labels')) + ' slow' + (GAL.slow ? ' (ON)' : '') + (dev === 'gamepad' ? '' : '   ' + K('camView') + ' view') + '   ' + K('cancel') + ' back'), ff = UI_tf({ align: 'center', outline: false }), fl = ff.font ? [fs] : E.font.wrap(fs, W - 12).slice(0, 2);
+      E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, fl.length > 1 ? 1 : 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
+      fl.forEach((l, i) => E.font.text(g, l, cx, H - (ff.font ? 6 : 8) - (fl.length - 1 - i) * 9, '#a89ec8', ff));
     } finally { HUD_out(g); } });
     drawPanels(r);
   }

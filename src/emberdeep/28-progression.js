@@ -453,10 +453,11 @@ const PRG_V = { cx: 0, cy: 0, z: 1, zt: 1, anchor: null, go: null, drag: null, h
 /** a thumb's target in screen pixels (44 CSS px: UI_finger) where the touch buttons show (a phone, a tablet), else 0:
  *  the buttons of the tree and of the skills grow to it there, and keep their size on a desktop and a TV */
 const PRG_thumb = () => TOUCH.el && ctlDevice() === 'touch' ? UI_finger() : 0;   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
-/** the longest wording of a line that fits in w, and its font: on a TV (UI_tv) the normal font first, read from the
- *  sofa; else, or where none fits, the tiny one. Returns [text, font options] */
+/** the longest wording of a line that fits in w, and its font: on a TV (UI_tv) the normal font, read from the sofa (and
+ *  where none fits, nothing if the list allows it: an empty wording; the tiny one only past that); elsewhere the tiny
+ *  one. Returns [text, font options] */
 function PRG_fit(list, w) {
-  if (UI_tv()) { const q = list.find(q => q && E.font.width(q) <= w); if (q !== undefined) return [q, {}]; }   // (an empty wording, the last resort, is the tiny pass's)
+  if (UI_tv()) { const q = list.find(q => q && E.font.width(q) <= w); if (q !== undefined) return [q, {}]; if (list.includes('')) return ['', {}]; }
   return [list.find(q => E.font.width(q, { font: 'tiny' }) <= w) || list[list.length - 1], { font: 'tiny' }];
 }
 const PRG_GOLDT = E.tones('#e8b04a'), PRG_BRONZE = E.tones('#6e5a48'), PRG_SILVER = E.tones('#a8a0c0');
@@ -814,7 +815,7 @@ function PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t, op) {
     : dev === 'touch' ? ['DRAG TO PAN  •  PINCH OR - + TO ZOOM  •  TAP A STAR']
     : (W > 470 ? ['DRAG OR ' + [K('up'), K('left'), K('down'), K('right')].join('') + ' PAN  •  WHEEL OR ' + K('zoomOut') + ' ' + K('zoomIn') + ' ZOOM  •  CLICK ALLOCATE  •  RIGHT CLICK UNDO  •  ' + K('totals') + ' TOTALS  •  ' + K('centre') + ' CENTRE  •  ' + K('tree') + ' CLOSE'] : [])
       .concat(['DRAG PAN • WHEEL/' + K('zoomOut') + ' ' + K('zoomIn') + ' ZOOM • CLICK TAKE • RCLICK UNDO • ' + K('totals') + ' TOTALS • ' + K('centre') + ' CENTRE']);   // (the keys of the device in use)
-  const [hint, hf] = PRG_fit(hints, W - 8);
+  const [hint, hf] = PRG_fit(hints.concat(UI_tv() ? [dev === 'gamepad' ? 'L STICK PAN • R STICK ZOOM • ' + K('confirm') + ' TAKE • ' + K('alt') + ' UNDO • ' + K('cancel') + ' BACK' : 'DRAG PAN • WHEEL ZOOM • CLICK TAKE • RIGHT CLICK UNDO'] : []), W - 8);   // (a TV's shortest wording, in the normal font)
   PRG_txt(g, hint, x0 + W / 2, y0 + H - (hf.font ? 8 : 9), '#8a80a8', Object.assign({ align: 'center' }, hf));
   // zoom buttons left of TOTALS: the tree zooms without a wheel, keys or a pinch (a finger, a mouse alone)
   button(g, mbx, by, zw, bb, '-', () => PRG_zoomBy(.8, V.ox, V.oy), { tip: [{ t: 'Zoom out', c: GOLD }] });
@@ -895,7 +896,7 @@ function PRG_treeUpdate(dt) {
  * row (○ backs out, so its slot and R2's are chosen there), L2 R2 go to the bag and the passives. Every hint names the
  * device in use (keyLabel).
  * ============================================================================= */
-const PRG_KINDS = { basic: { label: 'BASIC', note: 'free, and every hit makes Ember', color: '#d8c8a8' }, core: { label: 'CORE', note: 'your main damage, spends Ember', color: '#ff9a4a' }, mobility: { label: 'MOBILITY', note: 'move, leap and reposition', color: '#8fe3ff' }, ultimate: { label: 'ULTIMATE', note: 'long cooldowns, huge effects', color: '#d8a0ff' } };
+const PRG_KINDS = { basic: { label: 'BASIC', note: 'free, and every hit makes Ember', short: 'makes Ember', color: '#d8c8a8' }, core: { label: 'CORE', note: 'your main damage, spends Ember', short: 'spends Ember', color: '#ff9a4a' }, mobility: { label: 'MOBILITY', note: 'move, leap and reposition', short: 'moves you', color: '#8fe3ff' }, ultimate: { label: 'ULTIMATE', note: 'long cooldowns, huge effects', short: 'huge effects', color: '#d8a0ff' } };   // (short: the note on a TV where the whole won't fit)
 const PRG_KIND_ORDER = ['basic', 'core', 'mobility', 'ultimate'];
 const PRG_K = { sel: null, armed: null, slotRow: false, slotFocus: 0, scroll: 0, follow: false, rows: [], flash: [0, 0, 0, 0, 0, 0], fx: [], pulse: null, runeShow: null, press: null, maxS: 0, rowH: 20, dirty: false, hud: false };
 /** the list rows: a header per kind, then its skills (by unlock level, then name). Works with any registered set */
@@ -949,13 +950,15 @@ function PRG_pip(g, x, y, c, edge) {
 }
 function PRG_lock(g, x, y) { px.rect(g, x - 3, y - 1, 7, 6, '#0a0812'); px.rect(g, x - 2, y, 5, 4, '#8a7a6a'); px.rect(g, x - 2, y, 5, 1, '#c8b8a0'); px.rect(g, x - 2, y - 4, 1, 4, '#8a7a6a'); px.rect(g, x + 2, y - 4, 1, 4, '#8a7a6a'); px.rect(g, x - 1, y - 5, 3, 1, '#8a7a6a'); px.dot(g, x, y + 1, '#2a2030'); }
 /** a slot of the six: its skill's icon (a plus when empty) and its key in the corner. s = 2 draws it twice the size (held
- *  upright on a phone, where it is a thumb's target), its key then in the normal font */
-function PRG_slotBox(g, h, i, x, y, armed, t, s = 1) {
+ *  upright on a phone, where it is a thumb's target), its key then in the normal font. kf: the key's font under the slot
+ *  instead (on a TV: UI_keyFonts) */
+function PRG_slotBox(g, h, i, x, y, armed, t, s = 1, kf = null) {
   const id = h.slots[i], fl = PRG_K.flash[i], S = id && REG.skills[id], B = 18 * s, c = x + (B >> 1);
   E.ui.box(g, x - 1, y - 1, B + 2, B + 2, { bg: '#141020', border: armed ? (Math.sin(t * 10) > 0 ? '#fff6c8' : GOLD) : fl > 0 ? '#fff6c8' : '#5a4a70', shadow: false, gradient: false });
   if (S) drawSkillIcon(g, id, x + 1, y + 1, s); else { px.rect(g, x + 4 * s, y + 8 * s, 10 * s, 2 * s, '#241e36'); px.rect(g, x + 8 * s, y + 4 * s, 2 * s, 10 * s, '#241e36'); }
   if (fl > 0) px.blend(g, fl, 'add', () => px.rect(g, x + 1, y + 1, 16 * s, 16 * s, '#fff0c0'));
-  const sk = slotKey(i), kf = s > 1 ? {} : { font: 'tiny' }, kh = s > 1 ? 9 : 7, kw = E.font.width(sk, kf) + 3; px.rect(g, x + B - kw, y + B - kh + 1, kw + 1, kh, '#0c0818'); E.font.text(g, sk, x + B - kw + 2, y + B - kh + 2, armed ? GOLD : '#c8c0d8', Object.assign({ outline: false }, kf));
+  if (kf) E.font.text(g, slotKey(i), x + (B >> 1), y + B + 2 + (kf.font ? 1 : 0), armed ? GOLD : '#c8c0d8', Object.assign({ align: 'center', outline: false }, kf));
+  else { const sk = slotKey(i), kf = s > 1 ? {} : { font: 'tiny' }, kh = s > 1 ? 9 : 7, kw = E.font.width(sk, kf) + 3; px.rect(g, x + B - kw, y + B - kh + 1, kw + 1, kh, '#0c0818'); E.font.text(g, sk, x + B - kw + 2, y + B - kh + 2, armed ? GOLD : '#c8c0d8', Object.assign({ outline: false }, kf)); }
   if (PRG_K.slotRow && PRG_K.slotFocus === i && UI.keyNav) E.ui.box(g, x - 2, y - 2, B + 4, B + 4, { bg: null, border: Math.sin(t * 8) > 0 ? '#fff6c8' : GOLD, shadow: false, gradient: false });   // (a controller's focus on the slot row)
   if (armed) { const bob = Math.round(Math.sin(t * 8)); px.poly(g, [[c - 4, y - 7 + bob], [c + 4, y - 7 + bob], [c, y - 3 + bob]], GOLD); px.dot(g, c, y - 4 + bob, '#fff6c8'); }
 }
@@ -982,7 +985,9 @@ function PRG_skillsDraw(g, x, y, w, hh) {
   const pts = h.pts.skill || 0, blink = pts > 0 && Math.floor(t * 2.5) % 2, thb = PRG_thumb(), tall = UI_tall() && hh > 400;
   const gx = x + 12, gy = y + 25; px.poly(g, [[gx, gy - 5], [gx + 5, gy], [gx, gy + 5], [gx - 5, gy]], '#0a0812'); px.poly(g, [[gx, gy - 4], [gx + 4, gy], [gx, gy + 4], [gx - 4, gy]], pts ? '#ffb347' : '#3a3450'); px.poly(g, [[gx, gy - 4], [gx - 4, gy], [gx, gy]], pts ? '#ffe9a0' : '#4a4466');
   PRG_txt(g, pts ? pts + ' SKILL POINT' + (pts > 1 ? 'S' : '') : 'NO SKILL POINTS', x + 21, y + 21, pts ? (blink ? '#fff6c8' : GOLD) : '#6a6488');
-  const ss = tall && thb >= 40 ? 2 : 1, SC = Math.max(18 * ss + 2, thb), sbw = 6 * SC + 4, sbx = x + w - 10 - sbw, row2 = !!thb && sbx - 30 - (x + 21) < 120, scy = row2 ? y + 40 : y + 21, room = row2 ? w - 31 : sbx - 30 - (x + 21) - (UI_tv() ? 10 : 0);
+  // (on a TV a slot's key goes under it in the normal font: kb. The slots rise 3 px for it and the list starts 3 px lower)
+  const ss = tall && thb >= 40 ? 2 : 1, SC = Math.max(18 * ss + 2, thb), sbw = 6 * SC + 4, sbx = x + w - 10 - sbw, row2 = !!thb && sbx - 30 - (x + 21) < 120, kb = UI_tv() && !thb && ss === 1, scy = row2 ? y + 40 : kb ? y + 18 : y + 21, room = row2 ? w - 31 : sbx - 30 - (x + 21) - (UI_tv() ? 10 : 0);
+  const sMid = i => sbx - 1 + i * SC + (i >= 2 ? 4 : 0) + (SC >> 1), skf = kb ? UI_keyFonts(SLOT_ACTS.map((a, i) => slotKey(i)), sMid, sbx - 1, sbx - 1 + sbw) : [];
   const dev = ctlDevice(), Kk = a => keyLabel(a, true), slots = SLOT_ACTS.map(a => Kk(a)).filter(Boolean);   // (the keys of the device in use)
   const [hint, hf] = PRG_fit(K.armed !== null ? ['NOW CHOOSE A SKILL FOR SLOT ' + slotKey(K.armed) + (dev === 'touch' ? '' : '  •  ' + Kk('cancel') + ' CANCELS'), 'CHOOSE A SKILL FOR SLOT ' + slotKey(K.armed) + (dev === 'touch' ? '' : ' • ' + Kk('cancel') + ' CANCELS'), 'CHOOSE A SKILL FOR SLOT ' + slotKey(K.armed)]
     : K.slotRow && dev === 'gamepad' ? [Kk('menuLeft') + ' ' + Kk('menuRight') + ' SLOT  •  ' + Kk('confirm') + ' CHOOSE IT  •  ' + Kk('menuDown') + ' BACK TO THE LIST', Kk('confirm') + ' CHOOSE THE SLOT']
@@ -993,14 +998,14 @@ function PRG_skillsDraw(g, x, y, w, hh) {
   const lf = UI_tf(); PRG_txt(g, 'SLOTS', sbx - 4, scy + ((SC - (lf.font ? 5 : 7)) >> 1), '#7a7098', Object.assign({ align: 'right' }, lf));
   for (let i = 0; i < 6; i++) {
     const cx = sbx - 1 + i * SC + (i >= 2 ? 4 : 0), id = h.slots[i];   // (the slot's square; its box drawn in the middle of it)
-    PRG_slotBox(g, h, i, cx + ((SC - 18 * ss - 2) >> 1) + 1, scy + ((SC - 18 * ss - 2) >> 1) + 1, K.armed === i, t, ss);
+    PRG_slotBox(g, h, i, cx + ((SC - 18 * ss - 2) >> 1) + 1, scy + ((SC - 18 * ss - 2) >> 1) + 1, K.armed === i, t, ss, kb ? skf[i] : null);
     hot(cx, scy, SC, SC, { click: () => { if (K.armed === i) K.armed = null; else { K.armed = i; if (id) K.sel = id; K.follow = true; } sfx('select', { vol: .5 }); }, rclick: () => { if (h.slots[i]) { h.slots[i] = null; K.dirty = true; sfx('cancel', { vol: .5 }); } },
       tip: () => (id && REG.skills[id] ? skillTip(h, id) : [{ t: 'Empty slot  ' + slotKey(i), c: '#9a90b0' }]).concat([{ t: '', sep: true }, { t: ctlDevice() === 'touch' ? (K.armed === i ? 'Now tap a skill to put it here.' : 'Tap, then tap a skill to put it here.') : K.armed === i ? 'Now click a skill to put it here.' : 'Click, then click a skill to put it here. Right click empties it.', c: '#c8c0d8' }]) });
   }
   // the list
   // held upright (a phone), the list runs the panel's width with rows a finger tall and the skill's page sits under it;
   // on its side the rows are a thumb tall too (PRG_thumb), and a finger drags the list to scroll it (PRG_listPress)
-  const RH = thb ? clamp(thb + 1, 20, 49) : tall ? clamp(UI_finger(), 20, 48) : 20, LX = x + 8, LY = Math.max(y + 45, scy + SC + 4), LW = tall ? w - 16 : clamp(Math.round(w * .43), 150, 196), LH = tall ? Math.round((hh - (LY - y) - 8) * .5) : hh - (LY - y) - 8, rh = r0 => r0.head ? 12 : RH;
+  const RH = thb ? clamp(thb + 1, 20, 49) : tall ? clamp(UI_finger(), 20, 48) : 20, LX = x + 8, LY = Math.max(y + 45, scy + SC + (kb ? 10 : 4)), LW = tall ? w - 16 : clamp(Math.round(w * .43), 150, 196), LH = tall ? Math.round((hh - (LY - y) - 8) * .5) : hh - (LY - y) - 8, rh = r0 => r0.head ? 12 : RH;
   const rowTop = []; let acc = 0; for (const r0 of rows) { rowTop.push(acc); acc += rh(r0); }
   const total = acc, maxS = (() => { let s = 0; while (s < rows.length && total - rowTop[s] > LH) s++; return s; })();
   if (K.follow) { K.follow = false; const si = rows.findIndex(r0 => r0.id === K.sel); if (si >= 0) { if (si <= K.scroll) K.scroll = si > 0 && rows[si - 1].head ? si - 1 : si; while (K.scroll < si && rowTop[si] + RH - rowTop[K.scroll] > LH) K.scroll++; } }
@@ -1010,7 +1015,7 @@ function PRG_skillsDraw(g, x, y, w, hh) {
   for (let i = K.scroll, yy = LY; i < rows.length && yy + rh(rows[i]) <= LY + LH + 1; yy += rh(rows[i]), i++) {
     const r0 = rows[i];
     if (r0.head) {   // a kind header: its name, a rule, and what the kind is for (the normal font on a TV where it fits)
-      const kd = PRG_KINDS[r0.head] || { label: r0.head.toUpperCase(), note: '', color: '#c8c0d8' }, C = E.tones(kd.color), kf = UI_tf(), lw = E.font.width(kd.label, kf), [note, nf] = PRG_fit([kd.note.toUpperCase(), ''], rw - lw - 23), nw = E.font.width(note, nf), room = rw - lw - nw - 16;
+      const kd = PRG_KINDS[r0.head] || { label: r0.head.toUpperCase(), note: '', color: '#c8c0d8' }, C = E.tones(kd.color), kf = UI_tf(), lw = E.font.width(kd.label, kf), [note, nf] = PRG_fit([kd.note.toUpperCase()].concat(UI_tv() && kd.short ? [kd.short.toUpperCase()] : [], ['']), rw - lw - 23), nw = E.font.width(note, nf), room = rw - lw - nw - 16;
       PRG_txt(g, kd.label, LX + 2, yy + (kf.font ? 3 : 2), kd.color, kf);
       if (note) { px.rect(g, LX + lw + 6, yy + 5, room, 1, C.deep); px.dot(g, LX + lw + 6 + room, yy + 5, C.sh); PRG_txt(g, note, LX + rw - 2, yy + (nf.font ? 3 : 2), C.sh, Object.assign({ align: 'right' }, nf)); } else px.rect(g, LX + lw + 6, yy + 5, rw - lw - 8, 1, C.deep);
       hot(LX, yy, rw, 11, { drag: thb ? PRG_listPress(null, false) : undefined, tip: [{ t: kd.label, c: kd.color }, { t: cap(kd.note), c: '#c8c0d8' }] }); continue;
@@ -1037,7 +1042,9 @@ function PRG_skillRow(g, h, id, rx, ry0, rw, t, m, RH = 20, thb = 0) {   // (RH:
   if (locked) PRG_lock(g, rx + 10, ry + 10);
   if (K.pulse && K.pulse.id === id && K.pulse.t < .5) px.blend(g, 1 - K.pulse.t * 2, 'add', () => px.rect(g, rx + 2, ry + 2, 16, 16, '#fff0c0'));
   const mast = PRG_mast(h, id), tier = mast ? PRG_tier(h, id) : 0, gear = eff - base - Math.max(0, tier - 1);   // ranks from gear (a deeper rune tier is its own rank)
-  const pc = cr.ok ? pw || 14 : 0, maxName = rw - 22 - (slot >= 0 ? 22 : 0) - pc - (locked ? 24 : 0); let nm = S.name; while (nm.length > 3 && E.font.width(nm) > maxName) nm = nm.slice(0, -1); if (nm !== S.name) nm = nm.slice(0, -1).trimEnd() + '.';
+  // the key of the slot it sits in: a tiny badge, the normal font on a TV (the name keeps clear of the wider one)
+  const sk = slot >= 0 ? slotKey(slot) : '', skf = UI_tf({ outline: false }), skw = E.font.width(sk, skf) + 4;
+  const pc = cr.ok ? pw || 14 : 0, maxName = rw - 22 - (slot >= 0 ? (skf.font ? 22 : Math.max(22, skw + 5)) : 0) - pc - (locked ? 24 : 0); let nm = S.name; while (nm.length > 3 && E.font.width(nm) > maxName) nm = nm.slice(0, -1); if (nm !== S.name) nm = nm.slice(0, -1).trimEnd() + '.';
   PRG_txt(g, nm, rx + 22, ry + 2, base ? (sel ? '#fff6d8' : '#e8e0f8') : locked ? '#5a5478' : '#a8a0c0');
   const lit = K.pulse && K.pulse.id === id && K.pulse.t < .4;
   for (let i = 0; i < 5; i++) PRG_pip(g, rx + 22 + i * 6, ry + 12, i < base ? (i === base - 1 && lit && !mast ? '#fff6d8' : '#ffc040') : i < base + gear ? '#6a9aff' : null, i < base ? '#6a3a0a' : i < base + gear ? '#1a2a6a' : '#3a3252');
@@ -1047,7 +1054,7 @@ function PRG_skillRow(g, h, id, rx, ry0, rw, t, m, RH = 20, thb = 0) {   // (RH:
   if (mast) { PRG_spark(g, mx + 3, ry + 14, lit ? '#ffffff' : '#c8b0ff', '#6a4aa8'); const s = String(mast); PRG_txt(g, s, mx + 8, ny, lit ? '#ffffff' : '#d8c8ff', nf); mx += 11 + E.font.width(s, nf); }
   if (base + gear > 5) PRG_txt(g, '+' + (base + gear - 5), mx, ny, '#8ab4ff', nf);
   let rx1 = rx + rw - 3 - pc;
-  if (slot >= 0) { const sk = slotKey(slot), kw = E.font.width(sk, { font: 'tiny' }) + 4; E.ui.box(g, rx1 - kw, ry + 6, kw, 8, { bg: '#0c0818', border: '#6a5a88', shadow: false, gradient: false }); E.font.text(g, sk, rx1 - kw + 2, ry + 7, '#c8c0d8', { font: 'tiny', outline: false }); rx1 -= kw + 3; }
+  if (slot >= 0) { const tv = !skf.font; E.ui.box(g, rx1 - skw, ry + (tv ? 5 : 6), skw, tv ? 10 : 8, { bg: '#0c0818', border: '#6a5a88', shadow: false, gradient: false }); E.font.text(g, sk, rx1 - skw + 2, ry + (tv ? 6 : 7), '#c8c0d8', skf); rx1 -= skw + 3; }
   if (locked) PRG_txt(g, 'LV ' + lv, rx1, ry + (nf.font ? 7 : 6), '#8a6a7a', Object.assign({ align: 'right' }, nf));
   if (plusR) {   // a gold plus for a rank; a violet one (starlight) for a mastery rank
     const glow = .5 + .5 * Math.sin(t * 5), M = cr.mastery, hiC = M ? '#c8b0ff' : GOLD, mid = M ? '#5a3a8a' : '#8a5a1a', [qx, qy, s] = plusR, w0 = s >= 18 ? 2 : 1, c0 = (s - w0) >> 1;
@@ -1095,13 +1102,14 @@ function PRG_skillPage(g, h, id, dx, dy, dw, dh, t) {
   let rx0 = tx + E.font.width(rk) + 6;
   if (mast) { PRG_spark(g, rx0 + 3, iy + 13, '#c8b0ff', '#6a4aa8'); PRG_txt(g, ms, rx0 + 9, iy + 10, '#d8c8ff'); rx0 += mw(ms); }
   if (gear > 0 && rx0 + E.font.width('+' + gear + ' gear') <= tr) PRG_txt(g, '+' + gear + ' gear', rx0, iy + 10, '#8ab4ff');
-  // its kind and tags, then what it costs and its cooldown: the normal font on a TV (the tiny one where a line won't fit)
-  const tv = UI_tv(), tl = [kd.label].concat((S.tags || []).map(s => s.toUpperCase())).concat(S.el && S.el !== 'phys' ? [EL(S.el).name.toUpperCase()] : []), tf = tv && tx + E.font.width(tl.join(' • ')) <= tr ? {} : { font: 'tiny' };
+  // its kind and tags, then what it costs and its cooldown: the normal font on a TV, where the tags a line can't hold go
+  // (the tooltip has them all) and the costs take shorter words (COSTS 12, +5 EMBER); the tiny one elsewhere
+  const tv = UI_tv(), tl = [kd.label].concat((S.tags || []).map(s => s.toUpperCase())).concat(S.el && S.el !== 'phys' ? [EL(S.el).name.toUpperCase()] : []), tf = tv ? {} : { font: 'tiny' };
   while (tl.length > 1 && tx + E.font.width(tl.join(' • '), tf) > tr) tl.splice(tl.length > 2 && S.el && S.el !== 'phys' ? tl.length - 2 : tl.length - 1, 1);   // the element stays: it says the most
   PRG_txt(g, tl.join(' • '), tx, iy + (tv ? 20 : 21), kd.color, tf);
-  const cost = skillCost(h, S), bits = []; if (cost) bits.push(['COSTS ' + cost + ' EMBER', '#ffb070']); if (S.gen) bits.push(['GENERATES ' + S.gen + ' EMBER', '#ffb070']); if (S.cd) bits.push([skillCd(h, S).toFixed(1) + 'S COOLDOWN', '#8fe3ff']); if (!bits.length) bits.push(['FREE', '#c8c0d8']);
-  const bf = tv && tx + bits.reduce((a, [s]) => a + E.font.width(s) + 8, -8) <= dx + dw - 4 ? {} : { font: 'tiny' };
-  let bx0 = tx; for (const [s, c] of bits) { if (bx0 + E.font.width(s, bf) > dx + dw - 4) break; PRG_txt(g, s, bx0, iy + 29, c, bf); bx0 += E.font.width(s, bf) + 8; }
+  const cost = skillCost(h, S), bits = []; if (cost) bits.push([['COSTS ' + cost + ' EMBER', 'COSTS ' + cost], '#ffb070']); if (S.gen) bits.push([['GENERATES ' + S.gen + ' EMBER', '+' + S.gen + ' EMBER'], '#ffb070']); if (S.cd) bits.push([[skillCd(h, S).toFixed(1) + 'S COOLDOWN'], '#8fe3ff']); if (!bits.length) bits.push([['FREE'], '#c8c0d8']);
+  const word = (q, k) => q[Math.min(k, q.length - 1)], fits = k => tx + bits.reduce((a, [q]) => a + E.font.width(word(q, k)) + 8, -8) <= dx + dw - 4, bk = tv ? [0, 1].find(fits) : undefined, bf = bk !== undefined ? {} : { font: 'tiny' };
+  let bx0 = tx; for (const [q, c] of bits) { const s = word(q, bk || 0); if (bx0 + E.font.width(s, bf) > dx + dw - 4) break; PRG_txt(g, s, bx0, iy + 29, c, bf); bx0 += E.font.width(s, bf) + 8; }
   // the lower half is measured first. The rune cards grow until their whole text shows and the description takes the
   // rest (the small font when the normal one won't fit). When the page is too short for both, the description keeps
   // its room, the cards keep at least two lines each (cut at a word), and the description block shows the hovered
@@ -1152,11 +1160,13 @@ function PRG_skillPage(g, h, id, dx, dy, dw, dh, t) {
     px.poly(g, [[gx, gy - 5], [gx + 4, gy], [gx, gy + 5], [gx - 4, gy]], rc.deep); px.poly(g, [[gx, gy - 4], [gx + 3, gy], [gx, gy + 4], [gx - 3, gy]], rc.base); px.line(g, gx, gy - 2, gx, gy + 2, rc.hi); px.dot(g, gx - 1, gy - 1, rc.lt);
     if (on) PRG_glow(g, gx, gy, 8, '#ff8a3a', .25);
     // the name: the normal font, the small one when it is too long, a cut only if even that fails
-    const nc = on ? '#ffd0a0' : open ? '#e8e0f8' : '#6a6488', ts = on && tier >= 2 ? PRG_roman(tier) : '', tbw = ts ? E.font.width(ts, { font: 'tiny' }) + 5 : 0, nmW = cw - 18 - (tbw ? tbw + 1 : 0);   // (the tier tab keeps its corner)
+    // (on a TV the name and the tier are in the normal font: a name too long is cut at a word, whole in the tooltip)
+    const nc = on ? '#ffd0a0' : open ? '#e8e0f8' : '#6a6488', ts = on && tier >= 2 ? PRG_roman(tier) : '', tsf = UI_tf(), tbw = ts ? E.font.width(ts, tsf) + 5 : 0, nmW = cw - 18 - (tbw ? tbw + 1 : 0);   // (the tier tab keeps its corner)
     if (E.font.width(ru.name) <= nmW) PRG_txt(g, ru.name, cx + 14, cy + 3, nc);
+    else if (tv) { let nm = ru.name; while (/\s/.test(nm.trim()) && E.font.width(nm) > nmW) nm = nm.replace(/\.\.$/, '').replace(/\s*\S+$/, '') + '..'; PRG_txt(g, nm, cx + 14, cy + 3, nc); }
     else { let nm = ru.name.toUpperCase(); while (/\s/.test(nm.trim()) && E.font.width(nm, { font: 'tiny' }) > nmW) nm = nm.replace(/\.\.$/, '').replace(/\s*\S+$/, '') + '..'; PRG_txt(g, nm, cx + 14, cy + 4, nc, { font: 'tiny' }); }
     PRG_clip(rl[i], nL).forEach((l, j) => PRG_txt(g, l, cx + 14, cy + 12 + j * rlh, on ? '#e8c0a0' : open ? '#a8a0c0' : '#5a5478', rf));
-    if (ts) { const bx = cx + cw - tbw - 3; E.ui.box(g, bx, cy - 3, tbw, 9, { bg: ['#6a3a14', '#3a1e0a'], border: '#ffb070', shadow: false, gradient: false }); PRG_txt(g, ts, bx + 3, cy - 1, '#fff0c8', { font: 'tiny' }); }   // the tier, on a small gold tab over the card's corner
+    if (ts) { const bx = cx + cw - tbw - 3, by = cy - (tsf.font ? 3 : 1); E.ui.box(g, bx, by, tbw, tsf.font ? 9 : 11, { bg: ['#6a3a14', '#3a1e0a'], border: '#ffb070', shadow: false, gradient: false }); PRG_txt(g, ts, bx + 3, by + 2, '#fff0c8', tsf); }   // the tier, on a small gold tab over the card's corner (on a TV taller, so it drops 2 px: clear of the RUNES line)
     hot(cx, cy, cw, ch, { click: () => PRG_setRune(h, id, ru.id), tip: (cut[i] ? [{ t: ru.name, c: '#ff9a4a' }] : [{ t: ru.name, c: '#ff9a4a' }, { t: ru.desc || '', c: '#e8e0f8' }]).concat([{ t: '', sep: true }, { t: !open ? 'Reach rank 2 to choose a rune.' : ctlDevice() === 'touch' ? (on ? 'Chosen. Tap to clear it.' : 'Tap to choose this rune.') : on ? 'Chosen. Click to clear it.' : 'Click to choose this rune.', c: open ? GOLD : '#ff8a7a' }]) });
   });
   if (!runes.length) PRG_txt(g, 'THIS SKILL HAS NO RUNES', dx + dw / 2, cy + 5, '#5a5478', Object.assign({ align: 'center' }, lf));

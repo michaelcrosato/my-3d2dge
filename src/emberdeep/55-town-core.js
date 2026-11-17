@@ -73,14 +73,15 @@ function drawNPC(n, r) {
   // name tag when the hero is near (not over an open panel); a speech bubble if there is one
   if ((n.near && !UI.modal) || n.bubble) r.overlay(g => {
     const [x, y] = r.w(n.x, n.y, (n.z || 0) + (n.rig.o.size || 1) * 34);
+    const nf = UI_tf({ align: 'center', outline: false }), tv = !nf.font;   // (tiny, or the normal font on a TV)
     if (n.bubble) {   // wrapped to a few short lines, kept on screen, with a tail down to the speaker; it rises into place as it appears
-      const B = n.bubble, lines = B.lines || (B.lines = E.font.wrap(B.text, 118, { font: 'tiny' })), lh = 7, w = Math.max(...lines.map(l => E.font.width(l, { font: 'tiny' }))) + 8, hh = lines.length * lh + 4;
+      const B = n.bubble, lines = B.lines && B.tv === tv ? B.lines : (B.tv = tv, B.lines = E.font.wrap(B.text, tv ? 150 : 118, nf)), lh = tv ? 9 : 7, w = Math.max(...lines.map(l => E.font.width(l, nf))) + 8, hh = lines.length * lh + 4;
       const age = B.max - B.t, pop = age < .12 ? age / .12 : 1, bx = Math.round(clamp(x - w / 2, 2, r.W - w - 2)), by = Math.round(y - 11 - hh + (1 - pop) * 3);
       E.ui.box(g, bx, by, w, hh, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false });
       const tx = Math.round(clamp(x, bx + 4, bx + w - 5)); px.poly(g, [[tx - 2, by + hh - 1], [tx + 2, by + hh - 1], [tx, by + hh + 3]], '#3a2a3a'); px.rect(g, tx - 1, by + hh - 1, 2, 2, '#f0e8d8');
-      lines.forEach((l, i) => E.font.text(g, l, bx + w / 2, by + 3 + i * lh, '#2a1a2a', { align: 'center', font: 'tiny', outline: false }));
+      lines.forEach((l, i) => E.font.text(g, l, bx + w / 2, by + 3 + i * lh, '#2a1a2a', nf));
     }
-    else { E.font.text(g, S.name, x, y - 12, '#ffd36a', { align: 'center', font: 'tiny', outline: '#0c0818' }); if (S.title) E.font.text(g, S.title, x, y - 6, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#0c0818' }); }
+    else { const tf = Object.assign({}, nf, { outline: '#0c0818' }); E.font.text(g, S.name, x, y - (tv ? 17 : 12), '#ffd36a', tf); if (S.title) E.font.text(g, S.title, x, y - (tv ? 8 : 6), '#c8c0d8', tf); }
   });
 }
 const say = (n, text, t = 2.5) => { n.bubble = { text, t, max: t }; };

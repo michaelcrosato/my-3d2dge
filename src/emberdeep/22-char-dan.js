@@ -278,7 +278,7 @@ BUS.on('draw', ({ r }) => {
     try {
       const x = f.W - 92, y = f.H - 45;
       for (let i = 0; i < DAN_SACS; i++) { const lit = i < h.brood, cx = x + i * 7; px.ell(g, cx, y, 2.5, 3.2, lit ? DAN_COL.ripe : '#3a2c46'); px.dot(g, cx - 1, y - 1, lit ? DAN_COL.glow : '#5a4a66'); }
-      E.font.text(g, 'BROOD', x + 17, y + 6, DAN_COL.glow, { font: 'tiny', align: 'center' });
+      const bf = UI_tf({ align: 'center' }); E.font.text(g, 'BROOD', x + 17, y + (bf.font ? 6 : 5), DAN_COL.glow, bf);   // (the normal font on a TV)
     } finally { HUD_out(g); }
   });
 });
