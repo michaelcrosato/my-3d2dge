@@ -42,7 +42,7 @@ def('archetypes', 'dummy', { name: 'Training Dummy', tags: ['object'], minDepth:
   react(m, hit) { if (m.body) m.body.hit(hit.ang || 0, 3 + (hit.kb || 0) * .02); m.hp = m.maxHp; P.add({ kind: 'bit', x: m.x, y: m.y, z: 16, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, vz: 60, g: 300, max: .8, color: '#d8b25a' }); }
 });
 
-const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES', 'MOVES', 'OBJECTS'], cam: null };
+const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES', 'MOVES', 'OBJECTS'], cam: null, press: null };
 
 const GAL_POSES = [
   ['Idle', {}, 'He breathes and shifts his weight.'], ['Walk', { run: .55 }, 'A gait driven by velocity, not frames.'], ['Run', { run: 1.1 }, 'The cape streams behind.'],
@@ -205,18 +205,27 @@ function galSkill(h, dt) {
   }
   if (h.act) GAL.next = GAL.t + 1.1;   // the next take starts a beat after this one ends
 }
+/** a reel picked (a click, a tap on its name, or the keys): its first entry */
+function GAL_pickReel(i) { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } }
+/** a finger on a reel's name: its press, followed while it moves (GAL.press); the reel is picked as it lifts where it
+ *  pressed (galleryScene.update), so a flick that begins on the reels' finger-tall band turns the entry, never the reel */
+const GAL_press = i => (mx, my) => { const P = GAL.press; if (!P) GAL.press = { i, x: mx, y: my, moved: 0, down: UI.mouse.down }; else P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); };
 const galleryScene = {
   enter(data) {
     ED.mode = 'gallery'; UI.closeAll(); BUS.clear('level');
     GAL.real = ED.hero; ED.hero = loadHeroOrNew();   // a copy from the save: the show ranks skills up, and none of that may be saved
     const L0 = galStage(); enterWorld(L0); ED.depth = 3; L.ambient = .16;
-    GAL.i = 0; if (data && data.reel) galOpen(data.reel, data.item);   // a deep link: one reel and entry
+    GAL.i = 0; GAL.press = null; if (data && data.reel) galOpen(data.reel, data.item);   // a deep link: one reel and entry
     galReset(); game.cam.snap = true;
   },
   exit() { slowMoReset(1); ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
   update(dt) {
     const inp = game.input, h = ED.hero, L0 = ED.L, cx = L0.w * 8, cy = L0.h * 8;
-    const wh = UI.mouse.wheel; if (updateUI(dt) || ED.mode !== 'gallery') return;
+    const wh = UI.mouse.wheel, m0 = mouseHUD(), lx = m0.x, ly = m0.y, wait = updateUI(dt);   // (lx, ly: where a finger lifted, before updateUI lets the pointer go)
+    // a finger lifted from a reel's name: a tap (lifted where it pressed, no flick; a press no step saw down only where
+    // the engine saw a tap, input.clicked()) picks it
+    const RP = GAL.press; if (RP && !UI.mouse.down) { GAL.press = null; const mv = Math.max(RP.moved, Math.abs(lx - RP.x) + Math.abs(ly - RP.y)); if (!UI.modal && ED.mode === 'gallery' && mv <= 6 && !inp.swipe() && (RP.down || inp.clicked())) GAL_pickReel(RP.i); }
+    if (wait || ED.mode !== 'gallery') return;
     if (wh) { GAL.i += Math.sign(wh); galReset(); sfx('select'); }   // (the wheel steps through the reel)
     if (inp.pressed('cancel')) { game.go('title'); return; }
     const sw = inp.swipe(true);   // a flick: sideways picks, down leaves
@@ -280,10 +289,12 @@ const galleryScene = {
     L.add(L0.w * 8, L0.h * 8, 3, 70, .5, { color: '#4fe0cc' });
     r.overlay(g => { const f = HUD_in(g, r); try {   // inside a phone's safe frame, the top band under its touch buttons
       const W = f.W, H = f.H, cx = W / 2, items = galItems(), T = HUD_under(), rh = TOUCH.el ? Math.max(10, UI_finger()) : 10;   // (a reel's target: a finger tall with the touch buttons up)
-      px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, Math.max(31, 21 + rh) + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor (the top one under the reels' targets)
+      const tv = UI_tv(), fb = tv ? 41 : 38;   // (the foot's band: on a TV 3 px taller, the entry's title raised with the description)
+      px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, Math.max(31, 21 + rh) + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - fb, W, fb + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor (the top one under the reels' targets)
       E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
       const sp = Math.min(60, (W - 16) / GAL.reels.length), ry = 22 + T + Math.floor((rh - 10) / 2);   // (six reels fit a phone held upright; each name in the middle of its target)
-      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, rh, { click: () => { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } } }); const nf = UI_tfit(n, sp - 2, { align: 'center', outline: '#0c0818' }); E.font.text(g, n, rx, ry - (nf.font ? 0 : 1), i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', nf); });   // (a click picks a reel; the normal font on a TV)
+      const lifts = ctlDevice() === 'touch';   // (under a finger a reel is picked as it lifts where it pressed: GAL_press)
+      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, rh, lifts ? { drag: GAL_press(i) } : { click: () => GAL_pickReel(i) }); const nf = UI_tfit(n, sp - 2, { align: 'center', outline: '#0c0818' }); E.font.text(g, n, rx, ry - (nf.font ? 0 : 1), i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', nf); });   // (a click picks a reel; the normal font on a TV)
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
@@ -291,7 +302,7 @@ const galleryScene = {
       else if (GAL.reel === 4) { const p = GAL_MOVES[GAL.cur] || GAL_MOVES[0]; title = p[0]; sub = p[1]; }
       else if (GAL.reel === 5) { const S = E.SHAPES[GAL.cur]; title = String(GAL.cur); sub = (S && S.about || '') + '  ·  r.shape(\'' + GAL.cur + '\', x, y, z), docs/ASSETS.md; the Asset Lab (/asset-lab) has the whole store'; }
       else { const p = GAL_POSES[GAL.cur] || GAL_POSES[0]; title = p[0]; sub = p[2]; }
-      E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
+      E.font.text(g, title.toUpperCase(), cx, H - fb + 3, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });   // (two clear rows over the description, which stands 3 px higher on a TV)
       const dev = ctlDevice(), K = a => keyLabel(a, true, dev);   // the keys of the device in use (the touch bar names its own)
       // the keys line: tiny; on a TV the normal font, on two lines where one won't hold it (the description then keeps one)
       const fs = (GAL.i + 1) + ' / ' + items.length + (dev === 'touch' ? '   SWIPE TO PICK   SLOW' + (GAL.slow ? ' (ON)' : '') : '   ' + K('menuLeft') + ' ' + K('menuRight') + ' pick   ' + K('menuUp') + ' ' + K('menuDown') + ' reel   ' + K('confirm') + ' replay   ' + (dev === 'gamepad' ? K('alt') : K('labels')) + ' slow' + (GAL.slow ? ' (ON)' : '') + (dev === 'gamepad' ? '' : '   ' + K('camView') + ' view') + '   ' + K('cancel') + ' back'), ff = UI_tf({ align: 'center', outline: false }), fl = ff.font ? [fs] : E.font.wrap(fs, W - 12).slice(0, 2);

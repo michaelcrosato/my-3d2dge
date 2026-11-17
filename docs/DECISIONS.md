@@ -1924,3 +1924,26 @@ An entry:
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
 
+
+## D110 · 2026-11-17 · Emberdeep under a finger: what spends acts on a lift where it pressed, and a flick never picks
+
+- **Principle:** the controls standard (D100), docs/CONTROLS.md rule 7: a button that spends acts when the finger lifts,
+  so a swipe that begins on it presses nothing (D108 took the loot panels there, D109 the waystone and the touch Settings)
+- **Call:** the rest of Emberdeep's spends and pickers under a finger follow.
+  - The passive tree's ALLOCATE, TAKE BACK and CLOSE, and the rows of a crowd's list, act as the finger lifts where it
+    pressed; a press on one is the tree's own pan, so a drag or a flick begun on ALLOCATE pans the tree and buys nothing.
+  - A tap is a lift where the finger pressed, judged by where it lifted as well as by what the frames saw, and a gesture
+    wholly between two frames is a tap only where the engine saw one (`input.clicked()`: on its own it lets a few real
+    taps go, it lasts one frame): a pan whose moves all fell between two frames (a hitch) buys no star, on the
+    chosen star or on ALLOCATE. The Skills list's plus and its rows take the same test, and the Skills page's RANK UP
+    now acts on the lift too, so the flick that takes the panel away no longer pays for a rank.
+  - The gallery picks a reel as the finger lifts on its name: a flick that begins on the reels' finger-tall band turns
+    the entry and never the reel.
+  - Opening the tree's totals lets a crowd's list go; a list brought up while they are open keeps clear of them (under
+    or over its stars where there is no room beside).
+  - A finger held on a loot label shows its tooltip, to compare, saying how a finger takes it (walk over it, or the
+    touch bar's Pick up for an item he dropped), and none while it steers the stick.
+- **Why:** a point spent by a swipe meant to pan or to close is the accident rule 7 rules out; a frame hitch must not
+  turn a pan into a tap.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
