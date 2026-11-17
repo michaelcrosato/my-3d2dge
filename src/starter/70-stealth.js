@@ -6,7 +6,7 @@
  * roof above (J as you stand over them). In a fight their swings are telegraphed: K just before the blow parries and
  * stuns them.
  * Keys (THIRDPERSON without the interact, use and map it never reads; its M muted too): WASD move, Shift sprint, Space
- * jump, climb a wall, vault, leap a gap, C or Ctrl crouch, J or a left click attack or take down (a click strikes toward
+ * jump, climb a wall, vault, leap a gap, C crouch, J or a left click attack or take down (a click strikes toward
  * the pointer), K or a right click block or parry, Q or L dodge roll, V view. PAD: the stick moves, ✕ jump and climb, ○
  * crouch, □ strike, L1 block, R1 roll, R2 or L3 sprint, Options pauses. DUALSENSE: the light bar is the guards' mood
  * (dusk blue; amber as one notices, orange searching, red pulsing in a chase; green while hidden in the grass), a guard's

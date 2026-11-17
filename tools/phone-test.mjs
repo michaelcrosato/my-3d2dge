@@ -61,6 +61,10 @@
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  24. touchless (tools/fixtures/touchless.html: touch: 'never'): no touch buttons, a notice that a controller or a
 //      keyboard is needed with Settings (a tap opens them), gone at a key
+//  25. menus: the engine's own under a thumb, at least 44 CSS px held either way: E.Menu's rows (kart, fighting and sky's
+//      modes, GAME OVER), a dialog's choices (Morwen's riddle, a tap a little low of one still answers it), the reference
+//      edition's FamilyMenu, the Shell's Settings and Controls tabs and sliders; sky's menu, too long on its side, scrolls
+//      under a finger to BACK, which a tap picks
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -1199,6 +1203,55 @@ if (want('touchless')) {
   const gone = await ev(page, () => { const n = document.querySelector('[data-sys=need]'); return !n || getComputedStyle(n).display === 'none'; });
   check('touchless: no touch buttons; "Controller or keyboard required" with Settings (it opens them), gone at a key', !seen.buttons && seen.shown && /Controller or keyboard required/.test(seen.text) && seen.settings && seen.settings[1] >= 44 && menu === 'settings' && gone && !errors.length, JSON.stringify({ ...seen, menu, gone, errors }));
   await ctx.close();
+}
+
+/* 25. the engine's menus under a finger: every E.Menu row (a kit's modes, the shared GAME OVER), an E.Dialog's choices
+ * (Morwen's riddle), the reference edition's FamilyMenu and the Shell's Settings and Controls tabs and sliders at least 44
+ * CSS px, held either way; a menu too long for the screen on its side scrolls under a finger to its last row, which a tap
+ * picks */
+if (want('menus')) {
+  console.log('menus: a thumb\'s rows in the engine\'s menus');
+  const rowsOf = p => ev(p, () => { const S = window.__game.game.screen, k = S.S / S.dpr; return [...window.__menus].filter(m => m._box).map(m => ({ items: m.items.length, vis: m._box.vis, h: m._box.rowH * k, w: m._box.w * k, top: m._layout().y, bottom: m._layout().y + m._layout().h, H: window.__game.game.H })); });
+  const hook = p => ev(p, () => { const M = My3D2dge.Menu.prototype, d0 = M.draw; window.__menus = new Set(); M.draw = function (r) { window.__menus.add(this); return d0.call(this, r); }; });
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    for (const kit of ['kart', 'fighting', 'sky']) {
+      const { page, ctx, errors, cdp } = await open(kit, vp); await wait(500); await hook(page); await wait(300);
+      const m = (await rowsOf(page))[0];
+      check(`menus ${label}: ${kit}'s mode menu, every row a thumb's size, on the screen`, !!m && m.h >= 44 && m.w >= 44 && m.top >= 0 && m.bottom <= m.H && !errors.length, m ? `rows ${m.h.toFixed(1)} x ${m.w.toFixed(0)} CSS px, ${m.vis} of ${m.items} shown, the box ${m.top}..${m.bottom} of ${m.H}${errors.length ? '; errors: ' + errors.join(' | ') : ''}` : 'no menu drawn');
+      if (kit === 'sky' && m && m.vis < m.items) {   // the rest by a finger: dragged up twice, then a tap on BACK (its last row) goes to the title
+        for (let i = 0; i < 2; i++) { const b = await ev(page, () => [...window.__menus][0]._box), a = await toCss(page, b.x + b.w / 2, b.y + b.rowH * (b.vis - .5)), z = await toCss(page, b.x + b.w / 2, b.y + b.rowH * .3); await drag(cdp, line(a, z, 12), 30); await wait(300); }
+        const last = await ev(page, () => { const m = [...window.__menus][0]; return m.rowAt(m.items.length - 1); });
+        if (last) await page.touchscreen.tap(...await toCss(page, last[0] + last[2] / 2, last[1] + last[3] / 2)); await wait(700);
+        const scene = await ev(page, () => window.__game.game.sceneName);
+        check(`menus ${label}: sky's menu, too long for the screen, scrolls under a finger; a tap on its last row (BACK) picks it`, !!last && scene === 'title', `its last row ${last ? 'in view' : 'never in view'}; the scene ${scene}`);
+      }
+      await ctx.close();
+    }
+    { const { page, ctx, errors } = await open('platformer', vp); await wait(300); await ev(page, () => window.__game.game.go('over', { from: 'platformer' }, { fade: 0 })); await wait(600); await hook(page); await wait(300);
+      const m = (await rowsOf(page))[0];
+      check(`menus ${label}: GAME OVER's rows a thumb's size`, !!m && m.h >= 44 && m.w >= 44 && !errors.length, m ? `${m.h.toFixed(1)} x ${m.w.toFixed(0)} CSS px` : 'no menu drawn');
+      await ctx.close(); }
+    { const { page, ctx, errors } = await open('pointclick', vp); await wait(300);
+      for (let i = 0; i < 20 && await ev(page, () => window.__game.scenes.pointclick.state().mode === 'open'); i++) { await page.touchscreen.tap(vp.width / 2, vp.height / 2); await wait(400); }   // (the opening card tapped away)
+      await ev(page, () => window.__game.scenes.pointclick.state().story.run('riddle1'));
+      for (let i = 0; i < 40; i++) { if (await ev(page, () => { const D = window.__game.scenes.pointclick.state().story.talk; if (D.open && D.typing) D.shown = D.pageLen; return D.open && D.choices && !D.typing && D.i >= D.pages.length - 1; })) break; await wait(100); }
+      await wait(200); const q = await ev(page, () => { const D = window.__game.scenes.pointclick.state().story.talk, S = window.__game.game.screen, k = S.S / S.dpr, b = D._cbox(D._dims()); return { h: b.rh * k, w: b.w * k, top: b.y, at: D.choiceAt(1) }; });
+      await page.touchscreen.tap(...await toCss(page, q.at[0], q.at[1] + q.h / 6)); await wait(400);   // (a thumb a little low of the middle: still that answer)
+      const said = await ev(page, () => (window.__game.scenes.pointclick.state().story.log.filter(e => e.who === 'choice').slice(-1)[0] || {}).text);
+      check(`menus ${label}: a dialog's choices (Morwen's riddle) a thumb's size; a tap a little low of A RIVER answers it`, q.h >= 44 && q.w >= 44 && q.top >= 0 && said === 'A RIVER' && !errors.length, `${q.h.toFixed(1)} x ${q.w.toFixed(0)} CSS px, the box's top ${q.top}; answered ${said}`);
+      await ctx.close(); }
+    { const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
+      await page.goto(pathToFileURL(resolve('dist/my-3d2dge.html')).href); await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'title'); await wait(600);
+      const f = await ev(page, () => { const m = window.__game.titleMenu, S = window.__game.game.screen, L = m.lay; return { h: L.rowH * S.S / S.dpr, view: L.view, rows: L.rows, bottom: m.y + L.view * L.rowH + 8, H: window.__game.game.H }; });
+      check(`menus ${label}: the reference edition's title (FamilyMenu): rows a thumb's height`, f.h >= 44 && f.bottom <= f.H && !errors.length, `${f.h.toFixed(1)} CSS px, ${f.view} of ${f.rows} rows in view`);
+      await ctx.close(); }
+    { const { page, ctx, errors } = await open('platformer', vp); await wait(300); await ev(page, () => window.__game.game.menu()); await wait(300);
+      const tapText = async t => { for (const e of await page.$$('.esh button')) if ((await e.textContent()).trim().toLowerCase() === t) { await e.tap(); await wait(300); return true; } return false; };
+      const sizes = () => ev(page, () => [...document.querySelectorAll('.esh-tabs button, .esh input[type=range]')].filter(e => e.offsetParent).map(e => { const r = e.getBoundingClientRect(); return [e.textContent.trim() || 'slider', Math.round(r.width), Math.round(r.height)]; }));
+      await tapText('settings'); const s = await sizes(); await ev(page, () => window.__game.game.shell.back()); await wait(200); await tapText('controls'); const c = await sizes(); const all = s.concat(c), small = all.filter(e => e[2] < 44);
+      check(`menus ${label}: the Shell's Settings and Controls tabs and sliders a thumb's height`, s.length >= 4 && c.length >= 4 && !small.length && !errors.length, small.length ? 'under 44: ' + small.map(e => e.join(' ')).join(', ') : `${all.length} measured, the lowest ${Math.min(...all.map(e => e[2]))} CSS px`);
+      await ctx.close(); }
+  }
 }
 
 await browser.close();

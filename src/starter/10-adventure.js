@@ -138,7 +138,7 @@ const ADV = (() => {
     florist: { name: E.t('adventure.npc.lise'), face: Math.PI, idle: ['kneel', 'kneel', null], near: 36, talk: ['hips', 'cast'],   // tends the flower bed
       chore: () => new E.Attack('plunge', { hand: 'both', a0: -.5, a1: -.9, r0: 4, r1: 9, wind: .3, active: .16, recover: .45 }),
       lines: [E.t('adventure.lise.1'), E.t('adventure.lise.2')] },
-    villager: { name: E.t('adventure.npc.pip'), idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: [E.t('adventure.pip.1'), () => E.t('adventure.pip.2')] }   // a function: the player's own key ({key:attack})
+    villager: { name: E.t('adventure.npc.pip'), idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: [E.t('adventure.pip.1'), () => E.t('adventure.pip.2')] }   // a function: the player's own key ({key:attack}), on the device in use while the box is open
   };
   // BACKDROP (iso view): a sea of clouds
   const bg = new E.Backdrop({ sky: ['#3a74c8', '#8ac2ea', '#e4f2f4', '#9ccae6', '#5a90c8'], layers: [{ kind: 'clouds', color: '#ffffff', y: .3, height: .16, parallax: .04, drift: 3 },
@@ -286,7 +286,7 @@ const ADV = (() => {
     const t = h.charge >= .6 ? 'charged' : null; if (t !== padTrig) { padTrig = t; ds.trigger('right', t && { pulse: [.1, 18, .25] }); }
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
-  const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };   // (at the bottom, clear of the touch buttons)
+  const say = (who, name, text) => { speaker = who; talk.say(text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };   // (at the bottom, clear of the touch buttons)
   function hurtHero(ang) {   // flinch, knockback, blink; true if it hurt
     if (hero.inv > 0 || won || hero.hp <= 0) return false; hero.hp -= .5; hero.inv = 1; hero.hurt = .25; hero.charge = 0; hero.combo.cancel(); hero.spin.cancel(); hero.push(Math.cos(ang) * 160, Math.sin(ang) * 160);
     game.hitFx(hero.x + Math.cos(ang) * 3, hero.y + Math.sin(ang) * 3, 12, { power: .9, angle: ang + Math.PI, color: '#ff8a6a', sound: 'hurt' }); game.flash('#ff4a3a', .06, .4);

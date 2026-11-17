@@ -12,6 +12,8 @@
 //   4. a crossfade, a stinger on the next bar and a layer brought in play without an error
 //   5. an audio offset of 250 ms (a wireless headset's) still sounds the music's notes, scheduled that much earlier
 //   6. a looped, panned effect sounds on until stopped (its pan set as it plays); a track plays a game's own instrument
+//   7. inside 52in1 (a stand-in window.AIHubSettings): the music is times its Music volume and every other sound (effects,
+//      the voice) its Sound effects volume, on top of the game's own, again when its change event says they moved
 // Usage: node tools/audio-test.mjs [--seconds 180]   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser).
 // Exit code 1 on failure.
 import { chromium } from 'playwright';
@@ -104,6 +106,23 @@ const r6 = await ev(async () => {
 });
 check("sfx(name, { loop, pan }): it sounds on until stop(), its pan set as it plays; a track plays an instrument of the game's own",
   !r6.missing && r6.looping > .02 && r6.looping > r6.quiet * 4 && r6.pan === -.8 && r6.pan2 === .6 && r6.after < r6.looping / 4 && r6.playing === false && r6.calls >= 3, JSON.stringify(r6));
+
+// 7. 52in1's Music and Sound effects (lib/hub/catalogue.md, Sound and vibration: the game multiplies its own music volume by
+//    music and every other sound's by effects, and does it again on change; the hub applies the master volume itself)
+console.log('52in1\'s Music and Sound effects volumes');
+const hub = await browser.newPage({ viewport: { width: 640, height: 360 } }), hubErrors = []; hub.on('pageerror', e => hubErrors.push(e.message));
+await hub.addInitScript(() => { window.AIHubSettings = Object.assign(new EventTarget(), { music: .5, effects: .25, vibration: 1, mic: false }); });   // (as the hub's companion sets it, before the game's first script)
+await hub.goto(pathToFileURL(resolve('tools/fixtures/audio.html')).href); await hub.waitForFunction(() => window.__fx && window.__fx.game.sceneName);
+const r7 = await hub.evaluate(() => {
+  const A = window.__fx.game.audio, H = window.AIHubSettings, buses = () => ['music', 'sfx', 'voice', 'master'].map(b => +A.bus(b).gain.value.toFixed(3));
+  const own = [A.musicVolume, A.sfxVolume, A.voiceVolume, A.volume], at = buses();
+  H.music = 0; H.effects = 1; H.dispatchEvent(new Event('change')); const moved = buses();
+  A.musicVolume = 1; A.applyVolume(); const mine = buses();   // (the game's own setting still multiplies)
+  H.music = .8; H.effects = .5; H.dispatchEvent(new Event('change')); return { own, at, moved, mine, last: buses() };
+});
+check("inside 52in1 the music follows its Music volume and the effects and the voice its Sound effects, times the game's own, again on change",
+  [[r7.at, [.5, .25, .25, 1]], [r7.moved, [0, 1, 1, 1]], [r7.last, [.8 / r7.own[0], .5, .5, 1]]].every(([got, k]) => got.every((v, i) => Math.abs(v - r7.own[i] * k[i]) < .002)) && r7.mine[0] === 0 && !hubErrors.length,   // (last: its music volume 1 by then)
+  JSON.stringify(r7) + (hubErrors.length ? '; errors: ' + hubErrors.join(' | ') : ''));
 
 await browser.close();
 console.log(problems.length ? `\naudio test FAILED (${problems.length}):\n  ${problems.join('\n  ')}` : `\naudio test passed in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
