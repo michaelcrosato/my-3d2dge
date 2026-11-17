@@ -1489,7 +1489,7 @@ function catThing(x, y) {
       r.actor(this.x, this.y, this.z, (g, ox, oy) => { if (curled) curledCat(g, ox, oy, r.view, f, aw, h ? Math.atan2(h.y - this.y, h.x - this.x) : f); else b.draw(g, ox, oy, r.view); }, { outline: true });
       const x = this.x, y = this.y;
       if (this.zs) for (const zz of this.zs) r.queue(x, y, 0, g => { const u = zz.t / 2, [sx, sy] = r.w(x + 3 + u * 7, y - u * 3, 13 + u * 14); px.blend(g, u < .15 ? u / .15 : 1 - u, 'normal', () => E.font.text(g, u > .5 ? 'Z' : 'z', Math.round(sx + Math.sin(u * 6) * 2), Math.round(sy), '#c8d0ff', { outline: '#1a1428' })); }, { bias: .05 });
-      if (this.bub) { const s = this.bub.s; r.overlay(g => { const [sx, sy] = r.w(x, y, 16), w = E.font.width(s, { font: 'tiny' }) + 6; E.ui.box(g, sx - w / 2, sy - 11, w, 9, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false }); E.font.text(g, s, sx, sy - 9, '#2a1a2a', { align: 'center', font: 'tiny', outline: false }); }); }
+      if (this.bub) { const s = this.bub.s; r.overlay(g => { const [sx, sy] = r.w(x, y, 16), f = UI_tf({ align: 'center', outline: false }), bh = f.font ? 9 : 11, w = E.font.width(s, f) + 6; E.ui.box(g, sx - w / 2, sy - 2 - bh, w, bh, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false }); E.font.text(g, s, sx, sy - bh, '#2a1a2a', f); }); }   // (the normal font on a TV)
     } };
 }
 

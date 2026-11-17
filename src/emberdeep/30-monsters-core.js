@@ -415,14 +415,15 @@ function drawFoeBars(r) {
       if (m.elite === 2) names.push({ m, x, y: y - 9 });   // rares only (a champion pack reads by its blue bars; its names crowded the fight)
     }
     // names never pile up: bottom to top on screen, a name that would overlap one already placed moves up a line (a few
-    // at most), and a copy of a name already shown there (an illusionist's decoys) is left out: one name per group
-    names.sort((a, b) => b.y - a.y); const placed = [];
+    // at most), and a copy of a name already shown there (an illusionist's decoys) is left out: one name per group. Tiny,
+    // or the normal font on a TV (its lines 10 px apart, not 8, the first 2 px higher: it keeps clear of the life bar)
+    names.sort((a, b) => b.y - a.y); const placed = [], nf = UI_tf({ align: 'center', outline: '#0c0818' }), ls = nf.font ? 8 : 10;
     for (const n of names) {
-      const hw = E.font.width(n.m.name, { font: 'tiny' }) / 2 + 2, hit = y => placed.find(p => Math.abs(p.x - n.x) < p.hw + hw && Math.abs(p.y - y) < 8);
-      let y = n.y, p = hit(y); if (p && p.name === n.m.name) continue;
-      for (let k = 0; k < 3 && p; k++) { y = p.y - 8; p = hit(y); }
+      const hw = E.font.width(n.m.name, nf) / 2 + 2, hit = y => placed.find(p => Math.abs(p.x - n.x) < p.hw + hw && Math.abs(p.y - y) < ls);
+      let y = n.y - (nf.font ? 0 : 2), p = hit(y); if (p && p.name === n.m.name) continue;
+      for (let k = 0; k < 3 && p; k++) { y = p.y - ls; p = hit(y); }
       placed.push({ x: n.x, y, hw, name: n.m.name });
-      E.font.text(g, n.m.name, n.x, y, n.m.elite === 2 ? '#ffd36a' : '#9ab8ff', { align: 'center', font: 'tiny', outline: '#0c0818' });
+      E.font.text(g, n.m.name, n.x, y, n.m.elite === 2 ? '#ffd36a' : '#9ab8ff', nf);
     }
   });
 }

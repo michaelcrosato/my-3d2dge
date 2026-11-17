@@ -282,7 +282,7 @@ const galleryScene = {
       px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, 31 + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor
       E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
       const sp = Math.min(60, (W - 16) / GAL.reels.length);   // (six reels fit a phone held upright)
-      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, 10, { click: () => { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } } }); E.font.text(g, n, rx, 22 + T, i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }); });   // (a click picks a reel)
+      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, 10, { click: () => { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } } }); const nf = UI_tfit(n, sp - 2, { align: 'center', outline: '#0c0818' }); E.font.text(g, n, rx, 22 + T - (nf.font ? 0 : 1), i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', nf); });   // (a click picks a reel; the normal font on a TV)
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
@@ -291,9 +291,11 @@ const galleryScene = {
       else if (GAL.reel === 5) { const S = E.SHAPES[GAL.cur]; title = String(GAL.cur); sub = (S && S.about || '') + '  ·  r.shape(\'' + GAL.cur + '\', x, y, z), docs/ASSETS.md; the Asset Lab (/asset-lab) has the whole store'; }
       else { const p = GAL_POSES[GAL.cur] || GAL_POSES[0]; title = p[0]; sub = p[2]; }
       E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
-      E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
       const dev = ctlDevice(), K = a => keyLabel(a, true, dev);   // the keys of the device in use (the touch bar names its own)
-      E.font.text(g, (GAL.i + 1) + ' / ' + items.length + (dev === 'touch' ? '   SWIPE TO PICK   SLOW' + (GAL.slow ? ' (ON)' : '') : '   ' + K('menuLeft') + ' ' + K('menuRight') + ' pick   ' + K('menuUp') + ' ' + K('menuDown') + ' reel   ' + K('confirm') + ' replay   ' + (dev === 'gamepad' ? K('alt') : K('labels')) + ' slow' + (GAL.slow ? ' (ON)' : '') + (dev === 'gamepad' ? '' : '   ' + K('camView') + ' view') + '   ' + K('cancel') + ' back'), cx, H - 6, '#a89ec8', { align: 'center', font: 'tiny', outline: false });
+      // the keys line: tiny; on a TV the normal font, on two lines where one won't hold it (the description then keeps one)
+      const fs = (GAL.i + 1) + ' / ' + items.length + (dev === 'touch' ? '   SWIPE TO PICK   SLOW' + (GAL.slow ? ' (ON)' : '') : '   ' + K('menuLeft') + ' ' + K('menuRight') + ' pick   ' + K('menuUp') + ' ' + K('menuDown') + ' reel   ' + K('confirm') + ' replay   ' + (dev === 'gamepad' ? K('alt') : K('labels')) + ' slow' + (GAL.slow ? ' (ON)' : '') + (dev === 'gamepad' ? '' : '   ' + K('camView') + ' view') + '   ' + K('cancel') + ' back'), ff = UI_tf({ align: 'center', outline: false }), fl = ff.font ? [fs] : E.font.wrap(fs, W - 12).slice(0, 2);
+      E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, fl.length > 1 ? 1 : 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
+      fl.forEach((l, i) => E.font.text(g, l, cx, H - (ff.font ? 6 : 8) - (fl.length - 1 - i) * 9, '#a89ec8', ff));
     } finally { HUD_out(g); } });
     drawPanels(r);
   }

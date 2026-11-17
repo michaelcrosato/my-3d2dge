@@ -38,6 +38,22 @@ const UI_tall = () => game.H > game.W * 1.3;
  *  takes it: text a player must read (tooltips, totals, the HUD's numbers and labels) is drawn in the normal font there,
  *  not the 3 x 5 tiny one; tf(o) adds { font: 'tiny' } to a text's options only off a TV */
 const UI_tv = () => typeof innerWidth === 'number' && innerWidth >= 1600, UI_tf = (o = {}) => UI_tv() ? o : Object.assign({}, o, { font: 'tiny' });
+/** UI_tf for a text s with only w pixels: the normal font on a TV where s fits in w, else the tiny one */
+const UI_tfit = (s, w, o = {}) => UI_tv() && E.font.width(s) <= w ? o : Object.assign({}, o, { font: 'tiny' });
+/** the skill slots' keys in a line under the slots (on a TV, where a slot's corner is too small for LMB in the normal
+ *  font): each centred at mid(i) in the normal font, but one too wide to keep 2 px clear of its neighbours and inside
+ *  x0..x1 (a slot rebound to Shift beside Ctrl) the tiny one there, so no two run together. Returns each key's options */
+function UI_keyFonts(keys, mid, x0, x1) {
+  const n = keys.length, kf = keys.map(() => ({})), kw = i => E.font.width(keys[i], kf[i]);
+  for (let pass = 0, hit = true; hit && pass < n; pass++) {
+    hit = false;
+    for (let b = 0; b <= n; b++) {   // the room between key b - 1 and key b (x0 before the first, x1 after the last)
+      const a = b - 1, L = a < 0 ? x0 - 1 : mid(a) + kw(a) / 2 + 1, R = b >= n ? x1 + 1 : mid(b) - kw(b) / 2 - 1;
+      if (L > R) { const j = a < 0 ? b : b >= n ? a : kw(a) >= kw(b) ? a : b; if (!kf[j].font) { kf[j] = { font: 'tiny' }; hit = true; } }
+    }
+  }
+  return kf;
+}
 /** how many game pixels make a finger's target (44 CSS pixels) on this screen */
 const UI_finger = () => { const sc = game.screen; return Math.ceil(44 * (sc.dpr || 1) / (sc.S || 1)); };
 const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y < r0.y + r0.h;
@@ -192,7 +208,7 @@ function drawTimedIcon(g, x, y, c, bg, o, stacks, paint) {
   E.ui.box(g, x, y, S, S, { bg, border: blink ? '#ffffff' : c, shadow: false, gradient: false });
   paint();
   if (T < 999 && o._uiMax > 0) { const k = Math.round((S - 2) * (1 - clamp(T / o._uiMax, 0, 1))); if (k > 0) px.blend(g, .62, 'normal', () => px.rect(g, x + 1, y + 1, S - 2, k, '#05040a')); }
-  if (stacks > 1) E.font.text(g, String(stacks), x + S, y + S - 5, '#ffffff', { align: 'right', font: 'tiny', outline: '#0c0818' });
+  if (stacks > 1) { const f = UI_tfit(String(stacks), S - 2, { align: 'right', outline: '#0c0818' }); E.font.text(g, String(stacks), x + S, y + S - (f.font ? 5 : 7), '#ffffff', f); }   // (the normal font on a TV)
 }
 function drawHUD(r) {
   const h = ED.hero; if (!h) return;
@@ -212,11 +228,14 @@ function HUD_out(g) { if (UI.hotO) { g.restore(); UI.hotO = null; } }
 function HUD_under() { const F = UI.frame; return F.barB > 0 ? Math.max(0, Math.ceil(F.barB - F.t) + 1) : 0; }
 function drawHudInner(g, r, h) {
   {
-    const W = r.W, H = r.H, cx = Math.round(W / 2), by = H - 24;
     // on a TV the labels a player reads (the orbs' numbers, the potion key, LV, the gold, the points, the timer, the
-    // exit's distance, a cooldown) are in the normal font (UI_tf); ty lifts each by a pixel so it keeps its middle (the
-    // normal font is 7 rows to the tiny one's 5). Elsewhere they stay tiny, where they were
-    const tv = UI_tv(), ty = tv ? 1 : 0;
+    // exit's distance, a cooldown, the slots' keys) are in the normal font (UI_tf); ty lifts each by a pixel so it keeps
+    // its middle (the normal font is 7 rows to the tiny one's 5). Elsewhere they stay tiny, where they were. The slots'
+    // keys go under the slots there (LMB is too wide for a slot's corner), so the bar rises 9 px over them (kb). A window
+    // too narrow for the potions' key, LV, that bar and the gold in one line (under 356 game px: a 4:3 one) keeps them in
+    // the slots' corners, as it had them
+    const W = r.W, H = r.H, cx = Math.round(W / 2), tv = UI_tv(), ty = tv ? 1 : 0, touch = ctlDevice() === 'touch', keys = touch ? [] : SLOT_ACTS.map((a, i) => slotKey(i));
+    const kb = tv && keys.length > 0 && W >= 356, by = H - 24 - (kb ? 9 : 0);
     // orbs
     const OR = 17;
     orb(g, 22, H - 22, OR, h.hp / h.maxHp, h.st.poison ? '#6ac03a' : '#d8303a', '#2a0c14');
@@ -226,14 +245,14 @@ function drawHudInner(g, r, h) {
     E.font.text(g, fmt(Math.ceil(h.hp)), 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
     E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
     // potions beside the life orb, with their key or button (none on touch: the Potion button says it)
-    const touch = ctlDevice() === 'touch';
     for (let i = 0; i < h.maxPotions; i++) { const x = 44 + i * 7, y = H - 12, full = i < h.potions; px.rect(g, x + 1, y - 7, 2, 2, full ? '#c8b890' : '#4a4050'); px.disc(g, x + 2, y - 2, 2.6, full ? '#e03a4a' : '#2a2030'); if (full) px.dot(g, x + 1, y - 3, '#ffc0c8'); }
     if (!touch) E.font.text(g, keyLabel('potion', true), 44 + h.maxPotions * 7 + 2, H - 13 - ty, '#9a90b0', UI_tf({ outline: '#0c0818' }));
     // skill bar
-    const SW = 18, gap = 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);
-    // the slots' key badges: the normal font on a TV when every badge fits a slot's corner (a pad's □ R1 R2, the keys 1-4),
-    // else all tiny (LMB is too wide), so one bar never mixes the two
-    const keys = touch ? [] : SLOT_ACTS.map((a, i) => slotKey(i)), bf = tv && keys.every(k => E.font.width(k) + 3 <= SW - 4) ? {} : { font: 'tiny' }, bh = bf.font ? 7 : 9;
+    const SW = 18, gap = kb ? 4 : 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);   // (a TV's keys under the slots: 2 px more between them)
+    // the slots' keys: a badge in a slot's corner, tiny (on a TV too narrow for kb the normal font when every badge fits a
+    // corner: a pad's □ R1 R2); on a TV (kb) a line under the slots, each key centred under its slot in the normal font
+    // (UI_keyFonts), clear of the LV and the gold beside the bar
+    const bf = tv && keys.every(k => E.font.width(k) + 3 <= SW - 4) ? {} : { font: 'tiny' }, bh = bf.font ? 7 : 9, km = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2, kf = kb ? UI_keyFonts(keys, km, bx - 3, bx + bw + 3) : [];
     for (let i = 0; i < n; i++) {
       const x = bx + i * (SW + gap) + (i >= 2 ? 4 : 0), y = by, id = h.slots[i], S = id && REG.skills[id];
       E.ui.box(g, x - 1, y - 1, SW + 2, SW + 2, { bg: '#141020', border: h.cdWarn && h.cdWarn.slot === i && h.cdWarn.t > 0 ? '#ff5a5a' : h.act && h.act.slot === i ? GOLD : '#5a4a70', shadow: false, gradient: false });
@@ -243,14 +262,16 @@ function drawHudInner(g, r, h) {
         if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 2), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
-      if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
+      if (kb) E.font.text(g, keys[i], km(i), y + SW + 2 + (kf[i].font ? 1 : 0), '#c8c0d8', Object.assign({ align: 'center', outline: '#0c0818' }, kf[i]));
+      else if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
       hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel ({key:skills}).', c: '#c8c0d8' }], click: touch ? null : () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
     }
     // on touch the bar is ONE target a finger's height (44 CSS px), not six 18 px squares: a tap opens the Skills panel for
-    // the slot nearest it (a near miss arms the next slot, which the panel changes in a tap). The points chip, drawn
-    // after, keeps its own target where the two meet
+    // the slot nearest it (a near miss arms the next slot, which the panel changes in a tap). Its top (t0) is where the
+    // points chip's own target begins, over it
+    const t0 = touch ? Math.min(by - 1, H - Math.max(UI_finger(), SW + 2)) : by - 1;
     if (touch) {
-      const F = Math.max(UI_finger(), SW + 2), t0 = Math.min(by - 1, H - F), ox = UI.hotO ? UI.hotO[0] : 0, mid = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2;
+      const ox = UI.hotO ? UI.hotO[0] : 0, mid = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2;
       hot(bx - 2, t0, bw + 4, H - t0, { label: 'SKILL BAR', click: () => { if (!UI.panels.skills) return; const mx = UI.mouse.x - ox; let k = 0; for (let i = 1; i < n; i++) if (Math.abs(mid(i) - mx) < Math.abs(mid(k) - mx)) k = i; UI.open('skills', { slot: k }); } });
     }
     if (h.cdWarn) h.cdWarn.t -= 1 / 60;
@@ -266,17 +287,22 @@ function drawHudInner(g, r, h) {
     // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
     const ck = h.pts.skill + ':' + h.pts.passive + ':' + h.level, cs = typeof PRG_canSpend !== 'function' ? null : UI.csKey === ck && game.real - UI.csT < 2 ? UI.cs : (UI.csKey = ck, UI.csT = game.real, UI.cs = PRG_canSpend(h));
     const skN = cs && !cs.skill ? 0 : h.pts.skill, paN = cs && !cs.passive ? 0 : h.pts.passive;
+    UI.chipLift = 0;   // (how far the chip rose over the bar's target on touch: the prompt and the quick lines rise with it)
     if (skN + paN > 0) {   // '2 SKILL POINTS (K)', '1 PASSIVE POINT (P)', '2 SKILL + 1 PASSIVE POINTS (K / P)'; a controller has no key for
       // them: the menu's button; on touch the line is a chip a tap opens the panel from
       const blink = Math.floor(game.real * 2) % 2, sk = skN, pa = paN, dev = ctlDevice(), K = keyLabel('skills', true), Pk = keyLabel('tree', true);
       const keys = touch ? '' : K || Pk ? (sk && pa ? ' (' + [K, Pk].filter(Boolean).join(' / ') + ')' : sk && K ? ' (' + K + ')' : pa && Pk ? ' (' + Pk + ')' : '') : dev === 'gamepad' ? ' (' + keyLabel('pause', true) + ')' : '';
       const s = (sk ? sk + ' SKILL' : '') + (sk && pa ? ' + ' : '') + (pa ? pa + ' PASSIVE' : '') + ' POINT' + (sk + pa > 1 ? 'S' : '') + keys, sw0 = E.font.width(s, UI_tf());
-      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, by - 18 - ty * 2, sw0 + 8, 10 + ty * 2, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
-      E.font.text(g, s, cx, by - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
+      // on touch the chip and its target sit wholly over the bar's finger-tall target (t0), which reaches higher than the
+      // bar's drawing where a finger is more than 27 game pixels (a phone held upright): the chip rises by that much
+      const lift = UI.chipLift = touch ? Math.max(0, by - 3 - t0) : 0, cy0 = by - lift;
+      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, cy0 - 18 - ty * 2, sw0 + 8, 10 + ty * 2, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
+      E.font.text(g, s, cx, cy0 - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
       // a tap opens where the points go (a mouse's click there swings, as before). The chip is a short line, so its
-      // target is a finger's (44 CSS px) square or more, reaching up from just over the skill bar: never over a slot
-      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); hot(Math.round(cx - fw / 2), by - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
+      // target is a finger's (44 CSS px) square or more, reaching up from the top of the bar's: never over the bar
+      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); hot(Math.round(cx - fw / 2), cy0 - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
     }
+    UI.overBar = by - 26 - UI.chipLift;   // the line over all that: the interaction prompt, then the quick notices over it
     E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9 - ty, GOLD, UI_tf({ align: 'right', outline: '#0c0818' }));
     // top left: where we are, the level's elements, buffs
     const L0 = ED.L; let leftW = 0;   // how far the place names reach (the boss bar keeps clear of them)
@@ -307,7 +333,7 @@ function drawHudInner(g, r, h) {
       if (ex < m || ex > W - m || ey < m || ey > H - m) {
         // (on a TV the arrow and its larger label keep clear of what always sits in the corners: above the HUD bar and the
         // orbs, below the place names and the minimap)
-        const mb = tv ? 44 : m, mt = tv ? 62 + HUD_under() : m, dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - (dy > 0 ? mb : mt)) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
+        const mb = tv ? 44 + (kb ? 9 : 0) : m, mt = tv ? 62 + HUD_under() : m, dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - (dy > 0 ? mb : mt)) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
         px.poly(g, [[ax + Math.cos(a) * 6, ay + Math.sin(a) * 6], [ax + Math.cos(a + 2.4) * 5, ay + Math.sin(a + 2.4) * 5], [ax + Math.cos(a - 2.4) * 5, ay + Math.sin(a - 2.4) * 5]], c);
         const dd = Math.round(Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) / T16), ad = tv ? 13 : 9;   // (the wider normal-font label sits further back from the arrow)
         E.font.text(g, dd + 'm', ax - Math.cos(a) * ad, ay - Math.sin(a) * ad - 2 - ty, c, UI_tf({ align: 'center', outline: '#0c0818' }));
@@ -327,7 +353,7 @@ function drawHudInner(g, r, h) {
     UI.hudDrawn = true;
     // interaction prompt (not under a panel or a conversation: '[E] Talk to ILSA' while Ilsa is talking reads as a bug)
     UI.promptShown = !!UI.prompt && !UI.modal && !(typeof talk !== 'undefined' && talk.open);
-    if (UI.promptShown) E.font.text(g, promptText(UI.prompt), cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });   // ('[E] Talk to Bram', '[L3] ...'; on touch the Use button says it)
+    if (UI.promptShown) E.font.text(g, promptText(UI.prompt), cx, UI.overBar, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });   // ('[E] Talk to Bram', '[L3] ...'; on touch the Use button says it)
     // the level card: name, depth, the new element
     if (UI.card && UI.cardT > 0) drawLevelCard(g, W, H, cx, UI.card);
   }
@@ -471,7 +497,7 @@ function drawNoticeFeed(g, W, H, rect, hud) {
     if (rows.length) NT.rect = [fx - ww / 2 - 8 + o0[0], y0 - 8 + o0[1], ww + 16, rows.length * 10 + 16];   // (where a flick sweeps it away: screen pixels)
   }
   // quick feedback over the skill bar (above the interaction prompt when one shows)
-  let qy = H - 24 - 26 - (UI.promptShown ? 11 : 0); const qy1 = qy + 10, o1 = UI.hotO || [0, 0];
+  let qy = (UI.overBar !== undefined ? UI.overBar : H - 50) - (UI.promptShown ? 11 : 0); const qy1 = qy + 10, o1 = UI.hotO || [0, 0];
   for (let i = NT.quick.length - 1; i >= 0; i--) { const n = NT.quick[i], a = NT_alpha(n); if (a <= 0) continue; line(label(n), cx, qy, n.color, a, false); qy -= 10; }
   if (qy < qy1 - 10) NT.qRect = [cx - 90 + o1[0], qy + 4 + o1[1], 180, qy1 - qy + 4];
 }
@@ -763,11 +789,12 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : D
 /* the waystone's list: the panel is as tall as its depths need (it scrolls past ten). ONE row is lit: the focus, which
    the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view */
 const WAY = { top: 0 };
-UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : 200, 52 + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * (UI_rowH() + 1)), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
+UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : 200, 52 + (UI_tv() ? 4 : 0) + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * (UI_rowH() + 1)), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
   const rs = UI_rowH() + 1, rb = rs - 3;   // (a row's step and its button: a finger's held upright)
-  const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, { font: 'tiny' }).slice(0, 2);
-  sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * 7, '#9a90b0', { align: 'center', font: 'tiny', outline: false }));
-  const top = y + 21 + sub.length * 7, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
+  const sf = UI_tf({ align: 'center', outline: false }), sl = sf.font ? 7 : 9;   // (the line under the title: the normal font on a TV, the panel 4 px taller for it)
+  const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, sf).slice(0, 2);
+  sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * sl, '#9a90b0', sf));
+  const top = y + 21 + sub.length * sl, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
   WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top;
   list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name; if (button(g, x + 12, top + i * rs, w - 24, rb, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k; });
   if (list.length > rows) { const th = Math.max(6, Math.round((rows * rs - 3) * rows / list.length)), ty = top + Math.round((rows * rs - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * rs - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }

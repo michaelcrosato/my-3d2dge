@@ -100,7 +100,7 @@ function updateCharacterPreview(dt) {
 		160,
 		197,
 		"#83f4df",
-		{ align: "center", font: "tiny" },
+		UI_tf({ align: "center" }), // (the normal font on a TV)
 	);
 }
 UI.def("characters", {

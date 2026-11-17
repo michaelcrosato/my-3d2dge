@@ -800,7 +800,7 @@ function devDraw(r) {
 	r.overlay((g) => {
 		let y = 4 + UI.frame.t;
 		const line = (t, c) => {
-			E.font.text(g, t, r.W / 2, y, c, { align: "center", font: "tiny" });
+			E.font.text(g, t, r.W / 2, y, c, UI_tf({ align: "center" })); // (the normal font on a TV)
 			y += 9;
 		};
 		if (tuned) line("TUNED", "#8fe3ff");
