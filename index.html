@@ -23877,7 +23877,7 @@ function PRG_slotBox(g, h, i, x, y, armed, t, s = 1) {
  *  (a press that barely moved) acts when it lifts (PRG_skillsUpdate): it chooses the row's skill, or ranks it up on its plus */
 const PRG_listPress = (id, plus) => (mx, my) => {
   const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, x: mx, y: my, s: K.scroll, moved: 0 }; return; }
-  P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y));   // (a finger sliding off sideways is no tap either) if (P.moved > 6) K.scroll = clamp(Math.round(P.s - (my - P.y) / (K.rowH || 20)), 0, K.maxS || 0);
+  P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); if (P.moved > 6) K.scroll = clamp(Math.round(P.s - (my - P.y) / (K.rowH || 20)), 0, K.maxS || 0);   // (a finger sliding off sideways is no tap either; only up and down scroll)
 };
 /** a skill row chosen: with a slot waiting (armed) it goes there, else it is shown on the page; on its plus it ranks up */
 function PRG_rowTap(h, id, plus) {
