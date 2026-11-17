@@ -12268,13 +12268,14 @@ https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
 The engine plays any controller through the Gamepad API: the buttons and sticks, the triggers' travel (input.value), a
-rumble (input.rumble), the touchpad's click (Pad17). This module adds what only a DualSense has, over WebHID, as extras:
+rumble (input.rumble), the touchpad's click (Pad17). This module adds what only a DualSense has, as extras (over WebHID,
+or inside 52in1 through the hub's own channel):
 a game plays the same without them (docs/CONTROLS.md).
 - const ds = E.DualSense.attach(game, { light, triggers, gyro, speaker, mic }): the extras the game uses (true each);
   each gets a row on the Controls screen's Controller tab: Light bar, Adaptive triggers, Gyro aim (off, low, medium,
   high: off at first), Controller speaker, Microphone. attach again gives the same ds, with the rows of any extra it
   names now (a file of several games, each attaching its own). ds.clear(): the triggers free and the light bar back
-  to blue (a scene's exit, so the next one starts clean).
+  to blue, in 52in1 to the hub's glow (a scene's exit, so the next one starts clean).
 - ds.light('#e8443a'): the light bar's colour, a meaning of the game's (health, danger, the team; null leaves it);
   ds.player(0..3): the player lights (-1 off).
 - ds.trigger('left' | 'right', effect): null (free), { resist: [start, force] } (a firm pull from start: a brake, a
@@ -12323,7 +12324,8 @@ E.lang.engine({
   'engine.setting.gyro': 'Gyro aim', 'engine.setting.gyro.help': 'Turn and tilt the DualSense to fine-tune your aim, on top of the stick', 'engine.setting.gyro.off': 'Off', 'engine.setting.gyro.low': 'Low', 'engine.setting.gyro.medium': 'Medium', 'engine.setting.gyro.high': 'High',
   'engine.setting.pad_speaker': 'Controller speaker', 'engine.setting.pad_speaker.help': 'Small sounds of the game play from the DualSense in your hands',
   'engine.setting.mic': 'Microphone', 'engine.setting.mic.help': 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent',
-  'engine.dualsense.need_pad': 'Connect a DualSense and allow it in 52in1 Settings', 'engine.dualsense.need_allow': 'Allow it in 52in1 Settings first'
+  'engine.dualsense.need_pad': 'Connect a DualSense and allow it in 52in1 Settings', 'engine.dualsense.need_allow': 'Allow it in 52in1 Settings first',
+  'engine.dualsense.need_page': 'Play this game in 52in1, with a DualSense connected in its Settings'
 });
 // a permissions-policy feature this frame may use: one the browser doesn't know (Chrome's 'speaker-selection') it doesn't
 // gate, so the browser's own answer (setSinkId's) decides
@@ -12355,8 +12357,8 @@ function effect(e) {
 class DualSense {
   /** E.DualSense.attach(game, o) makes one (the manual above) */
   constructor(game, o) {
-    /** game: its game; o: the extras it uses; connected: a DualSense is open over WebHID; allowed: what the player has
-     *  allowed ({ hid, speaker, mic }); touches: the touchpad's fingers [{ x, y }] (0..1) */
+    /** game: its game; o: the extras it uses; connected: a DualSense is open (over WebHID, or 52in1 has one for games);
+     *  allowed: what the player has allowed ({ hid, speaker, mic }); touches: the touchpad's fingers [{ x, y }] (0..1) */
     this.game = game; this._o = o; this.connected = false; this.allowed = { hid: false, speaker: false, mic: false }; this.touches = [];
     this._dev = null; this._wire = 'usb'; this._seq = 0; this._want = { light: null, player: null, left: null, right: null }; this._sent = ''; this._busy = false;
     this._raw = [0, 0, 0]; this._bias = [0, 0, 0]; this._rate = [0, 0, 0]; this._still = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
@@ -12370,14 +12372,14 @@ class DualSense {
   /** name more extras this game uses ({ light, triggers, gyro, speaker, mic }: attach does it): their rows are added */
   extras(o = {}) {
     for (const k in o) if (o[k] && k in this._o) this._o[k] = true;
-    const game = this.game, S = game.settings, lockHid = k => () => !this.allowed.hid ? E.t('engine.dualsense.need_pad') : this._may[k] ? null : E.t('engine.dualsense.need_allow');
+    const game = this.game, S = game.settings, lockHid = k => () => !this.allowed.hid ? E.t(this._hub ? 'engine.dualsense.need_pad' : 'engine.dualsense.need_page') : this._may[k] ? null : E.t('engine.dualsense.need_allow');   // (on a page of its own nothing is asked: 52in1 is where a DualSense is allowed)
     if (o.light && !S.spec('padLight')) S.define({ key: 'padLight', group: 'Controller', label: 'Light bar', help: 'The DualSense\'s light shows what the game says: your health, danger, your team', type: 'toggle', value: true, locked: lockHid('light'), apply: () => this._push() });
     if (o.triggers && !S.spec('padTriggers')) S.define({ key: 'padTriggers', group: 'Controller', label: 'Adaptive triggers', help: 'The DualSense\'s triggers push back: a brake, a bowstring, a gun\'s break', type: 'toggle', value: true, locked: lockHid('triggers'), apply: () => this._push() });
     if (o.gyro && !S.spec('gyro')) S.define({ key: 'gyro', group: 'Controller', label: 'Gyro aim', help: 'Turn and tilt the DualSense to fine-tune your aim, on top of the stick', type: 'select', value: 'off', options: [['off', 'Off'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], locked: lockHid('gyro') });
-    if (o.speaker && !S.spec('padSpeaker')) S.define({ key: 'padSpeaker', group: 'Controller', label: 'Controller speaker', help: 'Small sounds of the game play from the DualSense in your hands', type: 'toggle', value: false, locked: () => this.allowed.speaker ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._speakerOn(v) });
-    if (o.mic && !S.spec('mic')) S.define({ key: 'mic', group: 'Controller', label: 'Microphone', help: 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent', type: 'toggle', value: false, locked: () => this.allowed.mic ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._micOn(v) });
+    if (o.speaker && !S.spec('padSpeaker')) S.define({ key: 'padSpeaker', group: 'Controller', label: 'Controller speaker', help: 'Small sounds of the game play from the DualSense in your hands', type: 'toggle', value: false, locked: () => this.allowed.speaker ? null : E.t(this._hub ? 'engine.dualsense.need_allow' : 'engine.dualsense.need_page'), apply: (g, v) => this._speakerOn(v) });
+    if (o.mic && !S.spec('mic')) S.define({ key: 'mic', group: 'Controller', label: 'Microphone', help: 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent', type: 'toggle', value: false, locked: () => this.allowed.mic ? null : E.t(this._hub ? 'engine.dualsense.need_allow' : 'engine.dualsense.need_page'), apply: (g, v) => this._micOn(v) });
   }
-  /** the triggers free and the light bar back to blue: a scene's exit, so the next starts clean */
+  /** the triggers free and the light bar back to blue (in 52in1 to the hub's glow): a scene's exit, so the next starts clean */
   clear() { this._want.left = this._want.right = null; this._want.light = this._hub ? null : '#3050ff'; if (this._hub) try { this._hub.dualsense.light(null); } catch (e) { /* the hub's gone */ } this._push(); return this; }   // (in 52in1 the light goes back to the hub's glow, whatever its Settings say now)
   /** the light bar's colour ('#rrggbb'; null leaves it as it is) */
   light(color) { this._want.light = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : null; this._push(); return this; }

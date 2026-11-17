@@ -297,7 +297,7 @@ function drawHudInner(g, r, h) {
     // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
     const ck = h.pts.skill + ':' + h.pts.passive + ':' + h.level, cs = typeof PRG_canSpend !== 'function' ? null : UI.csKey === ck && game.real - UI.csT < 2 ? UI.cs : (UI.csKey = ck, UI.csT = game.real, UI.cs = PRG_canSpend(h));
     const skN = cs && !cs.skill ? 0 : h.pts.skill, paN = cs && !cs.passive ? 0 : h.pts.passive;
-    UI.chipLift = 0;   // (how far the chip rose over the bar's target on touch: the prompt and the quick lines rise with it)
+    UI.chipLift = 0; let chipTop = null;   // (how far the chip rose over the bar's target on touch, and the top of its own: the prompt and the quick lines stand over both)
     if (skN + paN > 0) {   // '2 SKILL POINTS (K)', '1 PASSIVE POINT (P)', '2 SKILL + 1 PASSIVE POINTS (K / P)'; a controller has no key for
       // them: the menu's button; on touch the line is a chip a tap opens the panel from
       const blink = Math.floor(game.real * 2) % 2, sk = skN, pa = paN, dev = ctlDevice(), K = keyLabel('skills', true), Pk = keyLabel('tree', true);
@@ -310,9 +310,10 @@ function drawHudInner(g, r, h) {
       E.font.text(g, s, cx, cy0 - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
       // a tap opens where the points go (a mouse's click there swings, as before). The chip is a short line, so its
       // target is a finger's (44 CSS px) square or more, reaching up from the top of the bar's: never over the bar
-      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); hot(Math.round(cx - fw / 2), cy0 - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
+      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); chipTop = cy0 - 3 - F; hot(Math.round(cx - fw / 2), cy0 - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
     }
     UI.overBar = by - 26 - UI.chipLift;   // the line over all that: the interaction prompt, then the quick notices over it
+    if (chipTop !== null) UI.overBar = Math.min(UI.overBar, chipTop - 10);   // (on touch, over the chip's finger-tall target too: a flick that sweeps a notice away never opens Skills)
     E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9 - ty, GOLD, UI_tf({ align: 'right', outline: '#0c0818' }));
     // top left: where we are, the level's elements, buffs
     const L0 = ED.L; let leftW = 0;   // how far the place names reach (the boss bar keeps clear of them)
