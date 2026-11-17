@@ -6,8 +6,8 @@
  * pause the level (the town keeps living behind them).
  * ============================================================================= */
 const UI = {
-  mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0 },
-  panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
+  mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0, finger: false },
+  panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, tap: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
   /* the HUD's frame on a phone (screen pixels): l t r b keep it out of the notch, the status bar and the home bar, and
      b lifts the HUD bar over the touch buttons on a screen held upright; barB is how far down the touch buttons at the
      top reach (the minimap, the boss bar and the notices go under them). HUD_layout in 61-controls sets them */
@@ -24,7 +24,7 @@ const UI = {
 /* the mouse in screen pixels (the canvas scale and letterbox undone). A panel opened from the keyboard starts in key navigation */
 addEventListener('keydown', () => { UI.keyT = performance.now(); });
 canvas.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' && game.input.stickOn && e.pointerId === game.input.stickId) return; UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.active = true; UI.keyNav = false; });
-canvas.addEventListener('pointerdown', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; if (e.button === 0) UI.mouse.down = true; });
+canvas.addEventListener('pointerdown', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.finger = e.pointerType !== 'mouse'; if (e.button === 0) UI.mouse.down = true; });   // (finger: what pressed, so a press decides by it, whatever was used last)
 addEventListener('pointerup', e => { if (e.button === 0) { UI.mouse.down = false; UI.drag = null; } });
 canvas.addEventListener('wheel', e => { UI.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
 function mouseHUD() { const sc = game.screen, p = sc.clientToScreen(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p[0] - sc.ix; UI.mouse.y = p[1] - sc.iy; return UI.mouse; }
@@ -71,18 +71,26 @@ function updateUI(dt) {
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
   const acts = !!over && !!(over.click || over.drag || over.rclick);
-  if (inp.pressed('click')) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  // under a finger a rect's click waits for the tap (UI.tap): the finger lifts where it pressed, on the same rect, the
+  // engine's tap (clicked(): within 12 CSS px of where it landed, however fast) with no step seeing it wander more than 6
+  // px. So no flick, in any direction and however quick, presses what it began on (a pause row, a depth, a button, a tab,
+  // the points chip): it goes on to do what a flick does. The press itself decides (UI.mouse.finger), not the device used
+  // last; a mouse acts on the press as before
+  if (inp.pressed('click')) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) { if (UI.mouse.finger) UI.tap = { r: over, x: m.x, y: m.y, far: 0 }; else over.click(); } inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  const tp = UI.tap; if (tp && UI.mouse.down) tp.far = Math.max(tp.far, Math.abs(m.x - tp.x) + Math.abs(m.y - tp.y));
+  else if (tp) { UI.tap = null; const r = tp.r, on = over && over.x === r.x && over.y === r.y && over.w === r.w && over.h === r.h; if (tp.far <= 6 && inp.clicked() && on) (over.click || r.click)(); }   // (the rect as drawn now, or as pressed: a finger after a mouse or a pad may find the loot panels' own press drawn over it since)
   if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
   if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
   const P0 = UI.top(); let sw = inp.swipe();
-  // a sideways flick on a loot panel is never a press, however fast (the finger may lift before a step sees it move): a
-  // button, a tab or a parcel it began on doesn't act; an item it began on is a drag only where it ends on a place an item
-  // goes (a worn slot, the counter that sells, the anvil, a stash tab), and is otherwise let go where it was, never
-  // clicked nor dropped on the ground, while the flick turns the page or does nothing
-  const LP = sw && (sw.dir === 'left' || sw.dir === 'right') && P0 && LOT_UI.press;
+  // a flick on a loot panel, in any direction, is never a press however fast (the finger may lift before a step sees it
+  // move): a button, a tab, a parcel or a grid's cell it began on doesn't act; an item it began on is a drag only where it
+  // ends on a place an item goes (a worn slot, the counter that sells, the anvil, a stash tab, but not the rail's tabs on
+  // its side, which stand beside the bag where a flick that turns the page ends), and is otherwise let go where it was,
+  // never clicked nor dropped on the ground, while the flick turns the page or does nothing
+  const LP = sw && P0 && LOT_UI.active && LOT_UI.press;
   if (LP && !LP.it) LP.moved = true;
   else if (LP) {
-    if (LOT_UI.targets.some(t => (t.kind === 'slot' || t.kind === 'sell' || t.kind === 'anvil' || t.kind === 'stashTab') && LOT_in(UI.mouse, t.x, t.y, t.w, t.h))) { LP.moved = true; inp.swipe(true); sw = null; }
+    if (LOT_UI.targets.some(t => (t.kind === 'slot' || t.kind === 'sell' || t.kind === 'anvil' || (t.kind === 'stashTab' && !t.rail)) && LOT_in(UI.mouse, t.x, t.y, t.w, t.h))) { LP.moved = true; inp.swipe(true); sw = null; }
     else { LOT_UI.press = null; if (!(P0.flicks && P0.flicks(sw.dir))) { inp.swipe(true); sw = null; } }
   }
   // ○ (Esc) backs out one layer: a panel's back() takes it first (a skill waiting for its slot, the tree's totals, a
@@ -313,7 +321,7 @@ function drawHudInner(g, r, h) {
       if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); chipTop = cy0 - 3 - F; hot(Math.round(cx - fw / 2), cy0 - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
     }
     UI.overBar = by - 26 - UI.chipLift;   // the line over all that: the interaction prompt, then the quick notices over it
-    if (chipTop !== null) UI.overBar = Math.min(UI.overBar, chipTop - 10);   // (on touch, over the chip's finger-tall target too: a flick that sweeps a notice away never opens Skills)
+    if (chipTop !== null) UI.overBar = Math.min(UI.overBar, chipTop - 10);   // (on touch, over the chip's finger-tall target too; a flick that sweeps a notice away from its edge never opens Skills: the chip acts on a tap, UI.tap)
     E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9 - ty, GOLD, UI_tf({ align: 'right', outline: '#0c0818' }));
     // top left: where we are, the level's elements, buffs
     const L0 = ED.L; let leftW = 0;   // how far the place names reach (the boss bar keeps clear of them)
@@ -808,30 +816,33 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : D
 /* the waystone's list: the panel is as tall as its depths need (it scrolls past ten). ONE row is lit: the focus, which
    the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view.
    With the touch buttons up every row is a finger tall, held either way, and the panel takes the screen's height on its
-   side; under a finger a row acts when it lifts where it pressed, and a finger dragged up or down scrolls the list */
+   side; under a finger a row acts on a tap (UI.tap: it lifts where it pressed), so no flick descends, and a finger dragged
+   up or down scrolls the list */
 const WAY = { top: 0, rows: 1, press: null };
 /** a row's step and its button: a finger's with the touch buttons up, else a menu row's (UI_rowH: a finger's held upright) */
 const WAY_rows = () => { if (!TOUCH.el) return [UI_rowH() + 1, UI_rowH() - 2]; const F = Math.max(UI_finger(), 16); return [F + 3, F]; };
-/** a finger on a row: its press, then the drag that scrolls the list (more than 6 px and it is no tap) */
-const WAY_press = k => (mx, my) => {
-  const P = WAY.press; if (!P) { WAY.press = { k, x: mx, y: my, s: WAY.top, moved: 0 }; return; }
+/** a finger on a row: its press, then the drag that scrolls the list (more than 6 px and it is no tap). A mouse's press
+ *  is no finger's: it clicks the row as it lands */
+const WAY_press = (mx, my) => {
+  if (!UI.mouse.finger) return;
+  const P = WAY.press; if (!P) { WAY.press = { x: mx, y: my, s: WAY.top, moved: 0 }; return; }
   P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); if (P.moved <= 6) return;
   const n = ED.hero ? waystoneDepths(ED.hero).length : 1; WAY.top = clamp(Math.round(P.s - (my - P.y) / WAY_rows()[0]), 0, Math.max(0, n - WAY.rows));
   UI.focus = clamp(UI.focus || 0, WAY.top, WAY.top + WAY.rows - 1);   // (the focus stays in view, so the list stays where the finger left it)
 };
 UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : TOUCH.el ? H : 200, 52 + (UI_tv() ? 4 : 0) + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * WAY_rows()[0]), open() { WAY.top = 0; WAY.press = null; }, draw(g, x, y, w, h) {
-  const [rs, rb] = WAY_rows(), lifts = ctlDevice() === 'touch';   // (a row's step and its button; lifts: under a finger)
+  const [rs, rb] = WAY_rows();   // (a row's step and its button)
   const sf = UI_tf({ align: 'center', outline: false }), sl = sf.font ? 7 : 9;   // (the line under the title: the normal font on a TV, the panel 4 px taller for it)
   const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, sf).slice(0, 2);
   sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * sl, '#9a90b0', sf));
   const top = y + 21 + sub.length * sl, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
   WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top; WAY.rows = rows;
-  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name, l = label.length > 34 ? label.slice(0, 33) + '.' : label; if (button(g, x + 12, top + i * rs, w - 24, rb, l, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k;
-    if (lifts) hot(x + 12, top + i * rs, w - 24, rb, { label: l, drag: WAY_press(k) }); });   // (over the button: a finger's press, its lift in update)
+  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name, l = label.length > 34 ? label.slice(0, 33) + '.' : label, go = () => { UI.closeAll(); descend(d); }; if (button(g, x + 12, top + i * rs, w - 24, rb, l, go, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k;
+    if (TOUCH.el) hot(x + 12, top + i * rs, w - 24, rb, { label: l, drag: WAY_press, click: () => { sfx('confirm', { vol: .6 }); go(); } }); });   // (over the button, with the touch buttons up whatever was used last: a finger's press scrolls, its tap descends)
   if (list.length > rows) { const th = Math.max(6, Math.round((rows * rs - 3) * rows / list.length)), ty = top + Math.round((rows * rs - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * rs - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }
 }, update() {
-  const list = waystoneDepths(ED.hero), P = WAY.press;
-  if (P && !UI.mouse.down) { WAY.press = null; if (P.moved <= 6 && list[P.k] !== undefined) { sfx('confirm', { vol: .6 }); UI.closeAll(); descend(list[P.k]); return; } }   // (a finger lifted where it pressed: that depth)
+  const list = waystoneDepths(ED.hero);
+  if (WAY.press && !UI.mouse.down) WAY.press = null;   // (the finger lifted: a tap descends in the core, UI.tap)
   menuKeys(list.length, i => { UI.closeAll(); descend(list[i]); });
 },
   wheel(d) { const n = waystoneDepths(ED.hero).length; UI.focus = clamp((UI.focus || 0) + Math.sign(d), 0, n - 1); UI.keyNav = true; } });
