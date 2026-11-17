@@ -165,7 +165,7 @@ function helpPage(el) {
   if (!touch) {
     for (const [a, label] of CONTROL_ACTIONS) if (!(pad && MOVE_ACTS.includes(a))) key(label, keyLabel(a) || (pad ? 'the menu' : 'Unbound'));
     key('Menu', keyLabel('pause'));
-    key('In a panel: back', keyLabel('cancel')); key('In a panel: drop, sell, take back', keyLabel('alt')); key('In a panel: tabs', pad ? both('pagePrev', 'pageNext') : keyLabel('pageNext'));
+    key('In a panel: back', keyLabel('cancel')); key('In a panel: drop, sell, take back', keyLabel('alt')); key('In a panel: tabs', pad ? both('pagePrev', 'pageNext') : keyLabel('pageNext') + ' (Shift + ' + keyLabel('pageNext') + ' back)');
     if (pad) { key('Bag, skills, passives', both('panelPrev', 'panelNext')); key('Settings: the next or previous page', both('pagePrev', 'pageNext')); }
     else for (const [what, a, b] of [['Change the view', 'camView'], ['Zoom out / in', 'camOut', 'camIn'], ['Turn the camera', 'camLeft', 'camRight'], ['Reset the camera', 'camReset'], ['Mute', 'mute'], ['Hide the HUD', 'hud']]) key(what, b ? both(a, b) : keyLabel(a));
   }

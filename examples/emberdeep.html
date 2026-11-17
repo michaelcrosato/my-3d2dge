@@ -26575,9 +26575,11 @@ function LOT_legend(g, x, y, w, great, adv) {
 function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   // on a TV (UI_tv) the box takes up to half the screen's width and its small lines (the base, the item level, the grade,
   // the comparison's heading, the price, the legend, the hints) are in the normal font: ft is their font, and sm, fs and
-  // hs their line steps in the body, the footer and the header. Elsewhere they stay tiny, as they were
-  const tv = UI_tv(), ft = UI_tf(), sm = tv ? 9 : 7, fs = tv ? 9 : 8, hs = tv ? 9 : 7, h0 = tv ? 6 : 7, hd2 = tv ? 2 : 0;
-  const h = ED.hero, SW = game.W, SH = game.H, WT = WT0 || (tv ? Math.min(250, Math.floor((SW - 8) / 2)) : Math.min(176, SW - 8)), rc = RARITY[it.rarity], base = REG.itemBases[it.base];
+  // hs their line steps in the body, the footer and the header. A phone held upright (UI_tall: a game pixel is about a
+  // CSS pixel there, so the tiny font is 5 px tall) does the same, its box up to the screen's width (the comparison goes
+  // under it). Elsewhere they stay tiny, as they were. o.floor: a y the box keeps above (a finger's pop-up buttons)
+  const up = UI_tall(), tv = UI_tv() || up, ft = tv ? {} : { font: 'tiny' }, sm = tv ? 9 : 7, fs = tv ? 9 : 8, hs = tv ? 10 : 7, h0 = tv ? 6 : 7, hd2 = tv ? 2 : 0;
+  const h = ED.hero, SW = game.W, SH = o.floor > 0 ? Math.min(game.H, o.floor) : game.H, WT = WT0 || (tv ? Math.min(250, up ? SW - 8 : Math.floor((SW - 8) / 2)) : Math.min(176, SW - 8)), rc = RARITY[it.rarity], base = REG.itemBases[it.base];
   const lh = 9, body = [], wrapW = WT - 12, adv = LOT_adv(), G = gradeInfo(it.grade);
   const push = (t, c, x = 0, pip = null, q = {}) => { for (const l of E.font.wrap(q.tiny ? t.toUpperCase() : t, wrapW - x, q.tiny ? ft : undefined)) { body.push({ t: l, c, x, pip, star: q.star, tiny: q.tiny }); pip = null; } };
   if (it.dmg) push(dmgText(it), it.el && it.el !== 'phys' ? EL(it.el).light : '#ffffff');
@@ -26803,14 +26805,14 @@ function LOT_end(g) {
     else if (f.kind === 'text') { const a = clamp(Math.min(f.t / .08, (f.max - f.t) / .45), 0, 1); px.blend(g, a, 'normal', () => E.font.text(g, f.s, f.x, f.y, f.c, { align: 'center', font: 'tiny', outline: '#0c0818' })); }
     else { const k = 1 - f.t / f.max, R = Math.round(k * 2.5); px.rect(g, f.x - R, f.y, R * 2 + 1, 1, f.c); px.rect(g, f.x, f.y - R, 1, R * 2 + 1, f.c); px.dot(g, f.x, f.y, '#ffffff'); }
   }
-  const T = LOT_UI.tip;
-  if (T && T.it && !(P && P.moved)) game.r.overlay(g2 => LOT_drawTip(g2, T.it, m.x, m.y, Object.assign({ anchor: T.anchor }, T.o)));
-  // a finger's chosen item: its actions as buttons along the panel's foot, drawn over everything
+  // a finger's chosen item: its actions as buttons along the panel's foot, drawn over everything; the tooltip keeps above them
   if (!LOT_UI.pickSeen || ctlDevice() !== 'touch') { LOT_UI.pick = null; LOT_UI.pickAt = null; }
-  const K = LOT_UI.pickAt;
-  if (K && LOT_UI.pick && !(P && P.moved)) {   // (their rects take taps now, over the cells; they are drawn over the tooltip)
-    const list = [[K.verbs[0], K.act], K.verbs[1] && K.alt ? [K.verbs[1], K.alt] : null].filter(Boolean), bh = LOT_popH(), bw = Math.max(54, bh * 2), n = list.length;
-    const [px0, py0, pw, ph] = LOT_UI.panelRect, rs = [], by = py0 + ph - 14 - bh;   // (along the panel's foot, clear of the tooltip beside the item)
+  const K = LOT_UI.pickAt, popped = !!(K && LOT_UI.pick && !(P && P.moved)), bh = LOT_popH(), by = LOT_UI.panelRect[1] + LOT_UI.panelRect[3] - 14 - bh;
+  const T = LOT_UI.tip;
+  if (T && T.it && !(P && P.moved)) game.r.overlay(g2 => LOT_drawTip(g2, T.it, m.x, m.y, Object.assign({ anchor: T.anchor, floor: popped ? by - 2 : 0 }, T.o)));
+  if (popped) {   // (their rects take taps now, over the cells)
+    const list = [[K.verbs[0], K.act], K.verbs[1] && K.alt ? [K.verbs[1], K.alt] : null].filter(Boolean), bw = Math.max(54, bh * 2), n = list.length;
+    const [px0, , pw] = LOT_UI.panelRect, rs = [];
     let bx = Math.round(px0 + pw / 2 - (n * (bw + 6) - 6) / 2);
     for (const [label, fn] of list) { hot(bx, by, bw, bh, { label, click: () => { sfx('confirm', { vol: .6 }); LOT_UI.pick = null; fn(); } }); rs.push([bx, label]); bx += bw + 6; }
     game.r.overlay(g2 => { for (const [x0, label] of rs) { E.ui.box(g2, x0, by, bw, bh, { bg: '#4a3a1a', border: GOLD, shadow: false }); E.font.text(g2, label, x0 + bw / 2, by + Math.round((bh - 7) / 2), '#fff6d8', { align: 'center', outline: false, shadow: '#05040a' }); } });
@@ -34636,10 +34638,13 @@ function updateUI(dt) {
   if (UI.mouse.lift && !UI.mouse.down) { UI.mouse.lift = false; UI.mouse.cx = UI.mouse.cy = -1e5; UI.mouse.x = UI.mouse.y = -99; }
   return UI.modal || (DEV.paused && !DEV.steps);
 }
-/** a panel's page step: L1 / R1 (Tab next), or a flick on a DualSense's touchpad (left: the next page). -1, 0 or 1 */
+/** a panel's page step: L1 / R1 (Tab next, Shift + Tab back), or a flick on a DualSense's touchpad (left: the next
+ *  page). -1, 0 or 1. (Shift is the roll's by default; a panel is modal, so it rolls nobody, and if the player moved the
+ *  roll off Shift, Shift + Tab is a plain Tab) */
 function pageStep() {
-  const inp = game.input, s = DS ? DS.swipe() : null;
-  return inp.pressed('pageNext') || s === 'left' ? 1 : inp.pressed('pagePrev') || s === 'right' ? -1 : 0;
+  const inp = game.input, s = DS ? DS.swipe() : null, shift = inp.held.has('ShiftLeft') || inp.held.has('ShiftRight');
+  if (inp.pressed('pageNext')) return shift && inp.held.has('Tab') ? -1 : 1;
+  return s === 'left' ? 1 : inp.pressed('pagePrev') || s === 'right' ? -1 : 0;
 }
 /* ---------- widgets (call inside an overlay) ---------- */
 const PANEL_BG = ['#1c1830', '#100c1c'], PANEL_BORDER = '#8a7aa8', GOLD = '#ffd36a';
@@ -35774,7 +35779,7 @@ function controlsPage(el) {
 			"p",
 			pad
 				? "In menus " + L("confirm") + " chooses, " + L("cancel") + " goes back, " + L("alt") + " drops, sells or takes back, " + L("pagePrev") + " " + L("pageNext") + " turn tabs and pages, " + L("panelPrev") + " " + L("panelNext") + " go between the bag, skills and passives. Skills and passives are in the menu too (" + L("pause") + ")."
-				: "The mouse aims. In menus " + L("confirm") + " chooses, " + L("cancel") + " goes back, " + L("alt") + " drops, sells or takes back, " + L("pageNext") + " turns tabs. Choose a binding to change it; changes save at once.",
+				: "The mouse aims. In menus " + L("confirm") + " chooses, " + L("cancel") + " goes back, " + L("alt") + " drops, sells or takes back, " + L("pageNext") + " turns tabs (Shift + " + L("pageNext") + " back). Choose a binding to change it; changes save at once.",
 			el,
 			{ class: "ed-dev-intro" },
 		);
@@ -37220,7 +37225,7 @@ function helpPage(el) {
   if (!touch) {
     for (const [a, label] of CONTROL_ACTIONS) if (!(pad && MOVE_ACTS.includes(a))) key(label, keyLabel(a) || (pad ? 'the menu' : 'Unbound'));
     key('Menu', keyLabel('pause'));
-    key('In a panel: back', keyLabel('cancel')); key('In a panel: drop, sell, take back', keyLabel('alt')); key('In a panel: tabs', pad ? both('pagePrev', 'pageNext') : keyLabel('pageNext'));
+    key('In a panel: back', keyLabel('cancel')); key('In a panel: drop, sell, take back', keyLabel('alt')); key('In a panel: tabs', pad ? both('pagePrev', 'pageNext') : keyLabel('pageNext') + ' (Shift + ' + keyLabel('pageNext') + ' back)');
     if (pad) { key('Bag, skills, passives', both('panelPrev', 'panelNext')); key('Settings: the next or previous page', both('pagePrev', 'pageNext')); }
     else for (const [what, a, b] of [['Change the view', 'camView'], ['Zoom out / in', 'camOut', 'camIn'], ['Turn the camera', 'camLeft', 'camRight'], ['Reset the camera', 'camReset'], ['Mute', 'mute'], ['Hide the HUD', 'hud']]) key(what, b ? both(a, b) : keyLabel(a));
   }

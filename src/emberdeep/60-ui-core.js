@@ -82,10 +82,13 @@ function updateUI(dt) {
   if (UI.mouse.lift && !UI.mouse.down) { UI.mouse.lift = false; UI.mouse.cx = UI.mouse.cy = -1e5; UI.mouse.x = UI.mouse.y = -99; }
   return UI.modal || (DEV.paused && !DEV.steps);
 }
-/** a panel's page step: L1 / R1 (Tab next), or a flick on a DualSense's touchpad (left: the next page). -1, 0 or 1 */
+/** a panel's page step: L1 / R1 (Tab next, Shift + Tab back), or a flick on a DualSense's touchpad (left: the next
+ *  page). -1, 0 or 1. (Shift is the roll's by default; a panel is modal, so it rolls nobody, and if the player moved the
+ *  roll off Shift, Shift + Tab is a plain Tab) */
 function pageStep() {
-  const inp = game.input, s = DS ? DS.swipe() : null;
-  return inp.pressed('pageNext') || s === 'left' ? 1 : inp.pressed('pagePrev') || s === 'right' ? -1 : 0;
+  const inp = game.input, s = DS ? DS.swipe() : null, shift = inp.held.has('ShiftLeft') || inp.held.has('ShiftRight');
+  if (inp.pressed('pageNext')) return shift && inp.held.has('Tab') ? -1 : 1;
+  return s === 'left' ? 1 : inp.pressed('pagePrev') || s === 'right' ? -1 : 0;
 }
 /* ---------- widgets (call inside an overlay) ---------- */
 const PANEL_BG = ['#1c1830', '#100c1c'], PANEL_BORDER = '#8a7aa8', GOLD = '#ffd36a';

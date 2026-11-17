@@ -445,7 +445,7 @@ function controlsPage(el) {
 			"p",
 			pad
 				? "In menus " + L("confirm") + " chooses, " + L("cancel") + " goes back, " + L("alt") + " drops, sells or takes back, " + L("pagePrev") + " " + L("pageNext") + " turn tabs and pages, " + L("panelPrev") + " " + L("panelNext") + " go between the bag, skills and passives. Skills and passives are in the menu too (" + L("pause") + ")."
-				: "The mouse aims. In menus " + L("confirm") + " chooses, " + L("cancel") + " goes back, " + L("alt") + " drops, sells or takes back, " + L("pageNext") + " turns tabs. Choose a binding to change it; changes save at once.",
+				: "The mouse aims. In menus " + L("confirm") + " chooses, " + L("cancel") + " goes back, " + L("alt") + " drops, sells or takes back, " + L("pageNext") + " turns tabs (Shift + " + L("pageNext") + " back). Choose a binding to change it; changes save at once.",
 			el,
 			{ class: "ed-dev-intro" },
 		);

@@ -928,9 +928,11 @@ function LOT_legend(g, x, y, w, great, adv) {
 function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   // on a TV (UI_tv) the box takes up to half the screen's width and its small lines (the base, the item level, the grade,
   // the comparison's heading, the price, the legend, the hints) are in the normal font: ft is their font, and sm, fs and
-  // hs their line steps in the body, the footer and the header. Elsewhere they stay tiny, as they were
-  const tv = UI_tv(), ft = UI_tf(), sm = tv ? 9 : 7, fs = tv ? 9 : 8, hs = tv ? 9 : 7, h0 = tv ? 6 : 7, hd2 = tv ? 2 : 0;
-  const h = ED.hero, SW = game.W, SH = game.H, WT = WT0 || (tv ? Math.min(250, Math.floor((SW - 8) / 2)) : Math.min(176, SW - 8)), rc = RARITY[it.rarity], base = REG.itemBases[it.base];
+  // hs their line steps in the body, the footer and the header. A phone held upright (UI_tall: a game pixel is about a
+  // CSS pixel there, so the tiny font is 5 px tall) does the same, its box up to the screen's width (the comparison goes
+  // under it). Elsewhere they stay tiny, as they were. o.floor: a y the box keeps above (a finger's pop-up buttons)
+  const up = UI_tall(), tv = UI_tv() || up, ft = tv ? {} : { font: 'tiny' }, sm = tv ? 9 : 7, fs = tv ? 9 : 8, hs = tv ? 10 : 7, h0 = tv ? 6 : 7, hd2 = tv ? 2 : 0;
+  const h = ED.hero, SW = game.W, SH = o.floor > 0 ? Math.min(game.H, o.floor) : game.H, WT = WT0 || (tv ? Math.min(250, up ? SW - 8 : Math.floor((SW - 8) / 2)) : Math.min(176, SW - 8)), rc = RARITY[it.rarity], base = REG.itemBases[it.base];
   const lh = 9, body = [], wrapW = WT - 12, adv = LOT_adv(), G = gradeInfo(it.grade);
   const push = (t, c, x = 0, pip = null, q = {}) => { for (const l of E.font.wrap(q.tiny ? t.toUpperCase() : t, wrapW - x, q.tiny ? ft : undefined)) { body.push({ t: l, c, x, pip, star: q.star, tiny: q.tiny }); pip = null; } };
   if (it.dmg) push(dmgText(it), it.el && it.el !== 'phys' ? EL(it.el).light : '#ffffff');

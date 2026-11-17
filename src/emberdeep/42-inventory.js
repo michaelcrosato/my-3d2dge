@@ -96,14 +96,14 @@ function LOT_end(g) {
     else if (f.kind === 'text') { const a = clamp(Math.min(f.t / .08, (f.max - f.t) / .45), 0, 1); px.blend(g, a, 'normal', () => E.font.text(g, f.s, f.x, f.y, f.c, { align: 'center', font: 'tiny', outline: '#0c0818' })); }
     else { const k = 1 - f.t / f.max, R = Math.round(k * 2.5); px.rect(g, f.x - R, f.y, R * 2 + 1, 1, f.c); px.rect(g, f.x, f.y - R, 1, R * 2 + 1, f.c); px.dot(g, f.x, f.y, '#ffffff'); }
   }
-  const T = LOT_UI.tip;
-  if (T && T.it && !(P && P.moved)) game.r.overlay(g2 => LOT_drawTip(g2, T.it, m.x, m.y, Object.assign({ anchor: T.anchor }, T.o)));
-  // a finger's chosen item: its actions as buttons along the panel's foot, drawn over everything
+  // a finger's chosen item: its actions as buttons along the panel's foot, drawn over everything; the tooltip keeps above them
   if (!LOT_UI.pickSeen || ctlDevice() !== 'touch') { LOT_UI.pick = null; LOT_UI.pickAt = null; }
-  const K = LOT_UI.pickAt;
-  if (K && LOT_UI.pick && !(P && P.moved)) {   // (their rects take taps now, over the cells; they are drawn over the tooltip)
-    const list = [[K.verbs[0], K.act], K.verbs[1] && K.alt ? [K.verbs[1], K.alt] : null].filter(Boolean), bh = LOT_popH(), bw = Math.max(54, bh * 2), n = list.length;
-    const [px0, py0, pw, ph] = LOT_UI.panelRect, rs = [], by = py0 + ph - 14 - bh;   // (along the panel's foot, clear of the tooltip beside the item)
+  const K = LOT_UI.pickAt, popped = !!(K && LOT_UI.pick && !(P && P.moved)), bh = LOT_popH(), by = LOT_UI.panelRect[1] + LOT_UI.panelRect[3] - 14 - bh;
+  const T = LOT_UI.tip;
+  if (T && T.it && !(P && P.moved)) game.r.overlay(g2 => LOT_drawTip(g2, T.it, m.x, m.y, Object.assign({ anchor: T.anchor, floor: popped ? by - 2 : 0 }, T.o)));
+  if (popped) {   // (their rects take taps now, over the cells)
+    const list = [[K.verbs[0], K.act], K.verbs[1] && K.alt ? [K.verbs[1], K.alt] : null].filter(Boolean), bw = Math.max(54, bh * 2), n = list.length;
+    const [px0, , pw] = LOT_UI.panelRect, rs = [];
     let bx = Math.round(px0 + pw / 2 - (n * (bw + 6) - 6) / 2);
     for (const [label, fn] of list) { hot(bx, by, bw, bh, { label, click: () => { sfx('confirm', { vol: .6 }); LOT_UI.pick = null; fn(); } }); rs.push([bx, label]); bx += bw + 6; }
     game.r.overlay(g2 => { for (const [x0, label] of rs) { E.ui.box(g2, x0, by, bw, bh, { bg: '#4a3a1a', border: GOLD, shadow: false }); E.font.text(g2, label, x0 + bw / 2, by + Math.round((bh - 7) / 2), '#fff6d8', { align: 'center', outline: false, shadow: '#05040a' }); } });
