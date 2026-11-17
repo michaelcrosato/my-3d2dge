@@ -1,5 +1,5 @@
 // The RTS kit's game (real-time strategy: workers, gold, a barracks and a stable, three kinds to fight, fog, an enemy camp that builds and attacks in waves), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 173 (src/starter/48-rts.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 190 (src/starter/48-rts.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. rts.html plays it; node kits/test.mjs rts runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -94,6 +94,21 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side. fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid out); each step, before its
+// touchSet calls: fit(), or fit(list), the buttons the player's settings can show (null: the row). Cheap: it lays them out
+// again only when that changes (the phone turned, a setting)
+const touchColumns = (actions, o = {}) => {
+  let was = null;   // (the list in two columns, or null: the scene's row)
+  const fit = (list = actions) => { const now = (game.screen.portrait && list) || null; if (now === was) return; was = now; game.input.touchButtons(now || actions, now ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = null; };
+  return fit;
+};
+// a result menu's way back to the title (○, Backspace, a sideways swipe; Esc where the scene leaves it to the menu), read
+// once the menu has shown t > .4 s: a dodge or a skip mashed as the game ends is no answer. Each step: backOut(menu, t)
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -117,7 +132,8 @@ const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of d
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
-// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays (on a game over Esc is a cancel key
+// first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
@@ -155,14 +171,15 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER: shared by every slice ---- */
+/* ---- GAME OVER: shared by every slice. ○, Backspace, Esc or a sideways swipe goes back to the title (as the scene's
+ * back() and every kit's result menu: backOut), Options opens the standard menu ---- */
 const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: MENU_IN, res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; overMenu.t = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
@@ -192,8 +209,9 @@ scenes.over = {
  * sight and when a building of yours falls. TOUCH: a tap selects, a tap on ground or a foe orders, a drag pans, a long
  * press then a drag draws a box, two fingers zoom; the panel's buttons are a thumb's size, HALL, ARMY and IDLE on the
  * left (ALERT under them while an attack is fresh); BUILD shows the plan where you tap, PLACE puts it there; a swipe
- * takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan. With Touch assists on
- * (Settings) a worker left idle goes back to the nearest mine, and a tap near a small unit takes it.
+ * takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan, and on the end's menu (○
+ * and Esc too) goes to the title. With Touch assists on (Settings) a worker left idle goes back to the nearest mine,
+ * and a tap near a small unit takes it.
  * HOW IT WORKS: the strategy module keeps the rules (E.Strategy: kinds as data, orders, flow fields, fog, the clan's AI
  * from its build order and waves); this slice draws (rigs, buildings as E.SHAPES, the fog), runs the HUD and its
  * commands, and the minimap (E.Shell). bot() gives the Vale an AI of its own that plays the match to its end, twice the
@@ -495,9 +513,9 @@ const RTS = (() => {
   }
   function end(won) { over = { won, t: 0 }; rts.selected = []; mode = 'play'; placing = null; if (!auto) A.sfx(won ? 'powerup' : 'die'); }
   // Ctrl and a digit keep a group beside WASD's camera, and the browser closes the tab on Ctrl+W (⌘W) before the page hears
-  // it: while the player's match runs, the browser asks first (on a page of its own: 52in1's frame shows no browser dialogs; D110)
+  // it: while the player's match runs, the browser asks first (on a page of its own: 52in1's frame shows no browser dialogs; D112)
   addEventListener('beforeunload', e => { if (game.sceneName === 'rts' && rts && !over && !auto && !window.AIHubSettings) { e.preventDefault(); e.returnValue = ''; } });
-  const endMenu = new E.Menu(game, [E.t('rts.again'), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title') });
+  const endMenu = new E.Menu(game, [E.t('rts.again'), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title'), onCancel: toTitle });   // (○, Backspace or a sideways swipe: the title, as Esc does by back())
 
   /* ---- 5. DRAWING: the floor, the woods, the buildings (shapes, their side's colors; a site going up), the bodies, the
    * arrows, the fog over it all, then the rings and bars, the plan of a building being placed, the HUD ---- */
@@ -616,9 +634,10 @@ const RTS = (() => {
     enter: start, update, draw, bot,
     exit() { const N = Object.assign({}, game.input.names); for (const a in FIXED) delete N[a]; game.input.names = Object.keys(N).length ? N : null; game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.resetCamera(); if (ui) ui.hud({}); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): the plan, an attack-move's aim, then (a phone's) the selection (the
-    // press is spent: the step's back key does no more); else false, and Esc pauses
+    // press is spent: the step's back key does no more); the end's menu to the title (as ○ there); else false, and Esc pauses
     back() {
       const I = game.input; I.suppress('cancel');
+      if (over && over.t > 1.6) { toTitle(); return true; }
       if (mode === 'place') { unplace(); return true; }
       if (amoving) { amoving = false; A.sfx('cancel'); return true; }
       if (rts.selected.length && I.lastDevice === 'touch') { rts.selected = []; return true; }

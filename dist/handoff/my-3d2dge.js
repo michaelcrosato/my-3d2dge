@@ -1511,7 +1511,7 @@ Input.PLATFORMER = {
   skill: ['KeyE', 'KeyV', 'Mouse2', 'Pad3'], ...MENU_KEYS
 };
 /** third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour,
- *  C crouch (a toggle; never Ctrl beside WASD, where Ctrl+W closes the tab: D110), E interact, J attack, K block, L dodge,
+ *  C crouch (a toggle; never Ctrl beside WASD, where Ctrl+W closes the tab: D112), E interact, J attack, K block, L dodge,
  *  Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map */
 Input.THIRDPERSON = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
