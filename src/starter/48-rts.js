@@ -20,8 +20,9 @@
  * sight and when a building of yours falls. TOUCH: a tap selects, a tap on ground or a foe orders, a drag pans, a long
  * press then a drag draws a box, two fingers zoom; the panel's buttons are a thumb's size, HALL, ARMY and IDLE on the
  * left (ALERT under them while an attack is fresh); BUILD shows the plan where you tap, PLACE puts it there; a swipe
- * takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan. With Touch assists on
- * (Settings) a worker left idle goes back to the nearest mine, and a tap near a small unit takes it.
+ * takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan, and on the end's menu (○
+ * and Esc too) goes to the title. With Touch assists on (Settings) a worker left idle goes back to the nearest mine,
+ * and a tap near a small unit takes it.
  * HOW IT WORKS: the strategy module keeps the rules (E.Strategy: kinds as data, orders, flow fields, fog, the clan's AI
  * from its build order and waves); this slice draws (rigs, buildings as E.SHAPES, the fog), runs the HUD and its
  * commands, and the minimap (E.Shell). bot() gives the Vale an AI of its own that plays the match to its end, twice the
@@ -325,7 +326,7 @@ const RTS = (() => {
   // Ctrl and a digit keep a group beside WASD's camera, and the browser closes the tab on Ctrl+W (⌘W) before the page hears
   // it: while the player's match runs, the browser asks first (on a page of its own: 52in1's frame shows no browser dialogs; D112)
   addEventListener('beforeunload', e => { if (game.sceneName === 'rts' && rts && !over && !auto && !window.AIHubSettings) { e.preventDefault(); e.returnValue = ''; } });
-  const endMenu = new E.Menu(game, [E.t('rts.again'), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title') });
+  const endMenu = new E.Menu(game, [E.t('rts.again'), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title'), onCancel: toTitle });   // (○, Backspace or a sideways swipe: the title, as Esc does by back())
 
   /* ---- 5. DRAWING: the floor, the woods, the buildings (shapes, their side's colors; a site going up), the bodies, the
    * arrows, the fog over it all, then the rings and bars, the plan of a building being placed, the HUD ---- */
@@ -444,9 +445,10 @@ const RTS = (() => {
     enter: start, update, draw, bot,
     exit() { const N = Object.assign({}, game.input.names); for (const a in FIXED) delete N[a]; game.input.names = Object.keys(N).length ? N : null; game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.resetCamera(); if (ui) ui.hud({}); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): the plan, an attack-move's aim, then (a phone's) the selection (the
-    // press is spent: the step's back key does no more); else false, and Esc pauses
+    // press is spent: the step's back key does no more); the end's menu to the title (as ○ there); else false, and Esc pauses
     back() {
       const I = game.input; I.suppress('cancel');
+      if (over && over.t > 1.6) { toTitle(); return true; }
       if (mode === 'place') { unplace(); return true; }
       if (amoving) { amoving = false; A.sfx('cancel'); return true; }
       if (rts.selected.length && I.lastDevice === 'touch') { rts.selected = []; return true; }

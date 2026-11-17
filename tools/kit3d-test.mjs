@@ -36,7 +36,8 @@
 //      /handoff/), and its proof gives the hash the site's kit gave; the 3D template (game3d/) plays; the package's
 //      vendor/ is the repository's byte for byte; tools/check.mjs, run in the package, serves a 3D page and passes it
 //   4. on an emulated phone held upright (390 x 844 at 3x, touch): every kit starts, the 3D picture lies exactly under the
-//      game's, the touch buttons are there
+//      game's, the touch buttons are there, four or more in two columns right of the middle (the move stick's half
+//      clear); a sideways flick on GAME OVER goes to the title (not one in its first moment)
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -641,6 +642,17 @@ for (const id of SLICES) {
     if (!r.under) fail(`phone ${id}: the 3D picture (${r.w} x ${r.h}) is not laid exactly under the game's (${r.sw} x ${r.sh})`);
     if (r.buttons < 2) fail(`phone ${id}: ${r.buttons} touch buttons`);
     await page.screenshot({ path: join(OUT, 'phone-' + id + '.png') }); pictures++;
+    // the move stick's half: four or more touch buttons (those that come and go shown too) in two columns right of the middle
+    const b = await page.evaluate(() => { const I = __game.game.input, all = () => [...document.querySelectorAll('[data-sys=touch] [data-act]')].filter(b => b.dataset.act !== 'menu');
+      for (const b of all()) I.touchSet(b.dataset.act, null, true); return all().map(b => { const q = b.getBoundingClientRect(); return [b.dataset.act, Math.round(q.left)]; }); });
+    if (b.length >= 4 && (b.some(q => q[1] < 195) || new Set(b.map(q => q[1])).size !== 2)) fail(`phone ${id}: its ${b.length} touch buttons are not two columns right of the middle (195): ${b.map(q => q.join('@')).join(' ')}`);
+    // the GAME OVER: a sideways flick goes to the title, not one in its first moment (a dodge mashed as the run ends); fed
+    // on the game's own clock (input.feed('swipe')), so a busy machine's slow fingers can't land in or out of that moment
+    if (id === 'action') {
+      const at = steps => page.evaluate(n => { const g = __game.game; g.go('over', { from: 'action' }, { fade: 0 }); for (let i = 0; i < n; i++) g.advance(1 / 60); g.input.feed('swipe', 300, 200, { dir: 'left' }); for (let i = 0; i < 40; i++) g.advance(1 / 60); return g.sceneName; }, steps);
+      const early = await at(2), late = await at(40);
+      if (early !== 'over' || late !== 'title') fail(`phone ${id}: a sideways flick on GAME OVER: at once ${early} (want over), after .7 s ${late} (want title)`);
+    }
   } catch (e) { fail(`phone ${id}: ` + e.message.split('\n')[0]); }
   for (const e of errors) fail(`phone ${id}: ` + e);
   await page.close();

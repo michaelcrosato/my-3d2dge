@@ -1130,6 +1130,21 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side. fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid out); each step, before its
+// touchSet calls: fit(), or fit(list), the buttons the player's settings can show (null: the row). Cheap: it lays them out
+// again only when that changes (the phone turned, a setting)
+const touchColumns = (actions, o = {}) => {
+  let was = null;   // (the list in two columns, or null: the scene's row)
+  const fit = (list = actions) => { const now = (game.screen.portrait && list) || null; if (now === was) return; was = now; game.input.touchButtons(now || actions, now ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = null; };
+  return fit;
+};
+// a result menu's way back to the title (○, Backspace, a sideways swipe; Esc where the scene leaves it to the menu), read
+// once the menu has shown t > .4 s: a dodge or a skip mashed as the game ends is no answer. Each step: backOut(menu, t)
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -1153,7 +1168,8 @@ const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of d
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
-// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays (on a game over Esc is a cancel key
+// first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
@@ -1191,14 +1207,15 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER: shared by every slice ---- */
+/* ---- GAME OVER: shared by every slice. ○, Backspace, Esc or a sideways swipe goes back to the title (as the scene's
+ * back() and every kit's result menu: backOut), Options opens the standard menu ---- */
 const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: MENU_IN, res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; overMenu.t = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
@@ -1231,7 +1248,7 @@ scenes.over = {
  * turns the view. TOUCH: a tap selects a unit, a tap on a blue cell moves there, a tap on a foe in range strikes; the
  * command list's rows are a thumb's height; a finger dragging pans the camera, two pinch it; TURN turns the view, BACK
  * (while moving, aiming or facing) goes back, SKIP skips the scene; a swipe takes the banner or the message away, a
- * sideways one on the command list goes back as a menu's does.
+ * sideways one on the command list goes back as a menu's does, and on the end's menu (○ and Esc too) to the title.
  * HOW IT WORKS: the map is a TileMap whose cells all stand on a base (the earth shows at its edges) at their heights; the
  * grid is E.Grid.from(map, { tops: true }) with the shallows' cost; E.Turns ('ct') orders the turns, grid.reach the
  * moves (allies passed through), grid.shape the areas, grid.side where a blow lands, grid.threat the AI's danger; E.Story
@@ -1326,7 +1343,7 @@ const TACTICS = (() => {
   // on a pad (the wheel and - = are the engine's)
   const KEYS = { ...E.Input.MENU, cancel: [...E.Input.MENU.cancel, 'Mouse2'], turnL: ['KeyQ', 'Pad4'], turnR: ['KeyE', 'Pad5'], skip: ['KeyX', 'Pad8'],
     next: ['Tab', 'Pad3', 'Pad17'], zoomIn: ['Pad7'], zoomOut: ['Pad6'], row1: ['Digit1'], row2: ['Digit2'], row3: ['Digit3'], row4: ['Digit4'], row5: ['Digit5'] };
-  const endMenu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title') });
+  const endMenu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title'), onCancel: toTitle });   // (○, Backspace, a right click or a sideways swipe: the title, as Esc does by back())
   const top = (cx, cy) => map.height(cx, cy), key = c => c[0] + ',' + c[1], same = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
   const living = side => units.filter(u => !u.dead && (!side || u.side === side)), unitAt = c => units.find(u => !u.dead && u.cx === c[0] && u.cy === c[1]) || null;
   const foesOf = u => living(u.side === 'hero' ? 'foe' : 'hero'), mates = u => living(u.side).filter(o => o !== u), cell = u => [u.cx, u.cy];
@@ -1791,8 +1808,8 @@ const TACTICS = (() => {
     enter: start, update, draw, bot,
     exit() { game.input.touchEnabled = true; game.resetCamera(); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): moving, aiming or facing goes back to the commands (the press is
-    // spent: the step's back key does no more); else false, and Esc pauses
-    back() { const u = active; if (mode === 'move' || mode === 'target' || mode === 'face' || (mode === 'command' && u && u.moved && !u.acted && !u.path)) { back(); game.input.suppress('cancel'); return true; } return false; },   // (Esc as the hint says: out of a move, an aim or a facing, or the move undone, before it pauses)
+    // spent: the step's back key does no more), the end's menu to the title (as ○ there); else false, and Esc pauses
+    back() { const u = active; if (mode === 'over' && over.t > 1.6) { toTitle(); return true; } if (mode === 'move' || mode === 'target' || mode === 'face' || (mode === 'command' && u && u.moved && !u.acted && !u.path)) { back(); game.input.suppress('cancel'); return true; } return false; },   // (Esc as the hint says: out of a move, an aim or a facing, or the move undone, before it pauses)
     /** for tests: the state, and helpers to find a cell or a row on the screen and to place a unit */
     state: () => ({ mode, order, phase, round, active, cursor, sel, units, cells, over, stats, map, grid, turns, rows: active ? rows(active) : [], ui,
       at: (cx, cy) => { const v = game.view, [x, y] = map.center(cx, cy), q = v.p(x, y, top(cx, cy)); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; },

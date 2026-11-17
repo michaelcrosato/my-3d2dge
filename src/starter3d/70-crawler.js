@@ -13,8 +13,8 @@
  * gates from its speaker; any pad rumbles on a hurt, the Warden's sweep, the darts, a gate grinding up, a bump into a
  * wall and the Warden's fall. TOUCH: the stick steps and turns, a swipe on the view steps (up, down) and turns (left,
  * right), a tap on the view or a portrait acts; MAP, HEAL, BOLT, ACT (PULL at a lever, UNLOCK at the locked gate,
- * FIGHT with a foe in front); the touch assists (Settings, on at first) have the front rank strike by itself at a foe
- * in front, in real time. A swipe also closes the map and takes a message away.
+ * FIGHT with a foe in front), upright in two columns in the corner; the touch assists (Settings, on at first) have the
+ * front rank strike by itself at a foe in front, in real time. A swipe also closes the map and takes a message away.
  * Gates that rise (one with an iron lock), a lever on a wall, plates in the floor (one raises a gate, one springs darts);
  * wisps, slimes, the dead of the vaults and the Warden at the bottom; the stair out behind it. Settings, Turns: REAL TIME
  * (each one's gauge fills on game time, E.Turns 'atb': Dungeon Master, Eye of the Beholder) or TURNS (the vaults wait:
@@ -489,6 +489,7 @@ const CRAWLER = (() => {
     m1: ['Digit1', 'Pad6'], m2: ['Digit2', 'Pad7'], m3: ['Digit3'], m4: ['Digit4'],
     start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
   const TOUCH = ['map', 'heal', 'spell', 'act'], TOUCH_LABELS = { map: E.lang.upper(E.t('engine.action.map')), heal: E.lang.upper(E.t('action.heal')), spell: E.t('crawler3d.touch.spell'), act: E.lang.upper(E.t('action.act')) };
+  const fit = touchColumns(TOUCH, { labels: TOUCH_LABELS });   // (upright, two columns: ACT in the corner)
   const SETTING = { key: 'crawlTurns', label: E.t('crawler3d.setting.turns'), group: 'Game', type: 'select', value: 'real', options: [['real', E.t('crawler3d.setting.turns.real')], ['turns', E.t('crawler3d.setting.turns.turns')]],
     help: E.t('crawler3d.setting.turns.help'), show: g => g.sceneName === 'crawler' };
   // (assist: the touch assists, from the player's input: a proof's and the bot's own controls have none)
@@ -600,13 +601,13 @@ const CRAWLER = (() => {
     back() { if (!showMap) return false; showMap = false; game.input.consumeAll(); return true; },
     enter(d) {
       ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hintT = 8; swipeQ = null;
-      game.settings.define(SETTING); reset(1); active = world; game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
+      game.settings.define(SETTING); reset(1); active = world; game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS }); fit.reset();
       if (d && d.part === 'warden') { for (const k of ['10,9', '17,7', '17,4']) { raise(gates[k]); gates[k].t.open = 1; world.setSolid(gates[k].t, false); } S.cx = 17; S.cy = 5; S.dir = 0; plates['17,5'].t.on = true; place(1); look(); }
       say(E.t(d && d.part === 'warden' ? 'crawler3d.say.warden_hall' : 'crawler3d.say.intro'), 3.5);
     },
     exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
     update(dt) {
-      const inp = game.input; hintT -= dt;
+      const inp = game.input; hintT -= dt; fit();
       if (inp.pressed('map')) { inp.consume('map'); showMap = !showMap; }
       else if (showMap && (inp.pressed('cancel') || inp.swipe(true))) { inp.consume('cancel'); showMap = false; }   // (○, Backspace or a swipe closes the big map)
       if (hintT > 0 && !touch() && inp.swipe(true)) hintT = 0;

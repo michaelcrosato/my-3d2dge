@@ -15,11 +15,11 @@
  * panel), ○ drops the item; a hint along the top says so. A DualSense's gyro fine-tunes the cursor (Settings, Controls),
  * its light bar is the lighthouse's (dark blue, then gold once it is lit). TOUCH: a tap walks; a tap on a hotspot (or a
  * thumb's width off one, with Touch assists on) shows its verbs; the inventory by taps, DROP while an item is held; a
- * long press looks; a swipe closes the verbs, drops the item and turns a line; held upright the room is drawn twice the
- * size and scrolls with Pip. HOW IT WORKS: E.Click (the click module) keeps the rooms, the walk areas (E.Walkbox: the
- * lamp, the table, Finn and the hatch are holes), the depth scale, the hotspots, the inventory and the rules (data);
- * the rooms are painted once by code. bot() clicks through the whole chain with input.feed, a wrong riddle first
- * (tools/kits-test.mjs). Deep link: #pointclick.
+ * long press looks; a swipe closes the verbs, drops the item, turns a line and leaves THE END (as ○ does); held upright
+ * the room is drawn twice the size and scrolls with Pip. HOW IT WORKS: E.Click (the click module) keeps the rooms, the
+ * walk areas (E.Walkbox: the lamp, the table, Finn and the hatch are holes), the depth scale, the hotspots, the inventory
+ * and the rules (data); the rooms are painted once by code. bot() clicks through the whole chain with input.feed, a wrong
+ * riddle first (tools/kits-test.mjs). Deep link: #pointclick.
  * ===================================================================================== */
 const POINTCLICK = (() => {
   const px = E.px, hash = E.hash2, TAU = Math.PI * 2;
@@ -374,7 +374,7 @@ const POINTCLICK = (() => {
     // SCUMM's verb keys, in the nine verbs' interface
     if (mode === 'play' && pc.ui === 'verbs' && !story.running) for (const v of VERB_KEYS) if (I.pressed('v_' + v)) { pc.verb = v; pc.item = null; }
     if (mode === 'open') { if (modeT > 3.5 || (modeT > .4 && (I.clicked() || I.pressed('confirm')))) { I.consumeAll(); mode = 'play'; pc.panel = true; story.run('intro'); } return; }
-    if (mode === 'end') { if (!endMenu.update(dt)) pickOnStart(endMenu); return; }
+    if (mode === 'end') { backOut(endMenu, modeT); if (!endMenu.update(dt)) pickOnStart(endMenu); return; }   // (THE END's menu: ○, Backspace or a sideways swipe to the title, as back())
     if (mode === 'play') played += dt;
     pc.update(dt);
     if (mode === 'lit' && modeT > 2.5 && !story.running && !story.get('said')) { story.set('said'); story.run('ending', { onDone: () => { mode = 'end'; modeT = 0; } }); }

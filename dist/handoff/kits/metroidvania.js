@@ -1,5 +1,5 @@
 // The METROIDVANIA kit's game (a world of rooms: its map, two abilities that open its gates, a save room, two bosses), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 173 (src/starter/25-metroidvania.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 190 (src/starter/25-metroidvania.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. metroidvania.html plays it; node kits/test.mjs metroidvania runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -94,6 +94,21 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side. fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid out); each step, before its
+// touchSet calls: fit(), or fit(list), the buttons the player's settings can show (null: the row). Cheap: it lays them out
+// again only when that changes (the phone turned, a setting)
+const touchColumns = (actions, o = {}) => {
+  let was = null;   // (the list in two columns, or null: the scene's row)
+  const fit = (list = actions) => { const now = (game.screen.portrait && list) || null; if (now === was) return; was = now; game.input.touchButtons(now || actions, now ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = null; };
+  return fit;
+};
+// a result menu's way back to the title (○, Backspace, a sideways swipe; Esc where the scene leaves it to the menu), read
+// once the menu has shown t > .4 s: a dodge or a skip mashed as the game ends is no answer. Each step: backOut(menu, t)
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -117,7 +132,8 @@ const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of d
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
-// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays (on a game over Esc is a cancel key
+// first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
@@ -155,14 +171,15 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER: shared by every slice ---- */
+/* ---- GAME OVER: shared by every slice. ○, Backspace, Esc or a sideways swipe goes back to the title (as the scene's
+ * back() and every kit's result menu: backOut), Options opens the standard menu ---- */
 const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: MENU_IN, res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; overMenu.t = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
@@ -187,9 +204,9 @@ scenes.over = {
  *   place, the touchpad or Create the map, Options pauses. DUALSENSE: the light bar is the suit's energy (green, amber,
  *   red and flashing low; white as it saves), R2 clicks as it fires and buzzes once a charged shot is ready; any pad
  *   rumbles on hits taken, kills, the bosses' blows, a charged shot and a pickup.
- * TOUCH: the stick (it aims too), JUMP, FIRE, DASH (once found) and MAP; with Touch assists on (Settings), FIRE beside a
- *   foe, or near a ring in the air, lashes (it says LASH: a context button). A swipe closes the map and takes the
- *   banners, the controls hint and the end's box away.
+ * TOUCH: the stick (it aims too), JUMP, FIRE, DASH (once found) and MAP (upright, in two columns in the corner, the
+ *   stick's half clear); with Touch assists on (Settings), FIRE beside a foe, or near a ring in the air, lashes (it says
+ *   LASH: a context button). A swipe closes the map and takes the banners, the controls hint and the end's box away.
  * THE MAP: the rooms seen, cell by cell, their doors, the save room (S) and the bosses' (B); the corner shows the cells
  * round you. SAVE: step onto the station (it refills energy); the next visit starts there.
  * Deep links: #metroidvania/miniboss and #metroidvania/boss (a practice: the abilities given, at the arena's door),
@@ -205,6 +222,9 @@ const MVANIA = (() => {
   const T = 16, KEYS = Object.assign({}, E.Input.PLATFORMER, { fire: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2', 'Pad7'], melee: ['KeyE', 'KeyF', 'Mouse2', 'Pad3'], lock: ['KeyQ', 'Pad4', 'Pad6'], map: ['Tab', 'KeyR', 'Pad8', 'Pad17'],
     dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad5', 'Pad1'] });
   delete KEYS.attack; delete KEYS.skill;
+  // the touch buttons (MELEE first: it pops up only with the assists off, so the others stay under the thumb); upright, in
+  // two columns in the corner, without MELEE while Settings, Touch assists keeps it away (FIRE lashes then), MAP in the corner
+  const TOUCH = ['melee', 'jump', 'fire', 'dash', 'map'], TOUCH_ASSIST = TOUCH.slice(1), fit = touchColumns(TOUCH);
   /* ---- THE WORLD: each room's top-left screen on the grid, its name (a line) and area (the look), its rows (top first) ---- */
   const ROOMS = {
     landing: { at: [0, 1], name: E.t('metroidvania.room.landing'), area: 'cave', rows: [
@@ -776,6 +796,7 @@ const MVANIA = (() => {
     // the suit: the cannon held out along the aim, but not on a rope, the bars or a ledge (its hands are full)
     const busy = hero.onRope || hero.onBars || hero.hanging || hero.climbUp || hero.clinging;
     rig.update(dt, hero.rigState(Object.assign({ point: !busy, aim: aimA, hurt: hero.stun > 0, expr: hero.stun > 0 ? 'wince' : null }, won && hero.onGround && { pose: 'cheer' })));
+    fit(game.settings.assists === false ? TOUCH : TOUCH_ASSIST);   // (by the setting, not the device in use; before the touchSet calls)
     for (const k of ['jump', 'fire', 'dash']) game.input.touchSet(k, k === 'fire' && near && I.assist ? E.t('metroidvania.touch.lash') : null, k !== 'dash' || world.has('dash'));
     game.input.touchSet('melee', E.t('metroidvania.touch.lash'), near && !I.assist);
   }
@@ -1095,7 +1116,7 @@ const MVANIA = (() => {
     } finally { for (const a of ['left', 'right', 'up', 'down', 'fire', 'lock', 'jump', 'melee']) I.hold(a, false); Math.random = was; if (!stop) mode = null; }
   }
 
-  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: ['melee', 'jump', 'fire', 'dash', 'map'], camera: { zoom: [.75, 1.5], tall: 1.6 },   // (melee: LASH, popped up only where it acts with assists off; first, so the others stay under the thumb)
+  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: TOUCH, camera: { zoom: [.75, 1.5], tall: 1.6 },
     enter(d) {
       const part = d && d.part;
       if (mode === 'bot') { E.store.remove('rooms:mv-bot'); start({ id: 'mv-bot', fresh: true }); }
@@ -1104,7 +1125,7 @@ const MVANIA = (() => {
       else if (part === 'miniboss') start({ id: 'mv-practice', fresh: true, at: 'arena', got: ['boots'] });
       else { start(); if (part === 'map') mapOpen = true; }
       game.cam.align = 'center'; ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true }) : null; padLight = padTrig = null;
-      game.input.touchSet('melee', E.t('metroidvania.touch.lash'), false);   // (until a foe or a ring is near)
+      fit.reset(); game.input.touchSet('melee', E.t('metroidvania.touch.lash'), false);   // (until a foe or a ring is near)
     },
     exit() { L.enabled = false; game.cam.align = null; if (ds) ds.clear(); }, update, draw, bot,
     state: () => { const b = shots.list.filter(b => b.team === 'player').pop(); return { room: world.room.id, x: hero.x, z: hero.z, hp, got: [...world.got], seen: world.seen.size, foes: foes.filter(f => !f.dead).length, mapOpen, won, dead: dead > 0, shot: b ? { vx: b.vx, vz: b.vz } : null }; },   // (for tests)

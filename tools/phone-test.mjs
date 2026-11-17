@@ -65,6 +65,10 @@
 //      modes, GAME OVER), a dialog's choices (Morwen's riddle, a tap a little low of one still answers it), the reference
 //      edition's FamilyMenu, the Shell's Settings and Controls tabs and sliders; sky's menu, too long on its side, scrolls
 //      under a finger to BACK, which a tap picks
+//  26. the stick's half (stealth, roguelike, metroidvania): upright, their four or five touch buttons in two columns right
+//      of the middle (those that come and go shown too), a left thumb set down at the bottom-left steers; on its side a
+//      row; GAME OVER (upright and on its side) and the rts end menu go to the title on a sideways flick, not one in
+//      GAME OVER's first moment (a dodge mashed as the run ends)
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -1251,6 +1255,44 @@ if (want('menus')) {
       await tapText('settings'); const s = await sizes(); await ev(page, () => window.__game.game.shell.back()); await wait(200); await tapText('controls'); const c = await sizes(); const all = s.concat(c), small = all.filter(e => e[2] < 44);
       check(`menus ${label}: the Shell's Settings and Controls tabs and sliders a thumb's height`, s.length >= 4 && c.length >= 4 && !small.length && !errors.length, small.length ? 'under 44: ' + small.map(e => e.join(' ')).join(', ') : `${all.length} measured, the lowest ${Math.min(...all.map(e => e[2]))} CSS px`);
       await ctx.close(); }
+  }
+}
+
+/* 26. the move stick's half and the end menus: upright, a kit of four or five touch buttons has them in two columns right of
+ * the screen's middle (the ones that come and go shown too, as in a fight), a left thumb set down at the bottom-left steers,
+ * and on its side the row is as it was; GAME OVER and the rts end menu go to the title on a sideways flick (one in their
+ * first moment, a dodge mashed as the run ends, does nothing) */
+if (want('stick')) {
+  console.log('the stick\'s half and the end menus');
+  for (const kit of ['stealth', 'roguelike', 'metroidvania']) for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, cdp, errors } = await open(kit, vp); await wait(600);
+    const b = await ev(page, () => { const I = window.__game.game.input, all = () => [...document.querySelectorAll('[data-sys=touch] [data-act]')].filter(b => b.dataset.act !== 'menu');
+      for (const b of all()) I.touchSet(b.dataset.act, null, true);
+      return all().map(b => { const q = b.getBoundingClientRect(); return { a: b.dataset.act, x0: Math.round(q.left), x1: Math.round(q.right), y1: Math.round(q.bottom) }; }); });
+    const left = b.filter(q => q.x0 < vp.width / 2), cols = new Set(b.map(q => q.x0)).size;
+    check(`${kit} ${label}: its ${b.length} touch buttons right of the middle (${label === 'upright' ? 'two columns' : 'a row'})`, b.length >= 4 && !left.length && (label === 'upright' ? cols === 2 : cols === b.length) && !errors.length, b.map(q => q.a + '@' + q.x0 + '..' + q.x1).join(' ') + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
+    if (label === 'upright') {
+      const hit = await ev(page, ([x, y]) => { const e = document.elementFromPoint(x, y); return e ? e.dataset.act || e.tagName : null; }, [60, vp.height - 44]);
+      let on = false; await drag(cdp, line([60, vp.height - 44], [135, vp.height - 44], 15), 30, async i => { if (i === 13) on = await ev(page, () => window.__game.game.input.stickOn && window.__game.game.input.move()[0] > .5); });
+      check(`${kit} upright: a left thumb set down at the bottom-left steers`, hit === 'CANVAS' && on, `under it: ${hit}, the stick pushed right: ${on}`);
+    }
+    await ctx.close();
+  }
+  // (the flicks fed to the input on the game's own clock, input.feed('swipe'), so a busy machine's slow fingers neither
+  // land in GAME OVER's first moment nor turn a flick into a drag: the gesture itself is the standard test's)
+  const swipeAt = (steps, scene) => `const g = window.__game.game, I = g.input; for (let i = 0; i < ${steps}; i++) g.advance(1 / 60); I.feed('swipe', 300, 200, { dir: 'left' }); for (let i = 0; i < 40; i++) g.advance(1 / 60); return g.sceneName`;
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, errors } = await open('platformer', vp); await wait(400);
+    const early = await ev(page, js => { window.__game.game.go('over', { from: 'platformer' }, { fade: 0 }); return new Function(js)(); }, swipeAt(2));
+    const late = await ev(page, js => { window.__game.game.go('over', { from: 'platformer' }, { fade: 0 }); return new Function(js)(); }, swipeAt(40));
+    check(`GAME OVER ${label}: a sideways flick goes to the title (not one in its first moment)`, early === 'over' && late === 'title' && !errors.length, `at once: ${early}, after .7 s: ${late}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errors } = await open('rts', UP); await wait(400);
+    const after = await ev(page, js => { const u = window.__game.scenes.rts.state().rts.units; for (let i = u.length - 1; i >= 0; i--) if (u[i].side === 'red' && u[i].building) u.splice(i, 1); return new Function(js)(); }, swipeAt(120));
+    check('rts upright: its end menu goes to the title on a sideways flick', after === 'title' && !errors.length, `then ${after}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
   }
 }
 

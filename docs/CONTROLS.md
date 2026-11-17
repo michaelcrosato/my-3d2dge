@@ -71,7 +71,10 @@ standard for the controls and the interface only: a game's rules, levels and sco
    push back on throttle, brake, bowstring or gun, gyro aim fine-tunes an aim on top of the stick, the touchpad opens the
    map. Each has another way in: the game is whole on any controller.
 7. **Touch on its own terms, upright and on its side.** Every temporary box, banner and menu of the game's own swipes away
-   (`input.swipe(true)`), context buttons appear only where they act (`touchSet`), and the simple, common, low-skill
+   (`input.swipe(true)`; a game over or a result menu too, its `onCancel` read once it has shown a moment, so a dodge
+   mashed as the run ends is no answer: the starters' `backOut`), context buttons appear only where they act (`touchSet`),
+   and the move stick's half stays the stick's: upright, a row of four or more buttons that would reach across the middle
+   goes in two columns in the corner (`layout: 'grid'`, the starters' `touchColumns`). The simple, common, low-skill
    actions run by themselves on touch (the table below), each `if (input.assist)`. Something complicated to automate is
    left to the player. Everything a thumb presses is at least 44 CSS px on every phone held either way: a screen too
    small for its layout splits into pages under thumb-tall tabs (Emberdeep's bag and shops: a row of tabs held upright, a
@@ -84,15 +87,15 @@ standard for the controls and the interface only: a game's rules, levels and sco
 |---|---|---|---|
 | Hack-and-slash (Emberdeep) | WASD move, the mouse aims, left and right click and 1-4 the skills, Space dodge, Q potion, E interact, I bag, Tab map, Esc menu | left stick move, right stick aim, the face buttons and shoulders the skills, R3 portal | the basic attack by itself at a foe in reach; aim onto the nearest foe |
 | Action adventure (adventure, stealth) | WASD move, J or left click attack toward the pointer, E talk and use, Space roll or jump, Shift sprint, C crouch, Esc menu | □ attack, ✕ talk / jump, ○ dodge or crouch, △ use | a swing at a foe in reach; context buttons for talk and takedowns |
-| Platformer, metroidvania | WASD or arrows, Space jump, J or left click attack, Shift dash, M or Tab map | ✕ jump, □ attack, R1 dash, touchpad or Create map | none beyond context buttons (jumps are the game) |
+| Platformer, metroidvania | WASD or arrows, Space jump, J or left click attack, Shift dash, Tab or R map (M is the starter shell's mute) | ✕ jump, □ attack, R1 dash, touchpad or Create map | none beyond context buttons (jumps are the game) |
 | Beat-'em-up, fighting, sports | WASD or arrows, J K L (and U I O) attacks, Space jump; sports J pass, K shoot | □ △ ○ ✕ attacks, R1 R2 specials; sports ✕ pass, □ shoot | brawler: face the nearest foe; sports: the pass to the nearest teammate |
 | Shoot-'em-up, arcade | arrows or WASD, Space or Z fire (held), X bomb; the mouse steers in a cursor shooter | ✕ or R2 fire, ○ bomb | fire by itself; aim assist where the player aims |
 | Into-the-screen and flight (blaster, sky) | WASD or arrows fly, the mouse moves a cursor where there is one, Space or left click fire, Shift boost | left stick fly, R2 fire or throttle, L2 brake, gyro aim | fire by itself at what is ahead; aim assist on the cursor |
 | Racing (kart, zero, road, special) | W or ↑ accelerate, S or ↓ brake, A D or ← → steer, Space or Shift drift, E item (never Ctrl: rule 1) | R2 accelerate, L2 brake (analog), ✕ also accelerates, R1 drift, L1 item; the triggers push back | the throttle held by itself, gears by themselves |
 | Puzzle, rhythm | arrows move, Z X rotate, Space drop, C hold; rhythm D F J K or the arrows | d-pad, ✕ ○ rotate, △ hold; rhythm the d-pad and face buttons | puzzle: none (the game is the moves); rhythm: none (lanes take a finger each) |
 | RPG, roguelike | WASD or arrows, Enter, Space or E confirm, Esc back, Tab or I menu; the mouse clicks menu entries and the ground | ✕ confirm, ○ back, △ menu | tap to walk where it means one step; context buttons |
-| Strategy and sims (tactics, rts, sim, artillery), point-and-click | the mouse first: left click select and act, right click command or look, a box to select, the wheel and WASD or the edges move the camera, Ctrl and a number key keep a group (the page asks before it goes while a match runs), the number calls it, hotkeys | a cursor on the left stick, ✕ select, ○ back, L1 R1 cycle units | tap select, long press and drag a box, two fingers pan, a pinch zooms; artillery: drag to aim |
-| 3D action, platformer, horror, crawler | WASD, the mouse looks (pointer lock), Space jump, left click attack, E use, Tab or I inventory, Shift run | left stick move, right stick camera, ✕ jump, □ attack, L2 lock-on | a swing at a foe in reach; the camera follows by itself |
+| Strategy and sims (tactics, rts, sim, artillery), point-and-click | the mouse first: left click select and act, right click command or look, a box to select, the wheel and WASD or the edges move the camera, Ctrl and a number key keep a group (the page asks before it goes while a match runs), the number calls it, hotkeys | a cursor on the left stick, ✕ select, ○ back, L1 R1 cycle units | tap select, a drag pans, long press and drag a box, two fingers pinch the zoom (no two-finger pan); artillery: drag to aim |
+| 3D action, platformer, horror, crawler | WASD, the mouse looks (pointer lock), Space jump, left click attack, E use, Tab or I inventory, Shift run; a grid crawler (Grimrock's): Q E turn, A D sidestep, J or Space act, the mouse clicks the view and the party | left stick move, right stick camera, ✕ jump, □ attack, L2 lock-on | a swing at a foe in reach; the camera follows by itself |
 | 3D shooter, flight, racing | WASD, the mouse looks and aims, left click fire, right click aim, R reload, Space jump or boost | L2 aim, R2 fire, gyro aim | fire by itself at a foe under the sights; aim assist; racing: the throttle held |
 
 ## Checks

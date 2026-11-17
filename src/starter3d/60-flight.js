@@ -14,8 +14,8 @@
  * top of the stick (Controls, Controller), R2 and L2 push back while the meter lasts, the light bar is the shield (green,
  * a red pulse when low, red as you are hit, gold when the flagship falls), the radio's call clicks from its speaker; any
  * pad rumbles on a hit, a shot turned aside, the charged shot, a kill, a scrape and a boost. TOUCH: the stick, BRAKE,
- * BOOST, ROLL, FIRE (hold: charge); the touch assists (Settings, on at first) fire by themselves at what is in the
- * reticle. A swipe takes the radio and the controls away.
+ * BOOST, ROLL, FIRE (hold: charge), upright in two columns in the corner; the touch assists (Settings, on at first)
+ * fire by themselves at what is in the reticle. A swipe takes the radio and the controls away.
  * THE 3D: world.flyer (on rails along an E.Path, the ship moving in a window across it; then free within the bay's
  * bounds), f.seek (the charged shot's lock), barrel rolls (f.rolling), the 'behind' camera (behind the rail's point,
  * then the ship), a terrain (the sea, islands, the coast, the base's plateau, mountains round the bay), Dialog's radio.
@@ -29,6 +29,7 @@ const FLIGHT = (() => {
   const KEYS = Object.assign({}, W3.INPUT, { fire: ['KeyJ', 'Space', 'Mouse0', 'Pad0'], roll: ['KeyK', 'Mouse2'], rollL: ['KeyQ', 'Pad4'], rollR: ['KeyE', 'Pad5'], boost: ['ShiftLeft', 'ShiftRight', 'KeyL', 'Pad7', 'Pad1'], brake: ['KeyX', 'KeyH', 'Pad6', 'Pad2'] });
   for (const k of ['attack', 'dash', 'skill', 'jump', 'lock', 'camera']) delete KEYS[k];
   const TOUCH = ['brake', 'boost', 'roll', 'fire'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t((a === 'fire' ? 'engine.action.' : 'action.') + a))]));   // (the actions' names: FIRE, ROLL, BOOST, BRAKE)
+  const fit = touchColumns(TOUCH, { labels: TOUCH_LABELS });   // (upright, two columns: FIRE in the corner)
   const INVERT = { key: 'invertFlight', label: E.t('flight3d.setting.invert'), group: 'Game', value: false, help: E.t('flight3d.setting.invert.help'), show: g => g.sceneName === 'flight' };
   // the DUALSENSE (the dualsense module): gyro aim, the triggers (boost and brake push back while the meter lasts), the
   // light bar (the shield), the radio's click from its speaker; buzz: a rumble on any pad, while it is what the player
@@ -413,13 +414,13 @@ const FLIGHT = (() => {
   return {
     view: 'iso', input: KEYS, pausable: true, touch: TOUCH, camera: { zoom: false },
     enter() {
-      game.settings.define(INVERT); reset(1); active = world; A.music(SONG); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
+      game.settings.define(INVERT); reset(1); active = world; A.music(SONG); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS }); fit.reset();
       ship.o.invert = !!game.settings[INVERT.key]; hint = 8; mouseFly = false; mouseT = -1;
       ds = E.DualSense ? E.DualSense.attach(game, { gyro: true, triggers: true, light: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0;
     },
     exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene: the triggers free)
     update(dt) {
-      const inp = game.input; hint -= dt;
+      const inp = game.input; hint -= dt; fit();
       talk.update(dt);   // (a swipe across the radio takes it away: E.Dialog)
       if (hint > 0 && inp.swipe(true)) hint = 0;   // (elsewhere, the controls)
       // the camera behind: further back and wider on a screen held upright, so the ship stays in the frame across the rails'
