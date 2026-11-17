@@ -263,6 +263,7 @@ const galleryScene = {
       : GAL.reel === 4 ? [ED.L.w * 8 - 4, ED.L.h * 8, 16] : GAL.reel === 5 ? [cx - 10, cy, 14] : [h.x, h.y, 19];
     const c = GAL.cam || (GAL.cam = tgt.slice()), k = Math.min(1, dt * 3); for (let i = 0; i < 3; i++) c[i] += (tgt[i] - c[i]) * k;
     game.focus(c[0], c[1], c[2]);
+    game.cam.offset = TOUCH.el ? [0, Math.round(Math.max(0, UI_finger() - 10) / 2)] : null;   // (the reels' finger-tall targets widen the top band: the stage keeps to the middle of what is left)
     if ((inp.pressed('labels') && !inp.pressed('menuLeft')) || inp.pressed('alt')) { GAL.slow = !GAL.slow; }   // (d-pad ← picks here: □ or Z slows)
     if (SLOW.raw !== (GAL.slow ? .3 : 1)) slowMoReset(GAL.slow ? .3 : 1);
   },
@@ -278,11 +279,11 @@ const galleryScene = {
     BUS.emit('draw', { r, L: L0 });   // what skills leave behind (blades, rifts, totems) and the powers' own light
     L.add(L0.w * 8, L0.h * 8, 3, 70, .5, { color: '#4fe0cc' });
     r.overlay(g => { const f = HUD_in(g, r); try {   // inside a phone's safe frame, the top band under its touch buttons
-      const W = f.W, H = f.H, cx = W / 2, items = galItems(), T = HUD_under();
-      px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, 31 + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor
+      const W = f.W, H = f.H, cx = W / 2, items = galItems(), T = HUD_under(), rh = TOUCH.el ? Math.max(10, UI_finger()) : 10;   // (a reel's target: a finger tall with the touch buttons up)
+      px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, Math.max(31, 21 + rh) + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor (the top one under the reels' targets)
       E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
-      const sp = Math.min(60, (W - 16) / GAL.reels.length);   // (six reels fit a phone held upright)
-      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, 10, { click: () => { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } } }); const nf = UI_tfit(n, sp - 2, { align: 'center', outline: '#0c0818' }); E.font.text(g, n, rx, 22 + T - (nf.font ? 0 : 1), i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', nf); });   // (a click picks a reel; the normal font on a TV)
+      const sp = Math.min(60, (W - 16) / GAL.reels.length), ry = 22 + T + Math.floor((rh - 10) / 2);   // (six reels fit a phone held upright; each name in the middle of its target)
+      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, rh, { click: () => { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } } }); const nf = UI_tfit(n, sp - 2, { align: 'center', outline: '#0c0818' }); E.font.text(g, n, rx, ry - (nf.font ? 0 : 1), i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', nf); });   // (a click picks a reel; the normal font on a TV)
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }

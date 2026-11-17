@@ -449,7 +449,7 @@ function PRG_canSpend(h) {
  * Drag or WASD pans, the wheel or Q / E zooms (about the cursor), click buys, right click undoes a star bought this
  * visit, Tab shows the totals, R re-centres. With the keys a reticle picks the star in the middle (Enter buys).
  * ============================================================================= */
-const PRG_V = { cx: 0, cy: 0, z: 1, zt: 1, anchor: null, go: null, drag: null, hover: null, path: null, pathKey: '', session: new Set(), fx: [], sum: false, sumScroll: 0, sumRows: 1, sumR: null, sumDrag: null, openT: 0, W: 0, H: 0, ox: 0, oy: 0, bar: 18, deny: null, dirty: false, hud: false, banner: null, reveal: null, labels: [] };
+const PRG_V = { cx: 0, cy: 0, z: 1, zt: 1, anchor: null, go: null, drag: null, hover: null, tlist: null, path: null, pathKey: '', session: new Set(), fx: [], sum: false, sumScroll: 0, sumRows: 1, sumR: null, sumDrag: null, openT: 0, W: 0, H: 0, ox: 0, oy: 0, bar: 18, deny: null, dirty: false, hud: false, banner: null, reveal: null, labels: [] };
 /** a thumb's target in screen pixels (44 CSS px: UI_finger) where the touch buttons show (a phone, a tablet), else 0:
  *  the buttons of the tree and of the skills grow to it there, and keep their size on a desktop and a TV */
 const PRG_thumb = () => TOUCH.el && ctlDevice() === 'touch' ? UI_finger() : 0;   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
@@ -712,7 +712,7 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   // the chrome, so the bars, the overview and the totals (drawn over it, topmost) take their own clicks
   const pan = (mx, my) => {
     if (game.input.pinching || UI.fingers.size > 1) { const d = V.drag; if (d) Object.assign(d, { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 99 }); return; }   // (two fingers pinch: no pan, and no star chosen when they lift)
-    if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my) || (ctlDevice() === 'touch' ? PRG_pick(mx, my, 14) : null) }; return; }   // (a finger is wide: a star within 14 px)
+    if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my) }; return; }   // (a finger's tap is worked out when it lifts: PRG_fingerTap)
     const d = V.drag; d.moved = Math.max(d.moved, Math.abs(mx - d.x) + Math.abs(my - d.y));
     if (d.moved > 3) { V.cx = d.cx - (mx - d.x) / V.z; V.cy = d.cy - (my - d.y) / V.z; V.anchor = null; V.go = null; }
   };
@@ -724,6 +724,7 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t, op);
   if (hov && UI.keyNav) tipBox(g, PRG_treeTip(h, hov), V.ox + 8, V.oy + 8, { border: '#8a7aa8', maxW: V.sum && UI_tv() ? Math.max(120, x0 + W - V.ox - 20) : 0 });   // (a TV's totals take the left half: it keeps to the right of the reticle)
   PRG_touchPick(g, h, pick);
+  PRG_touchList(g, h, x0, y0, W, H);
 }
 /** the buttons a finger's chosen star (PRG_V.tsel) brings, along the bottom: what a right click and a precise click
  *  are on a mouse: ALLOCATE, TAKE BACK (a star bought this visit), and a close. Each a thumb's size where the touch
@@ -740,6 +741,37 @@ function PRG_touchPick(g, h, P) {
   const n = PRG_V.tsel && PRG_T.N[PRG_V.tsel]; if (!P || !n || n.sx === undefined) return;
   tipBox(g, PRG_treeTip(h, n), n.sx + 6, n.sy + 6, { border: n.type === 'keystone' ? '#ff9a4a' : n.type === 'notable' ? GOLD : '#8a7aa8' });
   let bx = P.x; for (const [label, fn] of P.list) { button(g, bx, P.y, P.w, P.h, label, fn, { color: label === 'ALLOCATE' ? '#4a3a1a' : undefined }); bx += P.w + 6; }
+}
+/** a finger's tap on the tree (x, y: where it pressed), the stars within half a finger of it, nearest first: a second tap
+ *  on the chosen star allocates it (in a crowd, only right on it: its buttons are a finger's); one star is chosen (its
+ *  tooltip and its buttons); several, closer together than a finger, bring a list of them a finger tall a row
+ *  (PRG_touchList); none lets the choice go */
+function PRG_fingerTap(h, x, y) {
+  const V = PRG_V, R = Math.max(14, Math.ceil(UI_finger() / 2)), d2 = n => (n.sx - x) ** 2 + (n.sy - y) ** 2;
+  const near = PRG_T.list.filter(n => n.vis && n.sx !== undefined && d2(n) < Math.max(R, PRG_rad(n, V.z) + 3) ** 2).sort((a, b) => d2(a) - d2(b)).slice(0, 5).map(n => n.id);
+  V.tlist = null;
+  if (near.length && near[0] === V.tsel && (near.length === 1 || PRG_pick(x, y) === V.tsel)) PRG_click(h, near[0]);
+  else if (near.length > 1) { V.tlist = { ids: near, x, y, cx: V.cx, cy: V.cy, z: V.z }; V.tsel = null; sfx('select', { vol: .3 }); }
+  else if (near.length) { V.tsel = near[0]; sfx('select', { vol: .3 }); }
+  else V.tsel = null;
+}
+/** the list a finger's tap on a crowd of stars brings (PRG_V.tlist): each star numbered on the tree, and a row a finger
+ *  tall for each beside the tap (its name, what it gives, a tick where it is lit); a row chosen is that star chosen. A
+ *  tap elsewhere on the tree, a pan, a zoom or back lets the list go */
+function PRG_touchList(g, h, x0, y0, W, H) {
+  const V = PRG_V, L = V.tlist; if (!L) return;
+  const set = PRG_set(h), ns = L.ids.map(id => PRG_T.N[id]).filter(n => n && n.sx !== undefined), rh = Math.max(20, UI_finger()), rw = Math.min(W - 16, 170), bh = ns.length * (rh + 2) - 2; if (!ns.length) return;
+  ns.forEach((n, i) => { const q = PRG_rad(n, V.z) + 3; PRG_circle(g, n.sx, n.sy, q, GOLD); E.font.text(g, String(i + 1), n.sx + q + 1, n.sy - q - 6, GOLD, { outline: '#05040a' }); });
+  // (the list beside the stars and their numbers, on the right where it fits, else on the left)
+  const right = Math.max(...ns.map(n => n.sx + PRG_rad(n, V.z) + 12)) + 6, left = Math.min(...ns.map(n => n.sx - PRG_rad(n, V.z) - 3)) - 6;
+  const bx = clamp(right + rw <= x0 + W - 6 ? right : left - rw, x0 + 6, x0 + W - 6 - rw), by = clamp(Math.round(L.y - bh / 2), y0 + V.bar + 6, y0 + H - 16 - bh);
+  E.ui.box(g, bx - 4, by - 4, rw + 8, bh + 8, { bg: PANEL_BG, border: PANEL_BORDER });
+  ns.forEach((n, i) => {
+    const ry = by + i * (rh + 2), lit = set.has(n.id), c = lit ? '#8affc8' : n.type === 'keystone' ? '#ff9a4a' : n.type === 'notable' ? GOLD : '#f0e8ff', k = Object.keys(n.stats || {})[0], ty = ry + Math.round(rh / 2) - (k ? 8 : 4);
+    button(g, bx, ry, rw, rh, '', () => { V.tsel = n.id; V.tlist = null; sfx('select', { vol: .3 }); });
+    E.font.text(g, (i + 1) + '  ' + String(n.name).toUpperCase() + (lit ? '  ✓' : ''), bx + 6, ty, c, { outline: false, shadow: '#05040a', font: E.font.width((i + 1) + '  ' + String(n.name).toUpperCase() + (lit ? '  ✓' : '')) > rw - 10 ? 'tiny' : undefined });
+    if (k) E.font.text(g, statText(k, n.stats[k]), bx + 6, ty + 10, '#8ab4ff', { font: 'tiny', outline: false });
+  });
 }
 /* the region names: each just past the rim on its own axis (big, with what the region is about, when zoomed in). One
    whose place is off screen becomes a small marker on the edge, an arrow pointing the way, slid along the edge to the
@@ -864,8 +896,9 @@ function PRG_treeUpdate(dt) {
   for (let i = V.fx.length - 1; i >= 0; i--) if ((V.fx[i].t += dt) > V.fx[i].dur) V.fx.splice(i, 1);
   // a tap (no drag) on a star: the mouse allocates at once; a finger chooses it first (its tooltip, ALLOCATE and TAKE
   // BACK at the bottom: a star is small under a finger), and a second tap on it allocates
-  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; if (d.moved <= 3 && d.label) { V.go = { x: d.label.go[0], y: d.label.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); } else if (d.moved <= 3 && d.node) { if (ctlDevice() !== 'touch' || V.tsel === d.node) PRG_click(h, d.node); else { V.tsel = d.node; sfx('select', { vol: .3 }); } } else if (d.moved <= 3) V.tsel = null; }
-  if (ctlDevice() !== 'touch') V.tsel = null;
+  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; if (d.moved <= 3 && d.label) { V.go = { x: d.label.go[0], y: d.label.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); } else if (d.moved <= 3 && ctlDevice() === 'touch') PRG_fingerTap(h, d.x, d.y); else if (d.moved <= 3 && d.node) PRG_click(h, d.node); else if (d.moved <= 3) V.tsel = null; }
+  if (ctlDevice() !== 'touch') V.tsel = V.tlist = null;
+  if (V.tlist && (V.z !== V.tlist.z || V.cx !== V.tlist.cx || V.cy !== V.tlist.cy)) V.tlist = null;   // (the view moved: the list's stars are elsewhere)
   const mx = (inp.down('menuRight') ? 1 : 0) - (inp.down('menuLeft') ? 1 : 0), my = (inp.down('menuDown') ? 1 : 0) - (inp.down('menuUp') ? 1 : 0);
   if (mx || my) { const sp = 250 * dt / V.z; V.cx += mx * sp; V.cy += my * sp; UI.keyNav = true; V.anchor = null; V.go = null; }
   if (inp.pressed('totals')) { V.sum = !V.sum; sfx('select', { vol: .4 }); }   // (△, Tab)
@@ -1210,8 +1243,8 @@ function PRG_pagePt(x, y) { const sc = game.screen, rc = sc.canvas.getBoundingCl
 function PRG_hideHud(on, store) { if (on) { store.hud = !!UI.hideHud; UI.hideHud = true; } else UI.hideHud = store.hud; }
 function PRG_install() {
   UI.def('tree', { title: null, box: false, dim: false, x: 0, y: 0, w: W => W, h: (W, H) => H,
-    back() { const V = PRG_V; if (V.tsel) { V.tsel = null; return true; } if (V.sum) { V.sum = false; sfx('select', { vol: .4 }); return true; } return false; },   // (○: a chosen star, then the totals, then away)
-    open() { const V = PRG_V; PRG_hideHud(true, V); V.tsel = null; V.openT = 0; V.drag = null; V.sumDrag = null; V.fx.length = 0; V.banner = null; V.reveal = null; V.labels = []; V.session.clear(); V.dirty = false; V.pathKey = ''; if (ED.hero) PRG_sanitize(ED.hero); },
+    back() { const V = PRG_V; if (V.tlist) { V.tlist = null; return true; } if (V.tsel) { V.tsel = null; return true; } if (V.sum) { V.sum = false; sfx('select', { vol: .4 }); return true; } return false; },   // (○: a chosen star, then the totals, then away)
+    open() { const V = PRG_V; PRG_hideHud(true, V); V.tsel = V.tlist = null; V.openT = 0; V.drag = null; V.sumDrag = null; V.fx.length = 0; V.banner = null; V.reveal = null; V.labels = []; V.session.clear(); V.dirty = false; V.pathKey = ''; if (ED.hero) PRG_sanitize(ED.hero); },
     close() { const V = PRG_V; PRG_hideHud(false, V); V.drag = null; if (V.dirty && typeof saveGame === 'function') saveGame(); V.dirty = false; },
     update: PRG_treeUpdate, draw: PRG_treeDraw,
     wheel(dir) { const V = PRG_V, m = UI.mouse; if (V.sum && V.sumR && PRG_inR(m, V.sumR)) { V.sumScroll += Math.sign(dir) * 2; return; } PRG_zoomBy(dir > 0 ? 1 / 1.2 : 1.2, m.x, m.y); },
