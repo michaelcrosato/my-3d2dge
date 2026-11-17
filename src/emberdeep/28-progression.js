@@ -452,7 +452,7 @@ function PRG_canSpend(h) {
 const PRG_V = { cx: 0, cy: 0, z: 1, zt: 1, anchor: null, go: null, drag: null, hover: null, path: null, pathKey: '', session: new Set(), fx: [], sum: false, sumScroll: 0, sumRows: 1, sumR: null, sumDrag: null, openT: 0, W: 0, H: 0, ox: 0, oy: 0, bar: 18, deny: null, dirty: false, hud: false, banner: null, reveal: null, labels: [] };
 /** a thumb's target in screen pixels (44 CSS px: UI_finger) where the touch buttons show (a phone, a tablet), else 0:
  *  the buttons of the tree and of the skills grow to it there, and keep their size on a desktop and a TV */
-const PRG_thumb = () => TOUCH.el ? UI_finger() : 0;
+const PRG_thumb = () => TOUCH.el && ctlDevice() === 'touch' ? UI_finger() : 0;   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
 /** the longest wording of a line that fits in w, and its font: on a TV (UI_tv) the normal font first, read from the
  *  sofa; else, or where none fits, the tiny one. Returns [text, font options] */
 function PRG_fit(list, w) {
@@ -709,15 +709,19 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   }
   // the tree itself: drag to pan, click to buy (on release, so a drag never buys), right click to undo. It registers before
   // the chrome, so the bars, the overview and the totals (drawn over it, topmost) take their own clicks
-  hot(x0, y0 + BH, W, H - BH - 11, { drag: (mx, my) => {
+  const pan = (mx, my) => {
     if (game.input.pinching || UI.fingers.size > 1) { const d = V.drag; if (d) Object.assign(d, { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 99 }); return; }   // (two fingers pinch: no pan, and no star chosen when they lift)
     if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my) || (ctlDevice() === 'touch' ? PRG_pick(mx, my, 14) : null) }; return; }   // (a finger is wide: a star within 14 px)
     const d = V.drag; d.moved = Math.max(d.moved, Math.abs(mx - d.x) + Math.abs(my - d.y));
     if (d.moved > 3) { V.cx = d.cx - (mx - d.x) / V.z; V.cy = d.cy - (my - d.y) / V.z; V.anchor = null; V.go = null; }
-  }, rclick: () => { const id = PRG_pick(UI.mouse.x, UI.mouse.y) || V.hover; if (id) PRG_undo(h, id); }, tip: hov && !UI.keyNav ? () => PRG_treeTip(h, hov) : undefined, tipBorder: hov ? (hov.type === 'keystone' ? '#ff9a4a' : hov.type === 'notable' ? GOLD : undefined) : undefined });
-  for (const l of V.labels) hot(l.hr[0], l.hr[1], l.hr[2], l.hr[3], { click: () => { V.go = { x: l.go[0], y: l.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); }, tip: [{ t: l.name, c: l.color }, { t: cap(l.about), c: '#c8c0d8' }, { t: 'Click to fly to its keystone', c: '#9a90b0' }] });
+  };
+  hot(x0, y0 + BH, W, H - BH - 11, { drag: pan, rclick: () => { const id = PRG_pick(UI.mouse.x, UI.mouse.y) || V.hover; if (id) PRG_undo(h, id); }, tip: hov && !UI.keyNav ? () => PRG_treeTip(h, hov) : undefined, tipBorder: hov ? (hov.type === 'keystone' ? '#ff9a4a' : hov.type === 'notable' ? GOLD : undefined) : undefined });
+  // a region's name flies to its keystone: on a click, or with a finger on release (its tap area is a thumb's, so a pan
+  // may start in it: a finger that moves pans instead)
+  const thumbs = PRG_thumb();
+  for (const l of V.labels) hot(l.hr[0], l.hr[1], l.hr[2], l.hr[3], { click: thumbs ? null : () => { V.go = { x: l.go[0], y: l.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); }, drag: thumbs ? (mx, my) => { pan(mx, my); if (V.drag && V.drag.label === undefined) V.drag.label = l; } : undefined, tip: [{ t: l.name, c: l.color }, { t: cap(l.about), c: '#c8c0d8' }, { t: 'Click to fly to its keystone', c: '#9a90b0' }] });
   PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t, op);
-  if (hov && UI.keyNav) tipBox(g, PRG_treeTip(h, hov), V.ox + 8, V.oy + 8, { border: '#8a7aa8' });
+  if (hov && UI.keyNav) tipBox(g, PRG_treeTip(h, hov), V.ox + 8, V.oy + 8, { border: '#8a7aa8', maxW: V.sum ? Math.max(120, x0 + W - V.ox - 20) : 0 });   // (the totals open on the left: it keeps to the right of the reticle)
   PRG_touchPick(g, h, pick);
 }
 /** the buttons a finger's chosen star (PRG_V.tsel) brings, along the bottom: what a right click and a precise click
@@ -859,7 +863,7 @@ function PRG_treeUpdate(dt) {
   for (let i = V.fx.length - 1; i >= 0; i--) if ((V.fx[i].t += dt) > V.fx[i].dur) V.fx.splice(i, 1);
   // a tap (no drag) on a star: the mouse allocates at once; a finger chooses it first (its tooltip, ALLOCATE and TAKE
   // BACK at the bottom: a star is small under a finger), and a second tap on it allocates
-  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; if (d.moved <= 3 && d.node) { if (ctlDevice() !== 'touch' || V.tsel === d.node) PRG_click(h, d.node); else { V.tsel = d.node; sfx('select', { vol: .3 }); } } else if (d.moved <= 3) V.tsel = null; }
+  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; if (d.moved <= 3 && d.label) { V.go = { x: d.label.go[0], y: d.label.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); } else if (d.moved <= 3 && d.node) { if (ctlDevice() !== 'touch' || V.tsel === d.node) PRG_click(h, d.node); else { V.tsel = d.node; sfx('select', { vol: .3 }); } } else if (d.moved <= 3) V.tsel = null; }
   if (ctlDevice() !== 'touch') V.tsel = null;
   const mx = (inp.down('menuRight') ? 1 : 0) - (inp.down('menuLeft') ? 1 : 0), my = (inp.down('menuDown') ? 1 : 0) - (inp.down('menuUp') ? 1 : 0);
   if (mx || my) { const sp = 250 * dt / V.z; V.cx += mx * sp; V.cy += my * sp; UI.keyNav = true; V.anchor = null; V.go = null; }
@@ -958,8 +962,8 @@ function PRG_slotBox(g, h, i, x, y, armed, t, s = 1) {
 /** a press on the skill list where a thumb presses it (PRG_thumb): the list scrolls under a dragging finger, and a tap
  *  (a press that barely moved) acts when it lifts (PRG_skillsUpdate): it chooses the row's skill, or ranks it up on its plus */
 const PRG_listPress = (id, plus) => (mx, my) => {
-  const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, y: my, s: K.scroll, moved: 0 }; return; }
-  P.moved = Math.max(P.moved, Math.abs(my - P.y)); if (P.moved > 6) K.scroll = clamp(Math.round(P.s - (my - P.y) / (K.rowH || 20)), 0, K.maxS || 0);
+  const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, x: mx, y: my, s: K.scroll, moved: 0 }; return; }
+  P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y));   // (a finger sliding off sideways is no tap either) if (P.moved > 6) K.scroll = clamp(Math.round(P.s - (my - P.y) / (K.rowH || 20)), 0, K.maxS || 0);
 };
 /** a skill row chosen: with a slot waiting (armed) it goes there, else it is shown on the page; on its plus it ranks up */
 function PRG_rowTap(h, id, plus) {
@@ -1159,7 +1163,7 @@ function PRG_skillPage(g, h, id, dx, dy, dw, dh, t) {
   // assign: the six slots' buttons, each a thumb's square where a thumb presses them (ah), the word before them in the
   // normal font on a TV. A narrow page drops the word so LMB and RMB keep their room
   const a0 = 13 + E.font.width('ASSIGN', lf), lab = dw >= 170 && a0 + 6 * (thb + 2) + 3 <= dw - 6; if (lab) PRG_txt(g, 'ASSIGN', dx + 7, ay + ((ah - (lf.font ? 5 : 7)) >> 1), '#c8b8e8', lf);
-  const ax0 = lab ? a0 : 6, aw = Math.max(thb, Math.min(22, Math.floor((dw - ax0 - 8) / 6) - 2));
+  const ax0 = lab ? a0 : 6, aw = Math.min(Math.max(thb, 22), Math.floor((dw - ax0 - 8) / 6) - 2);   // (a thumb wide where the page has room, narrower where not; ah keeps them a thumb tall)
   for (let i = 0; i < 6; i++) { const ax = dx + ax0 + i * (aw + 2) + (i >= 2 ? 3 : 0); button(g, ax, ay, aw, ah, slotKey(i), () => PRG_assign(h, i, id), { disabled: !base, active: h.slots[i] === id, color: h.slots[i] === id ? '#3a5a6a' : '#2e2648', tip: [{ t: base ? 'Put ' + S.name + ' in slot ' + slotKey(i) : 'Learn it first', c: base ? GOLD : '#ff8a7a' }].concat(h.slots[i] && h.slots[i] !== id && REG.skills[h.slots[i]] ? [{ t: 'Replaces ' + REG.skills[h.slots[i]].name, c: '#9a90b0' }] : []) }); }
 }
 function PRG_skillsUpdate(dt) {

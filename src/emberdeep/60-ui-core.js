@@ -55,7 +55,7 @@ function updateUI(dt) {
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
   const acts = !!over && !!(over.click || over.drag || over.rclick);
-  if (inp.pressed('click')) { if (acts) { if (over.drag) UI.drag = over.drag, over.drag(m.x, m.y); if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  if (inp.pressed('click')) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
   if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
   if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
   const P0 = UI.top(), sw = inp.swipe();
@@ -119,7 +119,7 @@ function tipBox(g, lines, x, y, o = {}) {
   if (!lines || !lines.length) return;
   lines = lines.flatMap(l => { if (!l.t || l.t.indexOf('{') < 0) return [l]; const t = keyText(l.t); return t ? [Object.assign({}, l, { t })] : []; });   // ({key:action} for the device in use; a hint with none goes)
   if (!lines.length) return;
-  const W0 = o.w || Math.min(UI_tv() ? Math.max(190, Math.floor(game.W / 2) - 4) : 190, Math.max(...lines.map(l => E.font.width(l.t || '') + 10)));
+  const W0 = o.w || Math.min(o.maxW || (UI_tv() ? Math.max(190, Math.floor(game.W / 2) - 4) : 190), Math.max(...lines.map(l => E.font.width(l.t || '') + 10)));   // (o.maxW: room it must keep to)
   const wrapped = []; for (const l of lines) { if (l.sep) { wrapped.push(l); continue; } for (const t of E.font.wrap(l.t || '', W0 - 10)) wrapped.push({ t, c: l.c, big: l.big }); }
   const H0 = wrapped.reduce((a, l) => a + (l.sep ? 5 : 9), 0) + 8, W = game.W, H = game.H;
   let bx = Math.round(x + 10), by = Math.round(y + 8); if (bx + W0 > W - 2) bx = Math.round(x - W0 - 6); if (by + H0 > H - 2) by = H - H0 - 2; if (by < 2) by = 2; if (bx < 2) bx = 2;
@@ -239,7 +239,7 @@ function drawHudInner(g, r, h) {
       if (S) {
         drawSkillIcon(g, id, x + 1, y + 1, 1);
         const cd = h.cds[id], full = S.cd ? skillCd(h, S) : 0;
-        if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 5), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
+        if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 2), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
       if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
@@ -259,7 +259,7 @@ function drawHudInner(g, r, h) {
     const xf = Math.round((xw - 2) * clamp(h.xp / need, 0, 1)); px.rect(g, bx, H - 4, xw, 4, '#0c0818'); px.rect(g, bx + 1, H - 3, xw - 2, 2, '#2a1e40');   // the xp bar: a 2 px fill with a lit top edge, and quarter ticks
     if (xf > 0) { px.rect(g, bx + 1, H - 3, xf, 2, '#8a5ae0'); px.rect(g, bx + 1, H - 3, xf, 1, '#c8a8ff'); px.dot(g, bx + xf, H - 3, '#ffffff'); }
     for (let q = 1; q < 4; q++) px.dot(g, bx + 1 + Math.round((xw - 2) * q / 4), H - 2, '#0c0818');
-    hot(bx, H - 5, xw, 5, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
+    if (!touch) hot(bx, H - 5, xw, 5, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
     E.font.text(g, 'LV ' + h.level, bx - 4, H - 8 - ty, '#c8b0ff', UI_tf({ align: 'right', outline: '#0c0818' }));
     // the reminder only names a pool that can still buy something (every skill at max rank, or the whole tree taken,
     // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
@@ -692,7 +692,7 @@ function RUN_leave(retry) {
    normal font (the tiny one only where a line cannot fit), the panel is wider, and its two choices are a finger's height
    (44 CSS px) on a touch screen. Held upright it has a layout of its own: a bigger portrait, the killer's name and the
    numbers at twice the size, and the choices one under the other across the panel. A laptop's stays as it was */
-const DTH_touch = () => !!TOUCH.el || ctlDevice() === 'touch';
+const DTH_touch = () => ctlDevice() === 'touch';   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
 const DTH_big = () => UI_tv() || UI_tall() || DTH_touch();
 /** the choices' height: a finger's on a touch screen, else a menu row's */
 const DTH_rh = () => DTH_touch() ? Math.max(UI_finger(), 16) : UI_rowH() - 1;

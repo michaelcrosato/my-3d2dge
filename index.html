@@ -23366,7 +23366,7 @@ function PRG_canSpend(h) {
 const PRG_V = { cx: 0, cy: 0, z: 1, zt: 1, anchor: null, go: null, drag: null, hover: null, path: null, pathKey: '', session: new Set(), fx: [], sum: false, sumScroll: 0, sumRows: 1, sumR: null, sumDrag: null, openT: 0, W: 0, H: 0, ox: 0, oy: 0, bar: 18, deny: null, dirty: false, hud: false, banner: null, reveal: null, labels: [] };
 /** a thumb's target in screen pixels (44 CSS px: UI_finger) where the touch buttons show (a phone, a tablet), else 0:
  *  the buttons of the tree and of the skills grow to it there, and keep their size on a desktop and a TV */
-const PRG_thumb = () => TOUCH.el ? UI_finger() : 0;
+const PRG_thumb = () => TOUCH.el && ctlDevice() === 'touch' ? UI_finger() : 0;   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
 /** the longest wording of a line that fits in w, and its font: on a TV (UI_tv) the normal font first, read from the
  *  sofa; else, or where none fits, the tiny one. Returns [text, font options] */
 function PRG_fit(list, w) {
@@ -23623,15 +23623,19 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   }
   // the tree itself: drag to pan, click to buy (on release, so a drag never buys), right click to undo. It registers before
   // the chrome, so the bars, the overview and the totals (drawn over it, topmost) take their own clicks
-  hot(x0, y0 + BH, W, H - BH - 11, { drag: (mx, my) => {
+  const pan = (mx, my) => {
     if (game.input.pinching || UI.fingers.size > 1) { const d = V.drag; if (d) Object.assign(d, { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 99 }); return; }   // (two fingers pinch: no pan, and no star chosen when they lift)
     if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my) || (ctlDevice() === 'touch' ? PRG_pick(mx, my, 14) : null) }; return; }   // (a finger is wide: a star within 14 px)
     const d = V.drag; d.moved = Math.max(d.moved, Math.abs(mx - d.x) + Math.abs(my - d.y));
     if (d.moved > 3) { V.cx = d.cx - (mx - d.x) / V.z; V.cy = d.cy - (my - d.y) / V.z; V.anchor = null; V.go = null; }
-  }, rclick: () => { const id = PRG_pick(UI.mouse.x, UI.mouse.y) || V.hover; if (id) PRG_undo(h, id); }, tip: hov && !UI.keyNav ? () => PRG_treeTip(h, hov) : undefined, tipBorder: hov ? (hov.type === 'keystone' ? '#ff9a4a' : hov.type === 'notable' ? GOLD : undefined) : undefined });
-  for (const l of V.labels) hot(l.hr[0], l.hr[1], l.hr[2], l.hr[3], { click: () => { V.go = { x: l.go[0], y: l.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); }, tip: [{ t: l.name, c: l.color }, { t: cap(l.about), c: '#c8c0d8' }, { t: 'Click to fly to its keystone', c: '#9a90b0' }] });
+  };
+  hot(x0, y0 + BH, W, H - BH - 11, { drag: pan, rclick: () => { const id = PRG_pick(UI.mouse.x, UI.mouse.y) || V.hover; if (id) PRG_undo(h, id); }, tip: hov && !UI.keyNav ? () => PRG_treeTip(h, hov) : undefined, tipBorder: hov ? (hov.type === 'keystone' ? '#ff9a4a' : hov.type === 'notable' ? GOLD : undefined) : undefined });
+  // a region's name flies to its keystone: on a click, or with a finger on release (its tap area is a thumb's, so a pan
+  // may start in it: a finger that moves pans instead)
+  const thumbs = PRG_thumb();
+  for (const l of V.labels) hot(l.hr[0], l.hr[1], l.hr[2], l.hr[3], { click: thumbs ? null : () => { V.go = { x: l.go[0], y: l.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); }, drag: thumbs ? (mx, my) => { pan(mx, my); if (V.drag && V.drag.label === undefined) V.drag.label = l; } : undefined, tip: [{ t: l.name, c: l.color }, { t: cap(l.about), c: '#c8c0d8' }, { t: 'Click to fly to its keystone', c: '#9a90b0' }] });
   PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t, op);
-  if (hov && UI.keyNav) tipBox(g, PRG_treeTip(h, hov), V.ox + 8, V.oy + 8, { border: '#8a7aa8' });
+  if (hov && UI.keyNav) tipBox(g, PRG_treeTip(h, hov), V.ox + 8, V.oy + 8, { border: '#8a7aa8', maxW: V.sum ? Math.max(120, x0 + W - V.ox - 20) : 0 });   // (the totals open on the left: it keeps to the right of the reticle)
   PRG_touchPick(g, h, pick);
 }
 /** the buttons a finger's chosen star (PRG_V.tsel) brings, along the bottom: what a right click and a precise click
@@ -23773,7 +23777,7 @@ function PRG_treeUpdate(dt) {
   for (let i = V.fx.length - 1; i >= 0; i--) if ((V.fx[i].t += dt) > V.fx[i].dur) V.fx.splice(i, 1);
   // a tap (no drag) on a star: the mouse allocates at once; a finger chooses it first (its tooltip, ALLOCATE and TAKE
   // BACK at the bottom: a star is small under a finger), and a second tap on it allocates
-  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; if (d.moved <= 3 && d.node) { if (ctlDevice() !== 'touch' || V.tsel === d.node) PRG_click(h, d.node); else { V.tsel = d.node; sfx('select', { vol: .3 }); } } else if (d.moved <= 3) V.tsel = null; }
+  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; if (d.moved <= 3 && d.label) { V.go = { x: d.label.go[0], y: d.label.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); } else if (d.moved <= 3 && d.node) { if (ctlDevice() !== 'touch' || V.tsel === d.node) PRG_click(h, d.node); else { V.tsel = d.node; sfx('select', { vol: .3 }); } } else if (d.moved <= 3) V.tsel = null; }
   if (ctlDevice() !== 'touch') V.tsel = null;
   const mx = (inp.down('menuRight') ? 1 : 0) - (inp.down('menuLeft') ? 1 : 0), my = (inp.down('menuDown') ? 1 : 0) - (inp.down('menuUp') ? 1 : 0);
   if (mx || my) { const sp = 250 * dt / V.z; V.cx += mx * sp; V.cy += my * sp; UI.keyNav = true; V.anchor = null; V.go = null; }
@@ -23872,8 +23876,8 @@ function PRG_slotBox(g, h, i, x, y, armed, t, s = 1) {
 /** a press on the skill list where a thumb presses it (PRG_thumb): the list scrolls under a dragging finger, and a tap
  *  (a press that barely moved) acts when it lifts (PRG_skillsUpdate): it chooses the row's skill, or ranks it up on its plus */
 const PRG_listPress = (id, plus) => (mx, my) => {
-  const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, y: my, s: K.scroll, moved: 0 }; return; }
-  P.moved = Math.max(P.moved, Math.abs(my - P.y)); if (P.moved > 6) K.scroll = clamp(Math.round(P.s - (my - P.y) / (K.rowH || 20)), 0, K.maxS || 0);
+  const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, x: mx, y: my, s: K.scroll, moved: 0 }; return; }
+  P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y));   // (a finger sliding off sideways is no tap either) if (P.moved > 6) K.scroll = clamp(Math.round(P.s - (my - P.y) / (K.rowH || 20)), 0, K.maxS || 0);
 };
 /** a skill row chosen: with a slot waiting (armed) it goes there, else it is shown on the page; on its plus it ranks up */
 function PRG_rowTap(h, id, plus) {
@@ -24073,7 +24077,7 @@ function PRG_skillPage(g, h, id, dx, dy, dw, dh, t) {
   // assign: the six slots' buttons, each a thumb's square where a thumb presses them (ah), the word before them in the
   // normal font on a TV. A narrow page drops the word so LMB and RMB keep their room
   const a0 = 13 + E.font.width('ASSIGN', lf), lab = dw >= 170 && a0 + 6 * (thb + 2) + 3 <= dw - 6; if (lab) PRG_txt(g, 'ASSIGN', dx + 7, ay + ((ah - (lf.font ? 5 : 7)) >> 1), '#c8b8e8', lf);
-  const ax0 = lab ? a0 : 6, aw = Math.max(thb, Math.min(22, Math.floor((dw - ax0 - 8) / 6) - 2));
+  const ax0 = lab ? a0 : 6, aw = Math.min(Math.max(thb, 22), Math.floor((dw - ax0 - 8) / 6) - 2);   // (a thumb wide where the page has room, narrower where not; ah keeps them a thumb tall)
   for (let i = 0; i < 6; i++) { const ax = dx + ax0 + i * (aw + 2) + (i >= 2 ? 3 : 0); button(g, ax, ay, aw, ah, slotKey(i), () => PRG_assign(h, i, id), { disabled: !base, active: h.slots[i] === id, color: h.slots[i] === id ? '#3a5a6a' : '#2e2648', tip: [{ t: base ? 'Put ' + S.name + ' in slot ' + slotKey(i) : 'Learn it first', c: base ? GOLD : '#ff8a7a' }].concat(h.slots[i] && h.slots[i] !== id && REG.skills[h.slots[i]] ? [{ t: 'Replaces ' + REG.skills[h.slots[i]].name, c: '#9a90b0' }] : []) }); }
 }
 function PRG_skillsUpdate(dt) {
@@ -31343,8 +31347,8 @@ function LOT_pip(g, x, y, it, a) {
 function LOT_rangeText(it, a) { const inf = a.id === 'u' || it.rarity === 4 ? null : affixInfo(it, a); return !inf ? '' : inf.fixed ? 'FIXED' : 'T' + (inf.t + 1) + ' ' + fmtV(inf.lo) + '-' + fmtV(inf.hi); }
 /** the pip legend under a tooltip's lines: the five pip colors, what they mean, and how to see more (tiny, but the
  *  normal font on a TV, the pips and the star kept to the middle of its taller line) */
-function LOT_legend(g, x, y, w, great, adv) {
-  const ft = UI_tf({ outline: false }), py = ft.font ? 1 : 2;
+function LOT_legend(g, x, y, w, great, adv, f) {   // (f: the tooltip's small-line font, the normal one on a TV and held upright)
+  const ft = f || UI_tf({ outline: false }), py = ft.font ? 1 : 2;
   if (adv) { E.font.text(g, 'T# TIER, ITS NAME, ITS RANGE', x, y, '#8a80a8', ft); return; }
   LOT_PIP.forEach((c, i) => { px.rect(g, x + i * 4, y + py, 3, 3, c); px.dot(g, x + i * 4 + 1, y + py, '#ffffff'); });
   let tx = x + 22; const put = (t, c) => { E.font.text(g, t, tx, y, c, ft); tx += E.font.width(t, ft) + 6; };
@@ -31452,7 +31456,7 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   const drawCmp = (cx, cy) => { for (const l of cmp) { if (l.head) { px.rect(g, cx + 6, cy + 1, WT - 12, 1, '#2e2644'); E.font.text(g, l.t, cx + 6, cy + 3, l.c, sf); cy += lh + hd2; continue; } E.font.text(g, l.t, cx + 6, cy, l.c, { outline: false, shadow: '#05040a' }); cy += lh; } };
   if (cmp.length && !side) { drawCmp(bx, yy + 2); yy += cmpH; }
   px.rect(g, bx + 8, yy + 2, WT - 16, 1, '#2e2644'); yy += 5;
-  for (const l of foot) { if (l.legend) LOT_legend(g, bx + 6, yy, WT - 12, great, adv); else E.font.text(g, l.t, bx + 6, yy, l.c, sf); yy += fs; }
+  for (const l of foot) { if (l.legend) LOT_legend(g, bx + 6, yy, WT - 12, great, adv, sf); else E.font.text(g, l.t, bx + 6, yy, l.c, sf); yy += fs; }
   if (side) { E.ui.box(g, cbx, cby, WT, ch, { bg: ['#1a1428', '#0c0818'], border: '#6a5a88', shadow: '#000000' }); drawCmp(cbx, cby + 2); }
 }
 
@@ -31558,7 +31562,7 @@ const LOT_rf = (s, w, o = {}) => Object.assign({ outline: false }, o, (UI_tv() |
  * landscape layout stays and takes a finger's size where it fits (LOT_F). A mouse, the keys and a pad on a landscape
  * screen meet neither: theirs is the landscape layout as it was */
 const LOT_popH = () => clamp(UI_finger(), 14, 48);   // the pop-up's buttons
-const LOT_F = () => TOUCH.el && !UI_tall() ? clamp(UI_finger(), 0, 30) : 0;
+const LOT_F = () => TOUCH.el && ctlDevice() === 'touch' && !UI_tall() ? clamp(UI_finger(), 0, 30) : 0;   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
 const LOT_footR = () => 17 + LOT_popH();   // what a panel held upright keeps free at its foot: the pop-up and the hint line
 const LOT_bagCS = (T, w) => clamp(Math.floor(w / 8), 16, T + 2);
 /** the bag block's height at finger T (LOT_shopBag): what he wears in two rows of five (worn), or a label line; the bag 8 x 5 */
@@ -31604,9 +31608,13 @@ function LOT_end(g) {
   }
 }
 /** the shared per-step work of every loot panel: real-time clock, press release, keyboard, sparkles, dialogue, the doll */
+/** a wheel's page step, one a gesture: a trackpad's swipe sends a wheel every frame for half a second or more, and turns
+ *  one page; a mouse's notches a quarter of a second apart turn one each. -1, 0 or 1 */
+function LOT_wheelStep(d) { const g = LOT_UI.wheelGap; LOT_UI.wheelGap = 0; return g == null || g >= .25 ? (d > 0 ? 1 : -1) : 0; }
 function LOT_update(o = {}) {
   const now = performance.now(); LOT_UI.rdt = clamp((now - (LOT_UI.last || now)) / 1000, 0, .05); LOT_UI.last = now;
   const dt = LOT_UI.rdt, h = ED.hero;
+  LOT_UI.wheelGap = (LOT_UI.wheelGap == null ? 9 : LOT_UI.wheelGap) + dt;   // (LOT_wheelStep: the time since the wheel last moved)
   LOT_release(); LOT_navUpdate(o);
   for (let i = LOT_UI.fx.length - 1; i >= 0; i--) {
     const f = LOT_UI.fx[i]; f.t += dt; if (f.t < 0) continue;
@@ -32000,8 +32008,10 @@ function LOT_drawStats(g, x, y, w, h, hero, T = 0) {
 const LOT_LEFT = ['helm', 'chest', 'gloves', 'legs', 'boots'], LOT_RIGHT = ['amulet', 'cloak', 'weapon', 'ring', 'ring2'];
 /* held upright (a phone), the bag goes under the doll in eight columns, every cell, slot, tab and button a finger wide
    (44 CSS px: UI_finger), and the panel grows to hold it */
-const LOT_tallH = () => { const T = clamp(UI_finger(), 22, 64); return 19 + 5 * T + 16 + 46 + (T + 4) + 5 * T + T + 48; };
-LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W, H) => Math.min(H - 8, UI_tall() ? LOT_tallH() : 272),
+/** the bag held upright: its stack at finger T (what he wears, the doll, the tabs, the bag, the foot); LOT_tallFit shrinks T
+ *  on a short phone (a phone's browser with its bars showing) rather than leave the upright layout */
+const LOT_invNeed = T => 133 + 12 * T;
+LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W, H) => Math.min(H - 8, UI_tall() ? LOT_tallFit(W, H, LOT_invNeed).h : 272),
   open() { LOT_UI.focus = null; LOT_UI.press = null; },
   close() { LOT_UI.press = null; LOT_UI.confirm = null; },
   back: () => LOT_back(),
@@ -32009,12 +32019,12 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
     LOT_update();
     const pg = pageStep(); if (pg) LOT_statTurn(pg, true);   // (L1 R1, Tab: the bag, then each page of the character sheet, round again)
   },
-  wheel(d) { if (LOT_UI.tab === 'stats') LOT_statTurn(d > 0 ? 1 : -1); },
+  wheel(d) { if (LOT_UI.tab !== 'stats') return; const s = LOT_wheelStep(d), i = LOT_UI.statPage + s; if (s && i >= 0 && i < (LOT_UI.statN || 1)) LOT_statTurn(s); },   // (the wheel stops at the first and last page)
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return;
     LOT_begin(this, x, y, w, hh);
-    const tall = UI_tall() && hh >= LOT_tallH() - 2, T = clamp(UI_finger(), 22, 64), top = y + 19, pad = 7, big = hh >= 226, gap = tall ? 4 : big ? 3 : 2;
-    const F = TOUCH.el && !tall ? clamp(UI_finger(), 0, 30) : 0, SS = tall ? T : Math.max(hh >= 256 ? 25 : big ? 22 : 20, 5 * F + 4 * gap + 63 <= hh - 11 ? F : 0), colH = 5 * SS + 4 * gap;   // (touch buttons showing: slots and cells a finger wide, where they fit)
+    const fit = UI_tall() ? LOT_tallFit(game.W, game.H, LOT_invNeed) : null, tall = !!fit && hh >= fit.h - 2, T = fit ? fit.T : clamp(UI_finger(), 22, 64), top = y + 19, pad = 7, big = hh >= 226, gap = tall ? 4 : big ? 3 : 2;
+    const F = !tall && TOUCH.el && ctlDevice() === 'touch' ? clamp(UI_finger(), 0, 30) : 0, SS = tall ? T : Math.max(hh >= 256 ? 25 : big ? 22 : 20, 5 * F + 4 * gap + 63 <= hh - 11 ? F : 0), colH = 5 * SS + 4 * gap;   // (touch buttons showing: slots and cells a finger wide, where they fit)
     const dw = tall ? w - 2 * pad - 2 * SS - 8 : clamp(Math.round(w * .19), 64, 96), lx = x + pad, dx = lx + SS + 4, rx0 = dx + dw + 4;
     LOT_dollDraw(g, dx, top, dw, colH, h);
     LOT_LEFT.forEach((s, i) => LOT_slotCell(g, lx, top + i * (SS + gap), SS, s, h));
@@ -32294,7 +32304,7 @@ LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }
     if (T0 === 'gamble') LOT_gambleArea(g, x + pad, ay, lw, ah, h, T);
     else {
       // six to a row, each with its price under it (the normal font on a TV and held upright, where it fits its column)
-      const list = T0 === 'buy' ? LOT_SHOP.stock : LOT_SHOP.buyback, cols = 6, PW = Math.floor((lw - 8) / cols), CS = clamp(PW, 16, T ? Math.max(26, T + 2) : 26), pitch = tall || UI_tv() ? PW : CS;
+      const list = T0 === 'buy' ? LOT_SHOP.stock : LOT_SHOP.buyback, cols = 6, PW = Math.floor((lw - 8) / cols), CS = clamp(PW, 16, T ? Math.max(26, Math.min(T + 2, Math.floor((ah - 6) / 3) - (tall || UI_tv() ? 12 : 8))) : 26), pitch = tall || UI_tv() ? PW : CS;   // (a finger's cell, but never so big the stock's three rows don't fit)
       const rh = CS + (tall || UI_tv() ? 12 : 8), rows = Math.max(1, Math.floor((ah - 6) / rh)), gx = x + pad + Math.floor((lw - pitch * cols + pitch - CS) / 2);
       if (!list.length) { const s = T0 === 'buy' ? 'SOLD OUT. COME BACK AFTER A DESCENT.' : 'NOTHING SOLD YET.'; E.font.text(g, s, x + pad + lw / 2, ay + ah / 2 - 3, '#6a6488', LOT_rf(s, lw - 8, { align: 'center' })); }
       for (let i = 0; i < Math.min(list.length, cols * rows); i++) {
@@ -32371,7 +32381,7 @@ LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, 
     LOT_npcHeader(g, x + pad, top, lw, 'smith');
     // the anvil: the forge glows behind it and the chosen item floats over it (a touch screen on its side: lower, so the
     // three services fit a finger's size under it)
-    const ay = top + 42, ah = tall ? 66 : T ? 44 : hh >= 250 ? 66 : hh >= 226 ? 58 : 52, cx = x + pad + Math.round(lw / 2);
+    const ay = top + 42, ah = tall ? 66 : T ? clamp(hh - 98 - 3 * Math.max(13, T), 32, 44) : hh >= 250 ? 66 : hh >= 226 ? 58 : 52, cx = x + pad + Math.round(lw / 2);   // (on its side the anvil gives up what the three finger-tall buttons and the foot's line need)
     if (LOT_UI.active) LOT_UI.targets.push({ x: x + pad, y: ay, w: lw, h: ah, kind: 'anvil' });
     E.ui.box(g, x + pad, ay, lw, ah, { bg: ['#2a1810', '#0c0806'], border: '#5a3a2a', shadow: false });
     const [icx, icy] = LOT_forgeScene(g, x + pad, ay, lw, ah, t);
@@ -32675,7 +32685,7 @@ LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 
     for (let i = LOT_ST.motes.length - 1; i >= 0; i--) { const m = LOT_ST.motes[i]; m.t += dt; m.y += m.vy * dt; m.x += Math.sin(m.t * 5 + i) * 4 * dt; if (m.t > m.max) LOT_ST.motes.splice(i, 1); }
     const pg = pageStep(); if (pg) { LOT_ST.tab = (LOT_ST.tab + pg + LOT_STASH_TABS) % LOT_STASH_TABS; sfx('select', { vol: .4 }); }   // (L1 R1, Tab)
   },
-  wheel(d) { LOT_ST.tab = (LOT_ST.tab + (d > 0 ? 1 : LOT_STASH_TABS - 1)) % LOT_STASH_TABS; sfx('select', { vol: .3 }); },
+  wheel(d) { const s = LOT_wheelStep(d); if (!s) return; LOT_ST.tab = (LOT_ST.tab + s + LOT_STASH_TABS) % LOT_STASH_TABS; sfx('select', { vol: .3 }); },
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh);
     // held upright the chest and its tabs stand over the bag, full width; T: a finger's size (upright, or a touch screen,
@@ -39396,7 +39406,7 @@ function updateUI(dt) {
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
   const acts = !!over && !!(over.click || over.drag || over.rclick);
-  if (inp.pressed('click')) { if (acts) { if (over.drag) UI.drag = over.drag, over.drag(m.x, m.y); if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  if (inp.pressed('click')) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
   if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
   if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
   const P0 = UI.top(), sw = inp.swipe();
@@ -39460,7 +39470,7 @@ function tipBox(g, lines, x, y, o = {}) {
   if (!lines || !lines.length) return;
   lines = lines.flatMap(l => { if (!l.t || l.t.indexOf('{') < 0) return [l]; const t = keyText(l.t); return t ? [Object.assign({}, l, { t })] : []; });   // ({key:action} for the device in use; a hint with none goes)
   if (!lines.length) return;
-  const W0 = o.w || Math.min(UI_tv() ? Math.max(190, Math.floor(game.W / 2) - 4) : 190, Math.max(...lines.map(l => E.font.width(l.t || '') + 10)));
+  const W0 = o.w || Math.min(o.maxW || (UI_tv() ? Math.max(190, Math.floor(game.W / 2) - 4) : 190), Math.max(...lines.map(l => E.font.width(l.t || '') + 10)));   // (o.maxW: room it must keep to)
   const wrapped = []; for (const l of lines) { if (l.sep) { wrapped.push(l); continue; } for (const t of E.font.wrap(l.t || '', W0 - 10)) wrapped.push({ t, c: l.c, big: l.big }); }
   const H0 = wrapped.reduce((a, l) => a + (l.sep ? 5 : 9), 0) + 8, W = game.W, H = game.H;
   let bx = Math.round(x + 10), by = Math.round(y + 8); if (bx + W0 > W - 2) bx = Math.round(x - W0 - 6); if (by + H0 > H - 2) by = H - H0 - 2; if (by < 2) by = 2; if (bx < 2) bx = 2;
@@ -39580,7 +39590,7 @@ function drawHudInner(g, r, h) {
       if (S) {
         drawSkillIcon(g, id, x + 1, y + 1, 1);
         const cd = h.cds[id], full = S.cd ? skillCd(h, S) : 0;
-        if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 5), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
+        if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 2), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
       if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
@@ -39600,7 +39610,7 @@ function drawHudInner(g, r, h) {
     const xf = Math.round((xw - 2) * clamp(h.xp / need, 0, 1)); px.rect(g, bx, H - 4, xw, 4, '#0c0818'); px.rect(g, bx + 1, H - 3, xw - 2, 2, '#2a1e40');   // the xp bar: a 2 px fill with a lit top edge, and quarter ticks
     if (xf > 0) { px.rect(g, bx + 1, H - 3, xf, 2, '#8a5ae0'); px.rect(g, bx + 1, H - 3, xf, 1, '#c8a8ff'); px.dot(g, bx + xf, H - 3, '#ffffff'); }
     for (let q = 1; q < 4; q++) px.dot(g, bx + 1 + Math.round((xw - 2) * q / 4), H - 2, '#0c0818');
-    hot(bx, H - 5, xw, 5, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
+    if (!touch) hot(bx, H - 5, xw, 5, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
     E.font.text(g, 'LV ' + h.level, bx - 4, H - 8 - ty, '#c8b0ff', UI_tf({ align: 'right', outline: '#0c0818' }));
     // the reminder only names a pool that can still buy something (every skill at max rank, or the whole tree taken,
     // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
@@ -40033,7 +40043,7 @@ function RUN_leave(retry) {
    normal font (the tiny one only where a line cannot fit), the panel is wider, and its two choices are a finger's height
    (44 CSS px) on a touch screen. Held upright it has a layout of its own: a bigger portrait, the killer's name and the
    numbers at twice the size, and the choices one under the other across the panel. A laptop's stays as it was */
-const DTH_touch = () => !!TOUCH.el || ctlDevice() === 'touch';
+const DTH_touch = () => ctlDevice() === 'touch';   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
 const DTH_big = () => UI_tv() || UI_tall() || DTH_touch();
 /** the choices' height: a finger's on a touch screen, else a menu row's */
 const DTH_rh = () => DTH_touch() ? Math.max(UI_finger(), 16) : UI_rowH() - 1;

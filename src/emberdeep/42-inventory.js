@@ -64,7 +64,7 @@ const LOT_rf = (s, w, o = {}) => Object.assign({ outline: false }, o, (UI_tv() |
  * landscape layout stays and takes a finger's size where it fits (LOT_F). A mouse, the keys and a pad on a landscape
  * screen meet neither: theirs is the landscape layout as it was */
 const LOT_popH = () => clamp(UI_finger(), 14, 48);   // the pop-up's buttons
-const LOT_F = () => TOUCH.el && !UI_tall() ? clamp(UI_finger(), 0, 30) : 0;
+const LOT_F = () => TOUCH.el && ctlDevice() === 'touch' && !UI_tall() ? clamp(UI_finger(), 0, 30) : 0;   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
 const LOT_footR = () => 17 + LOT_popH();   // what a panel held upright keeps free at its foot: the pop-up and the hint line
 const LOT_bagCS = (T, w) => clamp(Math.floor(w / 8), 16, T + 2);
 /** the bag block's height at finger T (LOT_shopBag): what he wears in two rows of five (worn), or a label line; the bag 8 x 5 */
@@ -110,9 +110,13 @@ function LOT_end(g) {
   }
 }
 /** the shared per-step work of every loot panel: real-time clock, press release, keyboard, sparkles, dialogue, the doll */
+/** a wheel's page step, one a gesture: a trackpad's swipe sends a wheel every frame for half a second or more, and turns
+ *  one page; a mouse's notches a quarter of a second apart turn one each. -1, 0 or 1 */
+function LOT_wheelStep(d) { const g = LOT_UI.wheelGap; LOT_UI.wheelGap = 0; return g == null || g >= .25 ? (d > 0 ? 1 : -1) : 0; }
 function LOT_update(o = {}) {
   const now = performance.now(); LOT_UI.rdt = clamp((now - (LOT_UI.last || now)) / 1000, 0, .05); LOT_UI.last = now;
   const dt = LOT_UI.rdt, h = ED.hero;
+  LOT_UI.wheelGap = (LOT_UI.wheelGap == null ? 9 : LOT_UI.wheelGap) + dt;   // (LOT_wheelStep: the time since the wheel last moved)
   LOT_release(); LOT_navUpdate(o);
   for (let i = LOT_UI.fx.length - 1; i >= 0; i--) {
     const f = LOT_UI.fx[i]; f.t += dt; if (f.t < 0) continue;
@@ -506,8 +510,10 @@ function LOT_drawStats(g, x, y, w, h, hero, T = 0) {
 const LOT_LEFT = ['helm', 'chest', 'gloves', 'legs', 'boots'], LOT_RIGHT = ['amulet', 'cloak', 'weapon', 'ring', 'ring2'];
 /* held upright (a phone), the bag goes under the doll in eight columns, every cell, slot, tab and button a finger wide
    (44 CSS px: UI_finger), and the panel grows to hold it */
-const LOT_tallH = () => { const T = clamp(UI_finger(), 22, 64); return 19 + 5 * T + 16 + 46 + (T + 4) + 5 * T + T + 48; };
-LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W, H) => Math.min(H - 8, UI_tall() ? LOT_tallH() : 272),
+/** the bag held upright: its stack at finger T (what he wears, the doll, the tabs, the bag, the foot); LOT_tallFit shrinks T
+ *  on a short phone (a phone's browser with its bars showing) rather than leave the upright layout */
+const LOT_invNeed = T => 133 + 12 * T;
+LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W, H) => Math.min(H - 8, UI_tall() ? LOT_tallFit(W, H, LOT_invNeed).h : 272),
   open() { LOT_UI.focus = null; LOT_UI.press = null; },
   close() { LOT_UI.press = null; LOT_UI.confirm = null; },
   back: () => LOT_back(),
@@ -515,12 +521,12 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
     LOT_update();
     const pg = pageStep(); if (pg) LOT_statTurn(pg, true);   // (L1 R1, Tab: the bag, then each page of the character sheet, round again)
   },
-  wheel(d) { if (LOT_UI.tab === 'stats') LOT_statTurn(d > 0 ? 1 : -1); },
+  wheel(d) { if (LOT_UI.tab !== 'stats') return; const s = LOT_wheelStep(d), i = LOT_UI.statPage + s; if (s && i >= 0 && i < (LOT_UI.statN || 1)) LOT_statTurn(s); },   // (the wheel stops at the first and last page)
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return;
     LOT_begin(this, x, y, w, hh);
-    const tall = UI_tall() && hh >= LOT_tallH() - 2, T = clamp(UI_finger(), 22, 64), top = y + 19, pad = 7, big = hh >= 226, gap = tall ? 4 : big ? 3 : 2;
-    const F = TOUCH.el && !tall ? clamp(UI_finger(), 0, 30) : 0, SS = tall ? T : Math.max(hh >= 256 ? 25 : big ? 22 : 20, 5 * F + 4 * gap + 63 <= hh - 11 ? F : 0), colH = 5 * SS + 4 * gap;   // (touch buttons showing: slots and cells a finger wide, where they fit)
+    const fit = UI_tall() ? LOT_tallFit(game.W, game.H, LOT_invNeed) : null, tall = !!fit && hh >= fit.h - 2, T = fit ? fit.T : clamp(UI_finger(), 22, 64), top = y + 19, pad = 7, big = hh >= 226, gap = tall ? 4 : big ? 3 : 2;
+    const F = !tall && TOUCH.el && ctlDevice() === 'touch' ? clamp(UI_finger(), 0, 30) : 0, SS = tall ? T : Math.max(hh >= 256 ? 25 : big ? 22 : 20, 5 * F + 4 * gap + 63 <= hh - 11 ? F : 0), colH = 5 * SS + 4 * gap;   // (touch buttons showing: slots and cells a finger wide, where they fit)
     const dw = tall ? w - 2 * pad - 2 * SS - 8 : clamp(Math.round(w * .19), 64, 96), lx = x + pad, dx = lx + SS + 4, rx0 = dx + dw + 4;
     LOT_dollDraw(g, dx, top, dw, colH, h);
     LOT_LEFT.forEach((s, i) => LOT_slotCell(g, lx, top + i * (SS + gap), SS, s, h));
@@ -800,7 +806,7 @@ LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }
     if (T0 === 'gamble') LOT_gambleArea(g, x + pad, ay, lw, ah, h, T);
     else {
       // six to a row, each with its price under it (the normal font on a TV and held upright, where it fits its column)
-      const list = T0 === 'buy' ? LOT_SHOP.stock : LOT_SHOP.buyback, cols = 6, PW = Math.floor((lw - 8) / cols), CS = clamp(PW, 16, T ? Math.max(26, T + 2) : 26), pitch = tall || UI_tv() ? PW : CS;
+      const list = T0 === 'buy' ? LOT_SHOP.stock : LOT_SHOP.buyback, cols = 6, PW = Math.floor((lw - 8) / cols), CS = clamp(PW, 16, T ? Math.max(26, Math.min(T + 2, Math.floor((ah - 6) / 3) - (tall || UI_tv() ? 12 : 8))) : 26), pitch = tall || UI_tv() ? PW : CS;   // (a finger's cell, but never so big the stock's three rows don't fit)
       const rh = CS + (tall || UI_tv() ? 12 : 8), rows = Math.max(1, Math.floor((ah - 6) / rh)), gx = x + pad + Math.floor((lw - pitch * cols + pitch - CS) / 2);
       if (!list.length) { const s = T0 === 'buy' ? 'SOLD OUT. COME BACK AFTER A DESCENT.' : 'NOTHING SOLD YET.'; E.font.text(g, s, x + pad + lw / 2, ay + ah / 2 - 3, '#6a6488', LOT_rf(s, lw - 8, { align: 'center' })); }
       for (let i = 0; i < Math.min(list.length, cols * rows); i++) {
@@ -877,7 +883,7 @@ LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, 
     LOT_npcHeader(g, x + pad, top, lw, 'smith');
     // the anvil: the forge glows behind it and the chosen item floats over it (a touch screen on its side: lower, so the
     // three services fit a finger's size under it)
-    const ay = top + 42, ah = tall ? 66 : T ? 44 : hh >= 250 ? 66 : hh >= 226 ? 58 : 52, cx = x + pad + Math.round(lw / 2);
+    const ay = top + 42, ah = tall ? 66 : T ? clamp(hh - 98 - 3 * Math.max(13, T), 32, 44) : hh >= 250 ? 66 : hh >= 226 ? 58 : 52, cx = x + pad + Math.round(lw / 2);   // (on its side the anvil gives up what the three finger-tall buttons and the foot's line need)
     if (LOT_UI.active) LOT_UI.targets.push({ x: x + pad, y: ay, w: lw, h: ah, kind: 'anvil' });
     E.ui.box(g, x + pad, ay, lw, ah, { bg: ['#2a1810', '#0c0806'], border: '#5a3a2a', shadow: false });
     const [icx, icy] = LOT_forgeScene(g, x + pad, ay, lw, ah, t);
@@ -1181,7 +1187,7 @@ LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 
     for (let i = LOT_ST.motes.length - 1; i >= 0; i--) { const m = LOT_ST.motes[i]; m.t += dt; m.y += m.vy * dt; m.x += Math.sin(m.t * 5 + i) * 4 * dt; if (m.t > m.max) LOT_ST.motes.splice(i, 1); }
     const pg = pageStep(); if (pg) { LOT_ST.tab = (LOT_ST.tab + pg + LOT_STASH_TABS) % LOT_STASH_TABS; sfx('select', { vol: .4 }); }   // (L1 R1, Tab)
   },
-  wheel(d) { LOT_ST.tab = (LOT_ST.tab + (d > 0 ? 1 : LOT_STASH_TABS - 1)) % LOT_STASH_TABS; sfx('select', { vol: .3 }); },
+  wheel(d) { const s = LOT_wheelStep(d); if (!s) return; LOT_ST.tab = (LOT_ST.tab + s + LOT_STASH_TABS) % LOT_STASH_TABS; sfx('select', { vol: .3 }); },
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh);
     // held upright the chest and its tabs stand over the bag, full width; T: a finger's size (upright, or a touch screen,

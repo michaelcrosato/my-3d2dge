@@ -911,8 +911,8 @@ function LOT_pip(g, x, y, it, a) {
 function LOT_rangeText(it, a) { const inf = a.id === 'u' || it.rarity === 4 ? null : affixInfo(it, a); return !inf ? '' : inf.fixed ? 'FIXED' : 'T' + (inf.t + 1) + ' ' + fmtV(inf.lo) + '-' + fmtV(inf.hi); }
 /** the pip legend under a tooltip's lines: the five pip colors, what they mean, and how to see more (tiny, but the
  *  normal font on a TV, the pips and the star kept to the middle of its taller line) */
-function LOT_legend(g, x, y, w, great, adv) {
-  const ft = UI_tf({ outline: false }), py = ft.font ? 1 : 2;
+function LOT_legend(g, x, y, w, great, adv, f) {   // (f: the tooltip's small-line font, the normal one on a TV and held upright)
+  const ft = f || UI_tf({ outline: false }), py = ft.font ? 1 : 2;
   if (adv) { E.font.text(g, 'T# TIER, ITS NAME, ITS RANGE', x, y, '#8a80a8', ft); return; }
   LOT_PIP.forEach((c, i) => { px.rect(g, x + i * 4, y + py, 3, 3, c); px.dot(g, x + i * 4 + 1, y + py, '#ffffff'); });
   let tx = x + 22; const put = (t, c) => { E.font.text(g, t, tx, y, c, ft); tx += E.font.width(t, ft) + 6; };
@@ -1020,7 +1020,7 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   const drawCmp = (cx, cy) => { for (const l of cmp) { if (l.head) { px.rect(g, cx + 6, cy + 1, WT - 12, 1, '#2e2644'); E.font.text(g, l.t, cx + 6, cy + 3, l.c, sf); cy += lh + hd2; continue; } E.font.text(g, l.t, cx + 6, cy, l.c, { outline: false, shadow: '#05040a' }); cy += lh; } };
   if (cmp.length && !side) { drawCmp(bx, yy + 2); yy += cmpH; }
   px.rect(g, bx + 8, yy + 2, WT - 16, 1, '#2e2644'); yy += 5;
-  for (const l of foot) { if (l.legend) LOT_legend(g, bx + 6, yy, WT - 12, great, adv); else E.font.text(g, l.t, bx + 6, yy, l.c, sf); yy += fs; }
+  for (const l of foot) { if (l.legend) LOT_legend(g, bx + 6, yy, WT - 12, great, adv, sf); else E.font.text(g, l.t, bx + 6, yy, l.c, sf); yy += fs; }
   if (side) { E.ui.box(g, cbx, cby, WT, ch, { bg: ['#1a1428', '#0c0818'], border: '#6a5a88', shadow: '#000000' }); drawCmp(cbx, cby + 2); }
 }
 
