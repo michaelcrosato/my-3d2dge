@@ -65,8 +65,9 @@ function updateUI(dt) {
     else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); else if (ED.mode === 'gallery') game.go('title'); }
   else if (P0 && inp.pressed('cancel')) { if (!(P0.back && P0.back())) UI.close(); }
   // a flick sideways on a touch screen takes the panel away the same way (not the tree, which pans by dragging, nor an
-  // item being dragged out of the bag, nor death)
-  else if (P0 && sw && (sw.dir === 'left' || sw.dir === 'right') && P0.id !== 'death' && P0.id !== 'tree' && !LOT_UI.press && !UI.drag) { inp.swipe(true); if (!(P0.back && P0.back())) UI.close(); }
+  // item being dragged out of the bag, nor death, nor a panel in pages that has a page that way: flicks(dir), and its
+  // update turns to it)
+  else if (P0 && sw && (sw.dir === 'left' || sw.dir === 'right') && P0.id !== 'death' && P0.id !== 'tree' && !(LOT_UI.press && LOT_UI.press.it) && !UI.drag && !(P0.flicks && P0.flicks(sw.dir))) { inp.swipe(true); if (!(P0.back && P0.back())) UI.close(); }
   else if (P0 && P0.update) P0.update(dt, UI.stack[UI.stack.length - 1].data);
   else if (!P0 && sw && NT_swipe(sw)) inp.swipe(true);
   // panel hotkeys (toggle); L2 R2 step between the bag, the skills and the passives while one of them is open (how a
