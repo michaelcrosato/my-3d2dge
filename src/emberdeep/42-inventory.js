@@ -62,6 +62,9 @@ const LOT_rf = (s, w, o = {}) => Object.assign({ outline: false }, o, (UI_tv() |
 /** a panel's footer on a TV: in the normal font, the hints that won't fit in w dropped from its end (each footer names the
  *  most needed first: a pad's ○ BACK goes before its ✕). Elsewhere the footer as it is */
 const LOT_footTV = (s, w) => { if (!UI_tv()) return s; const P = s.split('  •  '); while (P.length > 1 && E.font.width(P.join('  •  ')) > w) P.pop(); return P.join('  •  '); };
+/** a price on a TV, in the normal font: the first wording that fits room (8,348, then 8.3K, 455K, 1.2M; the tooltip has it
+ *  whole); off a TV as it always was */
+const LOT_tvGold = (n, room) => { if (!UI_tv() || n < 1000) return fmt(n); const k = [fmt(n), Math.round(n / 100) / 10 + 'K', Math.round(n / 1000) + 'K'].concat(n >= 1e6 ? [Math.round(n / 1e5) / 10 + 'M', Math.round(n / 1e6) + 'M'] : []); return k.find(q => E.font.width(q) <= room) || k[k.length - 1]; };
 /* ---------- a finger's size: the shops on a phone ----------
  * Held upright (UI_tall) a shop stacks its counter (Cobb's stock, Harrow's anvil, Seren's altar, the chest's tabs) over
  * the bag, every cell, tab and button a finger wide (UI_finger: 44 CSS px), with a strip at its foot for a finger's item
@@ -661,7 +664,7 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
 function LOT_powers(g, gx, py, pw, foot, h) {
   if (!h.powers.length && py < foot - 8) { E.font.text(g, 'NO LEGENDARY POWERS YET', gx, py, '#6a6488', UI_tfit('NO LEGENDARY POWERS YET', pw, { outline: false })); E.font.text(g, 'Orange and gold items carry them: each one changes how you fight.', gx, py + 9, '#4a4468', { outline: false, wrap: pw }); }
   if (h.powers.length && py < foot - 8) {
-    const lf = UI_tfit('LEGENDARY POWERS', cols * CS, { outline: false }); E.font.text(g, 'LEGENDARY POWERS', gx, py, '#9a90b0', lf); py += lf.font ? 8 : 10;   // (the normal font on a TV)
+    const lf = UI_tfit('LEGENDARY POWERS', pw, { outline: false }); E.font.text(g, 'LEGENDARY POWERS', gx, py, '#9a90b0', lf); py += lf.font ? 8 : 10;   // (the normal font on a TV)
     let px0 = gx;
     for (const id of h.powers) {
       const p = powerSpec(id); if (!p) continue; const tw = E.font.width(p.name) + 10;
@@ -985,7 +988,7 @@ function LOT_stock(g, bx, ay, lw, ah, h, T, big) {
     LOT_itemCell(g, cx, cy, CS - 1, it, { key: 'stock:' + i, cmp: true, dim: !can, click: () => LOT_buy(h, it, list, price, [cx, cy]), alt: () => LOT_buy(h, it, list, price, [cx, cy]),
       drop: T => { if (T && T.kind === 'bag') LOT_buy(h, it, list, price, [cx, cy], T.i); },
       tipO: { price: { t: (T0 === 'buy' ? 'BUY FOR ' : 'BUY BACK FOR ') + fmt(price) + ' GOLD', c: can ? GOLD : '#ff7a6a' }, hint: [{ t: LOT_foot('CLICK OR DRAG TO THE BAG TO BUY', '{key:confirm}: BUY', 'TAP OR DRAG TO THE BAG TO BUY'), c: '#8a80a8' }] } });
-    const ps = UI_tv() && price >= 1000 && E.font.width(fmt(price)) > pitch - 9 ? Math.round(price / 100) / 10 + 'K' : fmt(price), pf = LOT_rf(ps, pitch - 9), pw0 = E.font.width(ps, pf) + 6, px0 = cx + Math.max(CS - pitch, Math.floor((CS - 1 - pw0) / 2)), py = cy + CS + (pf.font ? 1 : 2);   // (on a TV 8.3K where 8348 won't fit: the tooltip has it whole)
+    const ps = LOT_tvGold(price, pitch - 9), pf = LOT_rf(ps, pitch - 9), pw0 = E.font.width(ps, pf) + 6, px0 = cx + Math.max(CS - pitch, Math.floor((CS - 1 - pw0) / 2)), py = cy + CS + (pf.font ? 1 : 2);   // (on a TV 8.3K or 455K where the whole price won't fit: the tooltip has it whole)
     LOT_coin(g, px0, py + (pf.font ? 0 : 1), true); E.font.text(g, ps, px0 + 6, py, can ? GOLD : '#a04a4a', pf);
   }
 }
@@ -1016,7 +1019,7 @@ function LOT_gambleArea(g, x, y, w, h, hero, T = 0) {   // (T: a finger, the par
     // a parcel tied with string, the silhouette of what might be inside
     const pxx = bx + Math.floor((bw - 2) / 2) - 8, pyy = by + 3; drawItemIconEx(g, LOT_ghost(s), pxx, pyy, 1, { alpha: .6, anim: false });
     E.font.text(g, '?', pxx + 13, pyy - 1, lit ? '#fff6d8' : '#c8a060', { font: 'tiny', outline: '#0c0818' });
-    const cs = fmt(cost), cf = LOT_rf(cs, bw - 16); LOT_coin(g, bx + 3, by + bh - 8); E.font.text(g, cs, bx + 11, by + bh - (cf.font ? 8 : 9), can ? GOLD : '#a04a4a', cf);
+    const cs = LOT_tvGold(cost, bw - 16), cf = LOT_rf(cs, bw - 16); LOT_coin(g, bx + 3, by + bh - 8); E.font.text(g, cs, bx + 11, by + bh - (cf.font ? 8 : 9), can ? GOLD : '#a04a4a', cf);
   });
   if (R && R.t < 2.2) {   // the reveal: the parcel bursts and the item spins in, framed in its rarity
     const cx = x + w / 2, cy = y + 5 + 2 * (bh + 3) + Math.max(18, (h - 2 * (bh + 3) - 8) / 2), u = clamp(R.t / .45, 0, 1), it = R.it, rc = RARITY[it.rarity].color, a = R.t > 1.8 ? (2.2 - R.t) / .4 : 1;
@@ -1110,7 +1113,7 @@ function LOT_forge(g, bx, ay, lw, ah, h, T, nc) {
     drawItemIconEx(g, it, ix, iy, 2);
     if (LOT_SMITH.flash > 0) px.blend(g, LOT_SMITH.flash / .15, 'add', () => px.ell(g, icx, iy + 16, 16, 16, '#fff0c0'));
     const over = LOT_hot(ix, iy, 32, 32, {}); if (over && !UI.keyNav) LOT_UI.tip = { it, anchor: [ix, iy, 32, 32], o: { equipped: !!LOT_worn(h, it), compare: false } };
-  } else { const s = 'PICK AN ITEM FROM YOUR BAG', hw = E.font.width(s) / 2; E.font.text(g, s, UI_tv() ? clamp(icx, x + pad + 4 + hw, x + pad + lw - 4 - hw) : icx, ay + 8, '#c89a6a', LOT_rf(s, lw - 8, { align: 'center', outline: '#0c0806' })); }   // (on a TV kept inside the box: the anvil stands left of its middle)
+  } else { const s = 'PICK AN ITEM FROM YOUR BAG', hw = E.font.width(s) / 2; E.font.text(g, s, UI_tv() ? clamp(icx, bx + 4 + hw, bx + lw - 4 - hw) : icx, ay + 8, '#c89a6a', LOT_rf(s, lw - 8, { align: 'center', outline: '#0c0806' })); }   // (on a TV kept inside the box: the anvil stands left of its middle)
   // the name and the three services
   let by = ay + ah + 3;
   if (it) { const lv = 'ITEM LEVEL ' + it.ilvl + (LOT_worn(h, it) ? '  •  WORN' : ''); E.font.text(g, it.name.length > nc ? it.name.slice(0, nc - 1) + '.' : it.name, cx, by, RARITY[it.rarity].color, { align: 'center', outline: false, shadow: '#05040a' }); E.font.text(g, lv, cx, by + 9, '#8a80a8', LOT_rf(lv, lw, { align: 'center' })); }

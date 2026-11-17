@@ -74,7 +74,17 @@ function updateUI(dt) {
   if (inp.pressed('click')) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
   if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
   if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
-  const P0 = UI.top(), sw = inp.swipe();
+  const P0 = UI.top(); let sw = inp.swipe();
+  // a sideways flick on a loot panel is never a press, however fast (the finger may lift before a step sees it move): a
+  // button, a tab or a parcel it began on doesn't act; an item it began on is a drag only where it ends on a place an item
+  // goes (a worn slot, the counter that sells, the anvil, a stash tab), and is otherwise let go where it was, never
+  // clicked nor dropped on the ground, while the flick turns the page or does nothing
+  const LP = sw && (sw.dir === 'left' || sw.dir === 'right') && P0 && LOT_UI.press;
+  if (LP && !LP.it) LP.moved = true;
+  else if (LP) {
+    if (LOT_UI.targets.some(t => (t.kind === 'slot' || t.kind === 'sell' || t.kind === 'anvil' || t.kind === 'stashTab') && LOT_in(UI.mouse, t.x, t.y, t.w, t.h))) { LP.moved = true; inp.swipe(true); sw = null; }
+    else { LOT_UI.press = null; if (!(P0.flicks && P0.flicks(sw.dir))) { inp.swipe(true); sw = null; } }
+  }
   // ○ (Esc) backs out one layer: a panel's back() takes it first (a skill waiting for its slot, the tree's totals, a
   // sale waiting to be confirmed), then the panel closes. Death has no way back: it asks for a choice
   if (inp.pressed('pause') && !(P0 && inp.pressed('cancel'))) { if (P0) UI.close();   // (Options closes a panel whole; Esc, pause and cancel at once, backs out a layer as ○ does)

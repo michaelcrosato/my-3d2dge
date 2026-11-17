@@ -114,7 +114,7 @@ class DualSense {
     if (o.mic && !S.spec('mic')) S.define({ key: 'mic', group: 'Controller', label: 'Microphone', help: 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent', type: 'toggle', value: false, locked: () => this.allowed.mic ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._micOn(v) });
   }
   /** the triggers free and the light bar back to blue: a scene's exit, so the next starts clean */
-  clear() { this._want.left = this._want.right = null; this._want.light = this._hub ? null : '#3050ff'; if (this._hub && this.connected && this._may.light) this._hub.dualsense.light(null); this._push(); return this; }   // (in 52in1 the light goes back to the hub's glow)
+  clear() { this._want.left = this._want.right = null; this._want.light = this._hub ? null : '#3050ff'; if (this._hub) try { this._hub.dualsense.light(null); } catch (e) { /* the hub's gone */ } this._push(); return this; }   // (in 52in1 the light goes back to the hub's glow, whatever its Settings say now)
   /** the light bar's colour ('#rrggbb'; null leaves it as it is) */
   light(color) { this._want.light = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : null; this._push(); return this; }
   /** the player lights: 0..3 for players 1 to 4, -1 off */
@@ -184,13 +184,19 @@ class DualSense {
     if (this.game.paused !== this._paused) { this._paused = this.game.paused; this._push(); }   // (the triggers freed under a pause, back after it)
     if (this._hub && this.connected) {   // (52in1 sends the turn, in degrees a second, and the fingers; the gyro is read only while gyro aim is on, so the hub's own Motion aim keeps the stick until then)
       const P = this._hub.dualsense, gy = GYRO[this.game.settings.gyro] && this._o.gyro && this._may.gyro ? P.gyro : null;
-      this._rate = gy ? [gy.x, gy.y, gy.z].map(r => Math.abs(+r || 0) < 1.5 ? 0 : +r) : [0, 0, 0];
+      if (gy) {   // (its drift learned while the controller lies still, as over WebHID: still under 5 degrees a second, a hair's noise under 1.5 none)
+        const v = [+gy.x || 0, +gy.y || 0, +gy.z || 0], calm = v.every((r, i) => Math.abs(r - this._bias[i]) < 5);
+        this._still = calm ? this._still + dt : 0; if (this._still > .8) for (let i = 0; i < 3; i++) this._bias[i] += (v[i] - this._bias[i]) * .05;
+        this._rate = v.map((r, i) => Math.abs(r - this._bias[i]) < 1.5 ? 0 : r - this._bias[i]);
+      } else this._rate = [0, 0, 0];
       this.touches = (P.touches || []).map(q => ({ x: +q.x || 0, y: +q.y || 0 }));
     } else if (this.connected) {
       const d = this._raw.map((r, i) => r - this._bias[i]), calm = d.every(x => Math.abs(x) < 80);   // (still: under about 5 degrees a second)
       this._still = calm ? this._still + dt : 0; if (this._still > .8) for (let i = 0; i < 3; i++) this._bias[i] += (this._raw[i] - this._bias[i]) * .05;
       this._rate = this._raw.map((r, i) => Math.abs(r - this._bias[i]) < 24 ? 0 : (r - this._bias[i]) / 16.384);   // (degrees a second; a hair's noise, under 1.5, is none)
     }
+    const SS = E.session;   // (a recorded session keeps what the controller said, and a replay hears it again: E.session.stream)
+    if (SS && (SS.recording || SS.replaying) && SS.stream) { const v = SS.stream('dualsense', [this.connected ? 1 : 0, this._may.gyro ? 1 : 0, this._rate, this.touches]); if (SS.replaying) { this.connected = this.allowed.hid = !!v[0]; this._may.gyro = !!v[1]; this._rate = v[2]; this.touches = v[3]; } }
     if (this.connected) {
       const p = this.touches[0], f = this._flick;
       if (p && !f) this._flick = { x: p.x, y: p.y, t: 0, x1: p.x, y1: p.y };
@@ -245,13 +251,15 @@ class DualSense {
   }
   // the microphone on or off: its level read from an analyser on the game's sound (granted already: no prompt)
   async _micOn(on) {
+    const my = this._micGen = (this._micGen || 0) + 1;   // (only the latest call keeps a stream: an on, off, on while one opens leaves none behind)
     if (this._stream) { for (const t of this._stream.getTracks()) t.stop(); this._stream = null; }
     this._an = null; this._level = 0;
     if (!on || !this.allowed.mic || !navigator.mediaDevices) return;
     try {
-      const st = this._stream = this._hub ? await this._hub.openMicrophone() : await navigator.mediaDevices.getUserMedia({ audio: this._micId ? { deviceId: { exact: this._micId } } : true });   // (52in1's: the DualSense's microphone when it is plugged in)
-      if (!st) { this._stream = null; return; }
-      if (!this.game.settings.mic || !this.allowed.mic || !this.game.audio.bus('master')) { for (const t of st.getTracks()) t.stop(); this._stream = null; return; }
+      const st = this._hub ? await this._hub.openMicrophone() : await navigator.mediaDevices.getUserMedia({ audio: this._micId ? { deviceId: { exact: this._micId } } : true });   // (52in1's: the DualSense's microphone when it is plugged in)
+      if (!st) return;
+      if (my !== this._micGen || !this.game.settings.mic || !this.allowed.mic || !this.game.audio.bus('master')) { for (const t of st.getTracks()) t.stop(); return; }
+      this._stream = st;
       const c = this.game.audio.ctx, an = c.createAnalyser(); an.fftSize = 512; c.createMediaStreamSource(st).connect(an); this._buf = new Float32Array(512); this._an = an;
     } catch (e) { this._an = null; }
   }

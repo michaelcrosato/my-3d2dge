@@ -10958,7 +10958,8 @@ class GPULighting {
  *    E.session.record(true) (or ?record=1 for one load) records from the next page load on, starting before the game's
  *    code, so it sees all the game sees: a seed for Math.random, every display frame's time (performance.now and
  *    Date.now read that time during the frame), every input event and the frame it arrived before (keys, pointer,
- *    wheel, clicks and form edits, focus, visibility, resize, full screen), gamepad readings, the media queries the game
+ *    wheel, clicks and form edits, focus, visibility, resize, full screen), gamepad readings (and what a module reads from
+ *    elsewhere, through E.session.stream: a DualSense's motion), the media queries the game
  *    asked, the safe-area insets, the screen's size and the save (localStorage) at the start, plus a checksum every 60
  *    frames. E.session.save() returns it as JSON; E.session.share() hands it to the phone's share sheet (or downloads
  *    it). node tools/replay.mjs session.json plays it back headless, frame by frame, and stops at the first checksum
@@ -11168,6 +11169,10 @@ const SESSION = (() => {
   S.record = on => { try { if (on) localStorage.setItem('my3d2dge:record', '1'); else localStorage.removeItem('my3d2dge:record'); } catch (e) { /* no storage */ } return !!on; };
   /** true when recording is on for page loads (record(true)) */
   S.wanted = () => { try { return localStorage.getItem('my3d2dge:record') === '1'; } catch (e) { return false; } };
+  /** a value the game reads from outside the page's events (a DualSense's motion, over WebHID or from 52in1): stream(name,
+   *  value) returns value; while recording it is kept when it changes, and in a replay the recorded one comes back, read
+   *  by read, as the gamepads' readings do. Call it once a step, recording or not, so the reads line up */
+  S.stream = (name, v) => v;
   if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') return S;
   const R = window.__my3d2dgeReplay || null;
   if (!R && !(S.wanted() || /[?&]record=1\b/.test(location.search))) return S;
@@ -11225,6 +11230,16 @@ const SESSION = (() => {
   let gpCalls = 0, gpLast = '', gpAt = 0, gpCur = [];
   const padSnap = pads => Array.from(pads || []).filter(Boolean).map(p => [p.index, p.id, p.connected !== false ? 1 : 0, Array.from(p.axes), p.buttons.map(b => [b.pressed ? 1 : 0, b.value])]);
   const padObj = s => ({ index: s[0], id: s[1], connected: !!s[2], mapping: 'standard', timestamp: 0, axes: s[3].slice(), buttons: s[4].map(b => ({ pressed: !!b[0], touched: !!b[0], value: b[1] })) });
+  // a module's own readings (S.stream): kept when they change, given back read by read
+  if (!rec.streams) rec.streams = {};
+  const stCalls = {}, stLast = {}, stAt = {}, stCur = {};
+  S.stream = (name, v) => {
+    const n = stCalls[name] || 0; stCalls[name] = n + 1;
+    if (!R) { const k = JSON.stringify(v); if (k !== stLast[name]) { (rec.streams[name] || (rec.streams[name] = [])).push([n, JSON.parse(k)]); stLast[name] = k; } return v; }
+    const L = rec.streams[name] || []; let at = stAt[name] || 0;
+    while (at < L.length && L[at][0] <= n) stCur[name] = L[at++][1];
+    stAt[name] = at; return name in stCur ? stCur[name] : v;
+  };
   if (realGP) fixed(navigator, 'getGamepads', () => {
     if (!R) { const pads = realGP(), snap = padSnap(pads), k = JSON.stringify(snap); if (k !== gpLast) { rec.pads.push([gpCalls, snap]); gpLast = k; } gpCalls++; return pads; }
     while (gpAt < R.pads.length && R.pads[gpAt][0] <= gpCalls) gpCur = R.pads[gpAt++][1].map(padObj);

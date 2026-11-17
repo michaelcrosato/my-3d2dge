@@ -153,7 +153,9 @@ function legendLines() {
  *  they need (the title menu stands on it) */
 function legendRows() {
   const L = legendLines(); if (!UI_tv()) return [L, 7, 21];
-  const R = L.flatMap(l => E.font.wrap(l, game.W - 12)); return [R, 9, R.length * 9 + 5];
+  // (on a TV the normal font: a line too wide breaks between its key-and-action groups, never inside one: 'L2 POTION' stays whole)
+  const room = game.W - 12, pack = l => { const out = []; let cur = ''; for (const gp of l.split('  •  ')) { const t = cur ? cur + '  •  ' + gp : gp; if (!cur || E.font.width(t) <= room) cur = t; else { out.push(cur); cur = gp; } } if (cur) out.push(cur); return out.flatMap(r => E.font.width(r) > room ? E.font.wrap(r, room) : [r]); };
+  const R = L.flatMap(pack); return [R, 9, R.length * 9 + 5];
 }
 function legend(g, cx, Hb) {
   const [R, lh, bh] = legendRows(), f = UI_tf({ align: 'center', outline: false });

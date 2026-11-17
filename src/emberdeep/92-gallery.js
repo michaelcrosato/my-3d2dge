@@ -294,8 +294,8 @@ const galleryScene = {
       const dev = ctlDevice(), K = a => keyLabel(a, true, dev);   // the keys of the device in use (the touch bar names its own)
       // the keys line: tiny; on a TV the normal font, on two lines where one won't hold it (the description then keeps one)
       const fs = (GAL.i + 1) + ' / ' + items.length + (dev === 'touch' ? '   SWIPE TO PICK   SLOW' + (GAL.slow ? ' (ON)' : '') : '   ' + K('menuLeft') + ' ' + K('menuRight') + ' pick   ' + K('menuUp') + ' ' + K('menuDown') + ' reel   ' + K('confirm') + ' replay   ' + (dev === 'gamepad' ? K('alt') : K('labels')) + ' slow' + (GAL.slow ? ' (ON)' : '') + (dev === 'gamepad' ? '' : '   ' + K('camView') + ' view') + '   ' + K('cancel') + ' back'), ff = UI_tf({ align: 'center', outline: false }), fl = ff.font ? [fs] : E.font.wrap(fs, W - 12).slice(0, 2);
-      E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, fl.length > 1 ? 1 : 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
-      fl.forEach((l, i) => E.font.text(g, l, cx, H - (ff.font ? 6 : 8) - (fl.length - 1 - i) * 9, '#a89ec8', ff));
+      E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, fl.length > 1 ? 1 : 2).forEach((l, i) => E.font.text(g, l, cx, H - (ff.font ? 25 : 28) + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
+      fl.forEach((l, i) => E.font.text(g, l, cx, H - (ff.font ? 6 : 10) - (fl.length - 1 - i) * 9, '#a89ec8', ff));   // (the normal font's descenders need two rows more: on a TV the keys and the description stand 2 and 3 px higher)
     } finally { HUD_out(g); } });
     drawPanels(r);
   }

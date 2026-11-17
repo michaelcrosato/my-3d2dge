@@ -716,9 +716,10 @@ try {
 				};
 				Object.defineProperty(pad, "gyro", { get: () => (gyroReads++, { x: 0, y: 40, z: 0 }) });
 				Object.defineProperty(pad, "touches", { get: () => fingers });
-				Object.assign(api, { version: 1, music: 1, effects: 1, vibration: 1, mic: false, muted: false, dualsense: pad, openMicrophone: () => Promise.resolve(null) });
+				let mics = 0;
+				Object.assign(api, { version: 1, music: 1, effects: 1, vibration: 1, mic: false, muted: false, dualsense: pad, openMicrophone: () => (mics++, Promise.resolve(null)) });
 				window.AIHubSettings = api;
-				window.__hub = { calls, pad, gyroReads: () => gyroReads, fingers: (f) => (fingers = f), tell: () => api.dispatchEvent(new Event("change")) };
+				window.__hub = { calls, pad, api, gyroReads: () => gyroReads, mics: () => mics, fingers: (f) => (fingers = f), tell: () => api.dispatchEvent(new Event("change")) };
 				window.__hidTouched = false;
 				Object.defineProperty(Navigator.prototype, "hid", { configurable: true, get() { window.__hidTouched = true; return undefined; } });
 			});
@@ -765,6 +766,30 @@ try {
 			await step(3);
 			const sw = await p.evaluate(() => window.__sw || null);
 			assert.equal(sw, "right", "a flick on the touchpad from the hub's fingers");
+			// 52in1's Light bar off: the row locked, and no colour of the game's reaches the hub
+			const lb = await p.evaluate(() => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub;
+				H.pad.lightbar = false; H.tell(); const n = H.calls.length; ds.light("#00ff00");
+				const out = { lock: g.settings.spec("padLight").locked(g), sent: H.calls.slice(n).filter((c) => c[0] === "light" && c[1]) };
+				H.pad.lightbar = true; H.tell(); return out;
+			});
+			assert.match(lb.lock || "", /52in1/, "52in1 keeps the light bar from games: its row is locked and says where");
+			assert.deepEqual(lb.sent, [], "and no colour of the game's is sent");
+			// the microphone: its row opens only once 52in1 lets games hear it, and only then is it opened
+			const mic = await p.evaluate(async () => {
+				const g = window.__ed.game, S = g.settings, H = window.__hub, wait = () => new Promise((r) => setTimeout(r, 50));
+				My3D2dge.DualSense.attach(g, { mic: true });
+				const out = { before: S.spec("mic").locked(g) };
+				S.set("mic", true); await wait(); out.opensBefore = H.mics();
+				H.api.mic = true; H.tell(); await wait(); out.after = S.spec("mic").locked(g); out.opensAfter = H.mics();
+				H.api.mic = false; H.tell(); out.again = S.spec("mic").locked(g); S.set("mic", false);
+				return out;
+			});
+			assert.match(mic.before || "", /52in1/, "the microphone's row is locked until 52in1 lets games hear it");
+			assert.equal(mic.opensBefore, 0, "and the game never asks for it then, even with its own row on");
+			assert.equal(mic.after, null, "allowed in 52in1: the row opens");
+			assert.equal(mic.opensAfter, 1, "and the microphone is opened through the hub, once");
+			assert.match(mic.again || "", /52in1/, "taken back in 52in1: locked again");
 			// 52in1's DualSense gone: every row locked again, the light given back
 			const r3 = await p.evaluate(() => { const g = window.__ed.game, H = window.__hub; H.pad.connected = false; H.tell(); return { light: g.settings.spec("padLight").locked(g), connected: My3D2dge.DualSense.attach(g).connected }; });
 			assert.equal(r3.connected, false);
