@@ -1904,3 +1904,23 @@ An entry:
   the accident the swipe rule invites.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+
+## D109 · 2026-11-17 · Emberdeep on a phone: pages on its side too, a list for a crowd of stars, no tapping loot labels
+
+- **Principle:** the controls standard (D100): touch on a phone held either way, "redesigned from the ground up if needed";
+  docs/CONTROLS.md rule 7, every target a thumb presses at least 44 CSS px
+- **Call:** a sweep of every Emberdeep screen at twelve phone sizes, held either way, found targets down to 9 CSS px.
+  - Held on its side, the loot panels go into pages laid out for a short, wide screen, decided by the touch buttons being
+    up rather than by the device, so L1 R1 and Tab reach them too.
+  - In the passive tree a tap within half a finger of several stars opens a list of them, one thumb-tall row each,
+    rather than taking the nearest.
+  - Loot labels on the ground are not tap targets under a finger (stacked 9 px apart, no finger can tell them apart):
+    walking takes loot, and USE offers Pick up for what walking won't.
+  - A setting's name is a `<label>`, so a click or a tap on its row turns its switch.
+  - The waystone's depths and the touch Settings act as the finger lifts, so a drag scrolls and a flick never descends.
+  - The title menu on its side stands in two columns.
+- **Why:** a target a finger can't hit alone is the standard's floor; shrinking or guessing the nearest is what it rules
+  out.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
+

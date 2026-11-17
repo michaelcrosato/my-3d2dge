@@ -806,18 +806,34 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : D
     });
   } });
 /* the waystone's list: the panel is as tall as its depths need (it scrolls past ten). ONE row is lit: the focus, which
-   the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view */
-const WAY = { top: 0 };
-UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : 200, 52 + (UI_tv() ? 4 : 0) + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * (UI_rowH() + 1)), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
-  const rs = UI_rowH() + 1, rb = rs - 3;   // (a row's step and its button: a finger's held upright)
+   the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view.
+   With the touch buttons up every row is a finger tall, held either way, and the panel takes the screen's height on its
+   side; under a finger a row acts when it lifts where it pressed, and a finger dragged up or down scrolls the list */
+const WAY = { top: 0, rows: 1, press: null };
+/** a row's step and its button: a finger's with the touch buttons up, else a menu row's (UI_rowH: a finger's held upright) */
+const WAY_rows = () => { if (!TOUCH.el) return [UI_rowH() + 1, UI_rowH() - 2]; const F = Math.max(UI_finger(), 16); return [F + 3, F]; };
+/** a finger on a row: its press, then the drag that scrolls the list (more than 6 px and it is no tap) */
+const WAY_press = k => (mx, my) => {
+  const P = WAY.press; if (!P) { WAY.press = { k, x: mx, y: my, s: WAY.top, moved: 0 }; return; }
+  P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); if (P.moved <= 6) return;
+  const n = ED.hero ? waystoneDepths(ED.hero).length : 1; WAY.top = clamp(Math.round(P.s - (my - P.y) / WAY_rows()[0]), 0, Math.max(0, n - WAY.rows));
+  UI.focus = clamp(UI.focus || 0, WAY.top, WAY.top + WAY.rows - 1);   // (the focus stays in view, so the list stays where the finger left it)
+};
+UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : TOUCH.el ? H : 200, 52 + (UI_tv() ? 4 : 0) + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * WAY_rows()[0]), open() { WAY.top = 0; WAY.press = null; }, draw(g, x, y, w, h) {
+  const [rs, rb] = WAY_rows(), lifts = ctlDevice() === 'touch';   // (a row's step and its button; lifts: under a finger)
   const sf = UI_tf({ align: 'center', outline: false }), sl = sf.font ? 7 : 9;   // (the line under the title: the normal font on a TV, the panel 4 px taller for it)
   const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, sf).slice(0, 2);
   sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * sl, '#9a90b0', sf));
   const top = y + 21 + sub.length * sl, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
-  WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top;
-  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name; if (button(g, x + 12, top + i * rs, w - 24, rb, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k; });
+  WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top; WAY.rows = rows;
+  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name, l = label.length > 34 ? label.slice(0, 33) + '.' : label; if (button(g, x + 12, top + i * rs, w - 24, rb, l, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k;
+    if (lifts) hot(x + 12, top + i * rs, w - 24, rb, { label: l, drag: WAY_press(k) }); });   // (over the button: a finger's press, its lift in update)
   if (list.length > rows) { const th = Math.max(6, Math.round((rows * rs - 3) * rows / list.length)), ty = top + Math.round((rows * rs - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * rs - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }
-}, update() { const list = waystoneDepths(ED.hero); menuKeys(list.length, i => { UI.closeAll(); descend(list[i]); }); },
+}, update() {
+  const list = waystoneDepths(ED.hero), P = WAY.press;
+  if (P && !UI.mouse.down) { WAY.press = null; if (P.moved <= 6 && list[P.k] !== undefined) { sfx('confirm', { vol: .6 }); UI.closeAll(); descend(list[P.k]); return; } }   // (a finger lifted where it pressed: that depth)
+  menuKeys(list.length, i => { UI.closeAll(); descend(list[i]); });
+},
   wheel(d) { const n = waystoneDepths(ED.hero).length; UI.focus = clamp((UI.focus || 0) + Math.sign(d), 0, n - 1); UI.keyNav = true; } });
 function waystoneDepths(h) { const s = new Set([1]); for (let d = 5; d <= h.maxDepth; d += 5) s.add(d); s.add(h.maxDepth); if (ED.savedLevel) s.delete(0); return [...s].sort((a, b) => b - a); }
 /* the UI's state for tests and tools: window.__edUI.notify('TEXT', '#fff', 3), .feed (the sorted notices), .run */
