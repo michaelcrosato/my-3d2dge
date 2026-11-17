@@ -701,6 +701,102 @@ try {
 		},
 	);
 	await check(
+		"A finger's tap follows its own finger: the first after a mouse or a pad, another finger landing or lifting meanwhile, a hit-stop, the waystone with the touch buttons hidden",
+		async () => {
+			// a hot rect's middle in page pixels; what the top panel shows; touch points by CDP ([id, x, y]: a touchEnd that
+			// lists points lifts those alone)
+			const mid = (p, r) => p.evaluate((r) => { const sc = __ed.game.screen, rc = sc.canvas.getBoundingClientRect(); return [rc.left + ((r.x + r.w / 2) * sc.S + sc.OX - Math.round(sc.fx * sc.S)) / sc.dpr, rc.top + ((r.y + r.h / 2) * sc.S + sc.OY - Math.round(sc.fy * sc.S)) / sc.dpr]; }, r);
+			const hotBy = (p, label) => p.evaluate((l) => { const h = __ed.UI.hot.find((q) => q.label === l); return h && { x: h.x, y: h.y, w: h.w, h: h.h }; }, label);
+			const shown = (p) => p.evaluate(() => { const t = __ed.UI.top(); return t ? [t.id, __ed.UI.data(t.id) || null] : null; });
+			const fingers = (cdp) => (type, pts) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: pts.map(([id, x, y]) => ({ id, x, y })) });
+			// 1. a touch laptop or a tablet: the HUD and the loot panels lay out for the device in use, so a finger lands on
+			// what the mouse's or the pad's layout drew and is held over its own; its first tap still acts on what it pressed
+			const lap = await browser.newContext({ viewport: { width: 1024, height: 768 }, deviceScaleFactor: 2, hasTouch: true });
+			let p = await lap.newPage();
+			track(p);
+			await ready(p);
+			let T = fingers(await lap.newCDPSession(p));
+			for (const prev of ["mouse", "gamepad"]) {
+				await p.evaluate(() => __ed.UI.closeAll());
+				if (prev === "mouse") { await p.mouse.move(500, 300); await p.mouse.move(560, 340, { steps: 3 }); }
+				else await p.evaluate(() => { __ed.game.input.lastDevice = "gamepad"; });
+				await p.waitForTimeout(300);
+				const slot = await p.evaluate(() => { const H = __ed.game.screen.H, s = __ed.UI.hot.filter((h) => h.click && h.y > H - 70 && h.w < 30 && h.w === h.h).sort((a, b) => a.x - b.x)[2]; return s && { x: s.x, y: s.y, w: s.w, h: s.h }; });
+				assert.ok(slot, prev + ": the HUD's six skill slots");
+				const [x, y] = await mid(p, slot);
+				await T("touchStart", [[1, x, y]]);
+				await p.waitForTimeout(150);
+				await T("touchEnd", []);
+				await p.waitForTimeout(400);
+				assert.deepEqual(await shown(p), ["skills", { slot: 2 }], "after the " + prev + ", a finger's first tap on skill slot 3 opens Skills at it (its SKILL BAR is drawn over the slots while it is down)");
+			}
+			await p.evaluate(() => __ed.UI.closeAll());
+			await p.mouse.move(500, 300);
+			await p.mouse.move(560, 340, { steps: 3 });
+			await p.evaluate(() => __ed.UI.open("inventory"));
+			await p.waitForTimeout(400);
+			const tab = await p.evaluate(() => { const n = __edLoot.ui.navLast.find((q) => q.key === "tab:stats"); return n && { x: n.x, y: n.y, w: n.w, h: n.h }; });
+			const [tx, ty] = await mid(p, tab);
+			assert.equal(await p.evaluate(() => __edLoot.ui.tab), "bag");
+			await T("touchStart", [[1, tx, ty]]);
+			await p.waitForTimeout(150);
+			await T("touchEnd", []);
+			await p.waitForTimeout(400);
+			assert.equal(await p.evaluate(() => __edLoot.ui.tab), "stats", "after the mouse, a finger's first tap on the CHARACTER tab turns to it (the tab grows a finger tall while it is down)");
+			assert.deepEqual(await p.evaluate(() => __ed.game.errors), []);
+			await lap.close();
+			// 2. a phone on its side: the left thumb on the stick (lifting or landing) while the right taps the HUD; a hit-stop
+			const phone = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+			p = await phone.newPage();
+			track(p);
+			await ready(p);
+			T = fingers(await phone.newCDPSession(p));
+			const S = [210, 230];
+			await T("touchStart", [[9, ...S]]);
+			await p.waitForTimeout(120);
+			await T("touchEnd", []);
+			await p.waitForTimeout(500);
+			const B = await mid(p, await hotBy(p, "SKILL BAR")), C = await mid(p, await hotBy(p, "POINTS"));
+			const runs = [
+				["the stick lifts during a tap on SKILL BAR", B, async (P) => { await T("touchStart", [[1, ...S]]); await p.waitForTimeout(150); await T("touchStart", [[1, ...S], [2, ...P]]); await p.waitForTimeout(120); await T("touchEnd", [[1, ...S]]); await p.waitForTimeout(150); await T("touchEnd", [[2, ...P]]); }],
+				["the stick lifts during a tap on the points chip", C, async (P) => { await T("touchStart", [[1, ...S]]); await p.waitForTimeout(150); await T("touchStart", [[1, ...S], [2, ...P]]); await p.waitForTimeout(120); await T("touchEnd", [[1, ...S]]); await p.waitForTimeout(150); await T("touchEnd", [[2, ...P]]); }],
+				["the stick lands during a tap on SKILL BAR", B, async (P) => { await T("touchStart", [[2, ...P]]); await p.waitForTimeout(120); await T("touchStart", [[2, ...P], [1, ...S]]); await p.waitForTimeout(150); assert.ok(await p.evaluate(() => __ed.game.input.stickOn), "the thumb steers"); await T("touchEnd", [[2, ...P]]); await p.waitForTimeout(150); await T("touchEnd", []); }],
+				// (the input's step runs in a hit-stop, the scene's doesn't: the press waits for the first step in play)
+				["a tap on SKILL BAR in a hit-stop", B, async (P) => { await p.evaluate(() => { __ed.game.hitstop = 0.4; }); await T("touchStart", [[1, ...P]]); await p.waitForTimeout(60); await T("touchEnd", []); await p.waitForTimeout(500); }],
+			];
+			for (const [name, P, run] of runs) {
+				await p.evaluate(() => __ed.UI.closeAll());
+				await p.waitForTimeout(250);
+				await run(P);
+				await p.waitForTimeout(300);
+				assert.equal((await shown(p))?.[0], "skills", name + " opens Skills");
+			}
+			// and what made the press wait for the tap still holds: a flick begun on SKILL BAR opens nothing
+			await p.evaluate(() => __ed.UI.closeAll());
+			await p.waitForTimeout(250);
+			await T("touchStart", [[1, ...B]]);
+			for (let k = 1; k <= 4; k++) { await p.waitForTimeout(8); await T("touchMove", [[1, B[0] - k * 20, B[1] - k * 15]]); }
+			await T("touchEnd", []);
+			await p.waitForTimeout(400);
+			assert.equal(await shown(p), null, "a flick begun on SKILL BAR opens nothing");
+			// 3. the waystone with the touch buttons hidden (Settings, Controls): a finger dragged up its list scrolls it
+			await p.evaluate(() => { __ed.UI.closeAll(); __ed.CONTROL.touch = "off"; __ed.ED.hero.maxDepth = 70; __ed.UI.open("waystone"); });
+			await p.waitForTimeout(400);
+			const rows = await p.evaluate(() => __ed.UI.hot.filter((h) => /^DEPTH/.test(h.label || "")).map((h) => ({ x: h.x, y: h.y, w: h.w, h: h.h, l: h.label })));
+			const [x0, y0] = await mid(p, rows[rows.length - 1]), [x1, y1] = await mid(p, rows[0]);
+			await T("touchStart", [[1, x0, y0]]);
+			await p.waitForTimeout(60);
+			for (let k = 1; k <= 12; k++) { await T("touchMove", [[1, x0 + ((x1 - x0) * k) / 12, y0 + ((y1 - y0) * k) / 12]]); await p.waitForTimeout(40); }
+			await T("touchEnd", []);
+			await p.waitForTimeout(400);
+			const way = await p.evaluate(() => ({ first: (__ed.UI.hot.find((h) => /^DEPTH/.test(h.label || "")) || {}).label, open: __ed.UI.top()?.id, mode: __ed.ED.mode, buttons: !!document.querySelector(".ed-touch") }));
+			assert.ok(!way.buttons && way.open === "waystone" && way.mode === "town" && way.first !== rows[0].l, "the touch buttons hidden, a finger's drag scrolls the waystone and descends nowhere: " + JSON.stringify(way));
+			await p.evaluate(() => { __ed.CONTROL.touch = "auto"; });
+			assert.deepEqual(await p.evaluate(() => __ed.game.errors), []);
+			await phone.close();
+		},
+	);
+	await check(
 		"inside 52in1 the DualSense comes through the hub's channel (AIHubSettings), each extra only while its Settings allow it, never WebHID",
 		async () => {
 			const hubCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });

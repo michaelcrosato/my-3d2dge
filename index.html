@@ -23755,7 +23755,7 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   // the chrome, so the bars, the overview and the totals (drawn over it, topmost) take their own clicks
   const pan = (mx, my) => {
     if (game.input.pinching || UI.fingers.size > 1) { const d = V.drag; if (d) Object.assign(d, { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 99 }); return; }   // (two fingers pinch: no pan, and no star chosen when they lift)
-    if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my), down: UI.mouse.down }; return; }   // (a finger's tap is worked out when it lifts: PRG_fingerTap. down: a step saw it pressed)
+    if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my), finger: UI.mouse.finger, pid: UI.mouse.id }; return; }   // (a finger's tap is worked out when it lifts: PRG_fingerTap. finger, pid: what pressed, and its pointer)
     const d = V.drag; d.moved = Math.max(d.moved, Math.abs(mx - d.x) + Math.abs(my - d.y));
     if (d.moved > 3) { V.cx = d.cx - (mx - d.x) / V.z; V.cy = d.cy - (my - d.y) / V.z; V.anchor = null; V.go = null; }
   };
@@ -23949,11 +23949,11 @@ function PRG_treeUpdate(dt) {
   // a tap (no drag) on a star: the mouse allocates at once; a finger chooses it first (its tooltip, ALLOCATE and TAKE
   // BACK at the bottom: a star is small under a finger), and a second tap on it allocates; a finger's button acts (d.act).
   // A tap lifts where it pressed: where the pointer lifted counts as well as what the steps saw (in a hitch a pan's
-  // moves and its lift may all come between two steps), and a finger's press no step saw down (the whole gesture between
-  // two steps: where it landed is unknown) is a tap only where the engine saw one (input.clicked(): lifted within a few
-  // pixels of where it landed), so no pan or flick buys a star
-  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; d.moved = Math.max(d.moved, Math.abs(UI.mouse.x - d.x) + Math.abs(UI.mouse.y - d.y)); const tap = d.moved <= 3 && (ctlDevice() !== 'touch' || d.down || !!inp.clicked());
-    if (tap && d.act) d.act(); else if (tap && d.label) { V.go = { x: d.label.go[0], y: d.label.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); } else if (tap && ctlDevice() === 'touch') PRG_fingerTap(h, d.x, d.y); else if (tap && d.node) PRG_click(h, d.node); else if (tap) V.tsel = null; }
+  // moves and its lift may all come between two steps), and a finger's is its own finger's tap (UI_tapped: lifted within
+  // 12 CSS px of where it landed, every move counted, whatever another finger did meanwhile), so no pan or flick buys a
+  // star. What pressed decides (d.finger), not the device used last
+  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; d.moved = Math.max(d.moved, Math.abs(UI.mouse.x - d.x) + Math.abs(UI.mouse.y - d.y)); const tap = d.moved <= 3 && (!d.finger || UI_tapped(d.pid));
+    if (tap && d.act) d.act(); else if (tap && d.label) { V.go = { x: d.label.go[0], y: d.label.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); } else if (tap && d.finger) PRG_fingerTap(h, d.x, d.y); else if (tap && d.node) PRG_click(h, d.node); else if (tap) V.tsel = null; }
   if (ctlDevice() !== 'touch') V.tsel = V.tlist = null;
   if (V.tlist && (V.z !== V.tlist.z || V.cx !== V.tlist.cx || V.cy !== V.tlist.cy)) V.tlist = null;   // (the view moved: the list's stars are elsewhere)
   const mx = (inp.down('menuRight') ? 1 : 0) - (inp.down('menuLeft') ? 1 : 0), my = (inp.down('menuDown') ? 1 : 0) - (inp.down('menuUp') ? 1 : 0);
@@ -24055,7 +24055,7 @@ function PRG_slotBox(g, h, i, x, y, armed, t, s = 1, kf = null) {
 /** a press on the skill list where a thumb presses it (PRG_thumb): the list scrolls under a dragging finger, and a tap
  *  (a press that barely moved) acts when it lifts (PRG_skillsUpdate): it chooses the row's skill, or ranks it up on its plus */
 const PRG_listPress = (id, plus, scroll = true) => (mx, my) => {   // (scroll: false, the page's RANK UP: a press there never scrolls the list)
-  const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, x: mx, y: my, s: K.scroll, moved: 0, scroll, down: UI.mouse.down }; return; }
+  const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, x: mx, y: my, s: K.scroll, moved: 0, scroll, down: UI.mouse.down, finger: UI.mouse.finger, pid: UI.mouse.id }; return; }
   P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); if (P.moved > 6 && P.scroll) K.scroll = clamp(Math.round(P.s - (my - P.y) / (K.rowH || 20)), 0, K.maxS || 0);   // (a finger sliding off sideways is no tap either; only up and down scroll)
 };
 /** a skill row chosen: with a slot waiting (armed) it goes there, else it is shown on the page; on its plus it ranks up */
@@ -24277,9 +24277,10 @@ function PRG_skillsUpdate(dt) {
   if (K.pulse) K.pulse.t += dt;
   for (let i = K.fx.length - 1; i >= 0; i--) if ((K.fx[i].t += dt) > K.fx[i].dur) K.fx.splice(i, 1);
   // a finger lifted from the list (or the page's RANK UP): a tap that barely moved chooses its row (or ranks it up, on its
-  // plus); a drag scrolled. Where it lifted counts too, and a press no step saw down is a tap only where the engine saw
-  // one (input.clicked()), as on the tree, so a flick whose moves came between two steps (a hitch) spends nothing
-  if (K.press && !UI.mouse.down) { const P = K.press; K.press = null; P.moved = Math.max(P.moved, Math.abs(UI.mouse.x - P.x) + Math.abs(UI.mouse.y - P.y)); if (P.moved <= 6 && (P.down || inp.clicked()) && P.id) PRG_rowTap(h, P.id, P.plus); }
+  // plus); a drag scrolled. Where it lifted counts too, and a finger's is its own finger's tap (UI_tapped), as on the
+  // tree, so a flick whose moves came between two steps (a hitch) spends nothing, and another finger landing or lifting
+  // meanwhile takes no tap away (a mouse's: a step saw it down, or the engine saw its click)
+  if (K.press && !UI.mouse.down) { const P = K.press; K.press = null; P.moved = Math.max(P.moved, Math.abs(UI.mouse.x - P.x) + Math.abs(UI.mouse.y - P.y)); if (P.moved <= 6 && (P.finger ? UI_tapped(P.pid) : P.down || inp.clicked()) && P.id) PRG_rowTap(h, P.id, P.plus); }
   const ids = K.rows.filter(r => r.id).map(r => r.id); if (!ids.length) return;
   let i = Math.max(0, ids.indexOf(K.sel));
   // the slot row (a controller's way to the six slots, ○'s among them: ○ backs out): up from the first skill, left and
@@ -31720,7 +31721,7 @@ window.__edLoot = { drawItemIconEx, LOT_drawTip: (g, it, x, y, o) => LOT_drawTip
  * ============================================================================= */
 const LOT_UI = {
   active: false,        // is the panel being drawn the top one (only the top one registers clicks)
-  press: null,          // a press on an item: { key, it, x0, y0, moved, finger (a finger pressed), click(), drop(target) }
+  press: null,          // a press on an item: { key, it, x0, y0, moved, finger (a finger pressed), pid (its pointer, UI.mouse.id), click(), drop(target) }
   targets: [],          // drop targets drawn this frame: { x, y, w, h, kind: 'bag' | 'slot' | 'sell' | 'anvil' | 'stash' | 'stashTab', i, slot, tab, rail }
   nav: [], navLast: [], focus: null,   // keyboard focus: spatial navigation over everything focusable
   tip: null, panelRect: [0, 0, 0, 0], tab: 'bag', statPage: 0, statN: 0, statCap: 7,   // (the character sheet's page, how many it has, the lines a page holds)
@@ -31902,17 +31903,17 @@ function LOT_gridBar(g, G, x) {
 /** a press on a scrolling grid's cell (G.sc): the grid follows a dragging finger a row at a time; a press that barely
  *  moved (6 px) is a tap and does click when it lifts (LOT_release), one that moved never acts (as PRG_listPress) */
 const LOT_scrollPress = (G, key, click) => (mx, my) => {
-  const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click, r0: G.r0, far: 0, finger: UI.mouse.finger }; return; }
+  const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click, r0: G.r0, far: 0, finger: UI.mouse.finger, pid: UI.mouse.id }; return; }
   P.far = Math.max(P.far, Math.abs(mx - P.x0) + Math.abs(my - P.y0)); if (P.far > 6) { P.moved = true; LOT_UI.sc[G.name] = clamp(Math.round(P.r0 - (my - P.y0) / G.S), 0, G.max); }
 };
 /** under a finger a tab, a button, a parcel and the pop-up act when the finger lifts where it pressed, not as it lands,
  *  so a flick that begins on one, in any direction, turns the page or closes the panel and presses nothing: no flick pays
- *  for a reforge or a gamble (LOT_release asks the engine's tap too, and updateUI marks a flick's press moved). Drawn
- *  after another device, the click a finger presses waits for its tap in the core (UI.tap). LOT_act(key, fn): the hot
- *  rectangle's action either way */
+ *  for a reforge or a gamble (LOT_release asks its own finger's tap too, UI_tapped, and updateUI marks a flick's press
+ *  moved). Drawn after another device, the click a finger presses waits for its tap in the core (UI.tap). LOT_act(key,
+ *  fn): the hot rectangle's action either way */
 const LOT_lifts = () => ctlDevice() === 'touch';
 const LOT_tapPress = (key, act) => (mx, my) => {
-  const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click: act, far: 0, finger: UI.mouse.finger }; return; }
+  const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click: act, far: 0, finger: UI.mouse.finger, pid: UI.mouse.id }; return; }
   P.far = Math.max(P.far, Math.abs(mx - P.x0) + Math.abs(my - P.y0)); if (P.far > 6) P.moved = true;
 };
 const LOT_act = (key, fn) => LOT_lifts() ? { drag: LOT_tapPress(key, fn) } : { click: fn };
@@ -31987,14 +31988,15 @@ function LOT_coins(x, y, n) { const k = Math.min(9, 2 + Math.floor(Math.log10(n 
 
 /* ---------- presses, drags and drops ---------- */
 function LOT_pressFn(o) {
-  return (mx, my) => { const P = LOT_UI.press; if (!P || P.key !== o.key) LOT_UI.press = Object.assign({ x0: mx, y0: my, moved: false, finger: UI.mouse.finger }, o); else if (!P.moved && Math.hypot(mx - P.x0, my - P.y0) > 3) P.moved = true; };
+  return (mx, my) => { const P = LOT_UI.press; if (!P || P.key !== o.key) LOT_UI.press = Object.assign({ x0: mx, y0: my, moved: false, finger: UI.mouse.finger, pid: UI.mouse.id }, o); else if (!P.moved && Math.hypot(mx - P.x0, my - P.y0) > 3) P.moved = true; };
 }
-/** the press let go: one that stayed put clicks (a finger's only on the engine's tap, clicked(): lifted within 12 CSS px of
- *  where it landed, so a whip that lifts before a step sees it move presses nothing), one that moved drops where it is */
+/** the press let go: one that stayed put clicks (a finger's only on its own tap, UI_tapped: lifted within 12 CSS px of
+ *  where it landed, every move counted, so a whip that lifts before a step sees it move presses nothing, and another
+ *  finger landing or lifting meanwhile takes nothing away), one that moved drops where it is */
 function LOT_release() {
   const P = LOT_UI.press; if (!P || UI.mouse.down) return;
   LOT_UI.press = null;
-  if (!P.moved) { if (P.click && (!P.finger || game.input.clicked())) P.click(); return; }
+  if (!P.moved) { if (P.click && (!P.finger || UI_tapped(P.pid))) P.click(); return; }
   const m = UI.mouse, T = LOT_UI.targets.slice().reverse().find(t => LOT_in(m, t.x, t.y, t.w, t.h)) || null;
   if (P.drop) P.drop(T);
 }
@@ -32065,9 +32067,10 @@ function LOT_itemCell(g, x, y, S, it, o = {}) {
   const P = LOT_UI.press, dragging = !!(P && P.moved && it && P.it === it), HS = S + (o.seam || 0);
   if (LOT_UI.active && o.target) LOT_UI.targets.push(Object.assign({ x, y, w: HS, h: HS }, o.target));
   // on touch (o.verbs: its first and second action's words) a tap chooses the item first: its tooltip stays, with its
-  // actions as buttons under it (LOT_end), and a second tap does the first (a finger has no hover and no right button)
+  // actions as buttons under it (LOT_end), and a second tap does the first (a finger has no hover and no right button).
+  // What pressed decides (UI.mouse.finger), not the device used last: a finger's first tap after a mouse chooses too
   const pick = !!(it && o.click && o.verbs && LOT_UI.active && ctlDevice() === 'touch'), picked = pick && LOT_UI.pick === o.key;
-  const click = pick ? () => { if (LOT_UI.pick !== o.key) { LOT_UI.pick = o.key; sfx('select', { vol: .4 }); return; } LOT_UI.pick = null; o.click(); } : o.click;
+  const click = it && o.click && o.verbs && LOT_UI.active ? () => { if (!UI.mouse.finger) return o.click(); if (LOT_UI.pick !== o.key) { LOT_UI.pick = o.key; sfx('select', { vol: .4 }); return; } LOT_UI.pick = null; o.click(); } : o.click;
   if (picked) { LOT_UI.pickAt = { x, y, S, verbs: o.verbs, act: o.click, alt: o.alt ? () => o.alt(it) : null }; LOT_UI.pickSeen = true; }
   const rc = it && o.alt ? () => o.alt(it) : null, over = LOT_hot(x, y, HS, HS, o.sc ? { drag: LOT_scrollPress(o.sc, o.key, it ? click : null), rclick: rc } : it ? { drag: LOT_pressFn({ key: o.key, it, click, drop: o.drop }), rclick: rc } : {});
   const focus = LOT_nav(o.key, x, y, S, S, { it, act: it ? o.click : null, alt: rc });
@@ -39992,8 +39995,9 @@ TOWN.build = buildTown;
  * pause the level (the town keeps living behind them).
  * ============================================================================= */
 const UI = {
-  mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0, finger: false },
+  mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0, finger: false, id: null, x0: 0, y0: 0, far: Infinity, up: null },
   panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, tap: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
+  late: { click: false, rclick: false, hc: false, hr: false },   // (a press a hit-stop's step took: hc hr held, click rclick for the next step in play)
   /* the HUD's frame on a phone (screen pixels): l t r b keep it out of the notch, the status bar and the home bar, and
      b lifts the HUD bar over the touch buttons on a screen held upright; barB is how far down the touch buttons at the
      top reach (the minimap, the boss bar and the notices go under them). HUD_layout in 61-controls sets them */
@@ -40007,13 +40011,47 @@ const UI = {
   closeAll() { while (this.stack.length) this.close(); },
   data(id) { const s = this.stack.find(q => q.id === id); return s && s.data; }
 };
-/* the mouse in screen pixels (the canvas scale and letterbox undone). A panel opened from the keyboard starts in key navigation */
+/* the mouse in screen pixels (the canvas scale and letterbox undone). A panel opened from the keyboard starts in key navigation.
+   UI.mouse is the pointer that presses, followed by its own id from its press to its lift: a mouse, or a finger that
+   isn't steering the stick. While it is down no other pointer moves it or lets it go (the stick's thumb landing or
+   lifting, a second finger, a touch button let go), so a press, its drag and its tap are that finger's alone. id: its
+   pointer; finger: what pressed, so a press decides by it, whatever was used last; x0 y0: where it landed (CSS px); far:
+   the most it has wandered from there, every move and its lift counted; up: where it lifted (screen px; null: cancelled) */
 addEventListener('keydown', () => { UI.keyT = performance.now(); });
-canvas.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' && game.input.stickOn && e.pointerId === game.input.stickId) return; UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.active = true; UI.keyNav = false; });
-canvas.addEventListener('pointerdown', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.finger = e.pointerType !== 'mouse'; if (e.button === 0) UI.mouse.down = true; });   // (finger: what pressed, so a press decides by it, whatever was used last)
-addEventListener('pointerup', e => { if (e.button === 0) { UI.mouse.down = false; UI.drag = null; } });
+/** does pointer event e move UI.mouse: a mouse while no finger presses, or the finger that presses (never the stick's) */
+const UI_mine = e => e.pointerType === 'mouse' ? !(UI.mouse.down && UI.mouse.id !== e.pointerId) : UI.mouse.down && e.pointerId === UI.mouse.id;
+canvas.addEventListener('pointermove', e => { const M = UI.mouse; if (!UI_mine(e)) return; M.cx = e.clientX; M.cy = e.clientY; M.active = true; UI.keyNav = false; if (M.down) M.far = Math.max(M.far, Math.hypot(e.clientX - M.x0, e.clientY - M.y0)); });
+canvas.addEventListener('pointerdown', e => {
+  const M = UI.mouse, stick = e.pointerType !== 'mouse' && game.input.stickOn && e.pointerId === game.input.stickId;   // (the engine's listener, first, has started the stick for a finger on open ground)
+  if (stick || (M.down && e.pointerId !== M.id && !e.isPrimary)) return;   // the stick's thumb steers; a finger landing while another presses presses nothing (two are the tree's pinch). A primary pointer (a mouse, a touch with no other finger down) always presses
+  if (M.down && e.button === 0 && e.pointerId !== M.id) game.input.release('Act:click');   // (it takes the press from one whose lift never came: that one's touch press lets go, so this one's is a press; its tap is gone with its id, UI_tapped)
+  M.cx = e.clientX; M.cy = e.clientY; M.finger = e.pointerType !== 'mouse';
+  if (e.button === 0) Object.assign(M, { down: true, id: e.pointerId, x0: e.clientX, y0: e.clientY, far: 0, up: null });
+});
+/** the pointer that presses lifts (cancel: the browser took it, never a tap): UI.mouse lets go, a finger's touch press
+ *  (61-controls) with it. Any other pointer's lift is none of its business */
+function UI_lift(e, cancel) {
+  const M = UI.mouse; if (!M.down || e.pointerId !== M.id || (e.pointerType === 'mouse' && e.button !== 0)) return;   // (a mouse's other button let go while the left is held: still pressed)
+  M.far = cancel ? Infinity : Math.max(M.far, Math.hypot(e.clientX - M.x0, e.clientY - M.y0)); M.up = cancel ? null : UI_hud(e.clientX, e.clientY);
+  M.down = false; UI.drag = null;
+  if (e.pointerType !== 'mouse') { M.lift = true; game.input.release('Act:click'); }   // (a finger has no hover: once the step has taken its tap, the pointer leaves, updateUI)
+}
+addEventListener('pointerup', e => UI_lift(e, false));
+addEventListener('pointercancel', e => UI_lift(e, true));
 canvas.addEventListener('wheel', e => { UI.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
-function mouseHUD() { const sc = game.screen, p = sc.clientToScreen(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p[0] - sc.ix; UI.mouse.y = p[1] - sc.iy; return UI.mouse; }
+/** a page point (CSS px) in the HUD's screen pixels [x, y] */
+function UI_hud(cx, cy) { const sc = game.screen, p = sc.clientToScreen(cx, cy); return [p[0] - sc.ix, p[1] - sc.iy]; }
+function mouseHUD() { const p = UI_hud(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p[0]; UI.mouse.y = p[1]; return UI.mouse; }
+/** the press made by pointer id (UI.mouse.id as it pressed) lifted where it landed: it was that pointer's own (no other
+ *  has pressed since), it is up, and it never wandered 12 CSS px from where it landed, every move and its lift counted.
+ *  The engine's tap (input.clicked()), but its own finger's alone: another finger landing, steering or lifting meanwhile
+ *  changes nothing, and a flick, however quick, is never one */
+const UI_tapped = id => UI.mouse.id === id && !UI.mouse.down && UI.mouse.far < 12;
+/* a press of the pointer in a step the world holds still for (a hit-stop: the input's step runs, the scene's update
+   doesn't) would reach no update and be lost: it is kept (UI.late) for the first step in play after, which updateUI reads
+   as its own, so a tap or a click on the HUD or a gallery reel in a fight still lands (as a skill's press is buffered) */
+game.hook('input', () => { const inp = game.input, L = UI.late; if (game.hitstop > 0) { if (inp.pressed('click')) L.hc = true; if (inp.pressed('rclick')) L.hr = true; } });
+game.hook('step', () => { const L = UI.late; L.click = L.hc; L.rclick = L.hr; L.hc = L.hr = false; });
 /** register a hot rectangle (inside draw). o: { click, rclick, tip: lines | () => lines, drag(mx, my), key } */
 function hot(x, y, w, h, o) { if ((UI.hudPass || UI.underPass) && UI.modal) return false;   // under a modal panel the HUD and the panels below it are display only
   if (UI.hotO) { x += UI.hotO[0]; y += UI.hotO[1]; }   // drawn inside the HUD's frame: the rectangle in screen pixels
@@ -40056,16 +40094,20 @@ function updateUI(dt) {
   if (UI.drag && UI.mouse.down) UI.drag(m.x, m.y);
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
-  const acts = !!over && !!(over.click || over.drag || over.rclick);
-  // under a finger a rect's click waits for the tap (UI.tap): the finger lifts where it pressed, on the same rect, the
-  // engine's tap (clicked(): within 12 CSS px of where it landed, however fast) with no step seeing it wander more than 6
-  // px. So no flick, in any direction and however quick, presses what it began on (a pause row, a depth, a button, a tab,
-  // the points chip): it goes on to do what a flick does. The press itself decides (UI.mouse.finger), not the device used
-  // last; a mouse acts on the press as before
-  if (inp.pressed('click')) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) { if (UI.mouse.finger) UI.tap = { r: over, x: m.x, y: m.y, far: 0 }; else over.click(); } inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
-  const tp = UI.tap; if (tp && UI.mouse.down) tp.far = Math.max(tp.far, Math.abs(m.x - tp.x) + Math.abs(m.y - tp.y));
-  else if (tp) { UI.tap = null; const r = tp.r, on = over && over.x === r.x && over.y === r.y && over.w === r.w && over.h === r.h; if (tp.far <= 6 && inp.clicked() && on) (over.click || r.click)(); }   // (the rect as drawn now, or as pressed: a finger after a mouse or a pad may find the loot panels' own press drawn over it since)
-  if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
+  const acts = !!over && !!(over.click || over.drag || over.rclick), L = UI.late, pc = inp.pressed('click') || L.click, prc = inp.pressed('rclick') || L.rclick; L.click = L.rclick = false;   // (pc, prc: this step's press, or one a hit-stop's step took: UI.late)
+  // under a finger a rect's click waits for its tap (UI.tap): the finger that pressed (its own pointer: another landing,
+  // steering or lifting meanwhile changes nothing) lifts inside the rect it pressed, never having wandered 12 CSS px from
+  // where it landed (UI_tapped), the same panel on top. So no flick, in any direction and however quick, presses what it
+  // began on (a pause row, a depth, a button, a tab, the points chip): it goes on to do what a flick does. The rect is
+  // judged as it was pressed, so one the finger's own layout has redrawn since still takes its tap (a mouse's or a pad's
+  // six skill slots that a finger's SKILL BAR replaces, a loot tab grown a finger tall). The press itself decides
+  // (UI.mouse.finger), not the device used last; a mouse acts on the press as before
+  if (pc) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) { if (UI.mouse.finger) UI.tap = { r: over, id: UI.mouse.id, top: UI.top() }; else over.click(); } inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  const tp = UI.tap; if (tp && !(UI.mouse.down && UI.mouse.id === tp.id)) {   // (its own pointer lifted, or another took the press)
+    UI.tap = null; const r = tp.r, u = UI.mouse.up, same = over && over.x === r.x && over.y === r.y && over.w === r.w && over.h === r.h;
+    if (UI_tapped(tp.id) && u && inRect({ x: u[0], y: u[1] }, r) && UI.top() === tp.top) ((same && over.click) || r.click)();   // (the rect as drawn now where it is unchanged, else as pressed: the loot panels' own press may be drawn over it since)
+  }
+  if (prc) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
   if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
   const P0 = UI.top(); let sw = inp.swipe();
   // a flick on a loot panel, in any direction, is never a press however fast (the finger may lift before a step sees it
@@ -40803,7 +40845,7 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : D
    the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view.
    With the touch buttons up every row is a finger tall, held either way, and the panel takes the screen's height on its
    side; under a finger a row acts on a tap (UI.tap: it lifts where it pressed), so no flick descends, and a finger dragged
-   up or down scrolls the list */
+   up or down scrolls the list, the touch buttons up or hidden (Settings, Controls) */
 const WAY = { top: 0, rows: 1, press: null };
 /** a row's step and its button: a finger's with the touch buttons up, else a menu row's (UI_rowH: a finger's held upright) */
 const WAY_rows = () => { if (!TOUCH.el) return [UI_rowH() + 1, UI_rowH() - 2]; const F = Math.max(UI_finger(), 16); return [F + 3, F]; };
@@ -40824,7 +40866,7 @@ UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 
   const top = y + 21 + sub.length * sl, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
   WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top; WAY.rows = rows;
   list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name, l = label.length > 34 ? label.slice(0, 33) + '.' : label, go = () => { UI.closeAll(); descend(d); }; if (button(g, x + 12, top + i * rs, w - 24, rb, l, go, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k;
-    if (TOUCH.el) hot(x + 12, top + i * rs, w - 24, rb, { label: l, drag: WAY_press, click: () => { sfx('confirm', { vol: .6 }); go(); } }); });   // (over the button, with the touch buttons up whatever was used last: a finger's press scrolls, its tap descends)
+    hot(x + 12, top + i * rs, w - 24, rb, { label: l, drag: WAY_press, click: () => { sfx('confirm', { vol: .6 }); go(); } }); });   // (over the button, whatever was used last and whether the touch buttons show: a finger's press scrolls, its tap descends; a mouse's press clicks it, as the button's)
   if (list.length > rows) { const th = Math.max(6, Math.round((rows * rs - 3) * rows / list.length)), ty = top + Math.round((rows * rs - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * rs - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }
 }, update() {
   const list = waystoneDepths(ED.hero);
@@ -41411,6 +41453,8 @@ game.input.touchFilter = (e) => {
 	);
 };
 UI.fingers = new Set(); // the fingers on the canvas (not the stick's): two or more are a pinch, never a drag
+// a finger that presses (60-ui-core took it as UI.mouse: no other finger was pressing) presses the touch's click until
+// it lifts (UI_lift lets it go); one landing while another presses is only counted, for a pinch
 canvas.addEventListener("pointerdown", (e) => {
 	if (
 		e.pointerType === "mouse" ||
@@ -41418,26 +41462,18 @@ canvas.addEventListener("pointerdown", (e) => {
 	)
 		return;
 	UI.fingers.add(e.pointerId);
-	UI.mouse.cx = e.clientX;
-	UI.mouse.cy = e.clientY;
-	UI.mouse.active = true;
-	UI.mouse.down = true;
-	game.input.press("Act:click");
+	if (UI.mouse.down && UI.mouse.id === e.pointerId) {
+		UI.mouse.active = true;
+		game.input.press("Act:click");
+	}
 	canvas.setPointerCapture(e.pointerId);
 });
-const endTouch = (e) => {
-	UI.fingers.delete(e.pointerId);
-	if (e.pointerType !== "mouse") {
-		game.input.release("Act:click");
-		UI.mouse.down = false;
-		UI.drag = null;
-		UI.mouse.lift = true;   // a finger has no hover: once the step has taken its tap, the pointer leaves (updateUI), so no tooltip stays behind
-	}
-};
+const endTouch = (e) => UI.fingers.delete(e.pointerId);
 addEventListener("pointerup", endTouch);
 addEventListener("pointercancel", endTouch);
 function pauseOnFocusLoss() {
 	UI.mouse.down = false;
+	UI.mouse.far = Infinity;   // (a finger down as the focus went: its lift is no tap)
 	UI.drag = null;
 	if (!UI.modal && ["town", "level", "proving"].includes(ED.mode) && !ED.demo)
 		UI.open("pause");
@@ -43290,7 +43326,7 @@ const levelScene = {
   },
   exit() { BUS.emit('levelEnd', { L: ED.L }); slowMoReset(SLOW.raw === undefined ? SLOW.base : SLOW.raw); },
   update(dt) {
-    if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
+    if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || game.input.stickOn || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }   // (a touch on open ground starts the stick: no press, UI.mouse)
     if (talkStep(dt)) return;
     if (updateUI(dt)) return;
     const L0 = ED.L, h = ED.hero, inp = game.input;
@@ -43440,7 +43476,7 @@ def('archetypes', 'dummy', { name: 'Training Dummy', tags: ['object'], minDepth:
   react(m, hit) { if (m.body) m.body.hit(hit.ang || 0, 3 + (hit.kb || 0) * .02); m.hp = m.maxHp; P.add({ kind: 'bit', x: m.x, y: m.y, z: 16, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, vz: 60, g: 300, max: .8, color: '#d8b25a' }); }
 });
 
-const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES', 'MOVES', 'OBJECTS'], cam: null, press: null };
+const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES', 'MOVES', 'OBJECTS'], cam: null };
 
 const GAL_POSES = [
   ['Idle', {}, 'He breathes and shifts his weight.'], ['Walk', { run: .55 }, 'A gait driven by velocity, not frames.'], ['Run', { run: 1.1 }, 'The cape streams behind.'],
@@ -43603,27 +43639,22 @@ function galSkill(h, dt) {
   }
   if (h.act) GAL.next = GAL.t + 1.1;   // the next take starts a beat after this one ends
 }
-/** a reel picked (a click, a tap on its name, or the keys): its first entry */
+/** a reel picked (a click, a tap on its name, or the keys): its first entry. Under a finger its name acts on a tap, as
+ *  every target does (the core's UI.tap: its own finger lifts where it pressed), so a flick that begins on the reels'
+ *  finger-tall band turns the entry, never the reel */
 function GAL_pickReel(i) { if (GAL.reel !== i) { GAL.reel = i; GAL.i = 0; galReset(); sfx('confirm'); } }
-/** a finger on a reel's name: its press, followed while it moves (GAL.press); the reel is picked as it lifts where it
- *  pressed (galleryScene.update), so a flick that begins on the reels' finger-tall band turns the entry, never the reel */
-const GAL_press = i => (mx, my) => { const P = GAL.press; if (!P) GAL.press = { i, x: mx, y: my, moved: 0, down: UI.mouse.down }; else P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); };
 const galleryScene = {
   enter(data) {
     ED.mode = 'gallery'; UI.closeAll(); BUS.clear('level');
     GAL.real = ED.hero; ED.hero = loadHeroOrNew();   // a copy from the save: the show ranks skills up, and none of that may be saved
     const L0 = galStage(); enterWorld(L0); ED.depth = 3; L.ambient = .16;
-    GAL.i = 0; GAL.press = null; if (data && data.reel) galOpen(data.reel, data.item);   // a deep link: one reel and entry
+    GAL.i = 0; if (data && data.reel) galOpen(data.reel, data.item);   // a deep link: one reel and entry
     galReset(); game.cam.snap = true;
   },
   exit() { slowMoReset(1); ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
   update(dt) {
     const inp = game.input, h = ED.hero, L0 = ED.L, cx = L0.w * 8, cy = L0.h * 8;
-    const wh = UI.mouse.wheel, m0 = mouseHUD(), lx = m0.x, ly = m0.y, wait = updateUI(dt);   // (lx, ly: where a finger lifted, before updateUI lets the pointer go)
-    // a finger lifted from a reel's name: a tap (lifted where it pressed, no flick; a press no step saw down only where
-    // the engine saw a tap, input.clicked()) picks it
-    const RP = GAL.press; if (RP && !UI.mouse.down) { GAL.press = null; const mv = Math.max(RP.moved, Math.abs(lx - RP.x) + Math.abs(ly - RP.y)); if (!UI.modal && ED.mode === 'gallery' && mv <= 6 && !inp.swipe() && (RP.down || inp.clicked())) GAL_pickReel(RP.i); }
-    if (wait || ED.mode !== 'gallery') return;
+    const wh = UI.mouse.wheel; if (updateUI(dt) || ED.mode !== 'gallery') return;
     if (wh) { GAL.i += Math.sign(wh); galReset(); sfx('select'); }   // (the wheel steps through the reel)
     if (inp.pressed('cancel')) { game.go('title'); return; }
     const sw = inp.swipe(true);   // a flick: sideways picks, down leaves
@@ -43691,8 +43722,7 @@ const galleryScene = {
       px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, Math.max(31, 21 + rh) + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - fb, W, fb + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor (the top one under the reels' targets)
       E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
       const sp = Math.min(60, (W - 16) / GAL.reels.length), ry = 22 + T + Math.floor((rh - 10) / 2);   // (six reels fit a phone held upright; each name in the middle of its target)
-      const lifts = ctlDevice() === 'touch';   // (under a finger a reel is picked as it lifts where it pressed: GAL_press)
-      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, rh, lifts ? { drag: GAL_press(i) } : { click: () => GAL_pickReel(i) }); const nf = UI_tfit(n, sp - 2, { align: 'center', outline: '#0c0818' }); E.font.text(g, n, rx, ry - (nf.font ? 0 : 1), i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', nf); });   // (a click picks a reel; the normal font on a TV)
+      GAL.reels.forEach((n, i) => { const rx = cx + (i - (GAL.reels.length - 1) / 2) * sp, over = hot(rx - sp / 2 + 1, 19 + T, sp - 2, rh, { click: () => GAL_pickReel(i) }); const nf = UI_tfit(n, sp - 2, { align: 'center', outline: '#0c0818' }); E.font.text(g, n, rx, ry - (nf.font ? 0 : 1), i === GAL.reel ? GOLD : over ? '#e8e0f8' : '#8a80a8', nf); });   // (a click picks a reel, a finger's tap too: GAL_pickReel; the normal font on a TV)
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }

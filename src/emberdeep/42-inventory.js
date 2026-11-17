@@ -23,7 +23,7 @@
  * ============================================================================= */
 const LOT_UI = {
   active: false,        // is the panel being drawn the top one (only the top one registers clicks)
-  press: null,          // a press on an item: { key, it, x0, y0, moved, finger (a finger pressed), click(), drop(target) }
+  press: null,          // a press on an item: { key, it, x0, y0, moved, finger (a finger pressed), pid (its pointer, UI.mouse.id), click(), drop(target) }
   targets: [],          // drop targets drawn this frame: { x, y, w, h, kind: 'bag' | 'slot' | 'sell' | 'anvil' | 'stash' | 'stashTab', i, slot, tab, rail }
   nav: [], navLast: [], focus: null,   // keyboard focus: spatial navigation over everything focusable
   tip: null, panelRect: [0, 0, 0, 0], tab: 'bag', statPage: 0, statN: 0, statCap: 7,   // (the character sheet's page, how many it has, the lines a page holds)
@@ -205,17 +205,17 @@ function LOT_gridBar(g, G, x) {
 /** a press on a scrolling grid's cell (G.sc): the grid follows a dragging finger a row at a time; a press that barely
  *  moved (6 px) is a tap and does click when it lifts (LOT_release), one that moved never acts (as PRG_listPress) */
 const LOT_scrollPress = (G, key, click) => (mx, my) => {
-  const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click, r0: G.r0, far: 0, finger: UI.mouse.finger }; return; }
+  const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click, r0: G.r0, far: 0, finger: UI.mouse.finger, pid: UI.mouse.id }; return; }
   P.far = Math.max(P.far, Math.abs(mx - P.x0) + Math.abs(my - P.y0)); if (P.far > 6) { P.moved = true; LOT_UI.sc[G.name] = clamp(Math.round(P.r0 - (my - P.y0) / G.S), 0, G.max); }
 };
 /** under a finger a tab, a button, a parcel and the pop-up act when the finger lifts where it pressed, not as it lands,
  *  so a flick that begins on one, in any direction, turns the page or closes the panel and presses nothing: no flick pays
- *  for a reforge or a gamble (LOT_release asks the engine's tap too, and updateUI marks a flick's press moved). Drawn
- *  after another device, the click a finger presses waits for its tap in the core (UI.tap). LOT_act(key, fn): the hot
- *  rectangle's action either way */
+ *  for a reforge or a gamble (LOT_release asks its own finger's tap too, UI_tapped, and updateUI marks a flick's press
+ *  moved). Drawn after another device, the click a finger presses waits for its tap in the core (UI.tap). LOT_act(key,
+ *  fn): the hot rectangle's action either way */
 const LOT_lifts = () => ctlDevice() === 'touch';
 const LOT_tapPress = (key, act) => (mx, my) => {
-  const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click: act, far: 0, finger: UI.mouse.finger }; return; }
+  const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click: act, far: 0, finger: UI.mouse.finger, pid: UI.mouse.id }; return; }
   P.far = Math.max(P.far, Math.abs(mx - P.x0) + Math.abs(my - P.y0)); if (P.far > 6) P.moved = true;
 };
 const LOT_act = (key, fn) => LOT_lifts() ? { drag: LOT_tapPress(key, fn) } : { click: fn };
@@ -290,14 +290,15 @@ function LOT_coins(x, y, n) { const k = Math.min(9, 2 + Math.floor(Math.log10(n 
 
 /* ---------- presses, drags and drops ---------- */
 function LOT_pressFn(o) {
-  return (mx, my) => { const P = LOT_UI.press; if (!P || P.key !== o.key) LOT_UI.press = Object.assign({ x0: mx, y0: my, moved: false, finger: UI.mouse.finger }, o); else if (!P.moved && Math.hypot(mx - P.x0, my - P.y0) > 3) P.moved = true; };
+  return (mx, my) => { const P = LOT_UI.press; if (!P || P.key !== o.key) LOT_UI.press = Object.assign({ x0: mx, y0: my, moved: false, finger: UI.mouse.finger, pid: UI.mouse.id }, o); else if (!P.moved && Math.hypot(mx - P.x0, my - P.y0) > 3) P.moved = true; };
 }
-/** the press let go: one that stayed put clicks (a finger's only on the engine's tap, clicked(): lifted within 12 CSS px of
- *  where it landed, so a whip that lifts before a step sees it move presses nothing), one that moved drops where it is */
+/** the press let go: one that stayed put clicks (a finger's only on its own tap, UI_tapped: lifted within 12 CSS px of
+ *  where it landed, every move counted, so a whip that lifts before a step sees it move presses nothing, and another
+ *  finger landing or lifting meanwhile takes nothing away), one that moved drops where it is */
 function LOT_release() {
   const P = LOT_UI.press; if (!P || UI.mouse.down) return;
   LOT_UI.press = null;
-  if (!P.moved) { if (P.click && (!P.finger || game.input.clicked())) P.click(); return; }
+  if (!P.moved) { if (P.click && (!P.finger || UI_tapped(P.pid))) P.click(); return; }
   const m = UI.mouse, T = LOT_UI.targets.slice().reverse().find(t => LOT_in(m, t.x, t.y, t.w, t.h)) || null;
   if (P.drop) P.drop(T);
 }
@@ -368,9 +369,10 @@ function LOT_itemCell(g, x, y, S, it, o = {}) {
   const P = LOT_UI.press, dragging = !!(P && P.moved && it && P.it === it), HS = S + (o.seam || 0);
   if (LOT_UI.active && o.target) LOT_UI.targets.push(Object.assign({ x, y, w: HS, h: HS }, o.target));
   // on touch (o.verbs: its first and second action's words) a tap chooses the item first: its tooltip stays, with its
-  // actions as buttons under it (LOT_end), and a second tap does the first (a finger has no hover and no right button)
+  // actions as buttons under it (LOT_end), and a second tap does the first (a finger has no hover and no right button).
+  // What pressed decides (UI.mouse.finger), not the device used last: a finger's first tap after a mouse chooses too
   const pick = !!(it && o.click && o.verbs && LOT_UI.active && ctlDevice() === 'touch'), picked = pick && LOT_UI.pick === o.key;
-  const click = pick ? () => { if (LOT_UI.pick !== o.key) { LOT_UI.pick = o.key; sfx('select', { vol: .4 }); return; } LOT_UI.pick = null; o.click(); } : o.click;
+  const click = it && o.click && o.verbs && LOT_UI.active ? () => { if (!UI.mouse.finger) return o.click(); if (LOT_UI.pick !== o.key) { LOT_UI.pick = o.key; sfx('select', { vol: .4 }); return; } LOT_UI.pick = null; o.click(); } : o.click;
   if (picked) { LOT_UI.pickAt = { x, y, S, verbs: o.verbs, act: o.click, alt: o.alt ? () => o.alt(it) : null }; LOT_UI.pickSeen = true; }
   const rc = it && o.alt ? () => o.alt(it) : null, over = LOT_hot(x, y, HS, HS, o.sc ? { drag: LOT_scrollPress(o.sc, o.key, it ? click : null), rclick: rc } : it ? { drag: LOT_pressFn({ key: o.key, it, click, drop: o.drop }), rclick: rc } : {});
   const focus = LOT_nav(o.key, x, y, S, S, { it, act: it ? o.click : null, alt: rc });

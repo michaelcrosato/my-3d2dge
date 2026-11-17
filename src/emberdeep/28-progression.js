@@ -712,7 +712,7 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   // the chrome, so the bars, the overview and the totals (drawn over it, topmost) take their own clicks
   const pan = (mx, my) => {
     if (game.input.pinching || UI.fingers.size > 1) { const d = V.drag; if (d) Object.assign(d, { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 99 }); return; }   // (two fingers pinch: no pan, and no star chosen when they lift)
-    if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my), down: UI.mouse.down }; return; }   // (a finger's tap is worked out when it lifts: PRG_fingerTap. down: a step saw it pressed)
+    if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my), finger: UI.mouse.finger, pid: UI.mouse.id }; return; }   // (a finger's tap is worked out when it lifts: PRG_fingerTap. finger, pid: what pressed, and its pointer)
     const d = V.drag; d.moved = Math.max(d.moved, Math.abs(mx - d.x) + Math.abs(my - d.y));
     if (d.moved > 3) { V.cx = d.cx - (mx - d.x) / V.z; V.cy = d.cy - (my - d.y) / V.z; V.anchor = null; V.go = null; }
   };
@@ -906,11 +906,11 @@ function PRG_treeUpdate(dt) {
   // a tap (no drag) on a star: the mouse allocates at once; a finger chooses it first (its tooltip, ALLOCATE and TAKE
   // BACK at the bottom: a star is small under a finger), and a second tap on it allocates; a finger's button acts (d.act).
   // A tap lifts where it pressed: where the pointer lifted counts as well as what the steps saw (in a hitch a pan's
-  // moves and its lift may all come between two steps), and a finger's press no step saw down (the whole gesture between
-  // two steps: where it landed is unknown) is a tap only where the engine saw one (input.clicked(): lifted within a few
-  // pixels of where it landed), so no pan or flick buys a star
-  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; d.moved = Math.max(d.moved, Math.abs(UI.mouse.x - d.x) + Math.abs(UI.mouse.y - d.y)); const tap = d.moved <= 3 && (ctlDevice() !== 'touch' || d.down || !!inp.clicked());
-    if (tap && d.act) d.act(); else if (tap && d.label) { V.go = { x: d.label.go[0], y: d.label.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); } else if (tap && ctlDevice() === 'touch') PRG_fingerTap(h, d.x, d.y); else if (tap && d.node) PRG_click(h, d.node); else if (tap) V.tsel = null; }
+  // moves and its lift may all come between two steps), and a finger's is its own finger's tap (UI_tapped: lifted within
+  // 12 CSS px of where it landed, every move counted, whatever another finger did meanwhile), so no pan or flick buys a
+  // star. What pressed decides (d.finger), not the device used last
+  if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; d.moved = Math.max(d.moved, Math.abs(UI.mouse.x - d.x) + Math.abs(UI.mouse.y - d.y)); const tap = d.moved <= 3 && (!d.finger || UI_tapped(d.pid));
+    if (tap && d.act) d.act(); else if (tap && d.label) { V.go = { x: d.label.go[0], y: d.label.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); } else if (tap && d.finger) PRG_fingerTap(h, d.x, d.y); else if (tap && d.node) PRG_click(h, d.node); else if (tap) V.tsel = null; }
   if (ctlDevice() !== 'touch') V.tsel = V.tlist = null;
   if (V.tlist && (V.z !== V.tlist.z || V.cx !== V.tlist.cx || V.cy !== V.tlist.cy)) V.tlist = null;   // (the view moved: the list's stars are elsewhere)
   const mx = (inp.down('menuRight') ? 1 : 0) - (inp.down('menuLeft') ? 1 : 0), my = (inp.down('menuDown') ? 1 : 0) - (inp.down('menuUp') ? 1 : 0);
@@ -1012,7 +1012,7 @@ function PRG_slotBox(g, h, i, x, y, armed, t, s = 1, kf = null) {
 /** a press on the skill list where a thumb presses it (PRG_thumb): the list scrolls under a dragging finger, and a tap
  *  (a press that barely moved) acts when it lifts (PRG_skillsUpdate): it chooses the row's skill, or ranks it up on its plus */
 const PRG_listPress = (id, plus, scroll = true) => (mx, my) => {   // (scroll: false, the page's RANK UP: a press there never scrolls the list)
-  const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, x: mx, y: my, s: K.scroll, moved: 0, scroll, down: UI.mouse.down }; return; }
+  const K = PRG_K, P = K.press; if (!P) { K.press = { id, plus, x: mx, y: my, s: K.scroll, moved: 0, scroll, down: UI.mouse.down, finger: UI.mouse.finger, pid: UI.mouse.id }; return; }
   P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); if (P.moved > 6 && P.scroll) K.scroll = clamp(Math.round(P.s - (my - P.y) / (K.rowH || 20)), 0, K.maxS || 0);   // (a finger sliding off sideways is no tap either; only up and down scroll)
 };
 /** a skill row chosen: with a slot waiting (armed) it goes there, else it is shown on the page; on its plus it ranks up */
@@ -1234,9 +1234,10 @@ function PRG_skillsUpdate(dt) {
   if (K.pulse) K.pulse.t += dt;
   for (let i = K.fx.length - 1; i >= 0; i--) if ((K.fx[i].t += dt) > K.fx[i].dur) K.fx.splice(i, 1);
   // a finger lifted from the list (or the page's RANK UP): a tap that barely moved chooses its row (or ranks it up, on its
-  // plus); a drag scrolled. Where it lifted counts too, and a press no step saw down is a tap only where the engine saw
-  // one (input.clicked()), as on the tree, so a flick whose moves came between two steps (a hitch) spends nothing
-  if (K.press && !UI.mouse.down) { const P = K.press; K.press = null; P.moved = Math.max(P.moved, Math.abs(UI.mouse.x - P.x) + Math.abs(UI.mouse.y - P.y)); if (P.moved <= 6 && (P.down || inp.clicked()) && P.id) PRG_rowTap(h, P.id, P.plus); }
+  // plus); a drag scrolled. Where it lifted counts too, and a finger's is its own finger's tap (UI_tapped), as on the
+  // tree, so a flick whose moves came between two steps (a hitch) spends nothing, and another finger landing or lifting
+  // meanwhile takes no tap away (a mouse's: a step saw it down, or the engine saw its click)
+  if (K.press && !UI.mouse.down) { const P = K.press; K.press = null; P.moved = Math.max(P.moved, Math.abs(UI.mouse.x - P.x) + Math.abs(UI.mouse.y - P.y)); if (P.moved <= 6 && (P.finger ? UI_tapped(P.pid) : P.down || inp.clicked()) && P.id) PRG_rowTap(h, P.id, P.plus); }
   const ids = K.rows.filter(r => r.id).map(r => r.id); if (!ids.length) return;
   let i = Math.max(0, ids.indexOf(K.sel));
   // the slot row (a controller's way to the six slots, ○'s among them: ○ backs out): up from the first skill, left and
