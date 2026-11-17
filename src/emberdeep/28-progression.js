@@ -721,7 +721,7 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   const thumbs = PRG_thumb();
   for (const l of V.labels) hot(l.hr[0], l.hr[1], l.hr[2], l.hr[3], { click: thumbs ? null : () => { V.go = { x: l.go[0], y: l.go[1] }; V.anchor = null; sfx('select', { vol: .35 }); }, drag: thumbs ? (mx, my) => { pan(mx, my); if (V.drag && V.drag.label === undefined) V.drag.label = l; } : undefined, tip: [{ t: l.name, c: l.color }, { t: cap(l.about), c: '#c8c0d8' }, { t: 'Click to fly to its keystone', c: '#9a90b0' }] });
   PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t, op);
-  if (hov && UI.keyNav) tipBox(g, PRG_treeTip(h, hov), V.ox + 8, V.oy + 8, { border: '#8a7aa8', maxW: V.sum ? Math.max(120, x0 + W - V.ox - 20) : 0 });   // (the totals open on the left: it keeps to the right of the reticle)
+  if (hov && UI.keyNav) tipBox(g, PRG_treeTip(h, hov), V.ox + 8, V.oy + 8, { border: '#8a7aa8', maxW: V.sum && UI_tv() ? Math.max(120, x0 + W - V.ox - 20) : 0 });   // (a TV's totals take the left half: it keeps to the right of the reticle)
   PRG_touchPick(g, h, pick);
 }
 /** the buttons a finger's chosen star (PRG_V.tsel) brings, along the bottom: what a right click and a precise click

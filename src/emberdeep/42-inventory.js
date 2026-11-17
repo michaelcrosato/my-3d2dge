@@ -69,8 +69,16 @@ const LOT_footR = () => 17 + LOT_popH();   // what a panel held upright keeps fr
 const LOT_bagCS = (T, w) => clamp(Math.floor(w / 8), 16, T + 2);
 /** the bag block's height at finger T (LOT_shopBag): what he wears in two rows of five (worn), or a label line; the bag 8 x 5 */
 const LOT_bagH = (T, w, worn) => (worn ? 2 * T + 4 : 10) + 5 * LOT_bagCS(T, w);
-/** a shop held upright: its finger T and its height. need(T, w): the height its stack takes at finger T, content w wide */
-function LOT_tallFit(W, H, need) { const w = Math.min(W - 8, 480) - 14; let T = clamp(UI_finger(), 22, 64); while (T > 30 && need(T, w) > H - 8) T--; return { T, h: Math.min(H - 8, Math.ceil(need(T, w))) }; }
+/** a panel held upright: its finger T, its height, and whether its stack fits at all (no: a phone too short even at a 30 px
+ *  finger keeps the landscape layout). need(T, w): the height its stack takes at finger T, content w wide. With the touch
+ *  buttons up, the room is below their bar, so the bar's Back never lands on the panel's top corner */
+function LOT_tallFit(W, H, need) {
+  const w = Math.min(W - 8, 480) - 14, room = H - 8 - (TOUCH.el ? Math.max(0, (UI.frame.barB || 0) - 2) : 0);
+  let T = clamp(UI_finger(), 22, 64); while (T > 30 && need(T, w) > room) T--;
+  const n = Math.ceil(need(T, w)); return { T, h: Math.min(H - 8, n), fits: n <= room + 2 };
+}
+/** the upright fit of a panel's stack, or null: not held upright, or too short for it */
+const LOT_tallOf = (need, W = game.W, H = game.H) => { if (!UI_tall()) return null; const f = LOT_tallFit(W, H, need); return f.fits ? f : null; };
 /** what each shop's stack takes held upright: the title, the shopkeeper, the counter, the bag, the foot */
 const LOT_NEED = {
   vendor: (T, w) => 19 + 42 + T + 4 + LOT_vendA(T, w) + 6 + LOT_bagH(T, w, false) + LOT_footR(),
@@ -513,7 +521,7 @@ const LOT_LEFT = ['helm', 'chest', 'gloves', 'legs', 'boots'], LOT_RIGHT = ['amu
 /** the bag held upright: its stack at finger T (what he wears, the doll, the tabs, the bag, the foot); LOT_tallFit shrinks T
  *  on a short phone (a phone's browser with its bars showing) rather than leave the upright layout */
 const LOT_invNeed = T => 133 + 12 * T;
-LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W, H) => Math.min(H - 8, UI_tall() ? LOT_tallFit(W, H, LOT_invNeed).h : 272),
+LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W, H) => { const f = LOT_tallOf(LOT_invNeed, W, H); return Math.min(H - 8, f ? f.h : 272); },
   open() { LOT_UI.focus = null; LOT_UI.press = null; },
   close() { LOT_UI.press = null; LOT_UI.confirm = null; },
   back: () => LOT_back(),
@@ -525,7 +533,7 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return;
     LOT_begin(this, x, y, w, hh);
-    const fit = UI_tall() ? LOT_tallFit(game.W, game.H, LOT_invNeed) : null, tall = !!fit && hh >= fit.h - 2, T = fit ? fit.T : clamp(UI_finger(), 22, 64), top = y + 19, pad = 7, big = hh >= 226, gap = tall ? 4 : big ? 3 : 2;
+    const fit = LOT_tallOf(LOT_invNeed), tall = !!fit && hh >= fit.h - 2, T = fit ? fit.T : clamp(UI_finger(), 22, 64), top = y + 19, pad = 7, big = hh >= 226, gap = tall ? 4 : big ? 3 : 2;
     const F = !tall && TOUCH.el && ctlDevice() === 'touch' ? clamp(UI_finger(), 0, 30) : 0, SS = tall ? T : Math.max(hh >= 256 ? 25 : big ? 22 : 20, 5 * F + 4 * gap + 63 <= hh - 11 ? F : 0), colH = 5 * SS + 4 * gap;   // (touch buttons showing: slots and cells a finger wide, where they fit)
     const dw = tall ? w - 2 * pad - 2 * SS - 8 : clamp(Math.round(w * .19), 64, 96), lx = x + pad, dx = lx + SS + 4, rx0 = dx + dw + 4;
     LOT_dollDraw(g, dx, top, dw, colH, h);
@@ -784,7 +792,7 @@ function LOT_gamble(h, slot, at) {
   LOT_SHOP.reveal = { it, t: 0 }; LOT_say('vendor', it.rarity >= 3 ? 'lucky' : 'gamble');
   sfx(it.rarity === 4 ? 'secret' : it.rarity === 3 ? 'powerup' : it.rarity === 2 ? 'key' : 'pickup', { vol: .6 }); if (at) LOT_burst(at[0], at[1], RARITY[it.rarity].color, 6 + it.rarity * 5);
 }
-LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => UI_tall() ? LOT_tallFit(W, H, LOT_NEED.vendor).h : Math.min(H - 8, 262),
+LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.vendor, W, H); return f ? f.h : Math.min(H - 8, 262); },
   open() { LOT_SHOP.tab = 'buy'; LOT_SHOP.reveal = null; LOT_UI.focus = null; LOT_UI.press = null; if (ED.hero) LOT_restock(ED.hero); LOT_say('vendor', 'greet'); },
   close() { LOT_UI.press = null; const r = LOT_npcRig('vendor'); if (r) r._talk = false; },
   back: () => LOT_back(),
@@ -793,7 +801,7 @@ LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh); LOT_restock(h);
     // held upright the counter (tabs, stock) stands over the bag, full width; T: a finger's size (upright, or touch)
-    const tall = UI_tall(), T = tall ? LOT_tallFit(game.W, game.H, LOT_NEED.vendor).T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10;
+    const fit = LOT_tallOf(LOT_NEED.vendor), tall = !!fit, T = fit ? fit.T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10;
     const lw = tall ? w - pad * 2 : Math.floor((w - pad * 2 - 8) * .5), rx = tall ? x + pad : x + pad + lw + 8, rw = x + w - pad - rx;
     LOT_npcHeader(g, x + pad, top, lw, 'vendor');
     const ty = top + 42, T0 = LOT_SHOP.tab, th = Math.max(12, T), tb = tall || UI_tv() ? Math.floor((lw - 4) / 3) : 0;   // (held upright and on a TV: three even tabs across, room for the normal font)
@@ -868,7 +876,7 @@ function LOT_temper(h, it, to) {
   it.ilvl = to; it.value = itemValue(to, it.rarity);   // the same gold curve as a fresh drop of that level
   LOT_refit(h, it);
 }
-LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => UI_tall() ? LOT_tallFit(W, H, LOT_NEED.smith).h : Math.min(H - 8, 262),
+LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.smith, W, H); return f ? f.h : Math.min(H - 8, 262); },
   open() { LOT_SMITH.sel = null; LOT_UI.focus = null; LOT_UI.press = null; LOT_SMITH.select = it => { if (!it) return; LOT_SMITH.sel = it; LOT_SMITH.flash = .15; sfx('select', { vol: .5 }); }; LOT_say('smith', 'greet'); },
   close() { LOT_UI.press = null; const r = LOT_npcRig('smith'); if (r) r._talk = false; },
   back() { if (LOT_back()) return true; if (LOT_SMITH.sel) { LOT_SMITH.sel = null; sfx('cancel', { vol: .4 }); return true; } return false; },   // (○: the item off the anvil, then away)
@@ -878,7 +886,7 @@ LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, 
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh);
     if (LOT_SMITH.sel && !LOT_owned(h, LOT_SMITH.sel)) LOT_SMITH.sel = null;
     // held upright the anvil and its three services stand over the bag, full width; T: a finger's size (upright, or touch)
-    const tall = UI_tall(), T = tall ? LOT_tallFit(game.W, game.H, LOT_NEED.smith).T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10, it = LOT_SMITH.sel, t = performance.now() / 1000;
+    const fit = LOT_tallOf(LOT_NEED.smith), tall = !!fit, T = fit ? fit.T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10, it = LOT_SMITH.sel, t = performance.now() / 1000;
     const lw = tall ? w - pad * 2 : Math.floor((w - pad * 2 - 8) * .5), rx = tall ? x + pad : x + pad + lw + 8, rw = x + w - pad - rx;
     LOT_npcHeader(g, x + pad, top, lw, 'smith');
     // the anvil: the forge glows behind it and the chosen item floats over it (a touch screen on its side: lower, so the
@@ -990,7 +998,7 @@ function LOT_respec(h) {
   h.pts.skill += sk; if (Array.isArray(h.tree)) { h.pts.passive += h.tree.length; h.tree = []; }
   computeStats(h); notify('SKILLS AND PASSIVES RESET', '#c890ff', 2.5);
 }
-LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => UI_tall() ? LOT_tallFit(W, H, LOT_NEED.mystic).h : Math.min(H - 8, 262),
+LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.mystic, W, H); return f ? f.h : Math.min(H - 8, 262); },
   open() { LOT_MYST.sel = null; LOT_MYST.ench = null; LOT_MYST.imp = false; LOT_UI.focus = null; LOT_UI.press = null; LOT_MYST.select = it => { if (!it || LOT_MYST.ench) return; LOT_MYST.sel = it; LOT_MYST.imp = false; sfx('select', { vol: .5 }); }; LOT_say('mystic', 'greet'); },
   close() { LOT_UI.press = null; const r = LOT_npcRig('mystic'); if (r) r._talk = false; },
   back() { if (LOT_back()) return true; if (LOT_MYST.ench) { LOT_MYST.ench = null; sfx('cancel', { vol: .4 }); return true; } if (LOT_MYST.sel) { LOT_MYST.sel = null; LOT_MYST.imp = false; sfx('cancel', { vol: .4 }); return true; } return false; },
@@ -1001,7 +1009,7 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
     if (LOT_MYST.sel && !LOT_owned(h, LOT_MYST.sel)) { LOT_MYST.sel = null; LOT_MYST.ench = null; LOT_MYST.imp = false; }
     // T: a finger's size (held upright, or a touch screen on its side): the altar and its three services come first, and
     // while an item is on the altar its lines (or the essences) take the bag's place; '◂ YOUR BAG' (or ○) brings it back
-    const tall = UI_tall(), T = tall ? LOT_tallFit(game.W, game.H, LOT_NEED.mystic).T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10, it = LOT_MYST.sel, t = performance.now() / 1000;
+    const fit = LOT_tallOf(LOT_NEED.mystic), tall = !!fit, T = fit ? fit.T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10, it = LOT_MYST.sel, t = performance.now() / 1000;
     const lw = tall ? w - pad * 2 : Math.floor((w - pad * 2 - 8) * .5), rx = tall ? x + pad : x + pad + lw + 8, rw = x + w - pad - rx;
     LOT_npcHeader(g, x + pad, top, lw, 'mystic');
     // the altar: a void orb that breathes, runes turning around it, the item floating in its light
@@ -1177,7 +1185,7 @@ function LOT_chestDraw(g, x, y, open) {
   // motes rising out of it
   for (const m of LOT_ST.motes) { const a = Math.min(1, m.t * 3, (m.max - m.t) * 2) * Math.min(1, o); if (a > 0) px.blend(g, a, 'add', () => px.dot(g, bx + W / 2 + m.x, hinge - m.y, m.c)); }
 }
-LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => UI_tall() ? LOT_tallFit(W, H, LOT_NEED.stash).h : Math.min(H - 8, 262),
+LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.stash, W, H); return f ? f.h : Math.min(H - 8, 262); },
   open() { LOT_UI.focus = null; LOT_UI.press = null; LOT_ST.openT = 0; LOT_ST.motes.length = 0; if (ED.hero) LOT_stash(ED.hero); sfx('door', { vol: .4 }); },
   close() { LOT_UI.press = null; if (typeof saveGame === 'function') saveGame(); },   // what went in is kept, even if the tab closes now
   back: () => LOT_back(),
@@ -1192,7 +1200,7 @@ LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh);
     // held upright the chest and its tabs stand over the bag, full width; T: a finger's size (upright, or a touch screen,
     // where on its side the tabs go beside the chest so its grid keeps a finger's cells)
-    const tall = UI_tall(), T = tall ? LOT_tallFit(game.W, game.H, LOT_NEED.stash).T : LOT_F(), side = T && !tall;
+    const fit = LOT_tallOf(LOT_NEED.stash), tall = !!fit, T = fit ? fit.T : LOT_F(), side = T && !tall;
     const S = LOT_stash(h), pad = 7, top = y + 19, lw = tall ? w - pad * 2 : Math.floor((w - pad * 2 - 8) * .5), rx = tall ? x + pad : x + pad + lw + 8, rw = x + w - pad - rx, foot = y + hh - 10;
     // the chest, its name, what it holds
     const u = clamp(LOT_ST.openT / .45, 0, 1), open = clamp(E.ease.outBack(u) + Math.sin(Math.min(1, LOT_ST.bump / .35) * Math.PI) * .25, 0, 1.2);
