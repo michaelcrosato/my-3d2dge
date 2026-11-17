@@ -1924,3 +1924,26 @@ An entry:
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
 
+## D110 · 2026-11-17 · The kits upright: two columns clear of the stick's half; every end menu backs out
+
+- **Principle:** the controls standard (D100): touch on a phone held upright ("redesigned if needed"), a finger each for
+  the stick and every button, every temporary menu swiped away and ○ back (docs/CONTROLS.md rules 2 and 7)
+- **Call:**
+  - Upright, a kit whose touch row can show four or five buttons at once lays them out in two columns in the corner
+    (`layout: 'grid'`, as 3D SHOOTER's ten), the ones that come and go on top: 3D ACTION, HORROR, FLIGHT and CRAWLER,
+    STEALTH, ROGUELIKE and METROIDVANIA (without MELEE while Settings, Touch assists keeps it hidden). The starters'
+    `touchColumns` relays them out when the phone turns; on its side, and on a desk or a TV, nothing changes. Kits of
+    three stay a row: two columns of three leave the corner empty, and a hidden one (ITEM, ACT, GAS with the assists)
+    would leave a hole where a row closes up; their third reaches 25 px past the middle on a 390 px phone (40 px on a
+    360 px one). The fix for every row at once is the engine's (`_touchSync` wrapping a row at the middle while upright),
+    left to the engine's owner.
+  - The shared GAME OVER and COURSE CLEAR (2D and 3D), POINT-AND-CLICK's THE END and the TACTICS and RTS end menus back
+    out to the title on ○, Backspace and a sideways flick, as every other kit's result menu, read once the menu has
+    shown .4 s (`backOut`: a dodge mashed as the run ends is no answer; TACTICS and RTS already wait 1.6 s). On the
+    GAME OVER Esc goes back too (it is a cancel key there, as on KART's results), so Options opens the standard menu
+    from it; TACTICS's and RTS's Esc (`escape: 'back'`) and a phone's back go to the title from their end menu;
+    POINT-AND-CLICK's Esc still pauses (its Esc is the pause in play).
+- **Why:** a left thumb set down to steer pressed LOCK, BLOCK or MAP instead; and a menu that only a pick leaves is the
+  one the standard's swipe and ○ rules name.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** the version after v0.108.0

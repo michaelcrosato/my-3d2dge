@@ -15,9 +15,9 @@
  *   place, the touchpad or Create the map, Options pauses. DUALSENSE: the light bar is the suit's energy (green, amber,
  *   red and flashing low; white as it saves), R2 clicks as it fires and buzzes once a charged shot is ready; any pad
  *   rumbles on hits taken, kills, the bosses' blows, a charged shot and a pickup.
- * TOUCH: the stick (it aims too), JUMP, FIRE, DASH (once found) and MAP; with Touch assists on (Settings), FIRE beside a
- *   foe, or near a ring in the air, lashes (it says LASH: a context button). A swipe closes the map and takes the
- *   banners, the controls hint and the end's box away.
+ * TOUCH: the stick (it aims too), JUMP, FIRE, DASH (once found) and MAP (upright, in two columns in the corner, the
+ *   stick's half clear); with Touch assists on (Settings), FIRE beside a foe, or near a ring in the air, lashes (it says
+ *   LASH: a context button). A swipe closes the map and takes the banners, the controls hint and the end's box away.
  * THE MAP: the rooms seen, cell by cell, their doors, the save room (S) and the bosses' (B); the corner shows the cells
  * round you. SAVE: step onto the station (it refills energy); the next visit starts there.
  * Deep links: #metroidvania/miniboss and #metroidvania/boss (a practice: the abilities given, at the arena's door),
@@ -33,6 +33,9 @@ const MVANIA = (() => {
   const T = 16, KEYS = Object.assign({}, E.Input.PLATFORMER, { fire: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2', 'Pad7'], melee: ['KeyE', 'KeyF', 'Mouse2', 'Pad3'], lock: ['KeyQ', 'Pad4', 'Pad6'], map: ['Tab', 'KeyR', 'Pad8', 'Pad17'],
     dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad5', 'Pad1'] });
   delete KEYS.attack; delete KEYS.skill;
+  // the touch buttons (MELEE first: it pops up only with the assists off, so the others stay under the thumb); upright, in
+  // two columns in the corner, without MELEE while Settings, Touch assists keeps it away (FIRE lashes then), MAP in the corner
+  const TOUCH = ['melee', 'jump', 'fire', 'dash', 'map'], TOUCH_ASSIST = TOUCH.slice(1), fit = touchColumns(TOUCH);
   /* ---- THE WORLD: each room's top-left screen on the grid, its name (a line) and area (the look), its rows (top first) ---- */
   const ROOMS = {
     landing: { at: [0, 1], name: E.t('metroidvania.room.landing'), area: 'cave', rows: [
@@ -604,6 +607,7 @@ const MVANIA = (() => {
     // the suit: the cannon held out along the aim, but not on a rope, the bars or a ledge (its hands are full)
     const busy = hero.onRope || hero.onBars || hero.hanging || hero.climbUp || hero.clinging;
     rig.update(dt, hero.rigState(Object.assign({ point: !busy, aim: aimA, hurt: hero.stun > 0, expr: hero.stun > 0 ? 'wince' : null }, won && hero.onGround && { pose: 'cheer' })));
+    fit(game.settings.assists === false ? TOUCH : TOUCH_ASSIST);   // (by the setting, not the device in use; before the touchSet calls)
     for (const k of ['jump', 'fire', 'dash']) game.input.touchSet(k, k === 'fire' && near && I.assist ? E.t('metroidvania.touch.lash') : null, k !== 'dash' || world.has('dash'));
     game.input.touchSet('melee', E.t('metroidvania.touch.lash'), near && !I.assist);
   }
@@ -923,7 +927,7 @@ const MVANIA = (() => {
     } finally { for (const a of ['left', 'right', 'up', 'down', 'fire', 'lock', 'jump', 'melee']) I.hold(a, false); Math.random = was; if (!stop) mode = null; }
   }
 
-  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: ['melee', 'jump', 'fire', 'dash', 'map'], camera: { zoom: [.75, 1.5], tall: 1.6 },   // (melee: LASH, popped up only where it acts with assists off; first, so the others stay under the thumb)
+  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: TOUCH, camera: { zoom: [.75, 1.5], tall: 1.6 },
     enter(d) {
       const part = d && d.part;
       if (mode === 'bot') { E.store.remove('rooms:mv-bot'); start({ id: 'mv-bot', fresh: true }); }
@@ -932,7 +936,7 @@ const MVANIA = (() => {
       else if (part === 'miniboss') start({ id: 'mv-practice', fresh: true, at: 'arena', got: ['boots'] });
       else { start(); if (part === 'map') mapOpen = true; }
       game.cam.align = 'center'; ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true }) : null; padLight = padTrig = null;
-      game.input.touchSet('melee', E.t('metroidvania.touch.lash'), false);   // (until a foe or a ring is near)
+      fit.reset(); game.input.touchSet('melee', E.t('metroidvania.touch.lash'), false);   // (until a foe or a ring is near)
     },
     exit() { L.enabled = false; game.cam.align = null; if (ds) ds.clear(); }, update, draw, bot,
     state: () => { const b = shots.list.filter(b => b.team === 'player').pop(); return { room: world.room.id, x: hero.x, z: hero.z, hp, got: [...world.got], seen: world.seen.size, foes: foes.filter(f => !f.dead).length, mapOpen, won, dead: dead > 0, shot: b ? { vx: b.vx, vz: b.vz } : null }; },   // (for tests)

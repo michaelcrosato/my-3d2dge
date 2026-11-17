@@ -1072,6 +1072,21 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side. fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid out); each step, before its
+// touchSet calls: fit(), or fit(list), the buttons the player's settings can show (null: the row). Cheap: it lays them out
+// again only when that changes (the phone turned, a setting)
+const touchColumns = (actions, o = {}) => {
+  let was = null;   // (the list in two columns, or null: the scene's row)
+  const fit = (list = actions) => { const now = (game.screen.portrait && list) || null; if (now === was) return; was = now; game.input.touchButtons(now || actions, now ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = null; };
+  return fit;
+};
+// a result menu's way back to the title (○, Backspace, a sideways swipe; Esc where the scene leaves it to the menu), read
+// once the menu has shown t > .4 s: a dodge or a skip mashed as the game ends is no answer. Each step: backOut(menu, t)
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -1095,7 +1110,8 @@ const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of d
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
-// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays (on a game over Esc is a cancel key
+// first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
@@ -1133,14 +1149,15 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER: shared by every slice ---- */
+/* ---- GAME OVER: shared by every slice. ○, Backspace, Esc or a sideways swipe goes back to the title (as the scene's
+ * back() and every kit's result menu: backOut), Options opens the standard menu ---- */
 const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: MENU_IN, res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; overMenu.t = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
@@ -1162,8 +1179,9 @@ scenes.over = {
  * ✕ wait, □ potion, △ scroll, R1 the stairs, Options pauses. DUALSENSE: the light bar is the hero's health (green, amber,
  * red; white for a level); any pad rumbles on the blows (game.hitFx), down the stairs and at the end. TOUCH: tap a cell
  * to walk there (the hero stops when a monster comes into sight), hold the stick to step; WAIT, and POTION and SCROLL
- * while there is one to use; with Touch assists on (Settings), STAIRS once the stairs are seen walks there. A sideways
- * swipe clears the messages and leaves the end's menu.
+ * while there is one to use; with Touch assists on (Settings), STAIRS once the stairs are seen walks there (upright, the
+ * four in two columns in the corner, the stick's half clear). A sideways swipe clears the messages and leaves the end's
+ * menu.
  * HOW IT WORKS: the floor is a TileMap from E.gen's ASCII rows, the grid (E.Grid.from(map)) gives paths, fields of view
  * (symmetric shadowcasting: you see a monster exactly when it sees you) and E.Fog (unseen black, seen dim); E.Turns
  * orders the turns; each step between cells is a tween (game.tween) the rigs walk through, so the game is turn-based
@@ -1200,6 +1218,7 @@ const ROGUE = (() => {
   let R = Math.random, seed = 1, depth = 1, level = null, map = null, grid = null, fog = null, turns = null;
   let hero = null, foes = [], items = [], braziers = [], log = [], travel = null, busy = 0, mode = 'play', over = null, dirWait = 0, lastDir = null, repeatT = 0, held = 0, going = false;
   let stats = { kills: 0, gold: 0, turns: 0, killer: null };
+  const TOUCH = ['stairs', 'potion', 'scroll', 'wait'], fit = touchColumns(TOUCH);   // (the touch buttons, WAIT in the corner; upright, two columns)
   const menu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('roguelike', null, { fade: 'iris' }) : game.go('title'), onCancel: () => game.go('title') });
   // THE KEYS: its own (no borrowed attack, skill or dash: a click only travels, a right click drinks nothing): the moves
   // with the numpad's, its corners the diagonals; wait, quaff and read on the keys a roguelike's player reaches for (the
@@ -1353,7 +1372,7 @@ const ROGUE = (() => {
     // the buttons a touch screen shows: WAIT; POTION and SCROLL while there is one; STAIRS (a touch assist: Settings, Touch
     // assists) once the stairs are seen. stairs: seen, so the stairs key (G, R1) can walk there
     const st = items.find(t => t.kind === 'stairs'), stairs = !!st && fog.seen([st.cx, st.cy]) && !going;
-    I.touchSet('wait', E.t('roguelike.touch.wait')); I.touchSet('potion', E.t('roguelike.touch.potion'), hero.potions > 0); I.touchSet('scroll', E.t('roguelike.touch.scroll'), hero.scrolls > 0); I.touchSet('stairs', E.t('roguelike.touch.stairs'), stairs && I.assist);
+    fit(); I.touchSet('wait', E.t('roguelike.touch.wait')); I.touchSet('potion', E.t('roguelike.touch.potion'), hero.potions > 0); I.touchSet('scroll', E.t('roguelike.touch.scroll'), hero.scrolls > 0); I.touchSet('stairs', E.t('roguelike.touch.stairs'), stairs && I.assist);
     if (log.length && I.swipe() && (I.swipe().dir === 'left' || I.swipe().dir === 'right')) { I.swipe(true); log = []; }   // a sideways swipe clears the messages
     if (I.mouse.t !== hover.mt) { hover.mt = I.mouse.t; hover.cell = cellAt(I.pointer()); }   // the mouse: the cell under it (its path drawn below)
     busy -= dt; if (busy > 0) return;
@@ -1493,9 +1512,9 @@ const ROGUE = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: ['stairs', 'potion', 'scroll', 'wait'],
+  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: TOUCH,
     camera: { zoom: [.75, 2], start: 1, tall: 1.25 }, update, draw, bot,
-    enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hover = { mt: game.input.mouse.t, cell: null, key: '', path: [] }; start(data); },
+    enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hover = { mt: game.input.mouse.t, cell: null, key: '', path: [] }; fit.reset(); start(data); },
     exit() { L.enabled = false; game.cam.bounds = null; if (ds) ds.clear(); },
     state: () => ({ depth, hero, foes, items, mode, turns, grid, fog }),   // for tests
     /** the proof: steps about the first floor, a wait, a potion; the monsters on their turns; a hash of the run */

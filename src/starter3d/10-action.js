@@ -14,8 +14,8 @@
  * bar is his health (teal, amber, a red pulse; white as a wave falls, gold as the knight does), R2 clicks as the sword
  * swings; the heart's chime from the controller's speaker; any pad rumbles on his hurts, big blows, broken crates and the
  * knight's fall. TOUCH: the stick, ATTACK, DASH, JUMP, SKILL, and LOCK where there is a monster to lock on (NEXT while
- * locked); the touch assists (Settings, on at first) swing at a monster in reach and turn the bolt onto the one nearest
- * its way. A swipe takes the controls away.
+ * locked), upright in two columns in the corner (LOCK on top), clear of the stick's half; the touch assists (Settings,
+ * on at first) swing at a monster in reach and turn the bolt onto the one nearest its way. A swipe takes the controls away.
  * THE 3D: every monster is a Rapier body (the crowd pushes and piles up by itself, knockback is momentum); the hero is a
  * character controller; the monsters find their way up the stairs on the level's flow field. The camera: the 2D views
  * as 3D cameras (V), the chase camera and first person (C); lock-on (world.camera.lock, cycle). ACTION.run(n): a scripted
@@ -102,6 +102,7 @@ const ACTION = (() => {
   // THE KEYS: World3D.INPUT, the lock on L2 first (the standard's lock-on: L1 still locks) and a middle click (a PC's
   // third-person lock-on button), the dash on ○ alone (L2 is the lock's)
   const KEYS = Object.assign({}, W3.INPUT, { dash: ['ShiftLeft', 'ShiftRight', 'KeyK', 'Pad1'], lock: ['KeyQ', 'Tab', 'Mouse1', 'Pad6', 'Pad4'] });
+  const TOUCH = ['lock', 'attack', 'dash', 'jump', 'skill'], fit = touchColumns(TOUCH);   // (the touch buttons, LOCK first: it comes and goes; upright, two columns)
   // the DUALSENSE (the dualsense module): the light bar is his health, R2 clicks as the sword goes; buzz: a rumble on any
   // pad, while it is what he plays with
   let ds = null, padLight = null, padTrig, flashT = 0, flashC = null;
@@ -388,11 +389,11 @@ const ACTION = (() => {
   }
 
   return {
-    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: KEYS, pausable: true, touch: ['lock', 'attack', 'dash', 'jump', 'skill'], camera: { zoom: [.6, 2], tall: 1.6 },
-    enter() { reset(1); active = world; A.music('dungeon'); world.camera.set('view'); ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0; },
+    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: KEYS, pausable: true, touch: TOUCH, camera: { zoom: [.6, 2], tall: 1.6 },
+    enter() { fit.reset(); reset(1); active = world; A.music('dungeon'); world.camera.set('view'); ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0; },
     exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
     update(dt) {
-      const inp = game.input; cameraKey(world); hint -= dt;
+      const inp = game.input; fit(); cameraKey(world); hint -= dt;
       if (hint > 0 && inp.swipe(true)) hint = 0;   // (a swipe takes the controls away)
       step(dt, controls()); padExtras(dt);
       // LOCK where there is a monster in range to lock on, NEXT while locked

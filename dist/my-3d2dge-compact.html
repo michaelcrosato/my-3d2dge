@@ -4658,6 +4658,21 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side. fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid out); each step, before its
+// touchSet calls: fit(), or fit(list), the buttons the player's settings can show (null: the row). Cheap: it lays them out
+// again only when that changes (the phone turned, a setting)
+const touchColumns = (actions, o = {}) => {
+  let was = null;   // (the list in two columns, or null: the scene's row)
+  const fit = (list = actions) => { const now = (game.screen.portrait && list) || null; if (now === was) return; was = now; game.input.touchButtons(now || actions, now ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = null; };
+  return fit;
+};
+// a result menu's way back to the title (○, Backspace, a sideways swipe; Esc where the scene leaves it to the menu), read
+// once the menu has shown t > .4 s: a dodge or a skip mashed as the game ends is no answer. Each step: backOut(menu, t)
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -4681,7 +4696,8 @@ const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of d
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
-// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays (on a game over Esc is a cancel key
+// first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
@@ -4719,14 +4735,15 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER: shared by every slice ---- */
+/* ---- GAME OVER: shared by every slice. ○, Backspace, Esc or a sideways swipe goes back to the title (as the scene's
+ * back() and every kit's result menu: backOut), Options opens the standard menu ---- */
 const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: MENU_IN, res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; overMenu.t = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
@@ -5441,11 +5458,11 @@ scenes.adventure = ADV;
  * panel), ○ drops the item; a hint along the top says so. A DualSense's gyro fine-tunes the cursor (Settings, Controls),
  * its light bar is the lighthouse's (dark blue, then gold once it is lit). TOUCH: a tap walks; a tap on a hotspot (or a
  * thumb's width off one, with Touch assists on) shows its verbs; the inventory by taps, DROP while an item is held; a
- * long press looks; a swipe closes the verbs, drops the item and turns a line; held upright the room is drawn twice the
- * size and scrolls with Pip. HOW IT WORKS: E.Click (the click module) keeps the rooms, the walk areas (E.Walkbox: the
- * lamp, the table, Finn and the hatch are holes), the depth scale, the hotspots, the inventory and the rules (data);
- * the rooms are painted once by code. bot() clicks through the whole chain with input.feed, a wrong riddle first
- * (tools/kits-test.mjs). Deep link: #pointclick.
+ * long press looks; a swipe closes the verbs, drops the item, turns a line and leaves THE END (as ○ does); held upright
+ * the room is drawn twice the size and scrolls with Pip. HOW IT WORKS: E.Click (the click module) keeps the rooms, the
+ * walk areas (E.Walkbox: the lamp, the table, Finn and the hatch are holes), the depth scale, the hotspots, the inventory
+ * and the rules (data); the rooms are painted once by code. bot() clicks through the whole chain with input.feed, a wrong
+ * riddle first (tools/kits-test.mjs). Deep link: #pointclick.
  * ===================================================================================== */
 const POINTCLICK = (() => {
   const px = E.px, hash = E.hash2, TAU = Math.PI * 2;
@@ -5800,7 +5817,7 @@ const POINTCLICK = (() => {
     // SCUMM's verb keys, in the nine verbs' interface
     if (mode === 'play' && pc.ui === 'verbs' && !story.running) for (const v of VERB_KEYS) if (I.pressed('v_' + v)) { pc.verb = v; pc.item = null; }
     if (mode === 'open') { if (modeT > 3.5 || (modeT > .4 && (I.clicked() || I.pressed('confirm')))) { I.consumeAll(); mode = 'play'; pc.panel = true; story.run('intro'); } return; }
-    if (mode === 'end') { if (!endMenu.update(dt)) pickOnStart(endMenu); return; }
+    if (mode === 'end') { backOut(endMenu, modeT); if (!endMenu.update(dt)) pickOnStart(endMenu); return; }   // (THE END's menu: ○, Backspace or a sideways swipe to the title, as back())
     if (mode === 'play') played += dt;
     pc.update(dt);
     if (mode === 'lit' && modeT > 2.5 && !story.running && !story.get('said')) { story.set('said'); story.run('ending', { onDone: () => { mode = 'end'; modeT = 0; } }); }
@@ -6503,9 +6520,9 @@ scenes.platformer = PLAT;
  *   place, the touchpad or Create the map, Options pauses. DUALSENSE: the light bar is the suit's energy (green, amber,
  *   red and flashing low; white as it saves), R2 clicks as it fires and buzzes once a charged shot is ready; any pad
  *   rumbles on hits taken, kills, the bosses' blows, a charged shot and a pickup.
- * TOUCH: the stick (it aims too), JUMP, FIRE, DASH (once found) and MAP; with Touch assists on (Settings), FIRE beside a
- *   foe, or near a ring in the air, lashes (it says LASH: a context button). A swipe closes the map and takes the
- *   banners, the controls hint and the end's box away.
+ * TOUCH: the stick (it aims too), JUMP, FIRE, DASH (once found) and MAP (upright, in two columns in the corner, the
+ *   stick's half clear); with Touch assists on (Settings), FIRE beside a foe, or near a ring in the air, lashes (it says
+ *   LASH: a context button). A swipe closes the map and takes the banners, the controls hint and the end's box away.
  * THE MAP: the rooms seen, cell by cell, their doors, the save room (S) and the bosses' (B); the corner shows the cells
  * round you. SAVE: step onto the station (it refills energy); the next visit starts there.
  * Deep links: #metroidvania/miniboss and #metroidvania/boss (a practice: the abilities given, at the arena's door),
@@ -6521,6 +6538,9 @@ const MVANIA = (() => {
   const T = 16, KEYS = Object.assign({}, E.Input.PLATFORMER, { fire: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2', 'Pad7'], melee: ['KeyE', 'KeyF', 'Mouse2', 'Pad3'], lock: ['KeyQ', 'Pad4', 'Pad6'], map: ['Tab', 'KeyR', 'Pad8', 'Pad17'],
     dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad5', 'Pad1'] });
   delete KEYS.attack; delete KEYS.skill;
+  // the touch buttons (MELEE first: it pops up only with the assists off, so the others stay under the thumb); upright, in
+  // two columns in the corner, without MELEE while Settings, Touch assists keeps it away (FIRE lashes then), MAP in the corner
+  const TOUCH = ['melee', 'jump', 'fire', 'dash', 'map'], TOUCH_ASSIST = TOUCH.slice(1), fit = touchColumns(TOUCH);
   /* ---- THE WORLD: each room's top-left screen on the grid, its name (a line) and area (the look), its rows (top first) ---- */
   const ROOMS = {
     landing: { at: [0, 1], name: E.t('metroidvania.room.landing'), area: 'cave', rows: [
@@ -7092,6 +7112,7 @@ const MVANIA = (() => {
     // the suit: the cannon held out along the aim, but not on a rope, the bars or a ledge (its hands are full)
     const busy = hero.onRope || hero.onBars || hero.hanging || hero.climbUp || hero.clinging;
     rig.update(dt, hero.rigState(Object.assign({ point: !busy, aim: aimA, hurt: hero.stun > 0, expr: hero.stun > 0 ? 'wince' : null }, won && hero.onGround && { pose: 'cheer' })));
+    fit(game.settings.assists === false ? TOUCH : TOUCH_ASSIST);   // (by the setting, not the device in use; before the touchSet calls)
     for (const k of ['jump', 'fire', 'dash']) game.input.touchSet(k, k === 'fire' && near && I.assist ? E.t('metroidvania.touch.lash') : null, k !== 'dash' || world.has('dash'));
     game.input.touchSet('melee', E.t('metroidvania.touch.lash'), near && !I.assist);
   }
@@ -7411,7 +7432,7 @@ const MVANIA = (() => {
     } finally { for (const a of ['left', 'right', 'up', 'down', 'fire', 'lock', 'jump', 'melee']) I.hold(a, false); Math.random = was; if (!stop) mode = null; }
   }
 
-  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: ['melee', 'jump', 'fire', 'dash', 'map'], camera: { zoom: [.75, 1.5], tall: 1.6 },   // (melee: LASH, popped up only where it acts with assists off; first, so the others stay under the thumb)
+  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: TOUCH, camera: { zoom: [.75, 1.5], tall: 1.6 },
     enter(d) {
       const part = d && d.part;
       if (mode === 'bot') { E.store.remove('rooms:mv-bot'); start({ id: 'mv-bot', fresh: true }); }
@@ -7420,7 +7441,7 @@ const MVANIA = (() => {
       else if (part === 'miniboss') start({ id: 'mv-practice', fresh: true, at: 'arena', got: ['boots'] });
       else { start(); if (part === 'map') mapOpen = true; }
       game.cam.align = 'center'; ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true }) : null; padLight = padTrig = null;
-      game.input.touchSet('melee', E.t('metroidvania.touch.lash'), false);   // (until a foe or a ring is near)
+      fit.reset(); game.input.touchSet('melee', E.t('metroidvania.touch.lash'), false);   // (until a foe or a ring is near)
     },
     exit() { L.enabled = false; game.cam.align = null; if (ds) ds.clear(); }, update, draw, bot,
     state: () => { const b = shots.list.filter(b => b.team === 'player').pop(); return { room: world.room.id, x: hero.x, z: hero.z, hp, got: [...world.got], seen: world.seen.size, foes: foes.filter(f => !f.dead).length, mapOpen, won, dead: dead > 0, shot: b ? { vx: b.vx, vz: b.vz } : null }; },   // (for tests)
@@ -12553,8 +12574,9 @@ scenes.rpg = JOURNEY;
  * ✕ wait, □ potion, △ scroll, R1 the stairs, Options pauses. DUALSENSE: the light bar is the hero's health (green, amber,
  * red; white for a level); any pad rumbles on the blows (game.hitFx), down the stairs and at the end. TOUCH: tap a cell
  * to walk there (the hero stops when a monster comes into sight), hold the stick to step; WAIT, and POTION and SCROLL
- * while there is one to use; with Touch assists on (Settings), STAIRS once the stairs are seen walks there. A sideways
- * swipe clears the messages and leaves the end's menu.
+ * while there is one to use; with Touch assists on (Settings), STAIRS once the stairs are seen walks there (upright, the
+ * four in two columns in the corner, the stick's half clear). A sideways swipe clears the messages and leaves the end's
+ * menu.
  * HOW IT WORKS: the floor is a TileMap from E.gen's ASCII rows, the grid (E.Grid.from(map)) gives paths, fields of view
  * (symmetric shadowcasting: you see a monster exactly when it sees you) and E.Fog (unseen black, seen dim); E.Turns
  * orders the turns; each step between cells is a tween (game.tween) the rigs walk through, so the game is turn-based
@@ -12591,6 +12613,7 @@ const ROGUE = (() => {
   let R = Math.random, seed = 1, depth = 1, level = null, map = null, grid = null, fog = null, turns = null;
   let hero = null, foes = [], items = [], braziers = [], log = [], travel = null, busy = 0, mode = 'play', over = null, dirWait = 0, lastDir = null, repeatT = 0, held = 0, going = false;
   let stats = { kills: 0, gold: 0, turns: 0, killer: null };
+  const TOUCH = ['stairs', 'potion', 'scroll', 'wait'], fit = touchColumns(TOUCH);   // (the touch buttons, WAIT in the corner; upright, two columns)
   const menu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('roguelike', null, { fade: 'iris' }) : game.go('title'), onCancel: () => game.go('title') });
   // THE KEYS: its own (no borrowed attack, skill or dash: a click only travels, a right click drinks nothing): the moves
   // with the numpad's, its corners the diagonals; wait, quaff and read on the keys a roguelike's player reaches for (the
@@ -12744,7 +12767,7 @@ const ROGUE = (() => {
     // the buttons a touch screen shows: WAIT; POTION and SCROLL while there is one; STAIRS (a touch assist: Settings, Touch
     // assists) once the stairs are seen. stairs: seen, so the stairs key (G, R1) can walk there
     const st = items.find(t => t.kind === 'stairs'), stairs = !!st && fog.seen([st.cx, st.cy]) && !going;
-    I.touchSet('wait', E.t('roguelike.touch.wait')); I.touchSet('potion', E.t('roguelike.touch.potion'), hero.potions > 0); I.touchSet('scroll', E.t('roguelike.touch.scroll'), hero.scrolls > 0); I.touchSet('stairs', E.t('roguelike.touch.stairs'), stairs && I.assist);
+    fit(); I.touchSet('wait', E.t('roguelike.touch.wait')); I.touchSet('potion', E.t('roguelike.touch.potion'), hero.potions > 0); I.touchSet('scroll', E.t('roguelike.touch.scroll'), hero.scrolls > 0); I.touchSet('stairs', E.t('roguelike.touch.stairs'), stairs && I.assist);
     if (log.length && I.swipe() && (I.swipe().dir === 'left' || I.swipe().dir === 'right')) { I.swipe(true); log = []; }   // a sideways swipe clears the messages
     if (I.mouse.t !== hover.mt) { hover.mt = I.mouse.t; hover.cell = cellAt(I.pointer()); }   // the mouse: the cell under it (its path drawn below)
     busy -= dt; if (busy > 0) return;
@@ -12884,9 +12907,9 @@ const ROGUE = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: ['stairs', 'potion', 'scroll', 'wait'],
+  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: TOUCH,
     camera: { zoom: [.75, 2], start: 1, tall: 1.25 }, update, draw, bot,
-    enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hover = { mt: game.input.mouse.t, cell: null, key: '', path: [] }; start(data); },
+    enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hover = { mt: game.input.mouse.t, cell: null, key: '', path: [] }; fit.reset(); start(data); },
     exit() { L.enabled = false; game.cam.bounds = null; if (ds) ds.clear(); },
     state: () => ({ depth, hero, foes, items, mode, turns, grid, fog }),   // for tests
     /** the proof: steps about the first floor, a wait, a potion; the monsters on their turns; a hash of the run */
@@ -12920,7 +12943,7 @@ scenes.roguelike = ROGUE;
  * turns the view. TOUCH: a tap selects a unit, a tap on a blue cell moves there, a tap on a foe in range strikes; the
  * command list's rows are a thumb's height; a finger dragging pans the camera, two pinch it; TURN turns the view, BACK
  * (while moving, aiming or facing) goes back, SKIP skips the scene; a swipe takes the banner or the message away, a
- * sideways one on the command list goes back as a menu's does.
+ * sideways one on the command list goes back as a menu's does, and on the end's menu (○ and Esc too) to the title.
  * HOW IT WORKS: the map is a TileMap whose cells all stand on a base (the earth shows at its edges) at their heights; the
  * grid is E.Grid.from(map, { tops: true }) with the shallows' cost; E.Turns ('ct') orders the turns, grid.reach the
  * moves (allies passed through), grid.shape the areas, grid.side where a blow lands, grid.threat the AI's danger; E.Story
@@ -13015,7 +13038,7 @@ const TACTICS = (() => {
   // on a pad (the wheel and - = are the engine's)
   const KEYS = { ...E.Input.MENU, cancel: [...E.Input.MENU.cancel, 'Mouse2'], turnL: ['KeyQ', 'Pad4'], turnR: ['KeyE', 'Pad5'], skip: ['KeyX', 'Pad8'],
     next: ['Tab', 'Pad3', 'Pad17'], zoomIn: ['Pad7'], zoomOut: ['Pad6'], row1: ['Digit1'], row2: ['Digit2'], row3: ['Digit3'], row4: ['Digit4'], row5: ['Digit5'] };
-  const endMenu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title') });
+  const endMenu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title'), onCancel: toTitle });   // (○, Backspace, a right click or a sideways swipe: the title, as Esc does by back())
   const top = (cx, cy) => map.height(cx, cy), key = c => c[0] + ',' + c[1], same = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
   const living = side => units.filter(u => !u.dead && (!side || u.side === side)), unitAt = c => units.find(u => !u.dead && u.cx === c[0] && u.cy === c[1]) || null;
   const foesOf = u => living(u.side === 'hero' ? 'foe' : 'hero'), mates = u => living(u.side).filter(o => o !== u), cell = u => [u.cx, u.cy];
@@ -13480,8 +13503,8 @@ const TACTICS = (() => {
     enter: start, update, draw, bot,
     exit() { game.input.touchEnabled = true; game.resetCamera(); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): moving, aiming or facing goes back to the commands (the press is
-    // spent: the step's back key does no more); else false, and Esc pauses
-    back() { const u = active; if (mode === 'move' || mode === 'target' || mode === 'face' || (mode === 'command' && u && u.moved && !u.acted && !u.path)) { back(); game.input.suppress('cancel'); return true; } return false; },   // (Esc as the hint says: out of a move, an aim or a facing, or the move undone, before it pauses)
+    // spent: the step's back key does no more), the end's menu to the title (as ○ there); else false, and Esc pauses
+    back() { const u = active; if (mode === 'over' && over.t > 1.6) { toTitle(); return true; } if (mode === 'move' || mode === 'target' || mode === 'face' || (mode === 'command' && u && u.moved && !u.acted && !u.path)) { back(); game.input.suppress('cancel'); return true; } return false; },   // (Esc as the hint says: out of a move, an aim or a facing, or the move undone, before it pauses)
     /** for tests: the state, and helpers to find a cell or a row on the screen and to place a unit */
     state: () => ({ mode, order, phase, round, active, cursor, sel, units, cells, over, stats, map, grid, turns, rows: active ? rows(active) : [], ui,
       at: (cx, cy) => { const v = game.view, [x, y] = map.center(cx, cy), q = v.p(x, y, top(cx, cy)); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; },
@@ -13514,8 +13537,9 @@ scenes.tactics = TACTICS;
  * at an attack out of sight and when a building of yours falls. TOUCH: a tap selects, a tap on ground or a foe orders, a
  * drag pans, a long press then a drag draws a box, two fingers zoom; the panel's buttons are a thumb's size, HALL, ARMY
  * and IDLE on the left (ALERT under them while an attack is fresh); BUILD shows the plan where you tap, PLACE puts it
- * there; a swipe takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan. With Touch
- * assists on (Settings) a worker left idle goes back to the nearest mine, and a tap near a small unit takes it.
+ * there; a swipe takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan, and on the
+ * end's menu (○ and Esc too) goes to the title. With Touch assists on (Settings) a worker left idle goes back to the
+ * nearest mine, and a tap near a small unit takes it.
  * HOW IT WORKS: the strategy module keeps the rules (E.Strategy: kinds as data, orders, flow fields, fog, the clan's AI
  * from its build order and waves); this slice draws (rigs, buildings as E.SHAPES, the fog), runs the HUD and its
  * commands, and the minimap (E.Shell). bot() gives the Vale an AI of its own that plays the match to its end, twice the
@@ -13816,7 +13840,7 @@ const RTS = (() => {
     if (rts.time >= CLAN.waves.first - 20 && wave === 0 && !auto) { wave = 1; say(E.t('rts.say.arming'), '#ffb070'); }
   }
   function end(won) { over = { won, t: 0 }; rts.selected = []; mode = 'play'; placing = null; if (!auto) A.sfx(won ? 'powerup' : 'die'); }
-  const endMenu = new E.Menu(game, [E.t('rts.again'), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title') });
+  const endMenu = new E.Menu(game, [E.t('rts.again'), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title'), onCancel: toTitle });   // (○, Backspace or a sideways swipe: the title, as Esc does by back())
 
   /* ---- 5. DRAWING: the floor, the woods, the buildings (shapes, their side's colors; a site going up), the bodies, the
    * arrows, the fog over it all, then the rings and bars, the plan of a building being placed, the HUD ---- */
@@ -13935,9 +13959,10 @@ const RTS = (() => {
     enter: start, update, draw, bot,
     exit() { const N = Object.assign({}, game.input.names); for (const a in FIXED) delete N[a]; game.input.names = Object.keys(N).length ? N : null; game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.resetCamera(); if (ui) ui.hud({}); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): the plan, an attack-move's aim, then (a phone's) the selection (the
-    // press is spent: the step's back key does no more); else false, and Esc pauses
+    // press is spent: the step's back key does no more); the end's menu to the title (as ○ there); else false, and Esc pauses
     back() {
       const I = game.input; I.suppress('cancel');
+      if (over && over.t > 1.6) { toTitle(); return true; }
       if (mode === 'place') { unplace(); return true; }
       if (amoving) { amoving = false; A.sfx('cancel'); return true; }
       if (rts.selected.length && I.lastDevice === 'touch') { rts.selected = []; return true; }
@@ -18642,8 +18667,9 @@ scenes.sports = SPORTS;
  * ledger is a checkpoint. The hero climbs any wall: Space at a face latches on, the stick climbs (up the screen is up the
  * wall), Space leaps up, C lets go. The key list shows for the first 20 seconds and after a respawn. TOUCH: the stick,
  * JUMP (LEAP on a wall), ATTACK (TAKE DOWN when one is in reach), CROUCH (LET GO on a wall, STAND crouched), and in a
- * fight BLOCK (PARRY in a wind-up) and ROLL pop up; with Touch assists on (Settings) the stick pushed all the way
- * sprints, a strike turns to the nearest guard, and the blade swings by itself at a guard who is chasing, in reach.
+ * fight BLOCK (PARRY in a wind-up) and ROLL pop up (upright, the five in two columns in the corner, those two on top,
+ * the stick's half clear); with Touch assists on (Settings) the stick pushed all the way sprints, a strike turns to the
+ * nearest guard, and the blade swings by itself at a guard who is chasing, in reach.
  * HOW IT WORKS: the hero and the guards are E.Mover bodies (the same climbing, vaulting and gap-leaping for both); a
  * guard's eyes are E.sees through the map's heights, its mind an E.Suspicion, its legs a FlowField that climbs, drops and
  * jumps. Climbs, vaults, rolls and takedowns are E.ACTIONS; the facades are wall-type options; the belfry's canopy sorts by
@@ -18712,6 +18738,7 @@ const STEALTH = (() => {
   // THE KEYS: THIRDPERSON's, without the interact, use and map this game never reads (they listed controls that do
   // nothing, and the map's M was the shell's mute); Q (the left hand, freed from use) rolls too
   const KEYS = (({ interact, use, map: m, ...k }) => Object.assign(k, { dodge: ['KeyQ', 'KeyL', 'Pad5'] }))(E.Input.THIRDPERSON);
+  const TOUCH = ['block', 'dodge', 'jump', 'attack', 'crouch'], fit = touchColumns(TOUCH);   // (the touch buttons; upright, two columns)
   // the DUALSENSE (the dualsense module): the light bar is the guards' mood, the most alarmed one's (green while hidden),
   // a guard's bark comes from the controller's speaker (where the player turned it on); buzz: a rumble on any pad
   let ds = null, padLight = null;
@@ -18777,7 +18804,7 @@ const STEALTH = (() => {
     ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: it takes over from the engine's own, keeping the pause menu)
     checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; keysT = 20; autoT = 0; wonT = 0; say(E.t('stealth.goal.ledger'), E.t('stealth.toast.start'));
     ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null;
-    game.input.touchSet('block', null, false); game.input.touchSet('dodge', E.t('stealth.touch.roll'), false);   // (not until a fight)
+    fit.reset(); game.input.touchSet('block', null, false); game.input.touchSet('dodge', E.t('stealth.touch.roll'), false);   // (not until a fight)
     game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = !!(window.matchMedia && matchMedia('(pointer: fine)').matches); L.ambient = .6; A.music(SONG); A.layer('chase', 0, .02); A.layer('alarm', 0, .02);
   }
   function respawnAt(cp) {
@@ -18810,7 +18837,7 @@ const STEALTH = (() => {
     if (d && (d[0] || d[1])) hero.facing = Math.atan2(d[1], d[0]); else if (t) hero.facing = Math.atan2(t.y - hero.y, t.x - hero.x);
   }
   function heroUpdate(dt) {
-    const I = game.input;
+    const I = game.input; fit();   // (upright, the five in two columns: before the touchSet calls below)
     hero.exposure = inGrass(hero) && hero.crouch ? 0 : 1;   // crouched in tall grass: unseen
     // TOUCH ASSIST (input.assist: touch play, Settings' Touch assists on): the stick pushed all the way sprints (touch has
     // no sprint button); let go the moment it isn't (and on any other device: hold() is no key of theirs)
@@ -18913,9 +18940,9 @@ const STEALTH = (() => {
       }
     });
   }
-  // (the touch buttons: BLOCK and ROLL first, so as they pop up in a fight the others stay under the thumb; an upright
-  // phone starts closer, the district filling more of it)
-  return { view: 'iso', views: ['iso', 'threequarter'], input: KEYS, res: 'ps1', pausable: true, touch: ['block', 'dodge', 'jump', 'attack', 'crouch'],
+  // (the touch buttons: BLOCK and ROLL first, so as they pop up in a fight the others stay under the thumb, and upright
+  // in two columns, the two on top (touchColumns); an upright phone starts closer, the district filling more of it)
+  return { view: 'iso', views: ['iso', 'threequarter'], input: KEYS, res: 'ps1', pausable: true, touch: TOUCH,
     camera: { zoom: [.75, 2], rotate: true, tall: 1.4 }, enter: start, update, draw,
     state: () => ({ hero, guards, map, ledger, won, hp }),   // for tests
     /** the proof: over the rooftops, jumping, swinging and crouching, the guards on their rounds; a hash of the run */

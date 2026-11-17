@@ -1306,6 +1306,21 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side. fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid out); each step, before its
+// touchSet calls: fit(), or fit(list), the buttons the player's settings can show (null: the row). Cheap: it lays them out
+// again only when that changes (the phone turned, a setting)
+const touchColumns = (actions, o = {}) => {
+  let was = null;   // (the list in two columns, or null: the scene's row)
+  const fit = (list = actions) => { const now = (game.screen.portrait && list) || null; if (now === was) return; was = now; game.input.touchButtons(now || actions, now ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = null; };
+  return fit;
+};
+// a result menu's way back to the title (○, Backspace, a sideways swipe; Esc where the scene leaves it to the menu), read
+// once the menu has shown t > .4 s: a dodge or a skip mashed as the game ends is no answer. Each step: backOut(menu, t)
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -1329,7 +1344,8 @@ const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of d
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
-// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays (on a game over Esc is a cancel key
+// first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
@@ -1367,14 +1383,15 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER: shared by every slice ---- */
+/* ---- GAME OVER: shared by every slice. ○, Backspace, Esc or a sideways swipe goes back to the title (as the scene's
+ * back() and every kit's result menu: backOut), Options opens the standard menu ---- */
 const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: MENU_IN, res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; overMenu.t = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
@@ -1399,11 +1416,11 @@ scenes.over = {
  * panel), ○ drops the item; a hint along the top says so. A DualSense's gyro fine-tunes the cursor (Settings, Controls),
  * its light bar is the lighthouse's (dark blue, then gold once it is lit). TOUCH: a tap walks; a tap on a hotspot (or a
  * thumb's width off one, with Touch assists on) shows its verbs; the inventory by taps, DROP while an item is held; a
- * long press looks; a swipe closes the verbs, drops the item and turns a line; held upright the room is drawn twice the
- * size and scrolls with Pip. HOW IT WORKS: E.Click (the click module) keeps the rooms, the walk areas (E.Walkbox: the
- * lamp, the table, Finn and the hatch are holes), the depth scale, the hotspots, the inventory and the rules (data);
- * the rooms are painted once by code. bot() clicks through the whole chain with input.feed, a wrong riddle first
- * (tools/kits-test.mjs). Deep link: #pointclick.
+ * long press looks; a swipe closes the verbs, drops the item, turns a line and leaves THE END (as ○ does); held upright
+ * the room is drawn twice the size and scrolls with Pip. HOW IT WORKS: E.Click (the click module) keeps the rooms, the
+ * walk areas (E.Walkbox: the lamp, the table, Finn and the hatch are holes), the depth scale, the hotspots, the inventory
+ * and the rules (data); the rooms are painted once by code. bot() clicks through the whole chain with input.feed, a wrong
+ * riddle first (tools/kits-test.mjs). Deep link: #pointclick.
  * ===================================================================================== */
 const POINTCLICK = (() => {
   const px = E.px, hash = E.hash2, TAU = Math.PI * 2;
@@ -1758,7 +1775,7 @@ const POINTCLICK = (() => {
     // SCUMM's verb keys, in the nine verbs' interface
     if (mode === 'play' && pc.ui === 'verbs' && !story.running) for (const v of VERB_KEYS) if (I.pressed('v_' + v)) { pc.verb = v; pc.item = null; }
     if (mode === 'open') { if (modeT > 3.5 || (modeT > .4 && (I.clicked() || I.pressed('confirm')))) { I.consumeAll(); mode = 'play'; pc.panel = true; story.run('intro'); } return; }
-    if (mode === 'end') { if (!endMenu.update(dt)) pickOnStart(endMenu); return; }
+    if (mode === 'end') { backOut(endMenu, modeT); if (!endMenu.update(dt)) pickOnStart(endMenu); return; }   // (THE END's menu: ○, Backspace or a sideways swipe to the title, as back())
     if (mode === 'play') played += dt;
     pc.update(dt);
     if (mode === 'lit' && modeT > 2.5 && !story.running && !story.get('said')) { story.set('said'); story.run('ending', { onDone: () => { mode = 'end'; modeT = 0; } }); }

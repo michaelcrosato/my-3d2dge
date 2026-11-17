@@ -1,5 +1,5 @@
 // The 3D CRAWLER kit's game (a dungeon in first person, a cell at a time: a party of four with portraits, gates, a lever, plates, an automap, real time or turns; Eye of the Beholder, Dungeon Master and Wizardry), readable: the 3D starter's shell (src/starter3d/00-shell.js), then
-// the slice from line 162 (src/starter3d/70-crawler.js: its header says what it plays and how), then the start (90-start.js), as the single-file
+// the slice from line 177 (src/starter3d/70-crawler.js: its header says what it plays and how), then the start (90-start.js), as the single-file
 // 3D kit holds them between GAME START and GAME END. A module, loaded after both engines (../my-3d2dge.js, then ../my-3d2dge-3d.js,
 // whose header is the 3D manual): 3d-crawler.html plays it, served (node tools/check.mjs kits/3d-crawler.html#crawler).
 /* ============================== GAME START ==============================
@@ -42,9 +42,21 @@ const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge (the race's lap and time end left of it)
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side (SHOOTER's ten the same way). fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid
+// out); each step, before its touchSet calls: fit(). Cheap: it lays them out again only when the phone turns
+const touchColumns = (actions, o = {}) => {
+  let was = false;   // (laid out in two columns)
+  const fit = () => { const up = !!game.screen.portrait; if (up === was) return; was = up; game.input.touchButtons(actions, up ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = false; };
+  return fit;
+};
 // START picks too (the touch START; Enter), and a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
-// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu (on
+// a game over Esc is a cancel key first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 let active = null;               // the world of the scene that is playing (the shared keys turn its camera)
 
@@ -136,15 +148,18 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER and COURSE CLEAR: shared by every slice, over its world, frozen where it ended ---- */
+/* ---- GAME OVER and COURSE CLEAR: shared by every slice, over its world, frozen where it ended. ○, Backspace, Esc or a
+ * sideways swipe goes back to the title, as the scene's back() and RACING's results do, once the menu has shown .4 s (a
+ * dodge mashed as the run ends is no answer); Options opens the standard menu ---- */
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };   // (each step: the menu, how long it has shown)
 const overMenu = new E.Menu(game, [E.t('starter3d.over.retry'), E.t('starter3d.over.title')], { y: 'center', onPick: i => game.go(i === 0 ? over.from : 'title') });
 // a slice ends with game.go('over', { from, world, won, title, lines }): its title and lines are its own lines (E.t), shown
 // as they are (no title on a win: CLEAR!)
 let over = { from: 'title', world: null, won: false, lines: [] };
 scenes.over = {
   input: MENU_IN,
-  enter(d) { over = Object.assign({ won: false, lines: [] }, d); overMenu.i = 0; A.music(over.won ? 'victory' : null); if (!over.won) A.sfx('die'); active = null; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { over = Object.assign({ won: false, lines: [] }, d); overMenu.i = 0; overMenu.t = 0; A.music(over.won ? 'victory' : null); if (!over.won) A.sfx('die'); active = null; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {
     if (over.world) over.world.draw(r);
@@ -174,8 +189,8 @@ scenes.over = {
  * gates from its speaker; any pad rumbles on a hurt, the Warden's sweep, the darts, a gate grinding up, a bump into a
  * wall and the Warden's fall. TOUCH: the stick steps and turns, a swipe on the view steps (up, down) and turns (left,
  * right), a tap on the view or a portrait acts; MAP, HEAL, BOLT, ACT (PULL at a lever, UNLOCK at the locked gate,
- * FIGHT with a foe in front); the touch assists (Settings, on at first) have the front rank strike by itself at a foe
- * in front, in real time. A swipe also closes the map and takes a message away.
+ * FIGHT with a foe in front), upright in two columns in the corner; the touch assists (Settings, on at first) have the
+ * front rank strike by itself at a foe in front, in real time. A swipe also closes the map and takes a message away.
  * Gates that rise (one with an iron lock), a lever on a wall, plates in the floor (one raises a gate, one springs darts);
  * wisps, slimes, the dead of the vaults and the Warden at the bottom; the stair out behind it. Settings, Turns: REAL TIME
  * (each one's gauge fills on game time, E.Turns 'atb': Dungeon Master, Eye of the Beholder) or TURNS (the vaults wait:
@@ -650,6 +665,7 @@ const CRAWLER = (() => {
     m1: ['Digit1', 'Pad6'], m2: ['Digit2', 'Pad7'], m3: ['Digit3'], m4: ['Digit4'],
     start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
   const TOUCH = ['map', 'heal', 'spell', 'act'], TOUCH_LABELS = { map: E.lang.upper(E.t('engine.action.map')), heal: E.lang.upper(E.t('action.heal')), spell: E.t('crawler3d.touch.spell'), act: E.lang.upper(E.t('action.act')) };
+  const fit = touchColumns(TOUCH, { labels: TOUCH_LABELS });   // (upright, two columns: ACT in the corner)
   const SETTING = { key: 'crawlTurns', label: E.t('crawler3d.setting.turns'), group: 'Game', type: 'select', value: 'real', options: [['real', E.t('crawler3d.setting.turns.real')], ['turns', E.t('crawler3d.setting.turns.turns')]],
     help: E.t('crawler3d.setting.turns.help'), show: g => g.sceneName === 'crawler' };
   // (assist: the touch assists, from the player's input: a proof's and the bot's own controls have none)
@@ -761,13 +777,13 @@ const CRAWLER = (() => {
     back() { if (!showMap) return false; showMap = false; game.input.consumeAll(); return true; },
     enter(d) {
       ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hintT = 8; swipeQ = null;
-      game.settings.define(SETTING); reset(1); active = world; game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
+      game.settings.define(SETTING); reset(1); active = world; game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS }); fit.reset();
       if (d && d.part === 'warden') { for (const k of ['10,9', '17,7', '17,4']) { raise(gates[k]); gates[k].t.open = 1; world.setSolid(gates[k].t, false); } S.cx = 17; S.cy = 5; S.dir = 0; plates['17,5'].t.on = true; place(1); look(); }
       say(E.t(d && d.part === 'warden' ? 'crawler3d.say.warden_hall' : 'crawler3d.say.intro'), 3.5);
     },
     exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
     update(dt) {
-      const inp = game.input; hintT -= dt;
+      const inp = game.input; hintT -= dt; fit();
       if (inp.pressed('map')) { inp.consume('map'); showMap = !showMap; }
       else if (showMap && (inp.pressed('cancel') || inp.swipe(true))) { inp.consume('cancel'); showMap = false; }   // (○, Backspace or a swipe closes the big map)
       if (hintT > 0 && !touch() && inp.swipe(true)) hintT = 0;

@@ -1,5 +1,5 @@
 // The 3D ACTION kit's game (a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test), readable: the 3D starter's shell (src/starter3d/00-shell.js), then
-// the slice from line 162 (src/starter3d/10-action.js: its header says what it plays and how), then the start (90-start.js), as the single-file
+// the slice from line 177 (src/starter3d/10-action.js: its header says what it plays and how), then the start (90-start.js), as the single-file
 // 3D kit holds them between GAME START and GAME END. A module, loaded after both engines (../my-3d2dge.js, then ../my-3d2dge-3d.js,
 // whose header is the 3D manual): 3d-action.html plays it, served (node tools/check.mjs kits/3d-action.html#action).
 /* ============================== GAME START ==============================
@@ -42,9 +42,21 @@ const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge (the race's lap and time end left of it)
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side (SHOOTER's ten the same way). fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid
+// out); each step, before its touchSet calls: fit(). Cheap: it lays them out again only when the phone turns
+const touchColumns = (actions, o = {}) => {
+  let was = false;   // (laid out in two columns)
+  const fit = () => { const up = !!game.screen.portrait; if (up === was) return; was = up; game.input.touchButtons(actions, up ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = false; };
+  return fit;
+};
 // START picks too (the touch START; Enter), and a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
-// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu (on
+// a game over Esc is a cancel key first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 let active = null;               // the world of the scene that is playing (the shared keys turn its camera)
 
@@ -136,15 +148,18 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER and COURSE CLEAR: shared by every slice, over its world, frozen where it ended ---- */
+/* ---- GAME OVER and COURSE CLEAR: shared by every slice, over its world, frozen where it ended. ○, Backspace, Esc or a
+ * sideways swipe goes back to the title, as the scene's back() and RACING's results do, once the menu has shown .4 s (a
+ * dodge mashed as the run ends is no answer); Options opens the standard menu ---- */
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };   // (each step: the menu, how long it has shown)
 const overMenu = new E.Menu(game, [E.t('starter3d.over.retry'), E.t('starter3d.over.title')], { y: 'center', onPick: i => game.go(i === 0 ? over.from : 'title') });
 // a slice ends with game.go('over', { from, world, won, title, lines }): its title and lines are its own lines (E.t), shown
 // as they are (no title on a win: CLEAR!)
 let over = { from: 'title', world: null, won: false, lines: [] };
 scenes.over = {
   input: MENU_IN,
-  enter(d) { over = Object.assign({ won: false, lines: [] }, d); overMenu.i = 0; A.music(over.won ? 'victory' : null); if (!over.won) A.sfx('die'); active = null; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { over = Object.assign({ won: false, lines: [] }, d); overMenu.i = 0; overMenu.t = 0; A.music(over.won ? 'victory' : null); if (!over.won) A.sfx('die'); active = null; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {
     if (over.world) over.world.draw(r);
@@ -175,8 +190,8 @@ scenes.over = {
  * bar is his health (teal, amber, a red pulse; white as a wave falls, gold as the knight does), R2 clicks as the sword
  * swings; the heart's chime from the controller's speaker; any pad rumbles on his hurts, big blows, broken crates and the
  * knight's fall. TOUCH: the stick, ATTACK, DASH, JUMP, SKILL, and LOCK where there is a monster to lock on (NEXT while
- * locked); the touch assists (Settings, on at first) swing at a monster in reach and turn the bolt onto the one nearest
- * its way. A swipe takes the controls away.
+ * locked), upright in two columns in the corner (LOCK on top), clear of the stick's half; the touch assists (Settings,
+ * on at first) swing at a monster in reach and turn the bolt onto the one nearest its way. A swipe takes the controls away.
  * THE 3D: every monster is a Rapier body (the crowd pushes and piles up by itself, knockback is momentum); the hero is a
  * character controller; the monsters find their way up the stairs on the level's flow field. The camera: the 2D views
  * as 3D cameras (V), the chase camera and first person (C); lock-on (world.camera.lock, cycle). ACTION.run(n): a scripted
@@ -263,6 +278,7 @@ const ACTION = (() => {
   // THE KEYS: World3D.INPUT, the lock on L2 first (the standard's lock-on: L1 still locks) and a middle click (a PC's
   // third-person lock-on button), the dash on ○ alone (L2 is the lock's)
   const KEYS = Object.assign({}, W3.INPUT, { dash: ['ShiftLeft', 'ShiftRight', 'KeyK', 'Pad1'], lock: ['KeyQ', 'Tab', 'Mouse1', 'Pad6', 'Pad4'] });
+  const TOUCH = ['lock', 'attack', 'dash', 'jump', 'skill'], fit = touchColumns(TOUCH);   // (the touch buttons, LOCK first: it comes and goes; upright, two columns)
   // the DUALSENSE (the dualsense module): the light bar is his health, R2 clicks as the sword goes; buzz: a rumble on any
   // pad, while it is what he plays with
   let ds = null, padLight = null, padTrig, flashT = 0, flashC = null;
@@ -549,11 +565,11 @@ const ACTION = (() => {
   }
 
   return {
-    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: KEYS, pausable: true, touch: ['lock', 'attack', 'dash', 'jump', 'skill'], camera: { zoom: [.6, 2], tall: 1.6 },
-    enter() { reset(1); active = world; A.music('dungeon'); world.camera.set('view'); ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0; },
+    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: KEYS, pausable: true, touch: TOUCH, camera: { zoom: [.6, 2], tall: 1.6 },
+    enter() { fit.reset(); reset(1); active = world; A.music('dungeon'); world.camera.set('view'); ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0; },
     exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
     update(dt) {
-      const inp = game.input; cameraKey(world); hint -= dt;
+      const inp = game.input; fit(); cameraKey(world); hint -= dt;
       if (hint > 0 && inp.swipe(true)) hint = 0;   // (a swipe takes the controls away)
       step(dt, controls()); padExtras(dt);
       // LOCK where there is a monster in range to lock on, NEXT while locked

@@ -1217,9 +1217,21 @@ const prompt = (a, word) => E.t('starter3d.prompt', { key: game.input.label(a), 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge (the race's lap and time end left of it)
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side (SHOOTER's ten the same way). fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid
+// out); each step, before its touchSet calls: fit(). Cheap: it lays them out again only when the phone turns
+const touchColumns = (actions, o = {}) => {
+  let was = false;   // (laid out in two columns)
+  const fit = () => { const up = !!game.screen.portrait; if (up === was) return; was = up; game.input.touchButtons(actions, up ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = false; };
+  return fit;
+};
 // START picks too (the touch START; Enter), and a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
-// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu (on
+// a game over Esc is a cancel key first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 let active = null;               // the world of the scene that is playing (the shared keys turn its camera)
 
@@ -1311,15 +1323,18 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER and COURSE CLEAR: shared by every slice, over its world, frozen where it ended ---- */
+/* ---- GAME OVER and COURSE CLEAR: shared by every slice, over its world, frozen where it ended. ○, Backspace, Esc or a
+ * sideways swipe goes back to the title, as the scene's back() and RACING's results do, once the menu has shown .4 s (a
+ * dodge mashed as the run ends is no answer); Options opens the standard menu ---- */
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };   // (each step: the menu, how long it has shown)
 const overMenu = new E.Menu(game, [E.t('starter3d.over.retry'), E.t('starter3d.over.title')], { y: 'center', onPick: i => game.go(i === 0 ? over.from : 'title') });
 // a slice ends with game.go('over', { from, world, won, title, lines }): its title and lines are its own lines (E.t), shown
 // as they are (no title on a win: CLEAR!)
 let over = { from: 'title', world: null, won: false, lines: [] };
 scenes.over = {
   input: MENU_IN,
-  enter(d) { over = Object.assign({ won: false, lines: [] }, d); overMenu.i = 0; A.music(over.won ? 'victory' : null); if (!over.won) A.sfx('die'); active = null; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { over = Object.assign({ won: false, lines: [] }, d); overMenu.i = 0; overMenu.t = 0; A.music(over.won ? 'victory' : null); if (!over.won) A.sfx('die'); active = null; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {
     if (over.world) over.world.draw(r);
