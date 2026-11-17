@@ -2002,8 +2002,8 @@ An entry:
     `touchColumns` relays them out when the phone turns; on its side, and on a desk or a TV, nothing changes. Kits of
     three stay a row: two columns of three leave the corner empty, and a hidden one (ITEM, ACT, GAS with the assists)
     would leave a hole where a row closes up; their third reaches 25 px past the middle on a 390 px phone (40 px on a
-    360 px one). The fix for every row at once is the engine's (`_touchSync` wrapping a row at the middle while upright),
-    left to the engine's owner.
+    360 px one). The fix for every row at once would be the engine's (`_touchSync` wrapping a row at the middle while
+    upright), left until a play test on a phone says a thumb meets the third button.
   - The shared GAME OVER and COURSE CLEAR (2D and 3D), POINT-AND-CLICK's THE END and the TACTICS and RTS end menus back
     out to the title on ○, Backspace and a sideways flick, as every other kit's result menu, read once the menu has
     shown .4 s (`backOut`: a dodge mashed as the run ends is no answer; TACTICS and RTS already wait 1.6 s). On the

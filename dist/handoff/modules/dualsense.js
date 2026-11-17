@@ -136,10 +136,11 @@ class DualSense {
   swipe() { return this._flicked; }
   /** how loud the microphone hears, 0..1 (0 while it is off or not allowed) */
   micLevel() { return this._an ? this._level : 0; }
-  /** a sound effect from the controller's speaker while the player has it on, else as audio.sfx plays it */
+  /** a sound effect from the controller's speaker while the player has it on, else as audio.sfx plays it (at the
+   *  game's volume and effects volume, times 52in1's Sound effects inside it, as the sfx bus) */
   speaker(name, o = {}) {
     const A = this.game.audio;
-    if (this._spk && this.game.settings.padSpeaker) { this._spk.gain.value = A.muted ? 0 : A.volume * A.sfxVolume; return A.sfx(name, Object.assign({}, o, { bus: this._spk })); }
+    if (this._spk && this.game.settings.padSpeaker) { const h = this._hub, fx = h && Number.isFinite(h.effects) ? Math.max(0, Math.min(1, h.effects)) : 1; this._spk.gain.value = A.muted ? 0 : A.volume * A.sfxVolume * fx; return A.sfx(name, Object.assign({}, o, { bus: this._spk })); }
     return A.sfx(name, o);
   }
   // what the player has allowed, found without a prompt: a DualSense the page may already open, a microphone already
