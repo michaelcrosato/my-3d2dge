@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.107.0)
+# my-3D2dge API index (v0.108.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -119,7 +119,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.107.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.108.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -484,7 +484,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.groundDisc(x, y, rad, color, alpha = 1, z = 0)`: a dithered disc lying on the ground (radius in world units, z its height): shadows, auras, area attacks
 - `r.groundPts(x, y, rad, n = 18, z = 0)`: n screen points round a circle of radius rad on the ground at (x, y), height z: the outline of a ring or a fan
 - `r.groundRing(x, y, rad, color, alpha = 1, z = 0)`: a ring lying on the ground (radius in world units)
-- `r.marker(x, y, z = 0, o = {})`: an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' }
+- `r.marker(x, y, z = 0, o = {})`: an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow', font: 'tiny' (the label's; 'normal' reads from a sofa) }
 - `r.overlay(fn)`: draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus)
 - `r.pick(sx, sy)` †: what was drawn under a screen point (the HUD's pixels: input.clicked(), input.pointer()) in the last frame, front to back: the pick values of the actors, sprites, props and queued draws given one (r.actor(x, y, z, fn, { pick: unit })), each where its pixels went (an actor's drawn bounds; others' box, or a body's size round its point). [] for none
 - `r.ppu` †: pixels per world unit on the ground here: the view's scale times the zoom (iso 1.41, the others 1.5, overhead 1, at zoom 1). Rigs, maps and props grow with it; a sprite's pixel is a screen pixel at zoom 1 unless drawn with world: true

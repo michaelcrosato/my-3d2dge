@@ -41,8 +41,8 @@ function LOT_nav(key, x, y, w, h, o = {}) {
   if (!UI.keyNav && UI.mouse.active && LOT_in(UI.mouse, x, y, w, h)) LOT_UI.focus = key;   // the mouse's hover moves the one focus: keys and a pad go on from there
   return UI.keyNav && LOT_UI.focus === key;
 }
-/** a button that respects the panel stack and the keyboard focus (the core button, drawn passively when not on top). In
- *  pages under a finger it acts when the finger lifts (LOT_act), so a flick that begins on it presses nothing */
+/** a button that respects the panel stack and the keyboard focus (the core button, drawn passively when not on top). Under
+ *  a finger it acts when the finger lifts (LOT_act), so a flick that begins on it presses nothing */
 function LOT_btn(g, x, y, w, h, label, fn, o = {}) {
   const focus = LOT_nav('btn:' + (o.key || label), x, y, w, h, { act: o.disabled ? null : fn });
   if (LOT_UI.active) { const r = button(g, x, y, w, h, label, fn, Object.assign({}, o, { focus: focus || o.focus })); if (LOT_lifts() && !o.disabled) hot(x, y, w, h, LOT_act('btn:' + (o.key || label), () => { sfx('confirm', { vol: .6 }); fn(); })); return r; }
@@ -137,10 +137,10 @@ const LOT_scrollPress = (G, key, click) => (mx, my) => {
   const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click, r0: G.r0, far: 0 }; return; }
   P.far = Math.max(P.far, Math.abs(mx - P.x0) + Math.abs(my - P.y0)); if (P.far > 6) { P.moved = true; LOT_UI.sc[G.name] = clamp(Math.round(P.r0 - (my - P.y0) / G.S), 0, G.max); }
 };
-/** in pages under a finger a tab, a button, a parcel and the pop-up act when the finger lifts where it pressed, not as it
- *  lands (the core's way), so a flick that begins on one turns the page and presses nothing (LOT_UI.pg: a paged panel is
- *  drawing). LOT_act(key, fn): the hot rectangle's action either way */
-const LOT_lifts = () => LOT_UI.pg && ctlDevice() === 'touch';
+/** under a finger a tab, a button, a parcel and the pop-up act when the finger lifts where it pressed, not as it lands
+ *  (the core's way), so a flick that begins on one turns the page or closes the panel and presses nothing: no flick pays
+ *  for a reforge or a gamble. LOT_act(key, fn): the hot rectangle's action either way */
+const LOT_lifts = () => ctlDevice() === 'touch';
 const LOT_tapPress = (key, act) => (mx, my) => {
   const P = LOT_UI.press; if (!P || P.key !== key) { LOT_UI.press = { key, x0: mx, y0: my, moved: false, click: act, far: 0 }; return; }
   P.far = Math.max(P.far, Math.abs(mx - P.x0) + Math.abs(my - P.y0)); if (P.far > 6) P.moved = true;

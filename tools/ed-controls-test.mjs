@@ -700,6 +700,80 @@ try {
 			await mobile.close();
 		},
 	);
+	await check(
+		"inside 52in1 the DualSense comes through the hub's channel (AIHubSettings), each extra only while its Settings allow it, never WebHID",
+		async () => {
+			const hubCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+			await hubCtx.addInitScript(() => {
+				// a stand-in for 52in1's companion (its lib/hub/companion.js): what the game is told, and what it asks
+				const calls = [], api = new EventTarget();
+				let gyroReads = 0, fingers = [];
+				const pad = {
+					connected: true, lightbar: true, triggers: false, motion: true, touchpad: true, speaker: false, aim: false,
+					light: (c) => calls.push(["light", c]),
+					trigger: (w, e) => calls.push(["trigger", w, e]),
+					openSpeaker: () => Promise.resolve(null),
+				};
+				Object.defineProperty(pad, "gyro", { get: () => (gyroReads++, { x: 0, y: 40, z: 0 }) });
+				Object.defineProperty(pad, "touches", { get: () => fingers });
+				Object.assign(api, { version: 1, music: 1, effects: 1, vibration: 1, mic: false, muted: false, dualsense: pad, openMicrophone: () => Promise.resolve(null) });
+				window.AIHubSettings = api;
+				window.__hub = { calls, pad, gyroReads: () => gyroReads, fingers: (f) => (fingers = f), tell: () => api.dispatchEvent(new Event("change")) };
+				window.__hidTouched = false;
+				Object.defineProperty(Navigator.prototype, "hid", { configurable: true, get() { window.__hidTouched = true; return undefined; } });
+			});
+			const p = await hubCtx.newPage();
+			track(p);
+			await ready(p);
+			const step = (n) => p.evaluate((n) => new Promise((r) => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);   // (n frames of the page)
+			await p.evaluate(() => window.__ed.game.settings.set("gyro", "off"));
+			const r = await p.evaluate(async () => {
+				const g = window.__ed.game, S = g.settings, ds = My3D2dge.DualSense.attach(g), H = window.__hub, lock = (k) => S.spec(k).locked(g);
+				const out = { connected: ds.connected, light: lock("padLight"), triggers: lock("padTriggers"), gyro: lock("gyro"), speaker: lock("padSpeaker") };
+				ds.light("#ff2040"); ds.trigger("right", { weapon: [0.2, 0.6, 0.8] });
+				out.lit = H.calls.filter((c) => c[0] === "light").pop();
+				out.trigOff = H.calls.filter((c) => c[0] === "trigger" && c[1] === "right").pop();
+				out.readsOff = H.gyroReads();
+				return out;
+			});
+			assert.equal(r.connected, true, "a DualSense connected in 52in1's Settings is the game's");
+			assert.equal(r.light, null, "the light bar's row is open: 52in1 lets games colour it");
+			assert.equal(r.gyro, null, "and gyro aim's");
+			assert.match(r.triggers || "", /52in1/, "the triggers' row is locked while 52in1's Trigger effects are off, and says where");
+			assert.match(r.speaker || "", /52in1/, "the speaker's while 52in1 has not allowed it");
+			assert.deepEqual(r.lit, ["light", "#ff2040"], "the light bar's colour goes through the hub");
+			assert.deepEqual(r.trigOff, ["trigger", "right", null], "a trigger 52in1 keeps from games stays free");
+			await step(10);
+			assert.equal(await p.evaluate(() => window.__hub.gyroReads()), 0, "the gyro is not read while gyro aim is off: the hub's own Motion aim keeps the stick");
+			// 52in1's Settings changed over the game: the triggers allowed, gyro aim on
+			await p.evaluate(() => { window.__hub.pad.triggers = true; window.__hub.tell(); window.__ed.game.settings.set("gyro", "high"); });
+			await step(10);
+			const r2 = await p.evaluate(() => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub;
+				ds.trigger("right", { weapon: [0.2, 0.6, 0.8] });
+				return { lock: g.settings.spec("padTriggers").locked(g), trig: H.calls.filter((c) => c[0] === "trigger" && c[1] === "right").pop(), reads: H.gyroReads(), aim: ds.gyroAim(1 / 60) };
+			});
+			assert.equal(r2.lock, null, "allowed in 52in1's Settings: the row opens at once");
+			assert.deepEqual(r2.trig, ["trigger", "right", { kind: "weapon", from: 0.2, to: 0.6, strength: 0.8 }], "the effect in the hub's words");
+			assert.ok(r2.reads > 0 && r2.aim[0] < 0, "gyro aim on: the turn left (+y) moves the aim left");
+			// a flick on the touchpad
+			await p.evaluate(() => { const ds = My3D2dge.DualSense.attach(window.__ed.game); window.__ed.game.hook("input", () => { if (ds.swipe()) window.__sw = ds.swipe(); }); window.__hub.fingers([{ id: 1, x: 0.2, y: 0.5 }]); });
+			await step(2);
+			await p.evaluate(() => window.__hub.fingers([{ id: 1, x: 0.7, y: 0.5 }]));
+			await step(2);
+			await p.evaluate(() => window.__hub.fingers([]));
+			await step(3);
+			const sw = await p.evaluate(() => window.__sw || null);
+			assert.equal(sw, "right", "a flick on the touchpad from the hub's fingers");
+			// 52in1's DualSense gone: every row locked again, the light given back
+			const r3 = await p.evaluate(() => { const g = window.__ed.game, H = window.__hub; H.pad.connected = false; H.tell(); return { light: g.settings.spec("padLight").locked(g), connected: My3D2dge.DualSense.attach(g).connected }; });
+			assert.equal(r3.connected, false);
+			assert.match(r3.light || "", /Connect a DualSense/, "no DualSense in 52in1: its rows say how to connect one");
+			assert.equal(await p.evaluate(() => window.__hidTouched), false, "the game never touched WebHID");
+			assert.deepEqual(await p.evaluate(() => window.__ed.game.errors), []);
+			await hubCtx.close();
+		},
+	);
 	assert.deepEqual(await page.evaluate(() => __ed.game.errors), []);
 	assert.deepEqual(errors, []);
 	writeFileSync(

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge Vehicle Lab v0.107.0 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
+  my-3D2dge Vehicle Lab v0.108.0 (dev-build): a Temporary prototype (src/labs.json). Which way should the 3D engine's
   vehicles drive: Rapier's ray-cast vehicle controller (a chassis on four sprung wheels), or a ball Rapier rolls, steered by
   the drive module's arcade handling (what world.vehicle is)? Tab switches between them on the same track. Served, not
   double-clicked (it loads three.js and Rapier from /vendor/).
@@ -28,12 +28,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.107.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">Vehicle Lab</b><span>Starting · my-3D2dge v0.108.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage"><canvas id="view" aria-hidden="true"></canvas><canvas id="screen" role="img" aria-label="Vehicle Lab"></canvas></div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.107.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.108.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -120,7 +120,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.107.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.108.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -2417,20 +2417,22 @@ class Renderer {
     this.decal(g => px.polyDither(g, pts, color, alpha, this.ix, this.iy));
   }
   /** an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the
-   *  screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' } */
+   *  screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow',
+   *  font: 'tiny' (the label's; 'normal' reads from a sofa) } */
   marker(x, y, z = 0, o = {}) {
     const [sx, sy] = this.w(x, y, z), color = o.color || '#ffd040', dark = shade(color, -.6), W = this.W, H = this.H, m = 9, bob = this.game.reduceMotion ? 0 : Math.sin(this.game.real * 4) * 1.5;
+    const lf = o.font === 'normal' ? 'normal' : 'tiny', lh = lf === 'tiny' ? 0 : 2;   // (the normal font stands 2 px taller)
     this.overlay(g => {
       if (sx >= m && sx <= W - m && sy >= m + 14 && sy <= H - m) {
         const cx = Math.round(sx), cy = Math.round(sy - 14 + bob);
         px.poly(g, [[cx, cy - 5], [cx + 4, cy], [cx, cy + 5], [cx - 4, cy]], dark); px.poly(g, [[cx, cy - 4], [cx + 3, cy], [cx, cy + 4], [cx - 3, cy]], color);
-        if (o.label) E.font.text(g, o.label, cx, cy - 13, color, { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+        if (o.label) E.font.text(g, o.label, cx, cy - 13 - lh, color, { align: 'center', font: lf, shadow: '#000', outline: false });
       } else if (o.offscreen !== false) {
         const mx = W / 2, my = H / 2, a = Math.atan2(sy - my, sx - mx), k = Math.min((W / 2 - m) / Math.max(1e-6, Math.abs(Math.cos(a))), (H / 2 - m) / Math.max(1e-6, Math.abs(Math.sin(a))));
         const ax = Math.round(mx + Math.cos(a) * k), ay = Math.round(my + Math.sin(a) * k), c = Math.cos(a), s = Math.sin(a), tip = [ax + c * 5, ay + s * 5];
         px.poly(g, [[tip[0] + c, tip[1] + s], [ax - s * 5 - c * 2, ay + c * 5 - s * 2], [ax + s * 5 - c * 2, ay - c * 5 - s * 2]], dark);
         px.poly(g, [tip, [ax - s * 4 - c, ay + c * 4 - s], [ax + s * 4 - c, ay - c * 4 - s]], color);
-        if (o.label) E.font.text(g, o.label, clamp(ax - c * 10, 14, W - 14), clamp(ay - s * 10 - 3, 2, H - 8), color, { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+        if (o.label) E.font.text(g, o.label, clamp(ax - c * 10, 14, W - 14), clamp(ay - s * 10 - 3 - lh / 2, 2, H - 8 - lh), color, { align: 'center', font: lf, shadow: '#000', outline: false });
       }
     });
   }
@@ -11380,7 +11382,7 @@ root.My3D2dge = E;
 <script type="module">
 /* ---- inlined from engine/my-3d2dge-3d.js ---- */
 /*!
-my-3D2dge 3D v0.107.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.108.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:

@@ -1869,3 +1869,38 @@ An entry:
   the standard asks the pass to end.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.107.0
+
+## D107 · 2026-11-17 · Inside 52in1 the DualSense module uses the hub's channel, not WebHID
+
+- **Principle:** the controls standard (D100): "Features that need permission (like the mic) can only be turned on in the
+  game's settings if the player has already allowed them in their 52in1 settings"; it amends D102's note that inside
+  52in1 the extras stay locked
+- **Call:** 52in1 holds the DualSense (connected once in its Settings) and hands every game its extras through the
+  companion it adds to each game page, `window.AIHubSettings` (52in1's `lib/hub/catalogue.md`, Settings and the
+  DualSense). Inside 52in1 the `dualsense` module now uses it and never opens the controller: the light bar
+  (`hub.dualsense.light`), the triggers (`trigger`, resist, weapon and vibrate), the gyro and the touchpad's fingers, the
+  controller's speaker (`openSpeaker`) and the microphone (`hub.openMicrophone()`), each row unlocked only while 52in1
+  says so (`connected`, `lightbar`, `triggers`, `motion`, `speaker`, `mic`), and changed at once when the player changes
+  52in1's Settings over the game. The player lights stay the hub's (the seat). On a page of its own the module works as
+  in D102. A first version gave the hub's game frames WebHID (`hid`) so the module could open the controller; it was
+  dropped: two owners of one controller, and a frame given `hid` could show the browser's list of devices, naming
+  52in1, for any game that asks. Also: a Permissions Policy feature the browser doesn't know (Chrome's
+  `speaker-selection`) no longer locks the speaker's row.
+- **Why:** the hub's way is the one every game on the wall already uses; it carries the player's allowing with it.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
+
+## D108 · 2026-11-17 · Emberdeep held upright splits a screen into pages rather than shrink it; a spend acts on lift
+
+- **Principle:** the controls standard (D100): touch is redesigned for a phone held either way, "from the ground up if
+  needed", and nothing is overly dense
+- **Call:** a shop or the bag held upright on a phone too short or too narrow for its stack splits into pages under
+  thumb-tall tabs (a tab, a flick sideways, L1 R1 or Tab turn them; a flick past the last backs out a layer, then
+  closes), its grids reflowed into as many 44 px columns as fit and scrolled where taller than the page, rather than
+  shrinking the finger to 30 px or falling back to the landscape layout. On touch the loot panels' buttons, tabs,
+  parcels and pop-ups act when the finger lifts where it pressed, so a flick that begins on one presses nothing. On a TV
+  a line too long for the normal font is worded shorter or drops its last hints rather than going tiny.
+- **Why:** a thumb's 44 px is the standard's floor; a reforge or a gamble paid by a swipe meant to close the panel is
+  the accident the swipe rule invites.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0

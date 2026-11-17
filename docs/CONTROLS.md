@@ -40,7 +40,7 @@ standard for the controls and the interface only: a game's rules, levels and sco
 | Native keyboard and mouse | The presets' keys, the player's rebinding, the mouse over a menu entry moves the focus (`E.Menu`, `E.Dialog`'s choices, every Shell screen), a click picks it. | presets, Shell |
 | 10 feet | The Shell (pause, settings, controls, the HUD pieces) grows with the window: 14 px text on a laptop, about twice that on a 1,920 px TV. Settings and Controls are short pages behind tabs (L1 R1 or Q E), the focused row's help under the list, the buttons that work the screen along the bottom. | `E.Shell` |
 | DualSense extras | The `dualsense` module: light bar, player lights, adaptive triggers, gyro aim, touchpad fingers and swipes, the controller's speaker, the microphone, each a row on the Controls screen's Controller tab. | `engine/modules/dualsense.js` |
-| Permissions | The game never asks. WebHID, the controller's speaker and the microphone are found without a prompt (`navigator.hid.getDevices()`, the Permissions API, the frame's Permissions Policy): only what the player already allowed in 52in1's Settings works, and until then the row is locked and says so. | `dualsense` module |
+| Permissions | The game never asks. Inside 52in1 the hub holds the controller: the module drives it through 52in1's own channel (`window.AIHubSettings`: `hub.dualsense` and `hub.openMicrophone()`), each extra only while 52in1's Settings allow it, and never opens it over WebHID (D107). On a page of its own, WebHID, the controller's speaker and the microphone are found without a prompt (`navigator.hid.getDevices()`, the Permissions API, the frame's Permissions Policy): only what the player already allowed works. Until then the row is locked and says so. | `dualsense` module |
 | Touch: swipe away | `input.swipe()` (a one-finger flick). E.Dialog skips its text and closes (a question goes to its last page), E.Menu cancels on a sideways one, `game.note` goes, the Shell's toast and tutorial card go at a swipe and its screens go back. | `Input`, `Dialog`, `Menu`, `Shell` |
 | Touch: multitouch | The move stick and every touch button take a finger each; `input.zones` hold an action per finger (flippers, lanes); a pinch zooms where the scene allows. | `Input` |
 | Touch: context actions | `input.touchSet(action, label, show)` pops a button up only where it has something to do (TALK beside someone) and relabels it. In the row layout the others close up round a hidden button, so the buttons that come and go go first in the row (the far end from the corner) and never slide another under a thumb; one a thumb holds while another must stay put (AIM and FIRE) stays shown and is relabelled. | `Input` |
@@ -59,14 +59,19 @@ standard for the controls and the interface only: a game's rules, levels and sco
 4. **Prompts from `label()`.** Every key or button a player reads comes from `input.label(action)` or a `{key:action}`
    line. No `PRESS ENTER`, no `Z`, no `A BUTTON` written into a line.
 5. **Readable at ten feet.** No dense, web-style screens: short lists, one thing a row, the details of the focused one
-   beside or below it; big type for what matters (`E.Menu`'s `scale`, the Shell's TV size).
+   beside or below it; big type for what matters (`E.Menu`'s `scale`, the Shell's TV size). On a TV the words a player
+   reads are in the normal font: a line too long is worded shorter or loses its last hint, never shrunk to the tiny one
+   (Emberdeep: `UI_tv()`, `UI_tfit`).
 6. **DualSense extras where they mean something**: the light bar shows a state (health, danger, the team), the triggers
    push back on throttle, brake, bowstring or gun, gyro aim fine-tunes an aim on top of the stick, the touchpad opens the
    map. Each has another way in: the game is whole on any controller.
 7. **Touch on its own terms, upright and on its side.** Every temporary box, banner and menu of the game's own swipes away
    (`input.swipe(true)`), context buttons appear only where they act (`touchSet`), and the simple, common, low-skill
    actions run by themselves on touch (the table below), each `if (input.assist)`. Something complicated to automate is
-   left to the player.
+   left to the player. Everything a thumb presses is at least 44 CSS px on every phone held either way: a screen too
+   small for its layout splits into pages under thumb-tall tabs (Emberdeep's shops held upright), turned by a tap, a
+   flick, or L1 R1, rather than shrink. A button that spends acts when the finger lifts, so a swipe that begins on it
+   presses nothing.
 
 ## By genre
 

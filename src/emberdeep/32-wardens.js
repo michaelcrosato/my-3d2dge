@@ -129,7 +129,7 @@ BUS.on('draw', e => {
   }
   for (const m of ED.foes) {   // the one ringing (or that just rang), on screen or at its edge: go and silence it
     const W = m.ai && m.ai.wd; if (!W || !m.alive || !(W.ring > 0 || (W.rung && game.time - W.rungAt < 4))) continue;
-    r.marker(m.x, m.y, (m.z || 0) + (m.head || 31) * (m.scale || 1) + 6, { label: W.rung ? 'ALARM' : 'RINGING', color: '#ff7a3a' });
+    r.marker(m.x, m.y, (m.z || 0) + (m.head || 31) * (m.scale || 1) + 6, { label: W.rung ? 'ALARM' : 'RINGING', color: '#ff7a3a', font: UI_tv() ? 'normal' : 'tiny' });   // (the normal font on a TV)
   }
 });
 

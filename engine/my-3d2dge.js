@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.107.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.108.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -86,7 +86,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.107.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.108.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -2383,20 +2383,22 @@ class Renderer {
     this.decal(g => px.polyDither(g, pts, color, alpha, this.ix, this.iy));
   }
   /** an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the
-   *  screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' } */
+   *  screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow',
+   *  font: 'tiny' (the label's; 'normal' reads from a sofa) } */
   marker(x, y, z = 0, o = {}) {
     const [sx, sy] = this.w(x, y, z), color = o.color || '#ffd040', dark = shade(color, -.6), W = this.W, H = this.H, m = 9, bob = this.game.reduceMotion ? 0 : Math.sin(this.game.real * 4) * 1.5;
+    const lf = o.font === 'normal' ? 'normal' : 'tiny', lh = lf === 'tiny' ? 0 : 2;   // (the normal font stands 2 px taller)
     this.overlay(g => {
       if (sx >= m && sx <= W - m && sy >= m + 14 && sy <= H - m) {
         const cx = Math.round(sx), cy = Math.round(sy - 14 + bob);
         px.poly(g, [[cx, cy - 5], [cx + 4, cy], [cx, cy + 5], [cx - 4, cy]], dark); px.poly(g, [[cx, cy - 4], [cx + 3, cy], [cx, cy + 4], [cx - 3, cy]], color);
-        if (o.label) E.font.text(g, o.label, cx, cy - 13, color, { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+        if (o.label) E.font.text(g, o.label, cx, cy - 13 - lh, color, { align: 'center', font: lf, shadow: '#000', outline: false });
       } else if (o.offscreen !== false) {
         const mx = W / 2, my = H / 2, a = Math.atan2(sy - my, sx - mx), k = Math.min((W / 2 - m) / Math.max(1e-6, Math.abs(Math.cos(a))), (H / 2 - m) / Math.max(1e-6, Math.abs(Math.sin(a))));
         const ax = Math.round(mx + Math.cos(a) * k), ay = Math.round(my + Math.sin(a) * k), c = Math.cos(a), s = Math.sin(a), tip = [ax + c * 5, ay + s * 5];
         px.poly(g, [[tip[0] + c, tip[1] + s], [ax - s * 5 - c * 2, ay + c * 5 - s * 2], [ax + s * 5 - c * 2, ay - c * 5 - s * 2]], dark);
         px.poly(g, [tip, [ax - s * 4 - c, ay + c * 4 - s], [ax + s * 4 - c, ay - c * 4 - s]], color);
-        if (o.label) E.font.text(g, o.label, clamp(ax - c * 10, 14, W - 14), clamp(ay - s * 10 - 3, 2, H - 8), color, { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+        if (o.label) E.font.text(g, o.label, clamp(ax - c * 10, 14, W - 14), clamp(ay - s * 10 - 3 - lh / 2, 2, H - 8 - lh), color, { align: 'center', font: lf, shadow: '#000', outline: false });
       }
     });
   }

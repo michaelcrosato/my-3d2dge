@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.107.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.108.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -86,7 +86,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.107.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.108.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -2383,20 +2383,22 @@ class Renderer {
     this.decal(g => px.polyDither(g, pts, color, alpha, this.ix, this.iy));
   }
   /** an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the
-   *  screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' } */
+   *  screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow',
+   *  font: 'tiny' (the label's; 'normal' reads from a sofa) } */
   marker(x, y, z = 0, o = {}) {
     const [sx, sy] = this.w(x, y, z), color = o.color || '#ffd040', dark = shade(color, -.6), W = this.W, H = this.H, m = 9, bob = this.game.reduceMotion ? 0 : Math.sin(this.game.real * 4) * 1.5;
+    const lf = o.font === 'normal' ? 'normal' : 'tiny', lh = lf === 'tiny' ? 0 : 2;   // (the normal font stands 2 px taller)
     this.overlay(g => {
       if (sx >= m && sx <= W - m && sy >= m + 14 && sy <= H - m) {
         const cx = Math.round(sx), cy = Math.round(sy - 14 + bob);
         px.poly(g, [[cx, cy - 5], [cx + 4, cy], [cx, cy + 5], [cx - 4, cy]], dark); px.poly(g, [[cx, cy - 4], [cx + 3, cy], [cx, cy + 4], [cx - 3, cy]], color);
-        if (o.label) E.font.text(g, o.label, cx, cy - 13, color, { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+        if (o.label) E.font.text(g, o.label, cx, cy - 13 - lh, color, { align: 'center', font: lf, shadow: '#000', outline: false });
       } else if (o.offscreen !== false) {
         const mx = W / 2, my = H / 2, a = Math.atan2(sy - my, sx - mx), k = Math.min((W / 2 - m) / Math.max(1e-6, Math.abs(Math.cos(a))), (H / 2 - m) / Math.max(1e-6, Math.abs(Math.sin(a))));
         const ax = Math.round(mx + Math.cos(a) * k), ay = Math.round(my + Math.sin(a) * k), c = Math.cos(a), s = Math.sin(a), tip = [ax + c * 5, ay + s * 5];
         px.poly(g, [[tip[0] + c, tip[1] + s], [ax - s * 5 - c * 2, ay + c * 5 - s * 2], [ax + s * 5 - c * 2, ay - c * 5 - s * 2]], dark);
         px.poly(g, [tip, [ax - s * 4 - c, ay + c * 4 - s], [ax + s * 4 - c, ay - c * 4 - s]], color);
-        if (o.label) E.font.text(g, o.label, clamp(ax - c * 10, 14, W - 14), clamp(ay - s * 10 - 3, 2, H - 8), color, { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+        if (o.label) E.font.text(g, o.label, clamp(ax - c * 10, 14, W - 14), clamp(ay - s * 10 - 3 - lh / 2, 2, H - 8 - lh), color, { align: 'center', font: lf, shadow: '#000', outline: false });
       }
     });
   }
@@ -11343,7 +11345,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.107.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.108.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11584,7 +11586,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.107.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.108.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12001,7 +12003,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.107.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.108.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12246,7 +12248,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DUALSENSE v0.107.0: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
+my-3D2dge module DUALSENSE v0.108.0: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12271,9 +12273,11 @@ a game plays the same without them (docs/CONTROLS.md).
   it on, else from the game's as usual. ds.micLevel() -> 0..1, how loud the microphone hears (0 while it is off).
 - ds.connected: a DualSense is open; ds.allowed: { hid, speaker, mic }, what the player has allowed.
 
-Permissions: the game never asks. WebHID, the controller's speaker and the microphone work only where the player has
-already allowed them (52in1's Settings: the page's permissions and its frame's allow), found without a prompt; until then
-their rows are locked and say where to allow them.
+Permissions: the game never asks. Inside 52in1 (window.AIHubSettings) the hub holds the controller: the module never opens
+it, and drives it through 52in1's own channel (hub.dualsense: light bar, triggers, motion, touchpad, speaker; the
+microphone by hub.openMicrophone), each only while 52in1's Settings allow it; the player lights are the hub's (the seat).
+On a page of its own, WebHID, the controller's speaker and the microphone work only where the player already allowed this
+page them, found without a prompt. Until then their rows are locked and say where to allow them.
 
 ```js dualsense
 const E = My3D2dge, game = new E.Game({ headless: true }), ds = E.DualSense.attach(game, { light: true, gyro: true });
@@ -12306,7 +12310,13 @@ E.lang.engine({
   'engine.setting.mic': 'Microphone', 'engine.setting.mic.help': 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent',
   'engine.dualsense.need_pad': 'Connect a DualSense and allow it in 52in1 Settings', 'engine.dualsense.need_allow': 'Allow it in 52in1 Settings first'
 });
-const policy = f => { try { const P = document.permissionsPolicy || document.featurePolicy; return !P || typeof P.allowsFeature !== 'function' || P.allowsFeature(f); } catch (e) { return true; } };
+// a permissions-policy feature this frame may use: one the browser doesn't know (Chrome's 'speaker-selection') it doesn't
+// gate, so the browser's own answer (setSinkId's) decides
+const policy = f => { try { const P = document.permissionsPolicy || document.featurePolicy; if (!P || typeof P.allowsFeature !== 'function') return true; const all = typeof P.features === 'function' ? P.features() : null; return all && all.indexOf(f) < 0 ? true : P.allowsFeature(f); } catch (e) { return true; } };
+// 52in1's player settings (its lib/hub/catalogue.md, Settings and the DualSense), where the hub holds the controller
+const hubOf = () => { try { const h = typeof window !== 'undefined' && window.AIHubSettings; return h && h.dualsense && typeof h.dualsense === 'object' ? h : null; } catch (e) { return null; } };
+// a trigger effect in 52in1's words: resist, weapon, vibrate ({ kind, from, to, strength, frequency }, 0..1)
+const hubFx = e => !e ? null : e.resist ? { kind: 'resist', from: +e.resist[0] || 0, strength: +e.resist[1] || 0 } : e.weapon ? { kind: 'weapon', from: +e.weapon[0] || 0, to: +e.weapon[1] || 0, strength: +e.weapon[2] || 0 } : e.pulse ? { kind: 'vibrate', from: +e.pulse[0] || 0, strength: +e.pulse[2] || 0, frequency: Math.max(1, Math.min(255, Math.round(e.pulse[1] || 30))) } : null;
 const granted = async name => { try { return !!navigator.permissions && (await navigator.permissions.query({ name })).state === 'granted'; } catch (e) { return false; } };
 const n01 = (v, lo, hi) => Math.round(lo + Math.max(0, Math.min(1, +v || 0)) * (hi - lo));
 let crcT = null;
@@ -12335,23 +12345,25 @@ class DualSense {
     this.game = game; this._o = o; this.connected = false; this.allowed = { hid: false, speaker: false, mic: false }; this.touches = [];
     this._dev = null; this._wire = 'usb'; this._seq = 0; this._want = { light: null, player: null, left: null, right: null }; this._sent = ''; this._busy = false;
     this._raw = [0, 0, 0]; this._bias = [0, 0, 0]; this._rate = [0, 0, 0]; this._still = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
+    this._hub = game.headless ? null : hubOf(); this._may = { light: true, triggers: true, gyro: true };   // (_may: what 52in1 lets a game do with the one it holds)
     this.extras(o);
     game.hook('input', dt => this._tick(dt));
     if (typeof addEventListener === 'function') { addEventListener('pagehide', () => this.clear()); if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => this._push()); }   // (a page hidden or closed frees the triggers and gives the light back)
-    if (!game.headless && typeof navigator !== 'undefined') this._find();
+    if (this._hub) { this._hub.addEventListener('change', () => this._hubSync()); this._hubSync(); }   // (52in1: its Settings, changed over the game, change what is allowed at once)
+    else if (!game.headless && typeof navigator !== 'undefined') this._find();
   }
   /** name more extras this game uses ({ light, triggers, gyro, speaker, mic }: attach does it): their rows are added */
   extras(o = {}) {
     for (const k in o) if (o[k] && k in this._o) this._o[k] = true;
-    const game = this.game, S = game.settings, lockHid = () => this.allowed.hid ? null : E.t('engine.dualsense.need_pad');
-    if (o.light && !S.spec('padLight')) S.define({ key: 'padLight', group: 'Controller', label: 'Light bar', help: 'The DualSense\'s light shows what the game says: your health, danger, your team', type: 'toggle', value: true, locked: lockHid, apply: () => this._push() });
-    if (o.triggers && !S.spec('padTriggers')) S.define({ key: 'padTriggers', group: 'Controller', label: 'Adaptive triggers', help: 'The DualSense\'s triggers push back: a brake, a bowstring, a gun\'s break', type: 'toggle', value: true, locked: lockHid, apply: () => this._push() });
-    if (o.gyro && !S.spec('gyro')) S.define({ key: 'gyro', group: 'Controller', label: 'Gyro aim', help: 'Turn and tilt the DualSense to fine-tune your aim, on top of the stick', type: 'select', value: 'off', options: [['off', 'Off'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], locked: lockHid });
+    const game = this.game, S = game.settings, lockHid = k => () => !this.allowed.hid ? E.t('engine.dualsense.need_pad') : this._may[k] ? null : E.t('engine.dualsense.need_allow');
+    if (o.light && !S.spec('padLight')) S.define({ key: 'padLight', group: 'Controller', label: 'Light bar', help: 'The DualSense\'s light shows what the game says: your health, danger, your team', type: 'toggle', value: true, locked: lockHid('light'), apply: () => this._push() });
+    if (o.triggers && !S.spec('padTriggers')) S.define({ key: 'padTriggers', group: 'Controller', label: 'Adaptive triggers', help: 'The DualSense\'s triggers push back: a brake, a bowstring, a gun\'s break', type: 'toggle', value: true, locked: lockHid('triggers'), apply: () => this._push() });
+    if (o.gyro && !S.spec('gyro')) S.define({ key: 'gyro', group: 'Controller', label: 'Gyro aim', help: 'Turn and tilt the DualSense to fine-tune your aim, on top of the stick', type: 'select', value: 'off', options: [['off', 'Off'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], locked: lockHid('gyro') });
     if (o.speaker && !S.spec('padSpeaker')) S.define({ key: 'padSpeaker', group: 'Controller', label: 'Controller speaker', help: 'Small sounds of the game play from the DualSense in your hands', type: 'toggle', value: false, locked: () => this.allowed.speaker ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._speakerOn(v) });
     if (o.mic && !S.spec('mic')) S.define({ key: 'mic', group: 'Controller', label: 'Microphone', help: 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent', type: 'toggle', value: false, locked: () => this.allowed.mic ? null : E.t('engine.dualsense.need_allow'), apply: (g, v) => this._micOn(v) });
   }
   /** the triggers free and the light bar back to blue: a scene's exit, so the next starts clean */
-  clear() { this._want.left = this._want.right = null; this._want.light = '#3050ff'; this._push(); return this; }
+  clear() { this._want.left = this._want.right = null; this._want.light = this._hub ? null : '#3050ff'; if (this._hub && this.connected && this._may.light) this._hub.dualsense.light(null); this._push(); return this; }   // (in 52in1 the light goes back to the hub's glow)
   /** the light bar's colour ('#rrggbb'; null leaves it as it is) */
   light(color) { this._want.light = typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color : null; this._push(); return this; }
   /** the player lights: 0..3 for players 1 to 4, -1 off */
@@ -12360,7 +12372,7 @@ class DualSense {
    *  hz, force] } | null) */
   trigger(side, eff) { if (side === 'left' || side === 'right') { this._want[side] = eff || null; this._push(); } return this; }
   /** screen pixels to add to an aim or a camera this step from the controller's turn ([dx, dy]; [0, 0] without gyro aim) */
-  gyroAim(dt) { const k = GYRO[this.game.settings.gyro] || 0; if (!k || !this.connected || !this.allowed.hid) return [0, 0]; return [-this._rate[1] * k * dt, -this._rate[0] * k * dt]; }
+  gyroAim(dt) { const k = GYRO[this.game.settings.gyro] || 0; if (!k || !this.connected || !this.allowed.hid || !this._may.gyro) return [0, 0]; return [-this._rate[1] * k * dt, -this._rate[0] * k * dt]; }
   /** 'left' | 'right' | 'up' | 'down' in the step after a flick on the touchpad, else null */
   swipe() { return this._flicked; }
   /** how loud the microphone hears, 0..1 (0 while it is off or not allowed) */
@@ -12387,6 +12399,16 @@ class DualSense {
       const S = this.game.settings; if (S.padSpeaker) this._speakerOn(true); if (S.mic) this._micOn(true);
     } catch (e) { /* not allowed here */ }
   }
+  // 52in1's word on what the game may do with the DualSense it holds: read again on every change of its Settings
+  _hubSync() {
+    const H = this._hub, P = H.dualsense, on = !!P.connected, mic = this.allowed.mic, spk = this.allowed.speaker, S = this.game.settings;
+    this.connected = on; this.allowed = { hid: on, speaker: on && !!P.speaker, mic: H.mic === true };
+    this._may = { light: on && !!P.lightbar, triggers: on && !!P.triggers, gyro: on && !!P.motion };
+    if (!on) { this.touches = []; this._rate = [0, 0, 0]; this._flick = null; }
+    if (spk !== this.allowed.speaker) this._speakerOn(!!S.padSpeaker);
+    if (mic !== this.allowed.mic) this._micOn(!!S.mic);
+    this._push();
+  }
   async _open(d) {
     try {
       if (!d.opened) await d.open();
@@ -12409,10 +12431,16 @@ class DualSense {
   _tick(dt) {
     this._flicked = null;
     if (this.game.paused !== this._paused) { this._paused = this.game.paused; this._push(); }   // (the triggers freed under a pause, back after it)
-    if (this.connected) {
+    if (this._hub && this.connected) {   // (52in1 sends the turn, in degrees a second, and the fingers; the gyro is read only while gyro aim is on, so the hub's own Motion aim keeps the stick until then)
+      const P = this._hub.dualsense, gy = GYRO[this.game.settings.gyro] && this._o.gyro && this._may.gyro ? P.gyro : null;
+      this._rate = gy ? [gy.x, gy.y, gy.z].map(r => Math.abs(+r || 0) < 1.5 ? 0 : +r) : [0, 0, 0];
+      this.touches = (P.touches || []).map(q => ({ x: +q.x || 0, y: +q.y || 0 }));
+    } else if (this.connected) {
       const d = this._raw.map((r, i) => r - this._bias[i]), calm = d.every(x => Math.abs(x) < 80);   // (still: under about 5 degrees a second)
       this._still = calm ? this._still + dt : 0; if (this._still > .8) for (let i = 0; i < 3; i++) this._bias[i] += (this._raw[i] - this._bias[i]) * .05;
       this._rate = this._raw.map((r, i) => Math.abs(r - this._bias[i]) < 24 ? 0 : (r - this._bias[i]) / 16.384);   // (degrees a second; a hair's noise, under 1.5, is none)
+    }
+    if (this.connected) {
       const p = this.touches[0], f = this._flick;
       if (p && !f) this._flick = { x: p.x, y: p.y, t: 0, x1: p.x, y1: p.y };
       else if (p && f) { f.t += dt; f.x1 = p.x; f.y1 = p.y; }
@@ -12422,6 +12450,7 @@ class DualSense {
   }
   // the output report for what is wanted now, sent when it changed (a light set each step sends once)
   _push() {
+    if (this._hub) return this._hubPush();
     if (!this._dev || !this._dev.opened) return;
     const S = this.game.settings, c = new Uint8Array(47), w = this._want;
     // the triggers' effects (free under a pause: a menu doesn't push back), the light bar, the player lights
@@ -12437,9 +12466,24 @@ class DualSense {
     if (this._wire === 'bt') { id = 0x31; data = new Uint8Array(77); data[0] = (this._seq++ & 15) << 4; data[1] = 0x10; data.set(c, 2); new DataView(data.buffer).setUint32(73, crc32([0xa2, 0x31, ...data.subarray(0, 73)]), true); }
     this._dev.sendReport(id, data).catch(() => {}).then(() => { this._busy = false; if (this._again) { this._again = false; this._push(); } });
   }
-  // the controller's speaker on or off: the game's sound for it goes through a stream to the DualSense's output
+  // in 52in1: the light bar and the triggers through the hub (which sends the controller only what changed; the player
+  // lights are its seat's)
+  _hubPush() {
+    const P = this._hub.dualsense, S = this.game.settings, w = this._want; if (!this.connected) return;
+    if (this._may.light) { if (S.padLight === false) P.light(null); else if (w.light) P.light(w.light); }   // (Light bar off: the hub's own glow)
+    if (this._o.triggers) { const on = S.padTriggers !== false && this._may.triggers && !this.game.paused && !(typeof document !== 'undefined' && document.hidden); P.trigger('right', on ? hubFx(w.right) : null); P.trigger('left', on ? hubFx(w.left) : null); }
+  }
+  // the controller's speaker on or off: the game's sound for it goes through a stream to the DualSense's output (in 52in1,
+  // to the node the hub opens on it, kept for when it is turned on again)
   _speakerOn(on) {
     const A = this.game.audio;
+    if (this._hub) {
+      if (!on || !this.allowed.speaker) { if (this._spk) try { this._spk.disconnect(); } catch (e) { /* gone */ } this._spk = null; return; }
+      if (this._spk || this._spkWait || !A.bus('master')) return;
+      this._spkWait = true;
+      Promise.resolve(this._spkNode || this._hub.dualsense.openSpeaker(A.ctx)).then(n => { this._spkWait = false; if (!n) return; this._spkNode = n; if (this._spk || !this.game.settings.padSpeaker || !this.allowed.speaker) return; const g = A.ctx.createGain(); g.connect(n); this._spk = g; }, () => { this._spkWait = false; });
+      return;
+    }
     if (!on || !this.allowed.speaker) { if (this._spkEl) { this._spkEl.pause(); this._spkEl = null; } this._spk = null; return; }
     if (this._spk || !A.bus('master') || !A.ctx.createMediaStreamDestination) return;
     try {
@@ -12454,8 +12498,9 @@ class DualSense {
     this._an = null; this._level = 0;
     if (!on || !this.allowed.mic || !navigator.mediaDevices) return;
     try {
-      const st = this._stream = await navigator.mediaDevices.getUserMedia({ audio: this._micId ? { deviceId: { exact: this._micId } } : true });
-      if (!this.game.settings.mic || !this.game.audio.bus('master')) { for (const t of st.getTracks()) t.stop(); this._stream = null; return; }
+      const st = this._stream = this._hub ? await this._hub.openMicrophone() : await navigator.mediaDevices.getUserMedia({ audio: this._micId ? { deviceId: { exact: this._micId } } : true });   // (52in1's: the DualSense's microphone when it is plugged in)
+      if (!st) { this._stream = null; return; }
+      if (!this.game.settings.mic || !this.allowed.mic || !this.game.audio.bus('master')) { for (const t of st.getTracks()) t.stop(); this._stream = null; return; }
       const c = this.game.audio.ctx, an = c.createAnalyser(); an.fftSize = 512; c.createMediaStreamSource(st).connect(an); this._buf = new Float32Array(512); this._an = an;
     } catch (e) { this._an = null; }
   }
@@ -12470,7 +12515,7 @@ E.DualSense = {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.107.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.108.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13044,7 +13089,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.107.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.108.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13227,7 +13272,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.107.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.108.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13636,7 +13681,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MESH v0.107.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.108.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13774,7 +13819,7 @@ E.Mesh = Mesh;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MGA v0.107.0: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
+my-3D2dge module MGA v0.108.0: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13934,7 +13979,7 @@ E.MGA = {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.107.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.108.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14293,7 +14338,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.107.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.108.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14660,7 +14705,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module REWIND v0.107.0: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.108.0: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14720,7 +14765,7 @@ E.Rewind = Rewind;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.107.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.108.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14927,7 +14972,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.107.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.108.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15116,7 +15161,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.107.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.108.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15299,7 +15344,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.107.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.108.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15634,7 +15679,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.107.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.108.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15788,7 +15833,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.107.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.108.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15996,7 +16041,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.107.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.108.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -16451,7 +16496,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.107.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.108.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
