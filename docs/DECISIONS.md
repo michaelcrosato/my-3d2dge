@@ -1924,3 +1924,27 @@ An entry:
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
 
+## D110 · 2026-11-17 · Emberdeep under a finger: every target acts on a tap, never as it lands
+
+- **Principle:** the controls standard (D100): players swipe away menus; docs/CONTROLS.md rule 7, a swipe that begins on a
+  button presses nothing; touch must not change how a pad, the keys or a mouse play
+- **Call:**
+  - Under a finger every target Emberdeep draws (the pause menu's rows, the waystone's depths, the title's and the death
+    screen's buttons, the skill-point chip and the skill bar, the skills panel's and the tree's buttons, the gallery's
+    reels) acts on a tap: as the finger lifts where it pressed, by the engine's own tap (`input.clicked()`, 12 CSS px)
+    and no step seeing it wander past 6 px, decided by the pointer that pressed rather than the device used last
+    (`60-ui-core.js` UI.tap). The loot panels' presses take the same tap, and a flick in any direction, not only
+    sideways, presses nothing on them. A mouse still acts as its button goes down.
+  - A flick that begins on an item drops it only on a worn slot, the counter, the anvil or a stash tab across the top,
+    never on the rail's tabs on its side, which stand beside the bag where a flick that turns the page ends; a slower drag
+    still drops it on any of them.
+  - On its side, a rail of tabs that would run past the panel's foot under the touch bar's Back (a phone with its
+    browser's bars showing) stands beside Back from under the title, in two columns where one won't do, and the bag's
+    gold and SORT go under the bag where the rail has no room for them (LOT_railAt).
+- **Why:** D108 and D109 made a spend and a depth act on lift, panel by panel, but the core's buttons still acted as the
+  finger landed (a flick to dismiss the pause menu could save and quit), a flick lifted between two frames slipped past
+  the steps that watch a press, and the first finger after a mouse or a pad met the press. One rule under a finger,
+  taken from the engine's tap, closes them all; the pad, the keys and the mouse keep theirs.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** the version after v0.108.0
+
