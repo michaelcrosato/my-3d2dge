@@ -644,10 +644,18 @@ function pauseItems() {
 }
 /** a menu row's height: 16 game pixels, a finger's (44 CSS px) on a screen held upright */
 const UI_rowH = () => UI_tall() ? clamp(UI_finger(), 16, 60) : 16;
-UI.def('pause', { title: 'PAUSED', w: W => UI_tall() ? Math.min(W - 8, 260) : 180, h: (W, H) => Math.min(H - 8, 36 + pauseItems().length * (UI_rowH() + 2)), draw(g, x, y, w) {
-  const rh = UI_rowH();
-  pauseItems().forEach(([label, fn], i) => { if (button(g, x + 12, y + 20 + i * (rh + 2), w - 24, rh, label, fn, { focus: UI.keyNav && UI.focus === i }) && !UI.keyNav) UI.focus = i; });   // (the mouse moves the focus: the keys and a pad go on from the row it rests on)
-}, update() { const items = pauseItems(); menuKeys(items.length, i => items[i][1]()); } });
+/** the pause menu's rows: a finger tall held upright (UI_rowH) and, with the touch buttons up, on a screen on its side too,
+ *  where its n rows go in two columns (the first half, then the rest) if one is taller than the screen: [row height,
+ *  rows a column] */
+const PAUSE_rows = (n, H = game.H) => { const side = !!TOUCH.el && !UI_tall(), rh = side ? clamp(UI_finger(), 16, 60) : UI_rowH(); return [rh, side && 36 + n * (rh + 2) > H - 8 ? Math.ceil(n / 2) : n]; };
+UI.def('pause', { title: 'PAUSED', w: (W, H) => UI_tall() ? Math.min(W - 8, 260) : PAUSE_rows(pauseItems().length, H)[1] < pauseItems().length ? Math.min(W - 8, 300) : 180, h: (W, H) => { const [rh, k] = PAUSE_rows(pauseItems().length, H); return Math.min(H - 8, 36 + k * (rh + 2)); }, draw(g, x, y, w) {
+  const items = pauseItems(), [rh, k] = PAUSE_rows(items.length), cw = k < items.length ? Math.floor((w - 30) / 2) : w - 24;   // (two columns: 6 px between them)
+  items.forEach(([label, fn], i) => { if (button(g, x + 12 + (i >= k ? cw + 6 : 0), y + 20 + (i % k) * (rh + 2), cw, rh, label, fn, { focus: UI.keyNav && UI.focus === i }) && !UI.keyNav) UI.focus = i; });   // (the mouse moves the focus: the keys and a pad go on from the row it rests on)
+}, update() {
+  const items = pauseItems(), n = items.length, k = PAUSE_rows(n)[1], inp = game.input;
+  if (k < n && (inp.repeat('menuLeft') || inp.repeat('menuRight'))) { UI.focus = UI.focus >= k ? UI.focus - k : Math.min(n - 1, UI.focus + k); UI.keyNav = true; sfx('select', { vol: .4 }); }   // (two columns: left and right cross between them)
+  menuKeys(n, i => items[i][1]());
+} });
 /** up / down / confirm over a panel's list of n entries */
 function menuKeys(n, pick) {
   const inp = game.input;

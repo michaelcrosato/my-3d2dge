@@ -69,9 +69,9 @@ standard for the controls and the interface only: a game's rules, levels and sco
    (`input.swipe(true)`), context buttons appear only where they act (`touchSet`), and the simple, common, low-skill
    actions run by themselves on touch (the table below), each `if (input.assist)`. Something complicated to automate is
    left to the player. Everything a thumb presses is at least 44 CSS px on every phone held either way: a screen too
-   small for its layout splits into pages under thumb-tall tabs (Emberdeep's shops held upright), turned by a tap, a
-   flick, or L1 R1, rather than shrink. A button that spends acts when the finger lifts, so a swipe that begins on it
-   presses nothing.
+   small for its layout splits into pages under thumb-tall tabs (Emberdeep's bag and shops: a row of tabs held upright, a
+   rail of them down the right on its side), turned by a tap, a flick, or L1 R1, rather than shrink. A button that
+   spends acts when the finger lifts, so a swipe that begins on it presses nothing.
 
 ## By genre
 

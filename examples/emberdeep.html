@@ -19203,8 +19203,9 @@ function PRG_skillsDraw(g, x, y, w, hh) {
   }
   // the list
   // held upright (a phone), the list runs the panel's width with rows a finger tall and the skill's page sits under it;
-  // on its side the rows are a thumb tall too (PRG_thumb), and a finger drags the list to scroll it (PRG_listPress)
-  const RH = thb ? clamp(thb + 1, 20, 49) : tall ? clamp(UI_finger(), 20, 48) : 20, LX = x + 8, LY = Math.max(y + 45, scy + SC + (kb ? 10 : 4)), LW = tall ? w - 16 : clamp(Math.round(w * .43), 150, 196), LH = tall ? Math.round((hh - (LY - y) - 8) * .5) : hh - (LY - y) - 8, rh = r0 => r0.head ? 12 : RH;
+  // on its side the rows are a thumb tall too (PRG_thumb), and a finger drags the list to scroll it (PRG_listPress). There
+  // the list gives up width (to 150) where the page beside it would otherwise squeeze its six ASSIGN buttons under a thumb
+  const RH = thb ? clamp(thb + 1, 20, 49) : tall ? clamp(UI_finger(), 20, 48) : 20, LX = x + 8, LY = Math.max(y + 45, scy + SC + (kb ? 10 : 4)), LW = tall ? w - 16 : Math.min(clamp(Math.round(w * .43), 150, 196), thb ? Math.max(150, w - 48 - 6 * thb) : 196), LH = tall ? Math.round((hh - (LY - y) - 8) * .5) : hh - (LY - y) - 8, rh = r0 => r0.head ? 12 : RH;
   const rowTop = []; let acc = 0; for (const r0 of rows) { rowTop.push(acc); acc += rh(r0); }
   const total = acc, maxS = (() => { let s = 0; while (s < rows.length && total - rowTop[s] > LH) s++; return s; })();
   if (K.follow) { K.follow = false; const si = rows.findIndex(r0 => r0.id === K.sel); if (si >= 0) { if (si <= K.scroll) K.scroll = si > 0 && rows[si - 1].head ? si - 1 : si; while (K.scroll < si && rowTop[si] + RH - rowTop[K.scroll] > LH) K.scroll++; } }
@@ -26808,8 +26809,9 @@ window.__edLoot = { drawItemIconEx, LOT_drawTip: (g, it, x, y, o) => LOT_drawTip
  * □ sells, salvages or drops, L1 R1 switch tabs, ○ backs out (a sale waiting to be confirmed, then the panel). Every
  * hint and footer names the keys of the device in use (LOT_hints, LOT_foot). Held upright (a phone) each shop stacks its
  * counter over the bag at a finger's size (LOT_tallFit), or, on a phone too short or narrow for that, splits into pages
- * under finger-tall tabs (LOT_pageTabs); a touch screen on its side keeps the landscape layout at a finger's size where it
- * fits (LOT_F); on a TV what a player reads is in the normal font (LOT_rf).
+ * under finger-tall tabs (LOT_pageTabs); a touch screen on its side keeps the landscape layout where it holds a finger
+ * (LOT_F), and otherwise has the same pages laid out across, their tabs down a rail at the right (LOT_wide, LOT_rail); on
+ * a TV what a player reads is in the normal font (LOT_rf).
  * Menus animate in real time (performance.now), so slow motion never slows them. Private names start with LOT_.
  * ============================================================================= */
 const LOT_UI = {
@@ -26863,8 +26865,8 @@ const LOT_tvGold = (n, room) => { if (!UI_tv() || n < 1000) return fmt(n); const
  * pop-up (LOT_end), so the pop-up never covers a cell. The panel is as tall as that takes. Where the stack is taller than
  * the phone, or eight finger-wide columns are wider than it, the panel goes into pages instead (LOT_pageTabs), still a
  * finger's size: never a smaller finger, never the landscape layout. On its side with the touch buttons showing, the
- * landscape layout stays and takes a finger's size where it fits (LOT_F). A mouse, the keys and a pad on a landscape
- * screen meet neither: theirs is the landscape layout as it was */
+ * landscape layout stays and takes a finger's size where that holds one (LOT_F), or goes into pages (LOT_wide). A mouse,
+ * the keys and a pad on a landscape screen without them meet neither: theirs is the landscape layout as it was */
 const LOT_popH = () => clamp(UI_finger(), 14, 48);   // the pop-up's buttons
 const LOT_F = () => TOUCH.el && ctlDevice() === 'touch' && !UI_tall() ? clamp(UI_finger(), 0, 30) : 0;   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
 const LOT_footR = () => 17 + LOT_popH();   // what a panel held upright keeps free at its foot: the pop-up and the hint line
@@ -26882,8 +26884,58 @@ function LOT_tallFit(W, H, need) {
 }
 /** the upright fit of a panel's stack (paged: in pages), or null: not held upright */
 const LOT_tallOf = (need, W = game.W, H = game.H) => UI_tall() ? LOT_tallFit(W, H, need) : null;
-/** is the shop id (LOT_NEED) in pages on this screen */
-const LOT_paged = id => { const f = LOT_tallOf(LOT_NEED[id]); return !!f && f.paged; };
+/** is the shop id (LOT_NEED) in pages on this screen: held upright (LOT_tallOf), or on its side (LOT_wide) */
+const LOT_paged = id => { const f = LOT_tallOf(LOT_NEED[id]); return f ? f.paged : !!LOT_wide(id); };
+/* ---------- pages on a phone on its side ----------
+ * With the touch buttons up on a screen on its side, a panel keeps its landscape layout where every target of it holds a
+ * finger (LOT_WIDE: its cells, slots, tabs, buttons and parcels, the sheet's lines a finger tall); where one would not (the
+ * cells fit to a narrow width, or a finger wider than the layout's 30), it goes into the upright pages, laid out for a
+ * short, wide panel: the panel takes the whole height and up to 560 px across, its page tabs stand down a rail at its
+ * right from under the touch bar's Back (LOT_rail), and each page is arranged across. GEAR: the slots in two rows of five
+ * over his numbers, the doll beside; BAG: the grid in ten columns, the gold, the count and SORT on the rail; Cobb's counter
+ * in nine columns under his portrait; ANVIL and ALTAR: under the portrait the anvil or the altar on the left (and what he
+ * has to pay with), the services on the right; the altar's lines in two columns where one won't hold them; a shop's bag with what he wears in one row of
+ * ten over it. The pages, their turns, the pop-up at the foot and the scrolling are the upright ones'. The touch buttons
+ * decide it, not the device in use, so a pad or the keys on that phone keep the pages (L1 R1 and Tab turn them) */
+/** what each panel's landscape layout gives its smallest target at finger F (LOT_F's: 30 at most) on a panel w x hh, the
+ *  sums as its draw does them, and its widest and tallest box; 0 where its stack would not fit the height */
+const LOT_wideBag = (F, rw, room) => Math.max(16, Math.min(LOT_bagCS(F, rw), Math.floor(room / 5)));   // (LOT_shopBag's eight by five, rw wide)
+const LOT_WIDE = {
+  inventory: [500, 272, (F, w, hh) => {   // the slots, the bag's cells, the tabs and SORT; under the tabs the bag, SORT, or three lines of the sheet a finger tall
+    const big = hh >= 226, SS = Math.max(hh >= 256 ? 25 : big ? 22 : 20, 5 * F + 4 * (big ? 3 : 2) + 63 <= hh - 11 ? F : 0), c = Math.floor((w - 31 - 2 * SS - clamp(Math.round(w * .19), 64, 96)) / 10), CS = Math.max(clamp(c, 16, 26), Math.min(F, c));
+    return 37 + 2 * F + 4 * CS <= hh && 63 + 5 * F <= hh ? Math.min(SS, CS, F) : 0;
+  }],
+  vendor: [480, 262, (F, w, hh) => {   // the tabs, the stock (its three rows showing), the parcels, the bag
+    const lw = Math.floor((w - 22) * .5), th = Math.max(12, F), ah = hh - 77 - th, CS = clamp(Math.floor((lw - 8) / 6), 16, Math.max(26, Math.min(F + 2, Math.floor((ah - 6) / 3) - 8)));
+    return Math.floor((ah - 6) / (CS + 8)) >= 3 ? Math.min(th, CS - 1, Math.floor((lw - 10) / 5) - 2, Math.max(30, F), LOT_wideBag(F, w - 22 - lw, hh - 43)) : 0;
+  }],
+  smith: [480, 262, (F, w, hh) => hh >= 130 + 3 * F ? Math.min(F, LOT_wideBag(F, w - 22 - Math.floor((w - 22) * .5), hh - 35 - 2 * F)) : 0],   // what he wears, the services, the bag
+  mystic: [480, 262, (F, w, hh) => hh >= 6 * F + 55 && 61 + (hh >= 226 ? 40 : 34) + 13 + 3 * F <= hh - 10 ? Math.min(F, LOT_wideBag(F, w - 22 - Math.floor((w - 22) * .5), hh - 35 - 2 * F)) : 0],   // (and five lines to enchant)
+  stash: [480, 262, (F, w, hh) => {   // the tabs beside the chest, its grid, the bag
+    const lw = Math.floor((w - 22) * .5), th = Math.max(12, F);
+    return Math.min(th, Math.floor((lw - 54) / 4), clamp(Math.min(Math.floor(lw / 8), Math.floor((hh - 56 - th) / 5)), 14, Math.max(26, F + 2)), LOT_wideBag(F, w - 22 - lw, hh - 43));
+  }]
+};
+/** a screen on its side with the touch buttons up: the finger T where panel id goes into pages on it (its landscape
+ *  layout's smallest target is below a finger), else 0 */
+function LOT_wide(id, W = game.W, H = game.H) {
+  if (!TOUCH.el || UI_tall()) return 0;
+  const T = UI_finger(), [wm, hm, least] = LOT_WIDE[id];
+  return least(Math.min(T, 30), Math.min(W - 8, wm), Math.min(H - 8, hm)) < T ? T : 0;
+}
+/** a panel in pages on its side: its width (up to 560: ten finger-wide columns beside the rail) and its rail's (a finger,
+ *  and room for CHARACTER in the tiny font) */
+const LOT_wideW = W => Math.min(W - 8, 560), LOT_railW = T => Math.max(T, 44);
+/** the page tabs down a rail at the panel's right, each a finger tall, from under the touch bar's Back where it stands
+ *  over the panel's corner (so it never lands on a tab); names, cur, go, keys as LOT_pageTabs. Returns each tab's
+ *  [x, y, w, h] (the stash's are drop targets too) */
+function LOT_rail(g, x, y, w, T, names, cur, go, keys) {
+  const RW = LOT_railW(T), rx = x + w - 7 - RW, F = UI.frame, y0 = TOUCH.el && F.barB + 2 > y + 19 && F.barL < x + w ? F.barB + 2 : y + 19;
+  return names.map((s, i) => { const ty = y0 + i * (T + 2); LOT_tabBtn(g, rx, ty, RW, s, i === cur, () => { LOT_UI.press = null; go(i); }, keys[i], T); return [rx, ty, RW, T]; });
+}
+/** a paged panel's tabs: across its top under the title (held upright), or down the rail (wide: on its side). Returns
+ *  each tab's [x, y, w, h] */
+const LOT_tabs = (g, x, y, w, T, wide, ...a) => wide ? LOT_rail(g, x, y, w, T, ...a) : LOT_pageTabs(g, x + 7, y + 19, w - 14, T, ...a);
 /* ---------- pages: a phone held upright that the stack does not fit ----------
  * The panel splits into pages under a row of finger-tall tabs (GEAR | BAG | CHARACTER; BUY | BUY BACK | GAMBLE | BAG at
  * Cobb's: a shop's own tabs join the row). A tap on a tab turns to it; L1 R1 (Tab, the touchpad) go round them as the
@@ -26893,27 +26945,31 @@ const LOT_paged = id => { const f = LOT_tallOf(LOT_NEED[id]); return !!f && f.pa
  * eight fingers flows into as many finger-wide columns as fit (LOT_grid); one taller than its page scrolls a row at a
  * time under a dragging finger, and a press acts only when it lifts where it pressed (LOT_scrollPress) */
 /** the row of page tabs across the top: names[i] for page i, cur the one shown, go(i) turns to it, keys[i] its focus
- *  key. Returns each tab's [x, w] (the stash's are drop targets too) */
+ *  key. Returns each tab's [x, y, w, h] (the stash's are drop targets too) */
 function LOT_pageTabs(g, x, y, w, T, names, cur, go, keys) {
   const n = names.length, tw = Math.floor((w - 2 * (n - 1)) / n);
-  return names.map((s, i) => { const tx = x + i * (tw + 2); LOT_tabBtn(g, tx, y, tw, s, i === cur, () => { LOT_UI.press = null; go(i); }, keys[i], T); return [tx, tw]; });
+  return names.map((s, i) => { const tx = x + i * (tw + 2); LOT_tabBtn(g, tx, y, tw, s, i === cur, () => { LOT_UI.press = null; go(i); }, keys[i], T); return [tx, y, tw, T]; });
 }
 /** step a paged panel's pages: n of them, cur shown, d one way or the other. wrap: L1 R1 go round; a flick does not (false
  *  past the ends, where the core takes the panel away). dry: only whether it would */
 function LOT_turn(n, cur, d, wrap, go, dry) {
   let i = cur + d; if (wrap) i = (i + n) % n; else if (i < 0 || i >= n) return false;
-  if (!dry) { LOT_UI.press = null; go(i); sfx('select', { vol: .4 }); } return true;
+  if (!dry) { LOT_letGo(); go(i); sfx('select', { vol: .4 }); } return true;
 }
+/** a page turns: an item (or a grid) under a finger still down is let go where it was, and stays let go (the core's drag
+ *  would press it again), so nothing is dropped or moved by a turn mid-drag (Tab, L1 R1) */
+const LOT_letGo = () => { LOT_UI.press = null; UI.drag = null; };
 /** a paged panel's flick, before LOT_update: turn(d, wrap, dry) turns its pages; an item pressed under the finger is let
  *  go, not dropped. One past the ends is left to the core (it takes the panel away) */
 function LOT_flickPage(turn) { const inp = game.input, sw = inp.swipe(); if (sw && (sw.dir === 'left' || sw.dir === 'right') && turn(sw.dir === 'left' ? 1 : -1, false)) inp.swipe(true); }
 const LOT_flicks = (turn, dir) => (dir === 'left' || dir === 'right') && turn(dir === 'left' ? 1 : -1, false, true);
 /** a grid of n cells laid out on a page w wide from y down to bottom, a finger T a cell at least: as many columns as fit
- *  (eight at most), rows following. Where they are taller than the room it shows the rows that fit, from LOT_UI.sc[name],
- *  and keeps room at its right for the scroll bar. pre: its cells' keys ('bag:'), so a pad's focus scrolls it.
- *  Returns { cols, S, rows, vis, r0, max, x0 (its left, inside w), sc (the scroller its cells press, or null) } */
-function LOT_grid(name, pre, n, w, T, y, bottom) {
-  let cols = clamp(Math.floor(w / T), 1, 8), S = clamp(Math.floor(w / cols), T, T + 2);
+ *  (mc at most: eight, ten on a phone on its side), rows following. Where they are taller than the room it shows the rows
+ *  that fit, from LOT_UI.sc[name], and keeps room at its right for the scroll bar. pre: its cells' keys ('bag:'), so a
+ *  pad's focus scrolls it. Returns { cols, S, rows, vis, r0, max, x0 (its left, inside w), sc (the scroller its cells
+ *  press, or null) } */
+function LOT_grid(name, pre, n, w, T, y, bottom, mc = 8) {
+  let cols = clamp(Math.floor(w / T), 1, mc), S = clamp(Math.floor(w / cols), T, T + 2);
   const room = Math.max(T, bottom - y), rows0 = Math.ceil(n / cols);
   if (rows0 * S > room) { S = T; if (rows0 * S > room && w - cols * S < 5 && cols > 1) cols--; }   // (scrolling: a finger's cells, and room for the bar)
   const rows = Math.ceil(n / cols), vis = clamp(Math.floor(room / S), 1, rows), max = rows - vis, r0 = LOT_UI.sc[name] = clamp(LOT_UI.sc[name] || 0, 0, max);
@@ -27400,7 +27456,7 @@ const LOT_LEFT = ['helm', 'chest', 'gloves', 'legs', 'boots'], LOT_RIGHT = ['amu
 /** the bag held upright: its stack at finger T (what he wears, the doll, the tabs, the bag, the foot); a phone too short
  *  for it (a phone's browser with its bars showing), or too narrow for eight finger-wide columns, has it in pages */
 const LOT_invNeed = T => 133 + 12 * T;
-const LOT_invPg = () => { const f = LOT_tallOf(LOT_invNeed); return !!f && f.paged; };
+const LOT_invPg = () => { const f = LOT_tallOf(LOT_invNeed); return f ? f.paged : !!LOT_wide('inventory'); };   // (on its side: LOT_wide)
 /** in pages: GEAR, BAG, CHARACTER (the tabs 0, 1, 2); L1 R1 and a flick go round GEAR, the bag and the sheet's every page
  *  (LOT_statTurn's ring, with GEAR in it) */
 const LOT_invPage = () => LOT_UI.gear ? 0 : LOT_UI.tab === 'bag' ? 1 : 2;
@@ -27408,7 +27464,7 @@ function LOT_invTurn(d, wrap, dry) {
   const n = LOT_UI.statN || 1, at = LOT_UI.gear ? 0 : LOT_UI.tab === 'bag' ? 1 : 2 + clamp(LOT_UI.statPage, 0, n - 1);
   return LOT_turn(2 + n, at, d, wrap, () => LOT_statTurn(d, true, true), dry);
 }
-LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W, H) => { const f = LOT_tallOf(LOT_invNeed, W, H); return Math.min(H - 8, f ? f.h : 272); },
+LOT_PANELS.inventory = { title: 'INVENTORY', w: (W, H) => LOT_wide('inventory', W, H) ? LOT_wideW(W) : Math.min(W - 8, 500), h: (W, H) => { const f = LOT_tallOf(LOT_invNeed, W, H); return Math.min(H - 8, f ? f.h : LOT_wide('inventory', W, H) ? H : 272); },
   open() { LOT_UI.focus = null; LOT_UI.press = null; LOT_UI.sc = {}; },
   close() { LOT_UI.press = null; LOT_UI.confirm = null; },
   back: () => LOT_back(),
@@ -27416,14 +27472,15 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
   update() {
     const pgd = LOT_invPg(); if (pgd) LOT_flickPage(LOT_invTurn);
     LOT_update();
-    const pg = pageStep(); if (pg) LOT_statTurn(pg, true, pgd);   // (L1 R1, Tab: the bag, then each page of the character sheet, round again; in pages GEAR too)
+    const pg = pageStep(); if (pg) { if (pgd) LOT_letGo(); LOT_statTurn(pg, true, pgd); }   // (L1 R1, Tab: the bag, then each page of the character sheet, round again; in pages GEAR too, and what is under a finger let go)
   },
   wheel(d) { if (LOT_gridWheel(d) || LOT_UI.tab !== 'stats' || (LOT_UI.gear && LOT_invPg())) return; const s = LOT_wheelStep(d), i = LOT_UI.statPage + s; if (s && i >= 0 && i < (LOT_UI.statN || 1)) LOT_statTurn(s); },   // (the wheel stops at the first and last page)
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return;
     LOT_begin(this, x, y, w, hh);
-    const fit = LOT_tallOf(LOT_invNeed);
+    const fit = LOT_tallOf(LOT_invNeed), wT = !fit && LOT_wide('inventory');
     if (fit && fit.paged && hh >= fit.h - 2) return LOT_invPaged(g, x, y, w, hh, h, fit.T);
+    if (wT) return LOT_invPaged(g, x, y, w, hh, h, wT, true);   // (on its side, where the layout below would not hold a finger)
     const tall = !!fit && hh >= fit.h - 2, T = fit ? fit.T : clamp(UI_finger(), 22, 64), top = y + 19, pad = 7, big = hh >= 226, gap = tall ? 4 : big ? 3 : 2;
     const F = !tall && TOUCH.el && ctlDevice() === 'touch' ? clamp(UI_finger(), 0, 30) : 0, SS = tall ? T : Math.max(hh >= 256 ? 25 : big ? 22 : 20, 5 * F + 4 * gap + 63 <= hh - 11 ? F : 0), colH = 5 * SS + 4 * gap;   // (touch buttons showing: slots and cells a finger wide, where they fit)
     const dw = tall ? w - 2 * pad - 2 * SS - 8 : clamp(Math.round(w * .19), 64, 96), lx = x + pad, dx = lx + SS + 4, rx0 = dx + dw + 4;
@@ -27448,7 +27505,7 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
       E.font.text(g, h.bag.length + ' / ' + BAG_MAX, gx + cols * CS - sw - 6, by + 2, h.bag.length >= BAG_MAX ? '#ff8a7a' : '#9a90b0', { align: 'right', outline: false });
       LOT_btn(g, gx + cols * CS - sw, by, sw, sh, 'SORT', () => LOT_sort(h), { key: 'sort' });
       LOT_powers(g, gx, by + sh + 5, cols * CS, foot, h);
-    } else LOT_drawStats(g, cx0, gy, cw, foot - gy - 2, h, tall ? T : F);
+    } else LOT_drawStats(g, cx0, gy, cw, foot - gy - 2, h, tall ? T : F, !tall && F > 0);   // (a touch screen on its side: every line a finger tall, the pages shorter)
     LOT_invFoot(g, x, w, foot, false);
     LOT_end(g);
   } };
@@ -27475,11 +27532,19 @@ function LOT_invFoot(g, x, w, foot, pg) {
 }
 /** the bag held upright on a short or narrow phone, in three pages under finger-tall tabs. GEAR: the doll between what he
  *  wears, his numbers under it and his powers where they fit; BAG: the bag in as many finger-wide columns as fit (it
- *  scrolls where it is taller than the page), the gold and SORT; CHARACTER: the sheet, every line a finger tall */
-function LOT_invPaged(g, x, y, w, hh, h, T) {
-  LOT_UI.pg = true; const pad = 7, cx0 = x + pad, cw = w - 2 * pad, foot = y + hh - 11, bot = y + hh - LOT_footR(), pi = LOT_invPage(), y0 = y + 23 + T;
-  LOT_pageTabs(g, cx0, y + 19, cw, T, ['GEAR', 'BAG', 'CHARACTER'], pi, i => { LOT_UI.gear = !i; if (i) LOT_UI.tab = i === 1 ? 'bag' : 'stats'; }, ['gear', 'bag', 'stats']);
-  if (pi === 0) {   // (the slots' gaps take what the page has spare, up to 12 px)
+ *  scrolls where it is taller than the page), the gold and SORT; CHARACTER: the sheet, every line a finger tall. wide:
+ *  a phone on its side (LOT_wide), the tabs down the rail: GEAR has what he wears in two rows of five over his numbers and
+ *  powers, the doll beside them; BAG has ten columns, the gold, the count and SORT on the rail under the tabs */
+function LOT_invPaged(g, x, y, w, hh, h, T, wide = false) {
+  LOT_UI.pg = true; const pad = 7, cx0 = x + pad, RW = LOT_railW(T), cw = wide ? w - 20 - RW : w - 2 * pad, foot = y + hh - 11, bot = y + hh - LOT_footR(), pi = LOT_invPage(), y0 = wide ? y + 20 : y + 23 + T;
+  const R = LOT_tabs(g, x, y, w, T, wide, ['GEAR', 'BAG', 'CHARACTER'], pi, i => { LOT_UI.gear = !i; if (i) LOT_UI.tab = i === 1 ? 'bag' : 'stats'; }, ['gear', 'bag', 'stats']);
+  if (pi === 0 && wide) {
+    const gw = 5 * T + 12;
+    LOT_LEFT.concat(LOT_RIGHT).forEach((s, i) => LOT_slotCell(g, cx0 + (i % 5) * (T + 3), y0 + Math.floor(i / 5) * (T + 3), T, s, h));
+    LOT_readout(g, cx0, y0 + 2 * T + 8, gw, h);
+    LOT_powers(g, cx0, y0 + 2 * T + 46, gw, bot, h);
+    LOT_dollDraw(g, cx0 + gw + 8, y0, cw - gw - 8, bot - y0, h);
+  } else if (pi === 0) {   // (the slots' gaps take what the page has spare, up to 12 px)
     const gap = clamp(Math.floor((bot - y0 - 5 * T - 38) / 4), 1, 12), colH = 5 * T + 4 * gap, dx = cx0 + T + 4, dw = cw - 2 * T - 8, rx0 = dx + dw + 4;
     LOT_dollDraw(g, dx, y0, dw, colH, h);
     LOT_LEFT.forEach((s, i) => LOT_slotCell(g, cx0, y0 + i * (T + gap), T, s, h));
@@ -27487,11 +27552,17 @@ function LOT_invPaged(g, x, y, w, hh, h, T) {
     LOT_readout(g, cx0, y0 + colH + 5, cw, h);
     LOT_powers(g, cx0, y0 + colH + 43, cw, bot, h);
   } else if (pi === 1) {
-    const G = LOT_grid('bag:inv', 'bag:', BAG_MAX, cw, T, y0, bot - T - 4), gx = cx0 + G.x0, gw = G.cols * G.S, by = y0 + G.vis * G.S + 4, sw = 76;
+    const G = LOT_grid('bag:inv', 'bag:', BAG_MAX, cw, T, y0, wide ? bot : bot - T - 4, wide ? 10 : 8), gx = cx0 + G.x0, gw = G.cols * G.S, by = y0 + G.vis * G.S + 4, sw = 76, nc = h.bag.length >= BAG_MAX ? '#ff8a7a' : '#9a90b0';
     LOT_bagGrid(g, gx, y0, G.cols, G.vis, G.S, h, { kind: 'inv' }, G); if (G.max) LOT_gridBar(g, G, gx + gw);
-    LOT_gold(g, gx, by + 2, h);
-    E.font.text(g, h.bag.length + ' / ' + BAG_MAX, gx + gw - sw - 6, by + 2, h.bag.length >= BAG_MAX ? '#ff8a7a' : '#9a90b0', { align: 'right', outline: false });
-    LOT_btn(g, gx + gw - sw, by, sw, T, 'SORT', () => LOT_sort(h), { key: 'sort' });
+    if (wide) {   // (the gold, the count and SORT down the rail, under the tabs)
+      const [rx, ry] = R[2], sy = ry + T + 6;
+      LOT_gold(g, rx, sy, h); E.font.text(g, h.bag.length + ' / ' + BAG_MAX, rx, sy + 10, nc, { outline: false });
+      LOT_btn(g, rx, sy + 21, RW, T, 'SORT', () => LOT_sort(h), { key: 'sort' });
+    } else {
+      LOT_gold(g, gx, by + 2, h);
+      E.font.text(g, h.bag.length + ' / ' + BAG_MAX, gx + gw - sw - 6, by + 2, nc, { align: 'right', outline: false });
+      LOT_btn(g, gx + gw - sw, by, sw, T, 'SORT', () => LOT_sort(h), { key: 'sort' });
+    }
   } else LOT_drawStats(g, cx0, y0, cw, foot - y0 - 2, h, T, true);
   LOT_invFoot(g, x, w, foot, true);
   LOT_end(g);
@@ -27623,6 +27694,9 @@ function LOT_matsRow(g, x, y, h, align = 'left') {
   });
   return W0;
 }
+/** what he has to pay with: the gold, then the materials, in a row from x (on a phone on its side, under the anvil or the
+ *  altar: the BAG page, which has them too, is a page away) */
+function LOT_wallet(g, x, y, h) { LOT_gold(g, x, y, h); LOT_matsRow(g, x + E.font.width(fmt(h.gold)) + 16, y + 1, h); }
 /** can he pay gold and materials? say why not (the NPC's line) */
 function LOT_afford(h, gold, need, svc, quiet) {
   const S = LOT_stash(h), short = LOT_MAT_IDS.filter(k => (need[k] || 0) > (S.mats[k] || 0));
@@ -27659,7 +27733,9 @@ function LOT_salvage(h, it, at) {
  *  spends them) sits at the right of the first line. T: a finger's size (held upright, or a touch screen on its side):
  *  what he wears in two rows of five, with the gold, the materials and the bag's count beside them, and every cell a
  *  finger wide. pg (in pages: the bag is a page of its own): the gold (and the materials) on the first line, the bag in as
- *  many finger-wide columns as fit, scrolling where it is taller than the page (LOT_grid). Returns the bag's foot */
+ *  many finger-wide columns as fit, scrolling where it is taller than the page (LOT_grid). pg 'wide' (a phone on its
+ *  side): up to ten columns, and what he wears in one row of ten, the bag's count at its end, where that fits the width.
+ *  Returns the bag's foot */
 function LOT_shopBag(g, x, y, w, bottom, h, mode, worn, mats, T = 0, pg = false) {
   const cnt = h.bag.length + '/' + BAG_MAX, cc = h.bag.length >= BAG_MAX ? '#ff8a7a' : '#6a6488';
   const bagLabel = yy => { const o = LOT_rf('YOUR BAG ' + cnt, w / 2); E.font.text(g, 'YOUR BAG', x, yy, '#9a90b0', o); E.font.text(g, cnt, x + (o.font ? 38 : E.font.width('YOUR BAG ') + 3), yy, cc, o); };
@@ -27667,14 +27743,21 @@ function LOT_shopBag(g, x, y, w, bottom, h, mode, worn, mats, T = 0, pg = false)
   let gy = y + 9;
   if (pg) {   // a page of its own: the gold and the materials at the right of the first line, then what he wears (two rows of five, the bag's count beside) or the bag's label
     LOT_gold(g, x + w, y, h, 'right'); if (mats) LOT_matsRow(g, x + w - E.font.width(fmt(h.gold)) - 14, y + 1, h, 'right');
-    if (worn) {
+    const one = pg === 'wide' && 10 * T + 24 <= w;   // (on its side: what he wears in one row of ten, where it fits)
+    if (worn && one) {
+      E.font.text(g, 'WORN', x, y + 1, '#9a90b0', LOT_rf('WORN', 30));
+      SLOTS.forEach((s, i) => wornCell(s, x + i * T, y + 11, T));
+      const tf = { font: 'tiny', outline: false, align: 'right' }, ly = y + 11 + Math.round((T - 5) / 2), cw = E.font.width(cnt, tf), lab = ['YOUR BAG', 'BAG'].find(q => E.font.width(q, tf) + 4 + cw <= w - 10 * T - 4);
+      E.font.text(g, cnt, x + w, ly, cc, tf); if (lab) E.font.text(g, lab, x + w - cw - 4, ly, '#9a90b0', tf);
+      gy = y + 15 + T;
+    } else if (worn) {
       E.font.text(g, 'WORN', x, y + 1, '#9a90b0', LOT_rf('WORN', 30));
       SLOTS.forEach((s, i) => wornCell(s, x + (i % 5) * T, y + 11 + Math.floor(i / 5) * T, T));
       const ix = x + 5 * T + 6, bo = LOT_rf('YOUR BAG ' + cnt, x + w - ix), cw = E.font.width(cnt, bo), ly = y + 11 + 2 * T - (bo.font ? 7 : 9);
       E.font.text(g, cnt, x + w, ly, cc, Object.assign({ align: 'right' }, bo)); E.font.text(g, 'YOUR BAG', x + w - cw - (bo.font ? 4 : 6), ly, '#9a90b0', Object.assign({ align: 'right' }, bo));
       gy = y + 15 + 2 * T;
     } else { bagLabel(y + 1); gy = y + 11; }
-    const G = LOT_grid('bag:' + mode.kind, 'bag:', BAG_MAX, w, T, gy, bottom), gx = x + G.x0;
+    const G = LOT_grid('bag:' + mode.kind, 'bag:', BAG_MAX, w, T, gy, bottom, pg === 'wide' ? 10 : 8), gx = x + G.x0;
     LOT_bagGrid(g, gx, gy, G.cols, G.vis, G.S, h, mode, G); if (G.max) LOT_gridBar(g, G, gx + G.cols * G.S);
     return gy + G.vis * G.S;
   }
@@ -27734,7 +27817,7 @@ const LOT_VTABS = ['buy', 'buyback', 'gamble'];
 const LOT_vendPage = () => LOT_SHOP.page ? 3 : LOT_VTABS.indexOf(LOT_SHOP.tab);
 const LOT_vendGo = i => { LOT_SHOP.page = i === 3 ? 1 : 0; if (i < 3 && LOT_SHOP.tab !== LOT_VTABS[i]) { LOT_SHOP.tab = LOT_VTABS[i]; if (i === 2) LOT_say('vendor', 'gamble'); } };
 const LOT_vendTurn = (d, wrap, dry) => LOT_turn(4, LOT_vendPage(), d, wrap, LOT_vendGo, dry);
-LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.vendor, W, H); return f ? f.h : Math.min(H - 8, 262); },
+LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }, hotkeyPanel: true, w: (W, H) => LOT_wide('vendor', W, H) ? LOT_wideW(W) : Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.vendor, W, H); return f ? f.h : Math.min(H - 8, LOT_wide('vendor', W, H) ? H : 262); },
   open() { LOT_SHOP.tab = 'buy'; LOT_SHOP.page = 0; LOT_SHOP.reveal = null; LOT_UI.focus = null; LOT_UI.press = null; LOT_UI.sc = {}; if (ED.hero) LOT_restock(ED.hero); LOT_say('vendor', 'greet'); },
   close() { LOT_UI.press = null; const r = LOT_npcRig('vendor'); if (r) r._talk = false; },
   back: () => LOT_back(),
@@ -27748,7 +27831,8 @@ LOT_PANELS.vendor = { get title() { return LOT_npcName('vendor') + "'S GOODS"; }
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh); LOT_restock(h);
     // held upright the counter (tabs, stock) stands over the bag, full width; T: a finger's size (upright, or touch)
-    const fit = LOT_tallOf(LOT_NEED.vendor); if (fit && fit.paged) return LOT_vendorPaged(g, x, y, w, hh, h, fit.T);
+    const fit = LOT_tallOf(LOT_NEED.vendor), wT = !fit && LOT_wide('vendor'); if (fit && fit.paged) return LOT_vendorPaged(g, x, y, w, hh, h, fit.T);
+    if (wT) return LOT_vendorPaged(g, x, y, w, hh, h, wT, true);   // (on its side, where the layout below would not hold a finger)
     const tall = !!fit, T = fit ? fit.T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10;
     const lw = tall ? w - pad * 2 : Math.floor((w - pad * 2 - 8) * .5), rx = tall ? x + pad : x + pad + lw + 8, rw = x + w - pad - rx;
     LOT_npcHeader(g, x + pad, top, lw, 'vendor');
@@ -27769,10 +27853,10 @@ function LOT_vendFoot(g, x, w, foot) {
   const fs = LOT_footTV(LOT_foot('CLICK BUY  •  RIGHT-CLICK OR DRAG TO ' + LOT_npcName('vendor') + ' SELLS  •  {key:pageNext} TABS', '{key:confirm} BUY  •  {key:alt} SELLS  •  {key:pagePrev} {key:pageNext} TABS  •  {key:cancel} BACK', 'TAP BUYS  •  TAP YOUR ITEM, THEN SELL'), w - 14);   // (a TV: the normal font, the hints that won't fit dropped)
   E.font.text(g, fs, x + w / 2, foot + 1, '#5a5478', LOT_rf(fs, w - 14, { align: 'center' }));
 }
-/** Cobb's stock (buy) or what he sells back, in the counter's box at bx, ay: six to a row, each with its price under it
- *  (big: the normal font on a TV and held upright, where it fits its column) */
-function LOT_stock(g, bx, ay, lw, ah, h, T, big) {
-  const T0 = LOT_SHOP.tab, list = T0 === 'buy' ? LOT_SHOP.stock : LOT_SHOP.buyback, cols = 6, PW = Math.floor((lw - 8) / cols), CS = clamp(PW, 16, T ? Math.max(26, Math.min(T + 2, Math.floor((ah - 6) / 3) - (big ? 12 : 8))) : 26), pitch = big ? PW : CS;   // (a finger's cell, but never so big the stock's three rows don't fit)
+/** Cobb's stock (buy) or what he sells back, in the counter's box at bx, ay: cols to a row (six; nine on a phone on its
+ *  side), each with its price under it (big: the normal font on a TV and held upright, where it fits its column) */
+function LOT_stock(g, bx, ay, lw, ah, h, T, big, cols = 6) {
+  const T0 = LOT_SHOP.tab, list = T0 === 'buy' ? LOT_SHOP.stock : LOT_SHOP.buyback, PW = Math.floor((lw - 8) / cols), CS = clamp(PW, 16, T ? Math.max(26, Math.min(T + 2, Math.floor((ah - 6) / Math.ceil(18 / cols)) - (big ? 12 : 8))) : 26), pitch = big ? PW : CS;   // (a finger's cell, but never so big the stock's rows (its 18: three of six, two of nine) don't fit)
   const rh = CS + (big ? 12 : 8), rows = Math.max(1, Math.floor((ah - 6) / rh)), gx = bx + Math.floor((lw - pitch * cols + pitch - CS) / 2);
   if (!list.length) { const s = T0 === 'buy' ? 'SOLD OUT. COME BACK AFTER A DESCENT.' : 'NOTHING SOLD YET.'; E.font.text(g, s, bx + lw / 2, ay + ah / 2 - 3, '#6a6488', LOT_rf(s, lw - 8, { align: 'center' })); }
   for (let i = 0; i < Math.min(list.length, cols * rows); i++) {
@@ -27785,17 +27869,19 @@ function LOT_stock(g, bx, ay, lw, ah, h, T, big) {
   }
 }
 /** Cobb's in pages: BUY, BUY BACK and GAMBLE are the counter (his portrait over it), BAG the bag, where a tap on an item
- *  pops up SELL; the counter has no pop-up, so it runs down to the hint line */
-function LOT_vendorPaged(g, x, y, w, hh, h, T) {
-  LOT_UI.pg = true; const pad = 7, x0 = x + pad, lw = w - 2 * pad, foot = y + hh - 10, y0 = y + 23 + T, pi = LOT_vendPage();
-  LOT_pageTabs(g, x0, y + 19, lw, T, ['BUY', 'BUY BACK', 'GAMBLE', 'BAG'], pi, LOT_vendGo, ['buy', 'buyback', 'gamble', 'vbag']);
-  if (pi === 3) LOT_shopBag(g, x0, y0, lw, y + hh - LOT_footR(), h, { kind: 'vendor' }, false, false, T, true);
+ *  pops up SELL; the counter has no pop-up, so it runs down to the hint line. wide: a phone on its side (LOT_wide), the
+ *  tabs down the rail, the stock in nine columns (two rows) */
+function LOT_vendorPaged(g, x, y, w, hh, h, T, wide = false) {
+  LOT_UI.pg = true; const pad = 7, x0 = x + pad, lw = wide ? w - 20 - LOT_railW(T) : w - 2 * pad, foot = y + hh - 10, y0 = wide ? y + 20 : y + 23 + T, pi = LOT_vendPage();
+  const R = LOT_tabs(g, x, y, w, T, wide, ['BUY', 'BUY BACK', 'GAMBLE', 'BAG'], pi, LOT_vendGo, ['buy', 'buyback', 'gamble', 'vbag']);
+  if (pi === 3) LOT_shopBag(g, x0, y0, lw, y + hh - LOT_footR(), h, { kind: 'vendor' }, false, false, T, wide ? 'wide' : true);
   else {
+    if (wide) LOT_gold(g, R[3][0], R[3][1] + T + 6, h);   // (on its side his prices have the gold beside them, on the rail)
     LOT_npcHeader(g, x0, y0, lw, 'vendor');
     const ay = y0 + 42, ah = foot - 3 - ay;
     if (LOT_UI.active) LOT_UI.targets.push({ x: x0, y: ay, w: lw, h: ah, kind: 'sell' });
     E.ui.box(g, x0, ay, lw, ah, { bg: ['#16122a', '#0a0812'], border: '#3a3050', shadow: false });
-    if (pi === 2) LOT_gambleArea(g, x0, ay, lw, ah, h, T); else LOT_stock(g, x0, ay, lw, ah, h, T, true);
+    if (pi === 2) LOT_gambleArea(g, x0, ay, lw, ah, h, T); else LOT_stock(g, x0, ay, lw, ah, h, T, !wide, wide ? 9 : 6);
   }
   LOT_vendFoot(g, x, w, foot);
   LOT_end(g);
@@ -27845,7 +27931,7 @@ function LOT_temper(h, it, to) {
   it.ilvl = to; it.value = itemValue(to, it.rarity);   // the same gold curve as a fresh drop of that level
   LOT_refit(h, it);
 }
-LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.smith, W, H); return f ? f.h : Math.min(H - 8, 262); },
+LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, hotkeyPanel: true, w: (W, H) => LOT_wide('smith', W, H) ? LOT_wideW(W) : Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.smith, W, H); return f ? f.h : Math.min(H - 8, LOT_wide('smith', W, H) ? H : 262); },
   open() { LOT_SMITH.sel = null; LOT_SMITH.page = 0; LOT_UI.focus = null; LOT_UI.press = null; LOT_UI.sc = {}; LOT_SMITH.select = it => { if (!it) return; LOT_SMITH.sel = it; LOT_SMITH.flash = .15; sfx('select', { vol: .5 }); }; LOT_say('smith', 'greet'); },
   close() { LOT_UI.press = null; const r = LOT_npcRig('smith'); if (r) r._talk = false; },
   back() { if (LOT_back()) return true; if (LOT_SMITH.sel) { LOT_SMITH.sel = null; sfx('cancel', { vol: .4 }); return true; } return false; },   // (○: the item off the anvil, then away)
@@ -27860,7 +27946,8 @@ LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, 
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh);
     if (LOT_SMITH.sel && !LOT_owned(h, LOT_SMITH.sel)) LOT_SMITH.sel = null;
     // held upright the anvil and its three services stand over the bag, full width; T: a finger's size (upright, or touch)
-    const fit = LOT_tallOf(LOT_NEED.smith); if (fit && fit.paged) return LOT_smithPaged(g, x, y, w, hh, h, fit.T);
+    const fit = LOT_tallOf(LOT_NEED.smith), wT = !fit && LOT_wide('smith'); if (fit && fit.paged) return LOT_smithPaged(g, x, y, w, hh, h, fit.T);
+    if (wT) return LOT_smithPaged(g, x, y, w, hh, h, wT, true);   // (on its side, where the layout below would not hold a finger)
     const tall = !!fit, T = fit ? fit.T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10, it = LOT_SMITH.sel;
     const lw = tall ? w - pad * 2 : Math.floor((w - pad * 2 - 8) * .5), rx = tall ? x + pad : x + pad + lw + 8, rw = x + w - pad - rx;
     LOT_npcHeader(g, x + pad, top, lw, 'smith');
@@ -27877,13 +27964,21 @@ function LOT_smithFoot(g, x, w, foot) {
   E.font.text(g, fs, x + w / 2, foot + 1, '#5a5478', LOT_rf(fs, w - 14, { align: 'center' }));
 }
 /** Harrow's forge in pages: ANVIL (his portrait, the anvil, the three services) and BAG (what he wears and the bag: an item
- *  put on the anvil brings the ANVIL page back, and a tap on the empty anvil turns to the bag) */
+ *  put on the anvil brings the ANVIL page back, and a tap on the empty anvil turns to the bag). wide: a phone on its side
+ *  (LOT_wide), the tabs down the rail; ANVIL has his portrait across the top, under it the anvil on the left, the item's
+ *  name and the three services on the right */
 const LOT_smithTurn = (d, wrap, dry) => LOT_turn(2, LOT_SMITH.page || 0, d, wrap, i => { LOT_SMITH.page = i; }, dry);
-function LOT_smithPaged(g, x, y, w, hh, h, T) {
-  LOT_UI.pg = true; const pad = 7, x0 = x + pad, lw = w - 2 * pad, foot = y + hh - 10, y0 = y + 23 + T, it = LOT_SMITH.sel, pi = LOT_SMITH.page || 0;
-  LOT_pageTabs(g, x0, y + 19, lw, T, ['ANVIL', 'BAG'], pi, i => { LOT_SMITH.page = i; }, ['anvil', 'mbag']);
-  if (pi) LOT_shopBag(g, x0, y0, lw, y + hh - LOT_footR(), h, { kind: 'smith', sel: it, select: q => { LOT_SMITH.select(q); if (q) LOT_SMITH.page = 0; } }, true, true, T, true);
-  else {   // (the anvil as tall as the page spares, up to its own 66)
+function LOT_smithPaged(g, x, y, w, hh, h, T, wide = false) {
+  LOT_UI.pg = true; const pad = 7, x0 = x + pad, lw = wide ? w - 20 - LOT_railW(T) : w - 2 * pad, foot = y + hh - 10, y0 = wide ? y + 20 : y + 23 + T, it = LOT_SMITH.sel, pi = LOT_SMITH.page || 0;
+  LOT_tabs(g, x, y, w, T, wide, ['ANVIL', 'BAG'], pi, i => { LOT_SMITH.page = i; }, ['anvil', 'mbag']);
+  if (pi) LOT_shopBag(g, x0, y0, lw, y + hh - LOT_footR(), h, { kind: 'smith', sel: it, select: q => { LOT_SMITH.select(q); if (q) LOT_SMITH.page = 0; } }, true, true, T, wide ? 'wide' : true);
+  else if (wide) {   // (his portrait across the top, the anvil under it on the left and what he has to pay with, the services beside)
+    const aw = Math.floor((lw - 8) / 2), ay = y0 + 42, ah = clamp(foot - 3 - ay, 40, 66), sw = lw - aw - 8;
+    LOT_npcHeader(g, x0, y0, lw, 'smith');
+    if (!it) LOT_hot(x0, ay, aw, ah, LOT_act('anvil', () => { LOT_SMITH.page = 1; sfx('select', { vol: .4 }); }));
+    LOT_forge(g, x0, ay, aw, ah, h, T, Math.floor(sw / 6), [x0 + aw + 8, ay, sw]);
+    LOT_wallet(g, x0, ay + ah + 6, h);
+  } else {   // (the anvil as tall as the page spares, up to its own 66)
     LOT_npcHeader(g, x0, y0, lw, 'smith');
     const ay = y0 + 42, ah = clamp(foot - 3 - ay - 21 - 3 * (T + 3), 40, 66);
     if (!it) LOT_hot(x0, ay, lw, ah, LOT_act('anvil', () => { LOT_SMITH.page = 1; sfx('select', { vol: .4 }); }));
@@ -27892,9 +27987,10 @@ function LOT_smithPaged(g, x, y, w, hh, h, T) {
   LOT_smithFoot(g, x, w, foot);
   LOT_end(g);
 }
-/** the anvil at bx, ay (lw x ah): the forge glows behind it and the chosen item floats over it; under it the item's name
- *  (nc letters at most) and the three services, BH = a finger T tall (13 at least). Returns the last service's y */
-function LOT_forge(g, bx, ay, lw, ah, h, T, nc) {
+/** the anvil at bx, ay (lw x ah): the forge glows behind it and the chosen item floats over it; under it (or sv: [x, y, w],
+ *  beside it on a phone on its side) the item's name (nc letters at most) and the three services, BH = a finger T tall
+ *  (13 at least). Returns the last service's y */
+function LOT_forge(g, bx, ay, lw, ah, h, T, nc, sv) {
   const it = LOT_SMITH.sel, t = performance.now() / 1000, cx = bx + Math.round(lw / 2);
   if (LOT_UI.active) LOT_UI.targets.push({ x: bx, y: ay, w: lw, h: ah, kind: 'anvil' });
   E.ui.box(g, bx, ay, lw, ah, { bg: ['#2a1810', '#0c0806'], border: '#5a3a2a', shadow: false });
@@ -27905,25 +28001,26 @@ function LOT_forge(g, bx, ay, lw, ah, h, T, nc) {
     drawItemIconEx(g, it, ix, iy, 2);
     if (LOT_SMITH.flash > 0) px.blend(g, LOT_SMITH.flash / .15, 'add', () => px.ell(g, icx, iy + 16, 16, 16, '#fff0c0'));
     const over = LOT_hot(ix, iy, 32, 32, {}); if (over && !UI.keyNav) LOT_UI.tip = { it, anchor: [ix, iy, 32, 32], o: { equipped: !!LOT_worn(h, it), compare: false } };
-  } else { const s = 'PICK AN ITEM FROM YOUR BAG', hw = E.font.width(s) / 2; E.font.text(g, s, UI_tv() ? clamp(icx, bx + 4 + hw, bx + lw - 4 - hw) : icx, ay + 8, '#c89a6a', LOT_rf(s, lw - 8, { align: 'center', outline: '#0c0806' })); }   // (on a TV kept inside the box: the anvil stands left of its middle)
+  } else { const s = 'PICK AN ITEM FROM YOUR BAG', hw = E.font.width(s, UI_tv() ? {} : { font: 'tiny' }) / 2; E.font.text(g, s, clamp(icx, bx + 4 + hw, bx + lw - 4 - hw), ay + 8, '#c89a6a', LOT_rf(s, lw - 8, { align: 'center', outline: '#0c0806' })); }   // (kept inside the box, on a TV and in a narrow one: the anvil stands left of its middle)
   // the name and the three services
-  let by = ay + ah + 3;
-  if (it) { const lv = 'ITEM LEVEL ' + it.ilvl + (LOT_worn(h, it) ? '  •  WORN' : ''); E.font.text(g, it.name.length > nc ? it.name.slice(0, nc - 1) + '.' : it.name, cx, by, RARITY[it.rarity].color, { align: 'center', outline: false, shadow: '#05040a' }); E.font.text(g, lv, cx, by + 9, '#8a80a8', LOT_rf(lv, lw, { align: 'center' })); }
+  const [sx, sy, sw] = sv || [bx, ay + ah + 3, lw], scx = sv ? sx + Math.round(sw / 2) : cx;
+  let by = sy;
+  if (it) { const lv = 'ITEM LEVEL ' + it.ilvl + (LOT_worn(h, it) ? '  •  WORN' : ''); E.font.text(g, it.name.length > nc ? it.name.slice(0, nc - 1) + '.' : it.name, scx, by, RARITY[it.rarity].color, { align: 'center', outline: false, shadow: '#05040a' }); E.font.text(g, lv, scx, by + 9, '#8a80a8', LOT_rf(lv, sw, { align: 'center' })); }
   by += 18;
-  const bw = lw, d = Math.max(1, h.maxDepth || 1), uniq = it && it.rarity === 4, BH = Math.max(13, T);
+  const bw = sw, d = Math.max(1, h.maxDepth || 1), uniq = it && it.rarity === 4, BH = Math.max(13, T);
   const rc = it && !uniq && it.rarity >= 1 ? LOT_COST.reforge(it) : 0, tc = it && it.ilvl < d ? LOT_COST.temper(it, d) : 0, rm = it ? LOT_MATCOST.reforge(it) : null, tm = it && it.ilvl < d ? LOT_MATCOST.temper(it, d) : null;
-  LOT_costBtn(g, bx, by, bw, BH, it ? (uniq ? 'REFORGE (UNIQUE)' : it.rarity < 1 ? 'REFORGE (COMMON)' : 'REFORGE') : 'REFORGE', rc, rm, h, () => {
+  LOT_costBtn(g, sx, by, bw, BH, it ? (uniq ? 'REFORGE (UNIQUE)' : it.rarity < 1 ? 'REFORGE (COMMON)' : 'REFORGE') : 'REFORGE', rc, rm, h, () => {
     if (!it) return LOT_say('smith', 'pick'); if (uniq) return LOT_say('smith', 'unique'); if (it.rarity < 1) return;
     if (!LOT_payAll(h, rc, rm, 'smith')) return; LOT_reforge(h, it); LOT_forgeFx(icx, icy, it); LOT_say('smith', 'reforge');
   }, { key: 'reforge', disabled: !it || uniq || it.rarity < 1, tip: [{ t: 'Reforge', c: GOLD }, { t: 'Reroll every affix. The base, rarity, item level and legendary power stay. Costs gold, Iron Scrap and Rune Dust.', c: '#c8c0d8' }] });
   by += BH + 3;
-  LOT_costBtn(g, bx, by, bw, BH, it ? (it.ilvl >= d ? 'TEMPER (AT ' + d + ')' : 'TEMPER TO ' + d) : 'TEMPER', tc, tm, h, () => {
+  LOT_costBtn(g, sx, by, bw, BH, it ? (it.ilvl >= d ? 'TEMPER (AT ' + d + ')' : 'TEMPER TO ' + d) : 'TEMPER', tc, tm, h, () => {
     if (!it) return LOT_say('smith', 'pick'); if (it.ilvl >= d) return LOT_say('smith', 'max');
     if (!LOT_payAll(h, tc, tm, 'smith')) return; LOT_temper(h, it, d); LOT_forgeFx(icx, icy, it); LOT_say('smith', 'temper');
   }, { key: 'temper', disabled: !it || it.ilvl >= d, tip: [{ t: 'Temper', c: GOLD }, { t: 'Raise the item level to your deepest depth (' + d + '). Damage, armor and affixes grow with it. Costs gold and Iron Scrap.', c: '#c8c0d8' }] });
   by += BH + 3;
   const worn = it && LOT_worn(h, it), yl = it && !worn ? LOT_yield(it) : null;
-  LOT_costBtn(g, bx, by, bw, BH, it ? (worn ? 'SALVAGE (WORN)' : 'SALVAGE' + (yl.ess ? ' + ESSENCE' : '')) : 'SALVAGE', 0, yl, h, () => {
+  LOT_costBtn(g, sx, by, bw, BH, it ? (worn ? 'SALVAGE (WORN)' : 'SALVAGE' + (yl.ess ? ' + ESSENCE' : '')) : 'SALVAGE', 0, yl, h, () => {
     if (!it) return LOT_say('smith', 'pick'); if (worn) return; if (LOT_salvage(h, it, [icx - 8, icy])) { LOT_SMITH.sel = null; LOT_forgeFx(icx, icy, it); }
   }, { key: 'salvage', disabled: !it || !!worn, color: '#4a2a2a', gain: true, tip: [{ t: 'Salvage', c: GOLD }, { t: 'Break it into materials for crafting (no gold: sell to Cobb for that). A legendary also gives up its power as an essence Seren can imprint on another item.', c: '#c8c0d8' }] });
   return by;
@@ -27999,7 +28096,7 @@ function LOT_respec(h) {
   h.pts.skill += sk; if (Array.isArray(h.tree)) { h.pts.passive += h.tree.length; h.tree = []; }
   computeStats(h); notify('SKILLS AND PASSIVES RESET', '#c890ff', 2.5);
 }
-LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.mystic, W, H); return f ? f.h : Math.min(H - 8, 262); },
+LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }, hotkeyPanel: true, w: (W, H) => LOT_wide('mystic', W, H) ? LOT_wideW(W) : Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.mystic, W, H); return f ? f.h : Math.min(H - 8, LOT_wide('mystic', W, H) ? H : 262); },
   open() { LOT_MYST.sel = null; LOT_MYST.ench = null; LOT_MYST.imp = false; LOT_MYST.page = 0; LOT_UI.focus = null; LOT_UI.press = null; LOT_UI.sc = {}; LOT_MYST.select = it => { if (!it || LOT_MYST.ench) return; LOT_MYST.sel = it; LOT_MYST.imp = false; sfx('select', { vol: .5 }); }; LOT_say('mystic', 'greet'); },
   close() { LOT_UI.press = null; const r = LOT_npcRig('mystic'); if (r) r._talk = false; },
   back() { if (LOT_back()) return true; if (LOT_MYST.ench) { LOT_MYST.ench = null; sfx('cancel', { vol: .4 }); return true; } if (LOT_MYST.sel) { LOT_MYST.sel = null; LOT_MYST.imp = false; sfx('cancel', { vol: .4 }); return true; } return false; },
@@ -28015,7 +28112,8 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
     if (LOT_MYST.sel && !LOT_owned(h, LOT_MYST.sel)) { LOT_MYST.sel = null; LOT_MYST.ench = null; LOT_MYST.imp = false; }
     // T: a finger's size (held upright, or a touch screen on its side): the altar and its three services come first, and
     // while an item is on the altar its lines (or the essences) take the bag's place; '◂ YOUR BAG' (or ○) brings it back
-    const fit = LOT_tallOf(LOT_NEED.mystic); if (fit && fit.paged) return LOT_mystPaged(g, x, y, w, hh, h, fit.T);
+    const fit = LOT_tallOf(LOT_NEED.mystic), wT = !fit && LOT_wide('mystic'); if (fit && fit.paged) return LOT_mystPaged(g, x, y, w, hh, h, fit.T);
+    if (wT) return LOT_mystPaged(g, x, y, w, hh, h, wT, true);   // (on its side, where the layout below would not hold a finger)
     const tall = !!fit, T = fit ? fit.T : LOT_F(), pad = 7, top = y + 19, foot = y + hh - 10, it = LOT_MYST.sel;
     const lw = tall ? w - pad * 2 : Math.floor((w - pad * 2 - 8) * .5), rx = tall ? x + pad : x + pad + lw + 8, rw = x + w - pad - rx;
     LOT_npcHeader(g, x + pad, top, lw, 'mystic');
@@ -28036,25 +28134,29 @@ function LOT_mystFoot(g, x, w, foot, it, T) {
 /** Seren's altar in pages: ALTAR (her portrait, the altar, its three services) and the bag, whose page holds the lines of
  *  what lies on the altar while something does (ENCHANT; IMPRINT while she waits for a power), as the bag's place does
  *  in the stack. An item put on the altar brings the ALTAR page back, IMPRINT turns to its powers, a tap on the empty
- *  altar turns to the bag */
+ *  altar turns to the bag. wide: a phone on its side (LOT_wide), the tabs down the rail; ALTAR has her portrait across
+ *  the top, under it the altar on the left, its three services on the right, and the lines go in two columns where one
+ *  won't hold them */
 const LOT_mystTurn = (d, wrap, dry) => LOT_turn(2, LOT_MYST.page || 0, d, wrap, i => { LOT_MYST.page = i; }, dry);
-function LOT_mystPaged(g, x, y, w, hh, h, T) {
-  LOT_UI.pg = true; const pad = 7, x0 = x + pad, lw = w - 2 * pad, foot = y + hh - 10, y0 = y + 23 + T, it = LOT_MYST.sel, pi = LOT_MYST.page || 0, ay = y0 + 42, ox = x0 + 22, oy = ay + 22;
-  LOT_pageTabs(g, x0, y + 19, lw, T, ['ALTAR', LOT_MYST.imp ? 'IMPRINT' : it ? 'ENCHANT' : 'BAG'], pi, i => { LOT_MYST.page = i; }, ['altar', 'mbag']);
-  if (pi && it) LOT_altarLines(g, x0, y0, lw, foot - 3, it, h, ox, oy, T);
-  else if (pi) LOT_shopBag(g, x0, y0, lw, y + hh - LOT_footR(), h, { kind: 'mystic', sel: it, select: q => { LOT_MYST.select(q); if (q && LOT_MYST.sel === q) LOT_MYST.page = 0; } }, true, true, T, true);
+function LOT_mystPaged(g, x, y, w, hh, h, T, wide = false) {
+  LOT_UI.pg = true; const pad = 7, x0 = x + pad, lw = wide ? w - 20 - LOT_railW(T) : w - 2 * pad, foot = y + hh - 10, y0 = wide ? y + 20 : y + 23 + T, it = LOT_MYST.sel, pi = LOT_MYST.page || 0, ay = y0 + 42, ox = x0 + 22, oy = ay + 22;
+  const aw = wide ? Math.floor((lw - 8) * .45) : lw;   // (the altar's width: on its side the services stand beside it, under her portrait, with room for TRANSMUTE (RARE IS THE LIMIT))
+  LOT_tabs(g, x, y, w, T, wide, ['ALTAR', LOT_MYST.imp ? 'IMPRINT' : it ? 'ENCHANT' : 'BAG'], pi, i => { LOT_MYST.page = i; }, ['altar', 'mbag']);
+  if (pi && it) LOT_altarLines(g, x0, y0, lw, foot - 3, it, h, ox, oy, T, wide);
+  else if (pi) LOT_shopBag(g, x0, y0, lw, y + hh - LOT_footR(), h, { kind: 'mystic', sel: it, select: q => { LOT_MYST.select(q); if (q && LOT_MYST.sel === q) LOT_MYST.page = 0; } }, true, true, T, wide ? 'wide' : true);
   else {
     LOT_npcHeader(g, x0, y0, lw, 'mystic');
-    if (!it) LOT_hot(x0, ay, lw, 44, LOT_act('altar', () => { LOT_MYST.page = 1; sfx('select', { vol: .4 }); }));
-    LOT_altar(g, x0, ay, lw, 44, h, T, ay + 48, () => { if (LOT_MYST.imp) LOT_MYST.page = 1; });
+    if (!it) LOT_hot(x0, ay, aw, 44, LOT_act('altar', () => { LOT_MYST.page = 1; sfx('select', { vol: .4 }); }));
+    LOT_altar(g, x0, ay, aw, 44, h, T, wide ? ay : ay + 48, () => { if (LOT_MYST.imp) LOT_MYST.page = 1; }, wide ? x0 + aw + 8 : x0, wide ? lw - aw - 8 : lw);
+    if (wide) LOT_wallet(g, x0, ay + 50, h);
   }
   LOT_mystFoot(g, x, w, foot, it, T);
   LOT_end(g);
 }
 /** the altar at ax, ay (lw x ah): a void orb that breathes, runes turning around it, the item floating in its light; its
- *  three services (transmute, imprint, respec) from by down, BH = a finger T tall (13 at least). onImp: after IMPRINT
- *  is pressed. Returns the orb's [x, y] */
-function LOT_altar(g, ax, ay, lw, ah, h, T, by, onImp) {
+ *  three services (transmute, imprint, respec) from by down, BH = a finger T tall (13 at least), bw wide from bx (under
+ *  it; beside it on a phone on its side). onImp: after IMPRINT is pressed. Returns the orb's [x, y] */
+function LOT_altar(g, ax, ay, lw, ah, h, T, by, onImp, bx = ax, bw = lw) {
   const it = LOT_MYST.sel, t = performance.now() / 1000, BH = Math.max(13, T);
   if (LOT_UI.active) LOT_UI.targets.push({ x: ax, y: ay, w: lw, h: ah, kind: 'anvil' });
   E.ui.box(g, ax, ay, lw, ah, { bg: ['#1a1030', '#08060e'], border: '#4a2a6a', shadow: false });
@@ -28070,21 +28172,21 @@ function LOT_altar(g, ax, ay, lw, ah, h, T, by, onImp) {
     E.font.text(g, rl, ax + 44, ay + 7 + nl.length * 9, '#8a80a8', LOT_rf(rl, lw - 48));
   } else {
     px.blend(g, .7, 'add', () => px.disc(g, ox, oy, 6, '#b070ff')); px.disc(g, ox, oy, 3, '#ecd8ff');
-    const s = 'PLACE AN ITEM ON THE ALTAR', L = UI_tv() ? E.font.wrap(s, lw - 48).slice(0, 2) : [s];   // (on a TV the normal font, on two lines where one won't do)
+    const s = 'PLACE AN ITEM ON THE ALTAR', L = UI_tv() ? E.font.wrap(s, lw - 48).slice(0, 2) : E.font.width(s, { font: 'tiny' }) <= lw - 48 ? [s] : E.font.wrap(s, lw - 48, { font: 'tiny' }).slice(0, 2);   // (on a TV the normal font, on two lines where one won't do; a narrow altar too)
     L.forEach((l, i) => E.font.text(g, l, ax + 44, oy - 3 - (L.length - 1) * 5 + i * 9, '#8a6aa8', LOT_rf(l, lw - 48)));
   }
   const tcost = it && it.rarity < 2 ? LOT_COST.transmute(it) : 0, tm = it && it.rarity < 2 ? LOT_MATCOST.transmute(it) : null, rcost = LOT_COST.respec(h);
-  LOT_costBtn(g, ax, by, lw, BH, it ? (it.rarity >= 2 ? 'TRANSMUTE (RARE IS THE LIMIT)' : 'TRANSMUTE TO ' + RARITY[it.rarity + 1].name.toUpperCase()) : 'TRANSMUTE', tcost, tm, h, () => {
+  LOT_costBtn(g, bx, by, bw, BH, it ? (it.rarity >= 2 ? 'TRANSMUTE (RARE IS THE LIMIT)' : 'TRANSMUTE TO ' + RARITY[it.rarity + 1].name.toUpperCase()) : 'TRANSMUTE', tcost, tm, h, () => {
     if (!it) return LOT_say('mystic', 'pick'); if (it.rarity >= 2 || LOT_MYST.ench) return; if (!LOT_payAll(h, tcost, tm, 'mystic')) return;
     LOT_transmute(h, it); LOT_burst(ox, oy, RARITY[it.rarity].color, 18); sfx('powerup', { vol: .5 }); LOT_say('mystic', 'transmute');
   }, { key: 'transmute', disabled: !it || it.rarity >= 2 || !!LOT_MYST.ench, color: '#3a2458', tip: [{ t: 'Transmute', c: '#c890ff' }, { t: 'Common becomes magic, magic becomes rare: new affixes are woven in. Rare is as far as it goes; a power makes it legendary (imprint).', c: '#c8c0d8' }] });
   const canImp = it && it.rarity >= 2 && it.rarity < 4 && !LOT_MYST.ench, nEss = it ? LOT_essFor(h, it).length : 0;
-  LOT_btn(g, ax, by + BH + 3, lw, BH, it && it.rarity === 4 ? 'IMPRINT (UNIQUE)' : it && it.rarity < 2 ? 'IMPRINT (RARE OR LEGENDARY)' : LOT_MYST.imp ? (T ? 'CHOOSE A POWER' : 'CHOOSE A POWER ABOVE') : 'IMPRINT A POWER' + (it ? '  (' + nEss + ' FIT' + (nEss === 1 ? 'S' : '') + ')' : ''), () => {
+  LOT_btn(g, bx, by + BH + 3, bw, BH, it && it.rarity === 4 ? 'IMPRINT (UNIQUE)' : it && it.rarity < 2 ? 'IMPRINT (RARE OR LEGENDARY)' : LOT_MYST.imp ? (T ? 'CHOOSE A POWER' : 'CHOOSE A POWER ABOVE') : 'IMPRINT A POWER' + (it ? '  (' + nEss + ' FIT' + (nEss === 1 ? 'S' : '') + ')' : ''), () => {
     if (!it) return LOT_say('mystic', 'pick'); if (it.rarity === 4) return LOT_say('mystic', 'unique'); if (it.rarity < 2) return LOT_say('mystic', 'rare'); if (LOT_MYST.ench) return;
     if (!nEss) return LOT_say('mystic', 'noess'); LOT_MYST.imp = !LOT_MYST.imp; sfx('warp', { vol: .35 }); if (onImp) onImp();
   }, { key: 'imprint', disabled: !canImp, color: '#3a2430', active: LOT_MYST.imp, tip: [{ t: 'Imprint', c: '#ffb070' }, { t: 'Bind a salvaged power (an essence) to a rare or legendary item of a slot it fits. Costs gold and two Ember Cores.', c: '#c8c0d8' }] });
   const pts = Object.entries(h.skills).reduce((a, [id, k]) => a + Math.max(0, (k.rank || 0) - (characterOf(h).skills.includes(id) ? 1 : 0)), 0) + (Array.isArray(h.tree) ? h.tree.length : 0);   // what a respec would give back (nothing: no charge)
-  LOT_btn(g, ax, by + 2 * (BH + 3), lw, BH, LOT_MYST.respecT > 0 ? 'CONFIRM RESPEC  ' + fmt(rcost) : 'RESPEC ALL POINTS  ' + fmt(rcost), () => {
+  LOT_btn(g, bx, by + 2 * (BH + 3), bw, BH, LOT_MYST.respecT > 0 ? 'CONFIRM RESPEC  ' + fmt(rcost) : 'RESPEC ALL POINTS  ' + fmt(rcost), () => {
     if (pts <= 0) return; if (LOT_MYST.respecT <= 0) { LOT_MYST.respecT = 3; LOT_say('mystic', 'confirm'); return; }
     if (!LOT_pay(h, rcost, 'mystic')) return; LOT_MYST.respecT = 0; LOT_respec(h); LOT_burst(ox, oy, '#ecd8ff', 20); sfx('warp', { vol: .6 }); LOT_say('mystic', 'respec');
   }, { key: 'respec', disabled: pts <= 0, color: LOT_MYST.respecT > 0 ? '#5a2a3a' : '#2a2040', tip: [{ t: 'Respec', c: '#c890ff' }, { t: 'Every skill and passive point comes back to spend again.', c: '#c8c0d8' }] });
@@ -28092,31 +28194,38 @@ function LOT_altar(g, ax, ay, lw, ah, h, T, by, onImp) {
 }
 /** the altar's lines, from ly down to bottom: the essences to imprint, the enchant's choice, or the item's affixes to
  *  enchant (after the first, only that line may change again), one a row. T: a finger's rows, and a button at the foot
- *  that takes the item off the altar (the bag comes back) or leaves the essences */
-function LOT_altarLines(g, ax, ly, lw, bottom, it, h, ox, oy, T = 0) {
-  const lastY = T ? bottom - T - 4 : bottom, mc = T ? Math.floor((lw - 16) / 6) : 0, tf = (s, o) => LOT_rf(s, lw - 4, o);   // (mc: the letters a finger's row holds)
+ *  that takes the item off the altar (the bag comes back) or leaves the essences. wide (a phone on its side): the lines
+ *  in two columns where one won't hold them all */
+function LOT_altarLines(g, ax, ly, lw, bottom, it, h, ox, oy, T = 0, wide = false) {
+  const lastY = T ? bottom - T - 4 : bottom, tf = (s, o) => LOT_rf(s, lw - 4, o);
+  // where line i of n goes, from y down in rows rh tall: one a row, or (wide) two columns where one won't hold them. cw:
+  // a line's width, mc: the letters a finger's row of it holds
+  const rows = (n, y, rh) => {
+    const gap = T ? 2 : 1, two = wide && n * (rh + gap) - gap > lastY - y, cw = two ? Math.floor((lw - 4) / 2) : lw, per = two ? Math.ceil(n / 2) : n;
+    return { cw, mc: T ? Math.floor((cw - 16) / 6) : 0, at: i => [ax + (i >= per ? cw + 4 : 0), y + (i % per) * (rh + gap)] };
+  };
   if (LOT_MYST.imp) {
     const list = LOT_essFor(h, it), ic = LOT_COST.imprint(it), im = LOT_MATCOST.imprint(it), rh = T || 12;
     E.font.text(g, 'IMPRINT A POWER', ax + 2, ly, '#ffb070', tf('IMPRINT A POWER'));
     if (!T) LOT_btn(g, ax + lw - 44, ly - 2, 44, 10, 'CANCEL', () => { LOT_MYST.imp = false; }, { key: 'impx', color: '#2a2040' });
     ly += T ? 12 : 9;
     if (!list.length) { const s = 'NO ESSENCE FITS A ' + SLOT_NAMES[it.slot].toUpperCase() + '. SALVAGE LEGENDARIES AT HARROW\'S FORGE TO BOTTLE THEIR POWERS.', o = tf('', {}); E.font.wrap(s, lw - 4, o).slice(0, 3).forEach((l, i) => E.font.text(g, l, ax + 2, ly + 2 + i * (o.font ? 8 : 9), '#8a80a8', o)); }
+    const L = rows(list.length, ly, rh);
     list.forEach(([id, n], i) => {
-      const p = powerSpec(id), nc = T ? mc - 12 : 20; if (ly + rh > lastY) return;
-      LOT_costBtn(g, ax, ly, lw, rh, (p.name.length > nc ? p.name.slice(0, nc - 1) + '.' : p.name) + (n > 1 ? ' x' + n : ''), ic, im, h, () => {
+      const p = powerSpec(id), nc = T ? L.mc - 12 : 20, [bx, by] = L.at(i); if (by + rh > lastY) return;
+      LOT_costBtn(g, bx, by, L.cw, rh, (p.name.length > nc ? p.name.slice(0, nc - 1) + '.' : p.name) + (n > 1 ? ' x' + n : ''), ic, im, h, () => {
         if (!LOT_payAll(h, ic, im, 'mystic')) return; if (!LOT_imprint(h, it, id)) return; LOT_MYST.imp = false; LOT_burst(ox, oy, '#ff9a3a', 20); LOT_burst(ox, oy, '#fff0a0', 10); sfx('powerup', { vol: .55 }); LOT_say('mystic', 'imprint');
       }, { key: 'ess' + i, color: '#3a2430', tip: [{ t: p.name, c: '#ffb070' }, { t: p.desc, c: '#ff9a4a' }, { t: 'Imprint it: the item becomes legendary with this power (its affixes stay). A power it had is replaced.', c: '#c8c0d8' }] });
-      ly += rh + (T ? 2 : 1);
     });
   } else if (LOT_MYST.ench) {
-    const E0 = LOT_MYST.ench, rh = T || 11; E.font.text(g, 'CHOOSE ONE', ax + 2, ly, '#c890ff', tf('CHOOSE ONE')); ly += T ? 12 : 8;
-    [E0.cur].concat(E0.opts).forEach((a, i) => {
-      const rt = LOT_rangeText(it, a), base = (i ? '' : 'KEEP: ') + affixText(a), room = (T ? mc : 34) - (rt ? rt.length + 2 : 0);   // the roll's range always shows: the name gives way
-      const label = (base.length > room ? base.slice(0, room - 1) + '.' : base) + (rt ? '  ' + rt : '');
-      if (ly + rh > lastY) return;
-      LOT_btn(g, ax, ly, lw, rh, label, () => { it.affixes[E0.idx] = a; it.enchIdx = E0.idx; it.enchants = (it.enchants || 0) + 1; if (it.rarity === 1) it.name = itemName(it, rnd); LOT_MYST.ench = null; LOT_refit(h, it); LOT_burst(ox, oy, '#c890ff', 14); sfx('chime', { vol: .5 }); LOT_say('mystic', 'chosen'); },
+    const E0 = LOT_MYST.ench, rh = T || 11, opts = [E0.cur].concat(E0.opts); E.font.text(g, 'CHOOSE ONE', ax + 2, ly, '#c890ff', tf('CHOOSE ONE')); ly += T ? 12 : 8;
+    const L = rows(opts.length, ly, rh);
+    opts.forEach((a, i) => {
+      const rt = LOT_rangeText(it, a), base = (i ? '' : 'KEEP: ') + affixText(a), room = (T ? L.mc : 34) - (rt ? rt.length + 2 : 0);   // the roll's range always shows: the name gives way
+      const label = (base.length > room ? base.slice(0, room - 1) + '.' : base) + (rt ? '  ' + rt : ''), [bx, by] = L.at(i);
+      if (by + rh > lastY) return;
+      LOT_btn(g, bx, by, L.cw, rh, label, () => { it.affixes[E0.idx] = a; it.enchIdx = E0.idx; it.enchants = (it.enchants || 0) + 1; if (it.rarity === 1) it.name = itemName(it, rnd); LOT_MYST.ench = null; LOT_refit(h, it); LOT_burst(ox, oy, '#c890ff', 14); sfx('chime', { vol: .5 }); LOT_say('mystic', 'chosen'); },
         { key: 'opt' + i, color: i ? '#3a2458' : '#2a2438' });
-      ly += rh + (T ? 2 : 1);
     });
   } else if (it.rarity === 4) E.font.text(g, 'A UNIQUE CANNOT BE ENCHANTED.', ax + 2, ly + 2, '#8a80a8', tf('A UNIQUE CANNOT BE ENCHANTED.'));
   else if (!it.affixes.length) E.font.text(g, 'NO AFFIXES TO ENCHANT. TRANSMUTE IT FIRST.', ax + 2, ly + 2, '#8a80a8', tf('NO AFFIXES TO ENCHANT. TRANSMUTE IT FIRST.'));
@@ -28124,12 +28233,12 @@ function LOT_altarLines(g, ax, ly, lw, bottom, it, h, ox, oy, T = 0) {
     const cost = LOT_COST.enchant(it), em = LOT_MATCOST.enchant(it), S = LOT_stash(h), s0 = 'ENCHANT ONE LINE  ' + fmt(cost) + ' GOLD  +' + em.dust + ' DUST', rh = T || 11;
     const s = UI_tv() && E.font.width(s0) > lw - 4 ? 'ENCHANT  ' + fmt(cost) + ' GOLD  +' + em.dust + ' DUST' : s0;   // (shorter on a TV, in the normal font)
     E.font.text(g, s, ax + 2, ly, h.gold >= cost && (S.mats.dust || 0) >= em.dust ? '#c890ff' : '#c87a8a', tf(s)); ly += T ? 12 : 8;
+    const L = rows(it.affixes.length, ly, rh);
     it.affixes.forEach((a, i) => {
-      if (ly + rh > lastY) return; const locked = it.enchIdx !== undefined && it.enchIdx !== i, label = statText(a.stat, a.v), nc = T ? mc - 2 : 32;
-      LOT_btn(g, ax, ly, lw, rh, (locked ? '' : '▸ ') + (label.length > nc ? label.slice(0, nc - 1) + '.' : label), () => {
+      const [bx, by] = L.at(i); if (by + rh > lastY) return; const locked = it.enchIdx !== undefined && it.enchIdx !== i, label = statText(a.stat, a.v), nc = T ? L.mc - 2 : 32;
+      LOT_btn(g, bx, by, L.cw, rh, (locked ? '' : '▸ ') + (label.length > nc ? label.slice(0, nc - 1) + '.' : label), () => {
         if (locked) return; if (!LOT_payAll(h, cost, em, 'mystic')) return; LOT_MYST.ench = { idx: i, cur: a, opts: LOT_enchantOptions(it, i) }; LOT_burst(ox, oy, '#b070ff', 10); sfx('warp', { vol: .4 }); LOT_say('mystic', 'enchant');
       }, { key: 'aff' + i, disabled: locked, color: '#2a2040', tip: locked ? [{ t: 'Locked', c: '#9a90b0' }, { t: 'Only the line enchanted before can change again.', c: '#c8c0d8' }] : [{ t: 'Enchant for ' + fmt(cost) + ' gold and ' + em.dust + ' Rune Dust', c: '#c890ff' }, { t: 'Reroll this line: keep it, or take one of two new ones.', c: '#c8c0d8' }] });
-      ly += rh + (T ? 2 : 1);
     });
   }
   // a finger's way back: the essences give way to the lines, the lines to the bag (none while a choice is open: it is paid)
@@ -28225,7 +28334,7 @@ function LOT_chestDraw(g, x, y, open) {
   // motes rising out of it
   for (const m of LOT_ST.motes) { const a = Math.min(1, m.t * 3, (m.max - m.t) * 2) * Math.min(1, o); if (a > 0) px.blend(g, a, 'add', () => px.dot(g, bx + W / 2 + m.x, hinge - m.y, m.c)); }
 }
-LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.stash, W, H); return f ? f.h : Math.min(H - 8, 262); },
+LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: (W, H) => LOT_wide('stash', W, H) ? LOT_wideW(W) : Math.min(W - 8, 480), h: (W, H) => { const f = LOT_tallOf(LOT_NEED.stash, W, H); return f ? f.h : Math.min(H - 8, LOT_wide('stash', W, H) ? H : 262); },
   open() { LOT_UI.focus = null; LOT_UI.press = null; LOT_UI.sc = {}; LOT_ST.page = 0; LOT_ST.openT = 0; LOT_ST.motes.length = 0; if (ED.hero) LOT_stash(ED.hero); sfx('door', { vol: .4 }); },
   close() { LOT_UI.press = null; if (typeof saveGame === 'function') saveGame(); },   // what went in is kept, even if the tab closes now
   back: () => LOT_back(),
@@ -28242,7 +28351,8 @@ LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh);
     // held upright the chest and its tabs stand over the bag, full width; T: a finger's size (upright, or a touch screen,
     // where on its side the tabs go beside the chest so its grid keeps a finger's cells)
-    const fit = LOT_tallOf(LOT_NEED.stash); if (fit && fit.paged) return LOT_stashPaged(g, x, y, w, hh, h, fit.T);
+    const fit = LOT_tallOf(LOT_NEED.stash), wT = !fit && LOT_wide('stash'); if (fit && fit.paged) return LOT_stashPaged(g, x, y, w, hh, h, fit.T);
+    if (wT) return LOT_stashPaged(g, x, y, w, hh, h, wT, true);   // (on its side, where the layout below would not hold a finger)
     const tall = !!fit, T = fit ? fit.T : LOT_F(), side = T && !tall;
     const S = LOT_stash(h), pad = 7, top = y + 19, lw = tall ? w - pad * 2 : Math.floor((w - pad * 2 - 8) * .5), rx = tall ? x + pad : x + pad + lw + 8, rw = x + w - pad - rx, foot = y + hh - 10;
     const nx = LOT_chestHead(g, x + pad, top, lw, h, side);
@@ -28295,18 +28405,19 @@ function LOT_stashCells(g, gx, gy, cols, rows, CS, h, G = null) {
 }
 /** the stash in pages: its four tabs and the bag, I | II | III | IV | BAG (each tab a drop target still); L1 R1 go round
  *  the five as they went round the four. A tab's page: the chest over its forty cells; BAG: a tap on an item pops up
- *  STORE (into the tab shown last) */
+ *  STORE (into the tab shown last). wide: a phone on its side (LOT_wide), the tabs down the rail, the cells in ten
+ *  columns */
 const LOT_stashPage = () => LOT_ST.page ? 4 : LOT_ST.tab;
 const LOT_stashGo = i => { LOT_ST.page = i === 4 ? 1 : 0; if (i < 4) LOT_ST.tab = i; };
 const LOT_stashTurn = (d, wrap, dry) => LOT_turn(5, LOT_stashPage(), d, wrap, LOT_stashGo, dry);
-function LOT_stashPaged(g, x, y, w, hh, h, T) {
-  LOT_UI.pg = true; const S = LOT_stash(h), pad = 7, x0 = x + pad, lw = w - 2 * pad, foot = y + hh - 10, bot = y + hh - LOT_footR(), y0 = y + 23 + T, pi = LOT_stashPage();
-  const tabs = LOT_pageTabs(g, x0, y + 19, lw, T, ['I', 'II', 'III', 'IV'].map((s, t) => s + '  ' + LOT_stashCount(S, t)).concat('BAG'), pi, LOT_stashGo, ['st0', 'st1', 'st2', 'st3', 'sbag']);
-  tabs.slice(0, LOT_STASH_TABS).forEach(([tx, tw], t) => { if (LOT_UI.active) LOT_UI.targets.push({ x: tx, y: y + 19, w: tw, h: T, kind: 'stashTab', tab: t }); LOT_tabFlash(g, t, tx, y + 19, tw, T); });
-  if (pi === 4) LOT_shopBag(g, x0, y0, lw, bot, h, { kind: 'stash', select: it => LOT_toStash(h, it) }, false, false, T, true);
+function LOT_stashPaged(g, x, y, w, hh, h, T, wide = false) {
+  LOT_UI.pg = true; const S = LOT_stash(h), pad = 7, x0 = x + pad, lw = wide ? w - 20 - LOT_railW(T) : w - 2 * pad, foot = y + hh - 10, bot = y + hh - LOT_footR(), y0 = wide ? y + 20 : y + 23 + T, pi = LOT_stashPage();
+  const tabs = LOT_tabs(g, x, y, w, T, wide, ['I', 'II', 'III', 'IV'].map((s, t) => s + '  ' + LOT_stashCount(S, t)).concat('BAG'), pi, LOT_stashGo, ['st0', 'st1', 'st2', 'st3', 'sbag']);
+  tabs.slice(0, LOT_STASH_TABS).forEach(([tx, ty, tw, th], t) => { if (LOT_UI.active) LOT_UI.targets.push({ x: tx, y: ty, w: tw, h: th, kind: 'stashTab', tab: t }); LOT_tabFlash(g, t, tx, ty, tw, th); });
+  if (pi === 4) LOT_shopBag(g, x0, y0, lw, bot, h, { kind: 'stash', select: it => LOT_toStash(h, it) }, false, false, T, wide ? 'wide' : true);
   else {
     LOT_chestHead(g, x0, y0, lw, h, false);
-    const gy = y0 + 42, G = LOT_grid('stash', 'stash:' + LOT_ST.tab + ':', LOT_STASH_N, lw, T, gy, bot), gx = x0 + G.x0;
+    const gy = y0 + 42, G = LOT_grid('stash', 'stash:' + LOT_ST.tab + ':', LOT_STASH_N, lw, T, gy, bot, wide ? 10 : 8), gx = x0 + G.x0;
     LOT_stashCells(g, gx, gy, G.cols, G.vis, G.S, h, G); if (G.max) LOT_gridBar(g, G, gx + G.cols * G.S);
   }
   LOT_stashFoot(g, x, w, foot, true);
@@ -35586,10 +35697,18 @@ function pauseItems() {
 }
 /** a menu row's height: 16 game pixels, a finger's (44 CSS px) on a screen held upright */
 const UI_rowH = () => UI_tall() ? clamp(UI_finger(), 16, 60) : 16;
-UI.def('pause', { title: 'PAUSED', w: W => UI_tall() ? Math.min(W - 8, 260) : 180, h: (W, H) => Math.min(H - 8, 36 + pauseItems().length * (UI_rowH() + 2)), draw(g, x, y, w) {
-  const rh = UI_rowH();
-  pauseItems().forEach(([label, fn], i) => { if (button(g, x + 12, y + 20 + i * (rh + 2), w - 24, rh, label, fn, { focus: UI.keyNav && UI.focus === i }) && !UI.keyNav) UI.focus = i; });   // (the mouse moves the focus: the keys and a pad go on from the row it rests on)
-}, update() { const items = pauseItems(); menuKeys(items.length, i => items[i][1]()); } });
+/** the pause menu's rows: a finger tall held upright (UI_rowH) and, with the touch buttons up, on a screen on its side too,
+ *  where its n rows go in two columns (the first half, then the rest) if one is taller than the screen: [row height,
+ *  rows a column] */
+const PAUSE_rows = (n, H = game.H) => { const side = !!TOUCH.el && !UI_tall(), rh = side ? clamp(UI_finger(), 16, 60) : UI_rowH(); return [rh, side && 36 + n * (rh + 2) > H - 8 ? Math.ceil(n / 2) : n]; };
+UI.def('pause', { title: 'PAUSED', w: (W, H) => UI_tall() ? Math.min(W - 8, 260) : PAUSE_rows(pauseItems().length, H)[1] < pauseItems().length ? Math.min(W - 8, 300) : 180, h: (W, H) => { const [rh, k] = PAUSE_rows(pauseItems().length, H); return Math.min(H - 8, 36 + k * (rh + 2)); }, draw(g, x, y, w) {
+  const items = pauseItems(), [rh, k] = PAUSE_rows(items.length), cw = k < items.length ? Math.floor((w - 30) / 2) : w - 24;   // (two columns: 6 px between them)
+  items.forEach(([label, fn], i) => { if (button(g, x + 12 + (i >= k ? cw + 6 : 0), y + 20 + (i % k) * (rh + 2), cw, rh, label, fn, { focus: UI.keyNav && UI.focus === i }) && !UI.keyNav) UI.focus = i; });   // (the mouse moves the focus: the keys and a pad go on from the row it rests on)
+}, update() {
+  const items = pauseItems(), n = items.length, k = PAUSE_rows(n)[1], inp = game.input;
+  if (k < n && (inp.repeat('menuLeft') || inp.repeat('menuRight'))) { UI.focus = UI.focus >= k ? UI.focus - k : Math.min(n - 1, UI.focus + k); UI.keyNav = true; sfx('select', { vol: .4 }); }   // (two columns: left and right cross between them)
+  menuKeys(n, i => items[i][1]());
+} });
 /** up / down / confirm over a panel's list of n entries */
 function menuKeys(n, pick) {
   const inp = game.input;
