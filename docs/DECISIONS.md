@@ -2014,3 +2014,24 @@ An entry:
   one the standard's swipe and ○ rules name.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+
+## D114 · 2026-11-17 · The DualSense's gyro drift is learned only while it lies still; a microphone allowed late says "open the game again"
+
+- **Principle:** the controls standard (D100): gyro aim fine-tunes an aim on top of the stick (docs/CONTROLS.md rule 6),
+  and a feature that needs permission is unlocked only once 52in1's Settings allow it; amends D107
+- **Call:**
+  - The `dualsense` module learns the gyro's drift (52in1 sends it uncorrected; WebHID's raw reports are too) only while
+    the controller lies still: every axis under 3 degrees a second (`DRIFT`) and steady, within a degree a second of its
+    last quarter second, for a second; then it follows slowly, a two-second time constant. Before, anything within 5
+    degrees a second of the learned drift counted as still and was learned in a fifth of a second, so a slow aiming turn
+    became drift (the aim barely moved, then crept back), and a turn that sped up gently could leave a drift of 30 degrees
+    a second that turned the aim by itself until the page closed. A turn slower than 3 degrees a second held for a few
+    seconds is still partly taken as drift; slower than 1.5 it was never aim (the noise floor).
+  - 52in1 tells a game framed before the player allowed the microphone why it has none: `AIHubSettings.micLater`
+    (its `ui/frames.js` settingsForFrame; Sound says it too). The module's Microphone and Controller speaker rows then
+    say "Open the game again to use it" rather than "Allow it in 52in1 Settings first", which the player has just done.
+    Older games ignore the field and keep their old line.
+- **Why:** a player fine-tuning with a slow turn is what gyro aim is for; a row that asks for what is already given is a
+  loop. A DualSense that drifts more than 3 degrees a second lying still would need a larger `DRIFT`.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
