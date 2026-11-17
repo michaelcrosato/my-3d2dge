@@ -11,7 +11,7 @@ const UI = {
   /* the HUD's frame on a phone (screen pixels): l t r b keep it out of the notch, the status bar and the home bar, and
      b lifts the HUD bar over the touch buttons on a screen held upright; barB is how far down the touch buttons at the
      top reach (the minimap, the boss bar and the notices go under them). HUD_layout in 61-controls sets them */
-  frame: { l: 0, t: 0, r: 0, b: 0, barB: 0 }, hotO: null,
+  frame: { l: 0, t: 0, r: 0, b: 0, barB: 0, barL: 0 }, hotO: null,
   def(id, spec) { spec.id = id; this.panels[id] = spec; return spec; },
   top() { return this.stack.length ? this.panels[this.stack[this.stack.length - 1].id] : null; },
   isOpen(id) { return this.stack.some(s => s.id === id); },
@@ -32,6 +32,14 @@ function mouseHUD() { const sc = game.screen, p = sc.clientToScreen(UI.mouse.cx,
 function hot(x, y, w, h, o) { if ((UI.hudPass || UI.underPass) && UI.modal) return false;   // under a modal panel the HUD and the panels below it are display only
   if (UI.hotO) { x += UI.hotO[0]; y += UI.hotO[1]; }   // drawn inside the HUD's frame: the rectangle in screen pixels
   UI.nextHot.push(Object.assign({ x, y, w, h }, o)); const m = UI.mouse; return m.x >= x && m.x < x + w && m.y >= y && m.y < y + h; }
+/** the screen is held upright (a phone in portrait): panels lay out for it */
+const UI_tall = () => game.H > game.W * 1.3;
+/** a screen read from a sofa (a window 1,600 CSS px wide or more: a TV, a big monitor), as Settings' own large type
+ *  takes it: text a player must read (tooltips, totals, the HUD's numbers and labels) is drawn in the normal font there,
+ *  not the 3 x 5 tiny one; tf(o) adds { font: 'tiny' } to a text's options only off a TV */
+const UI_tv = () => typeof innerWidth === 'number' && innerWidth >= 1600, UI_tf = (o = {}) => UI_tv() ? o : Object.assign({}, o, { font: 'tiny' });
+/** how many game pixels make a finger's target (44 CSS pixels) on this screen */
+const UI_finger = () => { const sc = game.screen; return Math.ceil(44 * (sc.dpr || 1) / (sc.S || 1)); };
 const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y < r0.y + r0.h;
 /** run every step before the world: clicks, drags, Esc, the panel's own update. Returns true when the world should wait */
 function updateUI(dt) {
@@ -47,18 +55,40 @@ function updateUI(dt) {
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
   const acts = !!over && !!(over.click || over.drag || over.rclick);
-  if (inp.pressed('click')) { if (acts) { if (over.drag) UI.drag = over.drag, over.drag(m.x, m.y); if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  if (inp.pressed('click')) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
   if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
   if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
-  const P0 = UI.top();
-  if (inp.pressed('pause')) { if (P0) UI.close(); else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); else if (ED.mode === 'gallery') game.go('title'); }
-  else if (P0 && inp.pressed('cancel') && !['inventory', 'skills', 'tree', 'vendor', 'smith', 'mystic', 'stash'].includes(P0.id)) UI.close();
+  const P0 = UI.top(), sw = inp.swipe();
+  // ○ (Esc) backs out one layer: a panel's back() takes it first (a skill waiting for its slot, the tree's totals, a
+  // sale waiting to be confirmed), then the panel closes. Death has no way back: it asks for a choice
+  if (inp.pressed('pause') && !(P0 && inp.pressed('cancel'))) { if (P0) UI.close();   // (Options closes a panel whole; Esc, pause and cancel at once, backs out a layer as ○ does)
+    else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); else if (ED.mode === 'gallery') game.go('title'); }
+  else if (P0 && inp.pressed('cancel')) { if (!(P0.back && P0.back())) UI.close(); }
+  // a flick sideways on a touch screen takes the panel away the same way (not the tree, which pans by dragging, nor an
+  // item being dragged out of the bag, nor death)
+  else if (P0 && sw && (sw.dir === 'left' || sw.dir === 'right') && P0.id !== 'death' && P0.id !== 'tree' && !LOT_UI.press && !UI.drag) { inp.swipe(true); if (!(P0.back && P0.back())) UI.close(); }
   else if (P0 && P0.update) P0.update(dt, UI.stack[UI.stack.length - 1].data);
-  // panel hotkeys (toggle)
-  if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') for (const [act, id] of [['bag', 'inventory'], ['skills', 'skills'], ['tree', 'tree']]) if (inp.pressed(act) && UI.panels[id] && !(P0 && P0.captureKeys)) { if (UI.isOpen(id)) UI.close(id); else { if (P0 && P0.modal !== false && !P0.hotkeyPanel) UI.closeAll(); UI.open(id); } }
+  else if (!P0 && sw && NT_swipe(sw)) inp.swipe(true);
+  // panel hotkeys (toggle); L2 R2 step between the bag, the skills and the passives while one of them is open (how a
+  // controller reaches Skills and Passives without the menu)
+  if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') {
+    for (const [act, id] of [['bag', 'inventory'], ['skills', 'skills'], ['tree', 'tree']]) if (inp.pressed(act) && UI.panels[id] && !(P0 && P0.captureKeys)) { if (UI.isOpen(id)) UI.close(id); else { if (P0 && P0.modal !== false && !P0.hotkeyPanel) UI.closeAll(); UI.open(id); } }
+    const top = UI.top(), ring = ['inventory', 'skills', 'tree'], k = top ? ring.indexOf(top.id) : -1, d = k < 0 ? 0 : inp.pressed('panelNext') ? 1 : inp.pressed('panelPrev') ? -1 : 0;
+    if (d && top === P0) { UI.close(); UI.open(ring[(k + d + 3) % 3]); UI.keyNav = true; }
+  }
   if (UI.mouse.wheel && P0 && P0.wheel) P0.wheel(UI.mouse.wheel);
   UI.mouse.wheel = 0;
+  // a finger has lifted: the pointer goes once its tap has been taken, so a touch leaves no hover (no tooltip stays)
+  if (UI.mouse.lift && !UI.mouse.down) { UI.mouse.lift = false; UI.mouse.cx = UI.mouse.cy = -1e5; UI.mouse.x = UI.mouse.y = -99; }
   return UI.modal || (DEV.paused && !DEV.steps);
+}
+/** a panel's page step: L1 / R1 (Tab next, Shift + Tab back), or a flick on a DualSense's touchpad (left: the next
+ *  page). -1, 0 or 1. (Shift is the roll's by default; a panel is modal, so it rolls nobody, and if the player moved the
+ *  roll off Shift, Shift + Tab is a plain Tab) */
+function pageStep() {
+  const inp = game.input, s = DS ? DS.swipe() : null, shift = inp.held.has('ShiftLeft') || inp.held.has('ShiftRight');
+  if (inp.pressed('pageNext')) return shift && inp.held.has('Tab') ? -1 : 1;
+  return s === 'left' ? 1 : inp.pressed('pagePrev') || s === 'right' ? -1 : 0;
 }
 /* ---------- widgets (call inside an overlay) ---------- */
 const PANEL_BG = ['#1c1830', '#100c1c'], PANEL_BORDER = '#8a7aa8', GOLD = '#ffd36a';
@@ -83,10 +113,13 @@ function slider(g, x, y, w, v, lo, hi, step, onChange, o = {}) {
   const kx = x + Math.round(u * w); px.rect(g, kx - 2, y - 1, 5, 7, over || o.focus ? '#fff6d8' : '#c8b8e8'); px.rect(g, kx - 1, y, 3, 5, o.color || GOLD);
   void m;
 }
-/** a tooltip box of lines [{ t, c, big, sep }] near (x, y), kept on screen */
+/** a tooltip box of lines [{ t, c, big, sep }] near (x, y), kept on screen. On a TV it may take half the screen's width
+ *  (a long line wraps less, so the box is shorter and reads from a sofa); everywhere it wraps, never cuts */
 function tipBox(g, lines, x, y, o = {}) {
   if (!lines || !lines.length) return;
-  const W0 = o.w || Math.min(190, Math.max(...lines.map(l => E.font.width(l.t || '') + 10)));
+  lines = lines.flatMap(l => { if (!l.t || l.t.indexOf('{') < 0) return [l]; const t = keyText(l.t); return t ? [Object.assign({}, l, { t })] : []; });   // ({key:action} for the device in use; a hint with none goes)
+  if (!lines.length) return;
+  const W0 = o.w || Math.min(o.maxW || (UI_tv() ? Math.max(190, Math.floor(game.W / 2) - 4) : 190), Math.max(...lines.map(l => E.font.width(l.t || '') + 10)));   // (o.maxW: room it must keep to)
   const wrapped = []; for (const l of lines) { if (l.sep) { wrapped.push(l); continue; } for (const t of E.font.wrap(l.t || '', W0 - 10)) wrapped.push({ t, c: l.c, big: l.big }); }
   const H0 = wrapped.reduce((a, l) => a + (l.sep ? 5 : 9), 0) + 8, W = game.W, H = game.H;
   let bx = Math.round(x + 10), by = Math.round(y + 8); if (bx + W0 > W - 2) bx = Math.round(x - W0 - 6); if (by + H0 > H - 2) by = H - H0 - 2; if (by < 2) by = 2; if (bx < 2) bx = 2;
@@ -179,30 +212,45 @@ function HUD_under() { const F = UI.frame; return F.barB > 0 ? Math.max(0, Math.
 function drawHudInner(g, r, h) {
   {
     const W = r.W, H = r.H, cx = Math.round(W / 2), by = H - 24;
+    // on a TV the labels a player reads (the orbs' numbers, the potion key, LV, the gold, the points, the timer, the
+    // exit's distance, a cooldown) are in the normal font (UI_tf); ty lifts each by a pixel so it keeps its middle (the
+    // normal font is 7 rows to the tiny one's 5). Elsewhere they stay tiny, where they were
+    const tv = UI_tv(), ty = tv ? 1 : 0;
     // orbs
     const OR = 17;
     orb(g, 22, H - 22, OR, h.hp / h.maxHp, h.st.poison ? '#6ac03a' : '#d8303a', '#2a0c14');
     orb(g, W - 22, H - 22, OR, h.ember / h.maxEmber, '#ff8a2a', '#2a1408');
     if (hot(22 - OR, H - 22 - OR, OR * 2, OR * 2, { tip: [{ t: 'Life ' + fmt(Math.ceil(h.hp)) + ' / ' + fmt(h.maxHp), c: '#ff8a8a' }, { t: (h.stats.lifeRegen || 0).toFixed(1) + ' per second', c: '#c8c0d8' }] })) {}
     if (hot(W - 22 - OR, H - 22 - OR, OR * 2, OR * 2, { tip: [{ t: 'Ember ' + Math.floor(h.ember) + ' / ' + h.maxEmber, c: '#ffb070' }, { t: 'Skills spend it; Blade Dance and other basic skills make it.', c: '#c8c0d8' }] })) {}
-    E.font.text(g, fmt(Math.ceil(h.hp)), 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
-    E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
-    // potions (Q) beside the life orb
+    E.font.text(g, fmt(Math.ceil(h.hp)), 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
+    E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
+    // potions beside the life orb, with their key or button (none on touch: the Potion button says it)
+    const touch = ctlDevice() === 'touch';
     for (let i = 0; i < h.maxPotions; i++) { const x = 44 + i * 7, y = H - 12, full = i < h.potions; px.rect(g, x + 1, y - 7, 2, 2, full ? '#c8b890' : '#4a4050'); px.disc(g, x + 2, y - 2, 2.6, full ? '#e03a4a' : '#2a2030'); if (full) px.dot(g, x + 1, y - 3, '#ffc0c8'); }
-    E.font.text(g, actionLabel('potion'), 44 + h.maxPotions * 7 + 2, H - 13, '#9a90b0', { font: 'tiny', outline: '#0c0818' });
+    if (!touch) E.font.text(g, keyLabel('potion', true), 44 + h.maxPotions * 7 + 2, H - 13 - ty, '#9a90b0', UI_tf({ outline: '#0c0818' }));
     // skill bar
     const SW = 18, gap = 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);
+    // the slots' key badges: the normal font on a TV when every badge fits a slot's corner (a pad's □ R1 R2, the keys 1-4),
+    // else all tiny (LMB is too wide), so one bar never mixes the two
+    const keys = touch ? [] : SLOT_ACTS.map((a, i) => slotKey(i)), bf = tv && keys.every(k => E.font.width(k) + 3 <= SW - 4) ? {} : { font: 'tiny' }, bh = bf.font ? 7 : 9;
     for (let i = 0; i < n; i++) {
       const x = bx + i * (SW + gap) + (i >= 2 ? 4 : 0), y = by, id = h.slots[i], S = id && REG.skills[id];
       E.ui.box(g, x - 1, y - 1, SW + 2, SW + 2, { bg: '#141020', border: h.cdWarn && h.cdWarn.slot === i && h.cdWarn.t > 0 ? '#ff5a5a' : h.act && h.act.slot === i ? GOLD : '#5a4a70', shadow: false, gradient: false });
       if (S) {
         drawSkillIcon(g, id, x + 1, y + 1, 1);
         const cd = h.cds[id], full = S.cd ? skillCd(h, S) : 0;
-        if (cd > 0 && full) { const k = Math.round(16 * cd / full); px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), x + 9, y + 6, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' }); }
+        if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 2), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
-      const slotLabel = actionLabel(SLOT_ACTS[i], true), kw = E.font.width(slotLabel, { font: 'tiny' }) + 3; px.rect(g, x + SW - kw, y + SW - 6, kw + 1, 7, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - 5, '#c8c0d8', { font: 'tiny', outline: false });
-      hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel (K).', c: '#c8c0d8' }], click: () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
+      if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
+      hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel ({key:skills}).', c: '#c8c0d8' }], click: touch ? null : () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
+    }
+    // on touch the bar is ONE target a finger's height (44 CSS px), not six 18 px squares: a tap opens the Skills panel for
+    // the slot nearest it (a near miss arms the next slot, which the panel changes in a tap). The points chip, drawn
+    // after, keeps its own target where the two meet
+    if (touch) {
+      const F = Math.max(UI_finger(), SW + 2), t0 = Math.min(by - 1, H - F), ox = UI.hotO ? UI.hotO[0] : 0, mid = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2;
+      hot(bx - 2, t0, bw + 4, H - t0, { label: 'SKILL BAR', click: () => { if (!UI.panels.skills) return; const mx = UI.mouse.x - ox; let k = 0; for (let i = 1; i < n; i++) if (Math.abs(mid(i) - mx) < Math.abs(mid(k) - mx)) k = i; UI.open('skills', { slot: k }); } });
     }
     if (h.cdWarn) h.cdWarn.t -= 1 / 60;
     // dodge charges over the bar, xp bar under it
@@ -211,18 +259,24 @@ function drawHudInner(g, r, h) {
     const xf = Math.round((xw - 2) * clamp(h.xp / need, 0, 1)); px.rect(g, bx, H - 4, xw, 4, '#0c0818'); px.rect(g, bx + 1, H - 3, xw - 2, 2, '#2a1e40');   // the xp bar: a 2 px fill with a lit top edge, and quarter ticks
     if (xf > 0) { px.rect(g, bx + 1, H - 3, xf, 2, '#8a5ae0'); px.rect(g, bx + 1, H - 3, xf, 1, '#c8a8ff'); px.dot(g, bx + xf, H - 3, '#ffffff'); }
     for (let q = 1; q < 4; q++) px.dot(g, bx + 1 + Math.round((xw - 2) * q / 4), H - 2, '#0c0818');
-    hot(bx, H - 5, xw, 5, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
-    E.font.text(g, 'LV ' + h.level, bx - 4, H - 8, '#c8b0ff', { align: 'right', font: 'tiny', outline: '#0c0818' });
+    if (!touch) hot(bx, H - 5, xw, 5, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
+    E.font.text(g, 'LV ' + h.level, bx - 4, H - 8 - ty, '#c8b0ff', UI_tf({ align: 'right', outline: '#0c0818' }));
     // the reminder only names a pool that can still buy something (every skill at max rank, or the whole tree taken,
     // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
     const ck = h.pts.skill + ':' + h.pts.passive + ':' + h.level, cs = typeof PRG_canSpend !== 'function' ? null : UI.csKey === ck && game.real - UI.csT < 2 ? UI.cs : (UI.csKey = ck, UI.csT = game.real, UI.cs = PRG_canSpend(h));
     const skN = cs && !cs.skill ? 0 : h.pts.skill, paN = cs && !cs.passive ? 0 : h.pts.passive;
-    if (skN + paN > 0) {   // '2 SKILL POINTS (K)', '1 PASSIVE POINT (P)', '2 SKILL + 1 PASSIVE POINTS (K / P)'
-      const blink = Math.floor(game.real * 2) % 2, sk = skN, pa = paN;
-      const s = (sk ? sk + ' SKILL' : '') + (sk && pa ? ' + ' : '') + (pa ? pa + ' PASSIVE' : '') + ' POINT' + (sk + pa > 1 ? 'S' : '') + (sk && pa ? ' (K / P)' : sk ? ' (K)' : ' (P)');
-      E.font.text(g, s, cx, by - 15, blink ? GOLD : '#e0a040', { align: 'center', font: 'tiny', outline: '#0c0818' });
+    if (skN + paN > 0) {   // '2 SKILL POINTS (K)', '1 PASSIVE POINT (P)', '2 SKILL + 1 PASSIVE POINTS (K / P)'; a controller has no key for
+      // them: the menu's button; on touch the line is a chip a tap opens the panel from
+      const blink = Math.floor(game.real * 2) % 2, sk = skN, pa = paN, dev = ctlDevice(), K = keyLabel('skills', true), Pk = keyLabel('tree', true);
+      const keys = touch ? '' : K || Pk ? (sk && pa ? ' (' + [K, Pk].filter(Boolean).join(' / ') + ')' : sk && K ? ' (' + K + ')' : pa && Pk ? ' (' + Pk + ')' : '') : dev === 'gamepad' ? ' (' + keyLabel('pause', true) + ')' : '';
+      const s = (sk ? sk + ' SKILL' : '') + (sk && pa ? ' + ' : '') + (pa ? pa + ' PASSIVE' : '') + ' POINT' + (sk + pa > 1 ? 'S' : '') + keys, sw0 = E.font.width(s, UI_tf());
+      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, by - 18 - ty * 2, sw0 + 8, 10 + ty * 2, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
+      E.font.text(g, s, cx, by - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
+      // a tap opens where the points go (a mouse's click there swings, as before). The chip is a short line, so its
+      // target is a finger's (44 CSS px) square or more, reaching up from just over the skill bar: never over a slot
+      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); hot(Math.round(cx - fw / 2), by - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
     }
-    E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9, GOLD, { align: 'right', font: 'tiny', outline: '#0c0818' });
+    E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9 - ty, GOLD, UI_tf({ align: 'right', outline: '#0c0818' }));
     // top left: where we are, the level's elements, buffs
     const L0 = ED.L; let leftW = 0;   // how far the place names reach (the boss bar keeps clear of them)
     if (L0) {
@@ -232,8 +286,8 @@ function drawHudInner(g, r, h) {
       leftW = Math.max(E.font.width(dl), E.font.width(nm));
       if (L0.kind === 'level') {   // the speedrunner's clock: this depth's time, and the best
         const tm = L0.t || 0, best = h.best && h.best[L0.depth], ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0'), cs = ft(tm) + (best ? '  best ' + ft(best) : '');
-        E.font.text(g, cs, E.font.width(dl) + 10, 4, best && tm > best ? '#9a90b0' : '#8fe3ff', { font: 'tiny', shadow: '#05040a', outline: false });
-        leftW = Math.max(leftW, E.font.width(dl) + 5 + E.font.width(cs, { font: 'tiny' }));
+        E.font.text(g, cs, E.font.width(dl) + 10, 4, best && tm > best ? '#9a90b0' : '#8fe3ff', UI_tf({ shadow: '#05040a', outline: false }));
+        leftW = Math.max(leftW, E.font.width(dl) + 5 + E.font.width(cs, UI_tf()));
       }
       let mx = 5;
       for (const id of L0.mechs || []) { const M = REG.mechanics[id]; if (!M) continue; E.ui.box(g, mx, 24, 14, 14, { bg: '#1a1428', border: M.color || '#8a7aa8', shadow: false, gradient: false }); if (M.icon) M.icon(g, mx + 1, 25, .75); hot(mx, 24, 14, 14, { tip: [{ t: M.name, c: M.color || GOLD }, { t: M.tip || '', c: '#c8c0d8' }] }); mx += 16; }
@@ -242,7 +296,7 @@ function drawHudInner(g, r, h) {
       for (const b of h.buffs) { drawTimedIcon(g, bxx, byy, b.color || '#8affc8', '#141020', b, b.n, () => buffPaint(g, b, bxx, byy)); hot(bxx, byy, 14, 14, { tip: () => [{ t: b.name, c: b.color }, { t: b.t > 999 ? 'while it lasts' : Math.ceil(b.t) + 's', c: '#c8c0d8' }].concat(Object.keys(b.stats || {}).map(k => ({ t: statText(k, b.stats[k]), c: '#8ab4ff' }))) }); bxx += 16; }
       for (const id in h.st) { const S = REG.statuses[id], s = h.st[id]; if (!S) continue; drawTimedIcon(g, bxx, byy, S.color, '#1a0c14', s, s.n, () => UI_glyph(g, UI_STATUS_GLYPH[id] || 'skull', bxx + 3, byy + 3, S.color)); hot(bxx, byy, 14, 14, { tip: () => [{ t: S.name, c: S.color }, { t: (s.t > 0 ? s.t.toFixed(1) + 's' : '') + (s.n > 1 ? '  •  ' + s.n + ' stacks' : ''), c: '#c8c0d8' }].concat(UI_STATUS_TIP[id] ? [{ t: UI_STATUS_TIP[id], c: '#ff9a9a' }] : []) }); bxx += 16; }
       // the pickup log under that row; the notice column keeps clear of all of it (and of the minimap)
-      const pw = NT_drawPicks(g, 6, byy + (bxx > 5 ? 19 : 2), 110);
+      const pw = NT_drawPicks(g, 6, byy + (bxx > 5 ? 19 : 2), tv ? 150 : 110);   // (a TV's normal-font names take a wider column)
       UI.feedL = Math.max(mx, bxx, pw ? pw + 10 : 0, 118);
       drawMinimap(g, r, L0, h);
     }
@@ -250,9 +304,12 @@ function drawHudInner(g, r, h) {
     if (L0 && L0.exit && L0.kind === 'level' && L0.seen[Math.floor(L0.exit.y / T16) * L0.w + Math.floor(L0.exit.x / T16)]) {
       const [ex, ey] = r.w(L0.exit.x, L0.exit.y, 10), m = 14;
       if (ex < m || ex > W - m || ey < m || ey > H - m) {
-        const dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - m) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
+        // (on a TV the arrow and its larger label keep clear of what always sits in the corners: above the HUD bar and the
+        // orbs, below the place names and the minimap)
+        const mb = tv ? 44 : m, mt = tv ? 62 + HUD_under() : m, dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - (dy > 0 ? mb : mt)) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
         px.poly(g, [[ax + Math.cos(a) * 6, ay + Math.sin(a) * 6], [ax + Math.cos(a + 2.4) * 5, ay + Math.sin(a + 2.4) * 5], [ax + Math.cos(a - 2.4) * 5, ay + Math.sin(a - 2.4) * 5]], c);
-        const dd = Math.round(Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) / T16); E.font.text(g, dd + 'm', ax - Math.cos(a) * 9, ay - Math.sin(a) * 9 - 2, c, { align: 'center', font: 'tiny', outline: '#0c0818' });
+        const dd = Math.round(Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) / T16), ad = tv ? 13 : 9;   // (the wider normal-font label sits further back from the arrow)
+        E.font.text(g, dd + 'm', ax - Math.cos(a) * ad, ay - Math.sin(a) * ad - 2 - ty, c, UI_tf({ align: 'center', outline: '#0c0818' }));
       }
     }
     // boss bar: in the gap between the place names (top left) and the minimap (top right), centered when it can be
@@ -269,7 +326,7 @@ function drawHudInner(g, r, h) {
     UI.hudDrawn = true;
     // interaction prompt (not under a panel or a conversation: '[E] Talk to ILSA' while Ilsa is talking reads as a bug)
     UI.promptShown = !!UI.prompt && !UI.modal && !(typeof talk !== 'undefined' && talk.open);
-    if (UI.promptShown) E.font.text(g, UI.prompt.replace('[E]', '[' + actionLabel('interact') + ']'), cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });
+    if (UI.promptShown) E.font.text(g, promptText(UI.prompt), cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });   // ('[E] Talk to Bram', '[L3] ...'; on touch the Use button says it)
     // the level card: name, depth, the new element
     if (UI.card && UI.cardT > 0) drawLevelCard(g, W, H, cx, UI.card);
   }
@@ -287,7 +344,7 @@ function drawLevelCard(g, W, H, cx, c) {
     const T0 = String(c.title || '').toUpperCase(), sc = E.font.width(T0, { scale: 2 }) <= W - 16 ? 2 : 1;   // long composed names drop to one scale on narrow screens
     E.font.title(g, T0, cx, y + (sc === 1 ? 5 : 0), { scale: sc, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: sc, align: 'center' });
     if (!c.mech) return;
-    const M = c.mech, ww = Math.min(M.lines ? 340 : 300, W - 30), rows = c._rows && c._rowsW === W ? c._rows : [];
+    const M = c.mech, ww = Math.min(M.lines ? 340 : 300, W - 30), rows = c._rows && c._rowsW === W && c._rowsD === ctlDevice() ? c._rows : [];   // (worked out again for another width or another device: its {key:} tags)
     // rows wrap to balanced widths (no word left alone on a row), cut at whole sentences; worked out once per card
     const bal = s => { const L = E.font.wrap(s, ww); if (L.length < 2) return L; let lo = ww * .4, hi = ww; while (hi - lo > 3) { const mid = (lo + hi) / 2; if (E.font.wrap(s, mid).length <= L.length) hi = mid; else lo = mid; } return E.font.wrap(s, Math.ceil(hi)); };
     const sentences = (s, n) => { let L = bal(s); if (L.length > n) { const cut = L.slice(0, n).join(' '), dot = cut.lastIndexOf('. '); L = bal(dot > cut.length * .5 ? cut.slice(0, dot + 1) : cut.replace(/\s*\S*$/, '') + '...').slice(0, n); } return L; };
@@ -297,13 +354,13 @@ function drawLevelCard(g, W, H, cx, c) {
     if (lines && lines.length) {
       const body = [];
       for (const l of lines) {
-        const s = typeof l === 'string' ? l : l.t || '', k = s.indexOf(':'), head = k > 0 && k < 28 ? s.slice(0, k + 1) : '', q = head && byName(head.slice(0, -1));
+        const s = keyText(typeof l === 'string' ? l : l.t || ''), k = s.indexOf(':'), head = k > 0 && k < 28 ? s.slice(0, k + 1) : '', q = head && byName(head.slice(0, -1));
         sentences(s, 2).forEach((t, i) => body.push({ t, c: '#e8e0f8', head: i === 0 && head && t.startsWith(head) ? head : '', hc: (typeof l === 'object' && l.c) || (q && q.color) || GOLD }));
       }
-      if (M.tip && body.length < 7) for (const t of sentences(M.tip, 1)) rows.push({ t, c: '#b8b0d0' });
+      if (M.tip && body.length < 7) for (const t of sentences(keyText(M.tip), 1)) rows.push({ t, c: '#b8b0d0' });
       rows.push(...body.slice(0, 7 - rows.length));
-    } else for (const t of sentences(M.tip || '', 4)) rows.push({ t, c: '#e8e0f8' });
-    c._rows = rows; c._rowsW = W;
+    } else for (const t of sentences(keyText(M.tip || ''), 4)) rows.push({ t, c: '#e8e0f8' });
+    c._rows = rows; c._rowsW = W; c._rowsD = ctlDevice();
     }
     px.blend(g, .5, 'normal', () => px.rect(g, cx - ww / 2 - 8, y + 30, ww + 16, rows.length * 9 + 3, '#05030c'));   // a dark band: the rules read over any floor
     // the heading, led by the elements' icons (all of a combination's)
@@ -385,7 +442,8 @@ function drawNoticeFeed(g, W, H, rect, hud) {
     if (band) px.blend(g, .82 * a, 'normal', () => px.rect(g, Math.round(x - bw / 2), y - 2, bw, 11, '#05030c'));
     px.blend(g, a, 'normal', () => E.font.text(g, s, x, y, c, { align: 'center', shadow: '#05040a', outline: '#0c0818' }));
   };
-  const label = n => n.text + (n.n > 1 ? '  x' + n.n : '');
+  const label = n => keyText(n.text) + (n.n > 1 ? '  x' + n.n : '');   // ({key:action} filled now, for the device in use now)
+  NT.rect = NT.qRect = null;
   if (rect) {   // over a panel: a band above it, or (no room) the newest line over its title strip
     const list = NT.top.concat(NT.quick).filter(n => NT_alpha(n) > 0).sort((a, b) => b.t - a.t), ww = Math.min(W - 16, 320), rows = [];   // oldest first: the newest is last
     for (const n of list) for (const s of E.font.wrap(label(n), ww)) rows.push({ s, n });
@@ -409,26 +467,42 @@ function drawNoticeFeed(g, W, H, rect, hud) {
     NT.shown = shown;
     const y0 = 28 + HUD_under(), o0 = UI.hotO || [0, 0], mx = m.x - o0[0], my = m.y - o0[1], ghost = rows.length && mx > fx - ww / 2 - 4 && mx < fx + ww / 2 + 4 && my > y0 - 3 && my < y0 + rows.length * 10 + 2 ? .3 : 1;
     rows.forEach((r0, i) => { if (r0.a > 0) line(r0.s, fx, y0 + i * 10, r0.n.color, r0.a * ghost, false); });
+    if (rows.length) NT.rect = [fx - ww / 2 - 8 + o0[0], y0 - 8 + o0[1], ww + 16, rows.length * 10 + 16];   // (where a flick sweeps it away: screen pixels)
   }
   // quick feedback over the skill bar (above the interaction prompt when one shows)
-  let qy = H - 24 - 26 - (UI.promptShown ? 11 : 0);
+  let qy = H - 24 - 26 - (UI.promptShown ? 11 : 0); const qy1 = qy + 10, o1 = UI.hotO || [0, 0];
   for (let i = NT.quick.length - 1; i >= 0; i--) { const n = NT.quick[i], a = NT_alpha(n); if (a <= 0) continue; line(label(n), cx, qy, n.color, a, false); qy -= 10; }
+  if (qy < qy1 - 10) NT.qRect = [cx - 90 + o1[0], qy + 4 + o1[1], 180, qy1 - qy + 4];
+}
+/** a flick on a touch screen sweeps a notice away: up or sideways over the notice column empties it, over the quick lines
+ *  above the skill bar empties those; up over the level card (or a boss's name card) puts the card away. Returns true
+ *  when it took the flick */
+function NT_swipe(sw) {
+  const inR = r0 => r0 && sw.x >= r0[0] && sw.x < r0[0] + r0[2] && sw.y >= r0[1] && sw.y < r0[1] + r0[3];
+  if (sw.dir === 'down') return false;
+  if (inR(NT.rect)) { NT.top.length = 0; return true; }
+  if (inR(NT.qRect)) { NT.quick.length = 0; return true; }
+  const W = game.W, H = game.H;
+  if (sw.dir === 'up' && (UI.cardT > 0 || game.real < NT.holdT) && sw.y < H * .55 && sw.x > W * .15 && sw.x < W * .85) { UI.cardT = Math.min(UI.cardT, 0); NT.holdT = 0; BUS.emit('cardAway', {}); return true; }
+  return false;
 }
 /** the pickup log: the items he just picked up, under the buff row. They slide in from the left in their rarity's
- *  color and fade out; names are cut to the column */
+ *  color and fade out; names are cut to the column (tiny, but the normal font on a TV: UI_tf) */
 function NT_drawPicks(g, x, y, maxW) {
+  const f = UI_tf(), gy = f.font ? 0 : 1, step = f.font ? 8 : 9;   // (the gem keeps to the middle of the taller line)
   let yy = y, w = 0;
   for (const q of NT.picks.slice(-5)) {
     const a = NT_alpha(q); if (a <= 0) continue;
     const sx = x - Math.round((1 - E.ease.outCubic(Math.min(1, q.t / .22))) * 12), c = q.color || '#e8e0f8', dk = E.shade(c, -.55);
     let s = q.text.toUpperCase(); const tail = q.n > 1 ? ' x' + q.n : '';
-    while (s.length > 3 && E.font.width(s + tail, { font: 'tiny' }) > maxW - 8) s = s.slice(0, -1);
+    while (s.length > 3 && E.font.width(s + tail, f) > maxW - 8) s = s.slice(0, -1);
     if (s.length < q.text.length) s = s.replace(/\s+$/, '') + '.';
     px.blend(g, a, 'normal', () => {
-      px.rect(g, sx + 1, yy, 3, 5, '#0c0818'); px.rect(g, sx, yy + 1, 5, 3, '#0c0818'); px.rect(g, sx + 2, yy + 1, 1, 3, c); px.rect(g, sx + 1, yy + 2, 3, 1, c); px.dot(g, sx + 2, yy + 2, q.it && q.it.rarity >= 3 ? '#ffffff' : dk);   // a rarity gem
-      E.font.text(g, s + tail, sx + 7, yy, c, { font: 'tiny', outline: '#0c0818' });
+      const gt = yy + gy;
+      px.rect(g, sx + 1, gt, 3, 5, '#0c0818'); px.rect(g, sx, gt + 1, 5, 3, '#0c0818'); px.rect(g, sx + 2, gt + 1, 1, 3, c); px.rect(g, sx + 1, gt + 2, 3, 1, c); px.dot(g, sx + 2, gt + 2, q.it && q.it.rarity >= 3 ? '#ffffff' : dk);   // a rarity gem
+      E.font.text(g, s + tail, sx + 7, yy, c, Object.assign({ outline: '#0c0818' }, f));
     });
-    w = Math.max(w, 7 + E.font.width(s + tail, { font: 'tiny' })); yy += 8;
+    w = Math.max(w, 7 + E.font.width(s + tail, f)); yy += step;
   }
   return w;
 }
@@ -444,7 +518,7 @@ function skillTip(h, id) {
 /** the minimap: explored floor, walls, the exit, monsters nearby, the hero. It is drawn through the camera's own
  *  projection (flattened to the ground), so it turns and tilts with the view like Diablo's automap */
 function drawMinimap(g, r, L0, h) {
-  const big = game.input.down('map'), W0 = big ? r.W - 60 : 74, H0 = big ? r.H - 50 - HUD_under() : 54;
+  const big = game.input.down('map') && !UI.modal, W0 = big ? r.W - 60 : 74, H0 = big ? r.H - 50 - HUD_under() : 54;   // (d-pad ↑ walks a panel's list: not the map then)
   const x0 = big ? 30 : r.W - W0 - 4, y0 = (big ? 25 : 4) + HUD_under(), v = r.view, k = (big ? 3.2 : 1.3) / (T16 * v.scale / (v.zoom || 1)) * T16 / T16;
   const hp0 = v.p(h.x, h.y, 0), cxm = x0 + W0 / 2, cym = y0 + H0 / 2;
   const M = (wx, wy) => { const q = v.p(wx, wy, 0); return [cxm + (q[0] - hp0[0]) * k, cym + (q[1] - hp0[1]) * k]; };
@@ -484,7 +558,7 @@ function drawMinimap(g, r, L0, h) {
   if (L0.npcs) for (const n of L0.npcs) { const q = M(n.x, n.y); if (inside(q)) px.dot(g, q[0], q[1], '#ffd36a'); }
   px.rect(g, cxm - 1, cym - 1, 3, 3, '#ffffff'); px.dot(g, cxm, cym, '#2f8f86');
   px.rect(g, x0, y0, W0, 1, '#5a4a70'); px.rect(g, x0, y0 + H0 - 1, W0, 1, '#5a4a70'); px.rect(g, x0, y0, 1, H0, '#5a4a70'); px.rect(g, x0 + W0 - 1, y0, 1, H0, '#5a4a70');
-  if (!big) hot(x0, y0, W0, H0, { tip: [{ t: 'Map', c: GOLD }, { t: 'Hold Tab for the full map.', c: '#c8c0d8' }] });
+  if (!big) hot(x0, y0, W0, H0, { tip: [{ t: 'Map', c: GOLD }, { t: 'Hold {key:map} for the full map.', c: '#c8c0d8' }] });
 }
 /** mark what the hero has seen (a radius around him) */
 function reveal(L0, h, rad = 9) {
@@ -501,13 +575,14 @@ function drawPanels(r) {
       const top = s === UI.stack[UI.stack.length - 1];
       if (P0.modal !== false && top && P0.dim !== false) px.blend(g, .45, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#05030c'));
       const w = typeof P0.w === 'function' ? P0.w(r.W, r.H) : Math.min(P0.w || 240, r.W - 8), h = typeof P0.h === 'function' ? P0.h(r.W, r.H) : Math.min(P0.h || 180, r.H - 8);
-      const x = P0.x !== undefined ? (typeof P0.x === 'function' ? P0.x(r.W, w) : P0.x) : Math.round((r.W - w) / 2), y = P0.y !== undefined ? P0.y : Math.round((r.H - h) / 2);
+      const x = P0.x !== undefined ? (typeof P0.x === 'function' ? P0.x(r.W, w) : P0.x) : Math.round((r.W - w) / 2), bb = TOUCH.el ? UI.frame.barB + 2 : 0;
+      let y = P0.y !== undefined ? P0.y : Math.round((r.H - h) / 2); if (P0.y === undefined && y < bb && bb + h <= r.H) y = bb;   // (clear of the touch bar's Back, where it fits)
       UI.underPass = !top;   // a panel under the top one takes no clicks (a click in a gap of the top panel must not reach the one below)
       if (P0.modal !== false) rect = [x, y, w, h];
       try {
         if (P0.box !== false) panelBox(g, x, y, w, h, P0.title);
         P0.draw(g, x, y, w, h, s.data);
-        if (P0.box !== false) button(g, x + w - 14, y + 3, 11, 11, 'x', () => UI.close(s.id), { color: '#4a2a3a' });
+        if (P0.box !== false && !TOUCH.el) button(g, x + w - 14, y + 3, 11, 11, 'x', () => UI.close(s.id), { color: '#4a2a3a' });   // (touch buttons showing: their Back closes it, and a flick)
       } finally { UI.underPass = false; }
     }
     // the notices: over the panels (never on their bodies) and under every tooltip, which draws after them (an
@@ -529,8 +604,11 @@ function pauseItems() {
     ED.mode === 'level' ? ['TOWN PORTAL', () => { UI.closeAll(); openTownPortal(ED.hero); }] : null,
     ['SAVE AND QUIT', () => { UI.closeAll(); saveGame(); game.go('title'); }]].filter(Boolean);
 }
-UI.def('pause', { title: 'PAUSED', w: 180, h: (W, H) => Math.min(H - 8, 36 + pauseItems().length * 18), draw(g, x, y, w) {
-  pauseItems().forEach(([label, fn], i) => button(g, x + 12, y + 20 + i * 18, w - 24, 16, label, fn, { focus: UI.keyNav && UI.focus === i }));
+/** a menu row's height: 16 game pixels, a finger's (44 CSS px) on a screen held upright */
+const UI_rowH = () => UI_tall() ? clamp(UI_finger(), 16, 60) : 16;
+UI.def('pause', { title: 'PAUSED', w: W => UI_tall() ? Math.min(W - 8, 260) : 180, h: (W, H) => Math.min(H - 8, 36 + pauseItems().length * (UI_rowH() + 2)), draw(g, x, y, w) {
+  const rh = UI_rowH();
+  pauseItems().forEach(([label, fn], i) => { if (button(g, x + 12, y + 20 + i * (rh + 2), w - 24, rh, label, fn, { focus: UI.keyNav && UI.focus === i }) && !UI.keyNav) UI.focus = i; });   // (the mouse moves the focus: the keys and a pad go on from the row it rests on)
 }, update() { const items = pauseItems(); menuKeys(items.length, i => items[i][1]()); } });
 /** up / down / confirm over a panel's list of n entries */
 function menuKeys(n, pick) {
@@ -610,7 +688,16 @@ function RUN_leave(retry) {
   const h = ED.hero; UI.closeAll(); h.gold = Math.floor(h.gold * .9); reviveHero(h);
   if (!retry) goTown(); else if (ED.mode === 'proving') game.go('proving'); else descend(RUN_retryDepth(h));
 }
-UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, 290), h: (W, H) => Math.min(H - 8, 160),
+/* the death screen reads from a sofa and on a phone: on a TV, on a touch screen and held upright its words are all in the
+   normal font (the tiny one only where a line cannot fit), the panel is wider, and its two choices are a finger's height
+   (44 CSS px) on a touch screen. Held upright it has a layout of its own: a bigger portrait, the killer's name and the
+   numbers at twice the size, and the choices one under the other across the panel. A laptop's stays as it was */
+const DTH_touch = () => ctlDevice() === 'touch';   // (the device in use: a mouse on a touchscreen laptop keeps its layout)
+const DTH_big = () => UI_tv() || UI_tall() || DTH_touch();
+/** the choices' height: a finger's on a touch screen, else a menu row's */
+const DTH_rh = () => DTH_touch() ? Math.max(UI_finger(), 16) : UI_rowH() - 1;
+UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : DTH_big() ? 360 : 290),
+  h: (W, H) => Math.min(H - 8, UI_tall() ? 216 + 2 * DTH_rh() : DTH_big() ? 140 + DTH_rh() : 144 + UI_rowH()),
   open() { RUN.focus = 0; },
   update(dt) {
     const inp = game.input, K = RUN.killer, m = K && K.m;
@@ -621,36 +708,53 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, 290), h: (W, H) => 
   },
   draw(g, x, y, w, hh) {
     const h = ED.hero, K = RUN.killer || { name: 'The deep itself', el: 'phys', dmg: 0 }, e = EL(K.el), tiny = { font: 'tiny', outline: false }, m = K.m;
+    // big: every line in the normal font (f; step: a line's height); tall: the upright layout. A laptop draws as before
+    const tall = UI_tall(), big = tall || DTH_big(), f = big ? { outline: false } : tiny, step = big ? 9 : 8, fit = (s, mw) => E.font.width(s, f) <= mw ? f : tiny;
     // who: the portrait, the name (in its rank's color), a champion's or a rare's affixes, and the blow
-    const PS = 46, px0 = x + 10, tx = px0 + PS + 8, tw = x + w - 10 - tx;
-    RUN_portrait(g, px0, y + 20, PS, K);
-    E.font.text(g, 'SLAIN BY', tx, y + 21, '#9a7080', tiny);
+    const PS = tall ? 64 : 46, py0 = y + (tall ? 22 : 20), px0 = x + 10, tx = px0 + PS + 8, tw = x + w - 10 - tx;
+    RUN_portrait(g, px0, py0, PS, K);
+    E.font.text(g, 'SLAIN BY', tx, py0 + 1, '#9a7080', f);
     const nc = m ? (m.boss ? '#ff9a6a' : m.elite === 2 ? GOLD : m.elite ? '#9ab8ff' : '#f0e8f8') : e.light, nm = String(K.name);
-    E.font.text(g, nm, tx, y + 29, nc, { shadow: '#05040a', outline: false, font: E.font.width(nm) > tw ? 'tiny' : undefined });
+    let ly = py0 + (big ? 10 : 9);
+    if (tall && E.font.width(nm, { scale: 2 }) <= tw) { E.font.text(g, nm, tx, ly, nc, { shadow: '#05040a', outline: false, scale: 2 }); ly += 18; }   // (upright: the name at twice the size where it fits)
+    else if (tall) for (const l of E.font.wrap(nm, tw).slice(0, 2)) { E.font.text(g, l, tx, ly, nc, { shadow: '#05040a', outline: false }); ly += 9; }
+    else { E.font.text(g, nm, tx, ly, nc, { shadow: '#05040a', outline: false, font: E.font.width(nm) > tw ? 'tiny' : undefined }); ly = y + 40; }
+    if (tall) ly += 1;
     const aff = m && (m.affixes || []).map(id => REG.affixes[id] && REG.affixes[id].name).filter(Boolean);
-    let ly = y + 40; if (aff && aff.length) { E.font.text(g, aff.join('  •  ').toUpperCase(), tx, ly, '#c8a8d8', tiny); ly += 8; }
-    px.rect(g, tx, ly + 1, 5, 5, e.dark); px.rect(g, tx, ly + 1, 5, 1, e.light); px.rect(g, tx + 1, ly + 2, 3, 3, e.color);   // the element chip
+    if (aff && aff.length) { const s = aff.join('  •  ').toUpperCase(); E.font.text(g, s, tx, ly, '#c8a8d8', fit(s, tw)); ly += step; }
     const pct = h && h.maxHp ? Math.round(K.dmg / h.maxHp * 100) : 0;
-    E.font.text(g, K.dot ? 'WORN DOWN BY ' + String(K.name).toUpperCase() : 'A ' + fmt(Math.round(K.dmg)) + ' ' + e.name.toUpperCase() + ' BLOW' + (pct >= 100 ? '  (MORE THAN ALL YOUR LIFE)' : pct >= 40 ? '  (' + pct + '% OF YOUR LIFE)' : ''), tx + 8, ly + 1, e.light, tiny);
-    ly += 9;
+    const blow = K.dot ? 'WORN DOWN BY ' + String(K.name).toUpperCase() : 'A ' + fmt(Math.round(K.dmg)) + ' ' + e.name.toUpperCase() + ' BLOW' + (pct >= 100 ? '  (MORE THAN ALL YOUR LIFE)' : pct >= 40 ? '  (' + pct + '% OF YOUR LIFE)' : '');
+    // the blow: one line on a laptop (as before); in the normal font it wraps to two (at the double space: the share of
+    // his life on a line of its own) rather than shrink
+    const bl = !big ? [blow] : E.font.width(blow, f) <= tw - 8 ? [blow] : blow.indexOf('  (') > 0 ? blow.split(/ {2}(?=\()/) : E.font.wrap(blow, tw - 8).slice(0, 2);
+    px.rect(g, tx, ly + 1, 5, 5, e.dark); px.rect(g, tx, ly + 1, 5, 1, e.light); px.rect(g, tx + 1, ly + 2, 3, 3, e.color);   // the element chip
+    for (const l of bl) { E.font.text(g, l, tx + 8, ly + (big ? 0 : 1), e.light, fit(l, tw - 8)); ly += 9; }
     const prev = RUN.hits.slice(-3).reverse();
-    if (prev.length && ly < y + 66) { let hx = tx; E.font.text(g, 'BEFORE:', hx, ly, '#6a6488', tiny); hx += 30; for (const q of prev) { const s = fmt(Math.round(q.dmg)) + ' ' + EL(q.el).short, sw = E.font.width(s, { font: 'tiny' }); if (hx + sw > x + w - 8) break; E.font.text(g, s, hx, ly, EL(q.el).color, tiny); hx += sw + 7; } }
-    // the descent in numbers
-    const sy = y + 72; px.rect(g, x + 8, sy - 3, w - 16, 1, '#4a3a60');
+    if (prev.length && ly < py0 + PS - (big ? 6 : 0) + (tall ? 18 : 0)) {
+      let hx = tx; E.font.text(g, 'BEFORE:', hx, ly, '#6a6488', f); hx += big ? E.font.width('BEFORE:', f) + 5 : 30;
+      for (const q of prev) { const s = fmt(Math.round(q.dmg)) + ' ' + EL(q.el).short, sw = E.font.width(s, f); if (hx + sw > x + w - 8) break; E.font.text(g, s, hx, ly, EL(q.el).color, f); hx += sw + (big ? 9 : 7); }
+      ly += step;
+    }
+    // the descent in numbers: three across, the name over the number and what it means beside it (upright: under it)
+    const sy = tall ? Math.max(py0 + PS, ly) + 9 : y + 72; px.rect(g, x + 8, sy - 3, w - 16, 1, '#4a3a60');
     const ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0'), cw = Math.floor((w - 16) / 3);
     const cells = [['DEPTH', ED.mode === 'proving' ? 'PROVING' : String(ED.depth), h && h.maxDepth > ED.depth ? 'deepest ' + h.maxDepth : 'your deepest'], ['TIME', ft(RUN.t), RUN.depths > 1 ? RUN.depths + ' depths' : ''], ['KILLS', fmt(RUN.kills), ''],
       ['LOOT', fmt(RUN.items), RUN.legends ? RUN.legends + ' legendary' : ''], ['GOLD', '+' + fmt(RUN.gold), ''], ['LEVELS', '+' + RUN.levels, h ? 'now ' + h.level : '']];
     cells.forEach(([k, v, sub], i) => {
-      const cx0 = x + 10 + (i % 3) * cw, cy0 = sy + 2 + Math.floor(i / 3) * 21;
-      E.font.text(g, k, cx0, cy0, '#8a80a8', tiny); E.font.text(g, v, cx0, cy0 + 7, '#fff6d8', { shadow: '#05040a', outline: false });
-      if (sub) E.font.text(g, sub.toUpperCase(), cx0 + E.font.width(v) + 4, cy0 + 9, '#6a6488', tiny);
+      const cx0 = x + 10 + (i % 3) * cw, cy0 = sy + 2 + Math.floor(i / 3) * (tall ? 40 : big ? 22 : 21), vy = cy0 + (big ? 9 : 7);
+      E.font.text(g, k, cx0, cy0, '#8a80a8', f);
+      if (tall) { const vs = E.font.width(v, { scale: 2 }) <= cw - 6 ? 2 : 1; E.font.text(g, v, cx0, vy, '#fff6d8', { shadow: '#05040a', outline: false, scale: vs }); if (sub) E.font.text(g, sub.toUpperCase(), cx0, vy + 17, '#6a6488', fit(sub.toUpperCase(), cw - 6)); return; }
+      E.font.text(g, v, cx0, vy, '#fff6d8', { shadow: '#05040a', outline: false });
+      if (sub) { const S = sub.toUpperCase(), sx = cx0 + E.font.width(v) + 4, sf = big ? fit(S, cx0 + cw - 4 - sx) : tiny; E.font.text(g, S, sx, vy + (sf.font ? 2 : 0), '#6a6488', sf); }   // (tiny where it cannot fit: bottoms aligned)
     });
-    // the price, and the way back
-    const by = y + hh - 22;
-    E.font.text(g, 'THE WAYSTONE CARRIES YOU OUT. YOU DROP ' + fmt(Math.floor((h ? h.gold : 0) * .1)) + ' GOLD.', x + w / 2, by - 10, '#9a90b0', { align: 'center', font: 'tiny', outline: false });
-    const bw = Math.floor((w - 26) / 2), rd = h ? RUN_retryDepth(h) : 1;
+    // the price, and the way back (upright: the two choices one under the other, across the panel)
+    const rh = DTH_rh(), by = y + hh - 7 - (tall ? rh * 2 + 6 : rh), gold = fmt(Math.floor((h ? h.gold : 0) * .1));
+    let price = 'THE WAYSTONE CARRIES YOU OUT. YOU DROP ' + gold + ' GOLD.';
+    if (!big) E.font.text(g, price, x + w / 2, by - 10, '#9a90b0', { align: 'center', font: 'tiny', outline: false });
+    else { const L = E.font.wrap(price, w - 20); if (!tall && L.length > 1) price = 'YOU DROP ' + gold + ' GOLD.'; (tall ? L : [price]).forEach((l, i, a) => E.font.text(g, l, x + w / 2, by - 11 - (a.length - 1 - i) * 9, '#9a90b0', { align: 'center', outline: false })); }
+    const bw = tall ? w - 20 : Math.floor((w - 26) / 2), rd = h ? RUN_retryDepth(h) : 1;
     [['RETURN TO EMBERHOLD', false], [ED.mode === 'proving' ? 'TRY AGAIN' : 'WAYSTONE TO DEPTH ' + rd, true]].forEach(([label, retry], i) => {
-      const over = button(g, x + 10 + i * (bw + 6), by, bw, 15, label, () => RUN_leave(retry), { focus: RUN.focus === i, color: i ? '#3a2a4a' : undefined,
+      const over = button(g, x + 10 + (tall ? 0 : i * (bw + 6)), by + (tall ? i * (rh + 6) : 0), bw, rh, label, () => RUN_leave(retry), { focus: RUN.focus === i, color: i ? '#3a2a4a' : undefined,
         tip: i ? [{ t: ED.mode === 'proving' ? 'Try again' : 'Straight back down', c: GOLD }, { t: ED.mode === 'proving' ? 'The waves start over.' : 'Revive and walk into depth ' + rd + ' again (a fresh one), without the walk through town.', c: '#c8c0d8' }] : null });
       if (over && !UI.keyNav) RUN.focus = i;   // the mouse moves the one highlight, the keys move it back
     });
@@ -658,13 +762,14 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, 290), h: (W, H) => 
 /* the waystone's list: the panel is as tall as its depths need (it scrolls past ten). ONE row is lit: the focus, which
    the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view */
 const WAY = { top: 0 };
-UI.def('waystone', { title: 'THE WAYSTONE', w: 220, h: (W, H) => Math.min(H - 8, 200, 52 + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * 17), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
+UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : 200, 52 + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * (UI_rowH() + 1)), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
+  const rs = UI_rowH() + 1, rb = rs - 3;   // (a row's step and its button: a finger's held upright)
   const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, { font: 'tiny' }).slice(0, 2);
   sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * 7, '#9a90b0', { align: 'center', font: 'tiny', outline: false }));
-  const top = y + 21 + sub.length * 7, rows = Math.max(1, Math.floor((y + h - 6 - top) / 17)), f = clamp(UI.focus || 0, 0, list.length - 1);
+  const top = y + 21 + sub.length * 7, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
   WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top;
-  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name; if (button(g, x + 12, top + i * 17, w - 24, 14, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k; });
-  if (list.length > rows) { const th = Math.max(6, Math.round((rows * 17 - 3) * rows / list.length)), ty = top + Math.round((rows * 17 - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * 17 - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }
+  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name; if (button(g, x + 12, top + i * rs, w - 24, rb, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k; });
+  if (list.length > rows) { const th = Math.max(6, Math.round((rows * rs - 3) * rows / list.length)), ty = top + Math.round((rows * rs - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * rs - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }
 }, update() { const list = waystoneDepths(ED.hero); menuKeys(list.length, i => { UI.closeAll(); descend(list[i]); }); },
   wheel(d) { const n = waystoneDepths(ED.hero).length; UI.focus = clamp((UI.focus || 0) + Math.sign(d), 0, n - 1); UI.keyNav = true; } });
 function waystoneDepths(h) { const s = new Set([1]); for (let d = 5; d <= h.maxDepth; d += 5) s.add(d); s.add(h.maxDepth); if (ED.savedLevel) s.delete(0); return [...s].sort((a, b) => b - a); }

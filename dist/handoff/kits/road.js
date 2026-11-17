@@ -1,5 +1,5 @@
 // The ROAD kit's game (the pseudo-3D road: a coast run of six stages picked at the forks, in a car or on a bike that leans, traffic, checkpoints, a rewind; a closed circuit with a qualifying lap, three laps against a pack of seven, fuel and a pit lane; a bike race against riders who fight; two players on the circuit in a split screen; a police chase that rams a getaway car; an armoured car flown over the night road, shooting; a witch on a broom over the hills, shooting into the screen, a boss at the end; OutRun, Super Hang-On, Pole Position, Top Gear, Road Rash, Chase H.Q., Night Striker, Panorama Cotton), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/66-road.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/66-road.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. road.html plays it; node kits/test.mjs road runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,7 +171,7 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 25  ROAD  (OutRun, Pole Position, Top Gear, Super Hang-On, Chase H.Q., Night Striker, Panorama Cotton; Slipstream's rewind). @modules road mesh rewind
+ * SLICE 25  ROAD  (OutRun, Pole Position, Top Gear, Super Hang-On, Chase H.Q., Night Striker, Panorama Cotton; Slipstream's rewind). @modules road mesh rewind dualsense
  * The pseudo-3D road. COAST RUN: a convertible (or a motorbike that leans into the bends) from the beach to a goal,
  * three stages a run picked at the forks (keep left or right where the road splits: six stages in a pyramid), a clock
  * the checkpoints refill, traffic to weave through, a radio of three songs; hit the scenery fast and the car spins
@@ -188,19 +193,37 @@ scenes.over = {
  * Deep links: #road/car, #road/bike, #road/circuit, #road/rash, #road/duel, #road/chase, #road/striker, #road/cotton; #road/hd the coast run at
  * 960 x 540 at least (today's resolution, Horizon Chase's; grown to the window's shape, the HUD with it). In the car,
  * brake while steering hard at speed to drift: let go after a long one for a boost (Victory Heat Rally's).
- * KEYS: left / right steer, up / Z gas, down / X brake, C / L nitro (the chase), punch (the rash) or fire (the striker,
- * the cotton), R rewind (held). The duel on one keyboard: WASD player 1's (W gas, S brake), the arrows player 2's; a solo mode gives
- * player 1 the whole keyboard again. A pad: the stick, A gas, X brake, B nitro, LB rewind. TOUCH: the stick steers, it
- * accelerates by itself; BRAKE (not in the striker or the cotton), REWIND (NITRO: PUNCH, FIRE).
+ * KEYS: left / right (A / D) steer, up / W / Z gas, down / S / X brake, Shift / C / L nitro (the chase) or punch (the
+ * rash), Space / J fire (the striker, the cotton; C and L too), R rewind (held). The duel on one keyboard: WASD player
+ * 1's (W gas, S brake), the arrows player 2's, who joins with 2 (or Options on a pad); a solo mode gives player 1 the
+ * whole keyboard again. A pad (PlayStation names): the stick, R2 gas and L2 brake (as far as they are pulled: a light
+ * squeeze of L2 brakes without starting the car's drift), ✕ gas too, □ brake, R1 or ○ nitro or punch, R2, ✕ or R1 fire
+ * (the striker, the cotton), L1 rewind; ○ back in the menus and the radio. Any pad rumbles on a crash, a bump, a punch
+ * and a hit; a DualSense's triggers push back (the brake firm, the throttle buzzing on a boost and off the road, a gun's
+ * buzz in the striker and the cotton), its light bar shows the run (the police lights in the chase, the clock or the
+ * fuel running low, the shield) and the chase's radio talks from its speaker (with the controller speaker on). TOUCH:
+ * the stick steers; BRAKE (not in the striker or the cotton), REWIND, NITRO while there is one to use, PUNCH with a rider
+ * beside you, FIRE; the touch assists (Settings, on at first) hold the gas, punch the rider beside you and fire at a foe
+ * in line ahead; with them off, a GAS button. A swipe up clears a banner, a swipe sideways picks a song on the radio (up
+ * or down leaves it), and a swipe goes back from the join screen and the menus.
  * HOW IT WORKS: E.Road (the road module) draws the road, its hills, tunnels and forks (split, branch), the scenery, and
  * through road.mesh the cars as low-poly models (the mesh module); E.Rewind (the rewind module) keeps the last seconds;
  * E.Humanoid the witch (a held pose of this file's: astride the broom); this file the stages and their forks, the car
  * and the bike, the traffic, the pits, the chase, the waves and the HUD.
  * ===================================================================================== */
 const ROAD = (() => {
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0', 'Pad7'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2', 'Pad6'], nitro: ['KeyC', 'KeyL', 'Pad1', 'Pad5'], rewind: ['KeyR', 'Pad4'] });
+  // (R2 and L2 first, the analog pair read as far as each is pulled: prompts name them; fire, the striker's and the
+  // cotton's, on Space and R2 there, where nothing reads the gas: a mode's own, as nitro and punch are)
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad7', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad6', 'Pad2'], nitro: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad5', 'Pad1'], rewind: ['KeyR', 'Pad4'], fire: ['Space', 'KeyJ', 'Pad7', 'Pad0', 'Pad5'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
   KEYS.halves = { left: { gas: ['KeyW'], brake: ['KeyS'] }, right: { gas: ['ArrowUp'], brake: ['ArrowDown'] } };   // (the duel on one keyboard: each half's up and down its gas and brake, as alone; Input.halfKeys)
+  // a DualSense's extras (the dualsense module: player 1's pad, the one it addresses): the light bar and the triggers,
+  // told only when they change, and its speaker (the chase's radio); nothing at all without one
+  const ds = E.DualSense.attach(game, { light: true, triggers: true, speaker: true });
+  let dsWas = '';
+  const dsSet = (light, right, left) => { const k = light + JSON.stringify([right, left]); if (k === dsWas) return; dsWas = k; ds.light(light); ds.trigger('right', right); ds.trigger('left', left); };
+  const dsOff = () => { if (dsWas !== 'off') { dsWas = 'off'; ds.clear(); } };
+  const PULL = { resist: [.1, .25] }, BRAKE = { resist: [.2, .6] }, BOOSTS = { pulse: [.05, 40, .5] }, ROUGH = { pulse: [.1, 18, .35] }, GUN = { pulse: [.15, 12, .4] };   // (the throttle's spring, a firm brake, a boost's thrust, the sand, a gun's buzz)
   const ui = (w, h) => Math.max(1, Math.floor(Math.min(w, h) / 270));   // the HUD's scale: 1 at the PS1's 320 x 240 (and a duel's half), 2 and up at today's resolution (#road/hd), its share of the screen kept
   const SEG = 200, W = 2000, TOP = 6000, KMH = .048, GAP = 2.4, CK = 38;   // a segment, half the road, top speed (units a second), units to km/h, the fork's gap, a car model's units
   /* ---- THE MODELS (x forward, y right, z up; a unit about 2.6 cm: scale CK) ---- */
@@ -347,14 +370,17 @@ const ROAD = (() => {
   let mode = 'menu', P = null, t = 0, auto = false, song = 0, ride = 'car', DUO = null;   // (DUO: the duel's two players, P the first)
   const rw = new E.Rewind({ seconds: 6, every: 1 / 20 });
   const PICK = ['car', 'bike', 'circuit', 'rash', 'duel', 'chase', 'striker', 'cotton'];   // the menu's modes, in order (then BACK)
-  const menu = new E.Menu(game, PICK.map(m => E.t('road.menu.' + m)).concat(E.t('road.menu.back')), { onPick: i => i === PICK.length ? game.go('title') : PICK[i] === 'duel' ? duel() : i < 2 ? radio(PICK[i]) : start(PICK[i]) });
-  const after = new E.Menu(game, [E.t('road.menu.again'), E.t('road.menu.menu')], { onPick: i => i === 0 ? (DUO ? start('duel') : P.circuit ? start('circuit') : P.chase ? start('chase') : P.rash ? start('rash') : P.cotton ? start('cotton') : P.striker ? start('striker') : radio(ride)) : toMenu() });
+  const menu = new E.Menu(game, PICK.map(m => E.t('road.menu.' + m)).concat(E.t('road.menu.back')), { onPick: i => i === PICK.length ? game.go('title') : PICK[i] === 'duel' ? duel() : i < 2 ? radio(PICK[i]) : start(PICK[i]), onCancel: () => game.go('title') });   // (○, Backspace or a sideways swipe: back)
+  const after = new E.Menu(game, [E.t('road.menu.again'), E.t('road.menu.menu')], { onPick: i => i === 0 ? (DUO ? start('duel') : P.circuit ? start('circuit') : P.chase ? start('chase') : P.rash ? start('rash') : P.cotton ? start('cotton') : P.striker ? start('striker') : radio(ride)) : toMenu(), onCancel: () => toMenu() });
   /** who plays: the menu lets a second player join (for the duel; one who joined stays for the next); a solo mode (and
    *  another scene) has player 1 alone, the joined gone and none let in, so the whole keyboard is theirs again */
   function players(solo) { if (!solo) { game.allowJoin({ max: 2 }); return; } game.allowJoin(false); while (game.players.length > 1) game.removePlayer(game.players.length); }
   function toMenu() { mode = 'menu'; P = null; DUO = null; game.splitScreen(0); players(false); A.music('title'); }
   function duel() { if (game.players.length >= 2) start('duel'); else { mode = 'join'; players(false); A.sfx('select'); } }   // (Top Gear's and Lotus's two players: the second joins first)
-  function radio(r) { ride = r; mode = 'radio'; players(true); A.music(SONGS[song]); game.input.consumeAll(); }
+  function radio(r) { ride = r; mode = 'radio'; players(true); A.music(SONGS[song]); game.input.consumeAll(); radioMt = game.input.mouse.t; }   // (the mouse hovers from here: where it rests now picks nothing)
+  let radioMt = 0;
+  /** the radio's song box at (x, y) on the screen, as draw() lays them out: 0..2, or -1 */
+  const radioAt = (x, y) => { const W0 = game.W, H = game.H, u = ui(W0, H), w = Math.min(120 * u, W0 / 3 - 8 * u), by = Math.round(H / 2 - 10 * u); for (let i = 0; i < 3; i++) { const bx = Math.round(W0 * (i + .5) / 3 - w / 2); if (x >= bx && x < bx + w && y >= by && y < by + 26 * u) return i; } return -1; };
   /** a run: the car (or bike) at the start of the beach, the clock at 44 (the chase: the city at night, a getaway car
    *  ahead, the clock at 55); keep: the duel's own call, its two players kept */
   function start(what, keep) {
@@ -381,7 +407,11 @@ const ROAD = (() => {
     if (rash) { P.clock = 999; P.rivals = RIVALS.map((c, k) => ({ k, z: SEG * 4 + (k + 1) * 700, x: [-2 / 3, 0, 2 / 3][k % 3], goal: [-2 / 3, 0, 2 / 3][k % 3], speed: 0, pace: .9 + k * .012, hp: 3, punch: 1 + k * .3, swing: 0, wob: 0, fall: 0, col: c[0], suit: c[1] })); }   // (the grid: you at the back)
     rw.clear(); mode = 'drive'; A.music(chase ? 'boss' : rash ? SONGS[2] : SONGS[song]); game.input.consumeAll();
   }
-  const pad = (I = game.input) => { const [x, y] = I.move(); return { x, y, fire: I.down('nitro'), gas: I.down('gas') || I.lastDevice === 'touch', brake: I.down('brake'), nitro: I.pressed('nitro'), rewind: I.down('rewind') }; };
+  // a player's controls this step: the gas and the brake as far as they are pulled (0..1: R2 and L2; a key, all of it), the
+  // gas held by itself with the touch assists on; fire held (its own keys, or the nitro's as before)
+  const pad = (I = game.input) => { const [x, y] = I.move(); return { x, y, fire: I.down('fire') || I.down('nitro'), gas: Math.max(I.value('gas'), I.assist ? 1 : 0), brake: I.value('brake'), nitro: I.pressed('nitro'), rewind: I.down('rewind') }; };
+  /** the pad of the player who drives P shaken (any controller; the duel's each its own) */
+  const buzz = (P, s, t) => { if (!auto) (DUO ? game.players[P.n] || game.input : game.input).rumble(s, t); };
   /** the next leg at a fork's end: the side the car is on is the way it goes; the rest of the run on that road */
   function fork() {
     const L = P.L, cs = L.road.centers(P.z), side = P.x < 0 ? 0 : 1, kid = KIDS(L.i) && KIDS(L.i)[side], off = cs[side];
@@ -398,25 +428,36 @@ const ROAD = (() => {
   function update(dt) {
     const I = game.input;
     menu.scale = after.scale = ui(game.W, game.H);   // (the menus at the HUD's scale)
-    I.touchSet('brake', null, mode === 'drive' && !(P && P.striker)); I.touchSet('rewind', null, !!(mode === 'drive' && P && !P.chase && !P.rash && !P.striker && !P.circuit && (P.rewinds > 0 || P.rewinding))); I.touchSet('nitro', P && P.rash ? E.t('road.punch') : P && P.striker ? E.t('road.fire') : null, !!(mode === 'drive' && P && (P.chase || P.rash || P.striker)));   // (a strict true or false: undefined would leave the button as it was)   // (the last rewind's button stays under the finger while it runs)
+    // touch's buttons, each where it acts (a strict true or false: undefined would leave a button as it was): BRAKE, REWIND
+    // while one is left (the last one's stays under the finger while it runs), NITRO while there is one to use, PUNCH with
+    // a rider beside you, FIRE; GAS with the touch assists off
+    const drv = mode === 'drive' && !!P;
+    I.touchSet('brake', null, drv && !P.striker); I.touchSet('rewind', null, drv && !P.chase && !P.rash && !P.striker && !P.circuit && (P.rewinds > 0 || P.rewinding)); I.touchSet('gas', null, drv && !P.striker && !I.assist);
+    I.touchSet('nitro', P && P.rash ? E.t('road.punch') : P && P.striker ? E.t('road.fire') : null, drv && (P.chase ? P.nitro > 0 && P.boost <= 0 : P.rash ? !!P.beside && P.crash <= 0 : !!P.striker));
     t += dt; if (bannerT > 0) bannerT -= dt;
+    if (bannerT > 0) { const sw = I.swipe(); if (sw && sw.dir === 'up') { I.swipe(true); bannerT = 0; } }   // (a banner flicked up and away: up only, so a sideways flick of steering never takes it)
+    sense();
     if (mode === 'menu') { menu.update(dt); return; }
-    if (mode === 'join') { if (game.players.length >= 2) start('duel'); else if (I.pressed('cancel')) mode = 'menu'; return; }
+    if (mode === 'join') { if (game.players.length >= 2) start('duel'); else if (I.pressed('cancel') || I.swipe(true)) mode = 'menu'; return; }   // (a swipe sends it away too)
     if (mode === 'results') { after.update(dt); return; }
-    if (mode === 'radio') {
-      if (I.pressed('left') || I.pressed('right')) { song = (song + (I.pressed('left') ? 2 : 1)) % 3; A.music(SONGS[song]); A.sfx('select'); }
-      const tap = I.clicked && I.clicked(); if (tap) { const k = clamp(Math.floor(tap[0] / (game.W / 3)), 0, 2); if (k === song) start(ride); else { song = k; A.music(SONGS[song]); A.sfx('select'); } }
+    if (mode === 'radio') {   // three songs: left and right (a flick sideways, a DualSense's touchpad flicked) the next, the mouse over one picks it, a tap or a click on the one picked drives; back on ○ or a flick up or down
+      const sw = I.swipe(true), pad5 = ds.swipe(), side = sw && (sw.dir === 'left' || sw.dir === 'right') ? sw.dir : pad5 === 'left' || pad5 === 'right' ? pad5 : null, pick = k => { if (k === song) return; song = k; A.music(SONGS[song]); A.sfx('select'); };
+      if (I.pressed('cancel') || sw && (sw.dir === 'up' || sw.dir === 'down')) { toMenu(); return; }
+      if (I.pressed('left') || I.pressed('right') || side) pick((song + (I.pressed('left') || side === 'left' ? 2 : 1)) % 3);
+      if (I.mouse.t !== radioMt) { radioMt = I.mouse.t; const at = I.pointer(), k = at ? radioAt(at[0], at[1]) : -1; if (k >= 0) pick(k); }   // (hover moves the pick, as a menu's)
+      const tap = I.clicked && I.clicked(); if (tap) { const k = clamp(Math.floor(tap[0] / (game.W / 3)), 0, 2); if (k === song) start(ride); else pick(k); }
       if (I.pressed('confirm') || I.pressed('start')) start(ride);
       return;
     }
     const k = auto ? pilot() : pad();
+    if (!auto && P.striker && !P.over && I.assist && !k.fire) k.fire = inLine(P);   // (the touch assists: fire by itself at a foe in line ahead, the autopilot's own test)
     // rewinding: the last seconds walked back while R is held (a rewind used up as it starts, with a moment kept to go
     // back to; held past the oldest, it waits there until let go, the same rewind)
-    if (k.rewind && !P.chase && !P.rash && !P.striker && !P.circuit && !P.over && (P.rewinding || (P.rewinds > 0 && rw.seconds > .2))) { if (!P.rewinding) { P.rewinding = true; P.rewinds--; A.sfx('warp'); } const s = rw.back(dt, 2); if (s) Object.assign(P, JSON.parse(s.json), { L: s.L, traffic: undefined }), s.L.traffic.forEach((c, i) => Object.assign(c, s.cars[i])); return; }
+    if (k.rewind && !P.chase && !P.rash && !P.striker && !P.circuit && !P.over && (P.rewinding || (P.rewinds > 0 && rw.seconds > .2))) { if (!P.rewinding) { P.rewinding = true; P.rewinds--; A.sfx('warp'); buzz(P, .2, .1); } const s = rw.back(dt, 2); if (s) Object.assign(P, JSON.parse(s.json), { L: s.L, traffic: undefined }), s.L.traffic.forEach((c, i) => Object.assign(c, s.cars[i])); return; }
     P.rewinding = false;
     if (DUO) {   // the duel: each player's car on the one road; the first over the line wins; they bump each other
       DUO.forEach((Q, i) => { Q.z0 = Q.z; if (Q.over) { Q.over.t += dt; Q.speed = Math.max(0, Q.speed - 3000 * dt); Q.z += Q.speed * dt; } else drive(Q, dt, auto ? pilot(Q) : pad(game.players[i] || I), i > 0); });
-      const [A1, B1] = DUO; if (Math.abs(A1.z - B1.z) < 1300 && Math.abs(A1.x - B1.x) < .45 && A1.bump <= 0 && B1.bump <= 0) { const s = A1.x < B1.x ? -1 : 1; A1.x += s * .25; B1.x -= s * .25; A1.bump = B1.bump = .4; A.sfx('bump'); }
+      const [A1, B1] = DUO; if (Math.abs(A1.z - B1.z) < 1300 && Math.abs(A1.x - B1.x) < .45 && A1.bump <= 0 && B1.bump <= 0) { const s = A1.x < B1.x ? -1 : 1; A1.x += s * .25; B1.x -= s * .25; A1.bump = B1.bump = .4; A.sfx('bump'); buzz(A1, .4, .15); buzz(B1, .4, .15); }
       const line = A1.L.goal, when = Q => Q.over && Q.over.won && Q.over.t === 0 ? (line - Q.z0) / Math.max(1e-6, Q.z - Q.z0) : -1;   // (both over the line in one step: when in the step each crossed, from where it was and where it is)
       if (when(A1) >= 0 && when(B1) >= 0) (when(A1) <= when(B1) ? B1 : A1).over.won = false;
       const won = DUO.find(Q => Q.over && Q.over.won); if (won) DUO.forEach(Q => { if (!Q.over) { Q.over = { won: false, t: 0 }; } });
@@ -435,9 +476,9 @@ const ROAD = (() => {
     Object.assign(P, at(s), { qual: null, qualT: q, slot: s + 1, speed: 0, steer: 0, lean: 0, crash: 0, spin: 0, hop: 0, bump: 0, lap: 1, lapT: 0, bestLap: 0, drift: 0, charge: 0, boost: 0, fuel: 100, pits: 0, pitV: -1 }); P.turn = 0; say(E.t('road.qual.grid', { n: s + 1, t: q.toFixed(2) }), 3); A.sfx('secret');   // (a standing start: a spin carried over the line is over)
   }
   /** a car of the pack and a player's touch: pushed apart; the one behind loses its speed */
-  function bump(P, v, gap) { const sd = P.x < v.x ? -1 : 1; P.x += sd * .12; v.x -= sd * .12; v.goal = v.x; if (gap > 0) P.speed = Math.min(P.speed, v.speed) * .85; else v.speed *= .85; P.bump = .5; A.sfx('bump'); game.shake(2); }
+  function bump(P, v, gap) { const sd = P.x < v.x ? -1 : 1; P.x += sd * .12; v.x -= sd * .12; v.goal = v.x; if (gap > 0) P.speed = Math.min(P.speed, v.speed) * .85; else v.speed *= .85; P.bump = .5; A.sfx('bump'); game.shake(2); buzz(P, .4, .15); }
   function drive(P, dt, k, still) {   // (still: the traffic moved already this step, by the duel's first car)
-    const L = P.L, road = L.road, cs = road.centers(P.z), on = cs.reduce((a, c) => Math.abs(P.x - c) < Math.abs(P.x - a) ? c : a), off = Math.abs(P.x - on) > 1.08, dry = P.fuel <= 0 && !P.qual;
+    const L = P.L, road = L.road, cs = road.centers(P.z), on = cs.reduce((a, c) => Math.abs(P.x - c) < Math.abs(P.x - a) ? c : a), off = P.off = Math.abs(P.x - on) > 1.08, dry = P.fuel <= 0 && !P.qual;   // (P.off: on the sand, a DualSense's throttle buzzes)
     const top = dry ? Math.max(CRAWL, Math.min(TOP, P.speed - 1800 * dt)) : TOP * (P.bike ? 1.05 : 1) + (P.boost > 0 ? 1400 : 0);   // (out of fuel: it coasts down to a crawl)
     P.clock -= dt; if (P.bump > 0) P.bump -= dt; if (P.boost > 0) P.boost -= dt;
     if (P.crash > 0) {   // spun out: the car turns over and over as it slides to the road, then goes on
@@ -446,15 +487,15 @@ const ROAD = (() => {
     } else {
       // a drift (Victory Heat Rally's): the brake held, steering hard at speed: the car slides through the bend instead of
       // braking, the bend pulls it outward less, and it charges a boost let go when the brake is
-      const slide = !P.bike && !P.chase && !P.striker && k.brake && Math.abs(k.x) > .5 && P.speed > TOP * .55;
+      const slide = !P.bike && !P.chase && !P.striker && k.brake > .5 && Math.abs(k.x) > .5 && P.speed > TOP * .55;   // (L2 squeezed past halfway: a light squeeze only brakes)
       if (slide) { if (!P.drift) P.drift = Math.sign(k.x); P.charge = Math.min(2, (P.charge || 0) + dt); } else if (P.drift) { if (P.charge > .6) { P.boost = Math.max(P.boost, P.charge * .9); A.sfx('powerup', { vol: .4 }); } P.drift = 0; P.charge = 0; }
-      const acc = k.gas ? (P.speed < 2000 ? 2600 : 1500) : -700, br = k.brake && !P.drift ? 5200 : 0;
+      const g = +k.gas || 0, acc = g > 0 ? (P.speed < 2000 ? 2600 : 1500) * g - 700 * (1 - g) : -700, br = k.brake && !P.drift ? 5200 * k.brake : 0;   // (the gas and the brake as far as they are pulled: part of the throttle pulls more gently; the autopilot's true is all of it)
       P.speed = clamp(P.speed + (acc - br) * dt - (off ? P.speed * 1.4 * dt : 0), 0, top);
       if (k.nitro && P.chase && P.nitro > 0 && P.boost <= 0) { P.nitro--; P.boost = 3; A.sfx('powerup'); }
       const grip = Math.min(1, P.speed / 1200), steer = clamp(k.x, -1, 1);
       P.steer += (steer - P.steer) * Math.min(1, dt * 8); P.x += P.steer * dt * (P.drift ? 2 : 2.3) * grip - road.curveAt(P.z) * (P.speed / TOP) ** 2 * dt * (P.drift ? .16 : .42);
       P.lean += ((P.steer * .9 + road.curveAt(P.z) * P.speed / TOP * .08) - P.lean) * Math.min(1, dt * 5);
-      if (road.hits(P.z, P.x, .17).length && P.speed > 1600) { P.crash = 1.6; A.sfx('explode'); game.shake(6); say(E.t('road.crash')); }
+      if (road.hits(P.z, P.x, .17).length && P.speed > 1600) { P.crash = 1.6; A.sfx('explode'); game.shake(6); buzz(P, .8, .5); say(E.t('road.crash')); }
       else if (road.hits(P.z, P.x, .17).length) { P.speed *= .5; P.x += P.x > on ? -.15 : .15; A.sfx('bump'); }
     }
     P.x = clamp(P.x, -6, 6); P.z += P.speed * dt; P.score += P.speed * dt * .01; P.turn = (P.turn || 0) + road.curveAt(P.z) * P.speed * dt * .006;
@@ -470,23 +511,23 @@ const ROAD = (() => {
     for (const c of L.traffic) {   // the traffic keeps its lane (a lane of the road it is on); the car meets it
       if (!still) c.z += c.speed * dt;
       const cx = road.centers(c.z)[0] + c.lane;
-      if (P.crash <= 0 && P.bump <= 0 && Math.abs(c.z - P.z) < 1500 && Math.abs(cx - P.x) < .42) { P.bump = .6; P.speed = Math.min(P.speed, c.speed) * .7; P.x += P.x > cx ? .3 : -.3; A.sfx('bump'); game.shake(3); }
+      if (P.crash <= 0 && P.bump <= 0 && Math.abs(c.z - P.z) < 1500 && Math.abs(cx - P.x) < .42) { P.bump = .6; P.speed = Math.min(P.speed, c.speed) * .7; P.x += P.x > cx ? .3 : -.3; A.sfx('bump'); game.shake(3); buzz(P, .4, .15); }
     }
     if (P.chase) {   // the getaway car: weaves round the traffic; caught up, rammed until its damage is full
       const T = P.target, tc = tcx(road, T);
-      if (!T.told && !L.last && T.z > L.end - SEG * 20) { T.told = true; say(E.t(T.side ? 'road.chase.right' : 'road.chase.left'), 2.5); A.sfx('blip'); }   // (the radio: which way it went)
+      if (!T.told && !L.last && T.z > L.end - SEG * 20) { T.told = true; say(E.t(T.side ? 'road.chase.right' : 'road.chase.left'), 2.5); ds.speaker('blip'); }   // (the radio: which way it went; from a DualSense's speaker where it plays)
       T.z += T.speed * dt; const ahead = L.traffic.find(c => c.z > T.z && c.z - T.z < 3000 && Math.abs(c.lane - T.x) < .4); T.x += ((ahead ? (T.x > 0 ? -2 / 3 : 2 / 3) : T.x) - T.x) * dt * 2;
-      if (!T.met && T.z - P.z < 4000) { T.met = true; P.clock += 30; say(E.t('road.close'), 2); A.sfx('secret'); }
-      if (Math.abs(T.z - P.z) < 1400 && Math.abs(tc + T.x - P.x) < .5 && P.bump <= 0) { const hit = Math.max(10, (P.speed - T.speed) / 80); T.damage = Math.min(100, T.damage + hit); P.bump = .5; P.speed = T.speed - 150; T.x += P.x < tc + T.x ? .25 : -.25; A.sfx('hit'); game.shake(5); P.score += 500; }
+      if (!T.met && T.z - P.z < 4000) { T.met = true; P.clock += 30; say(E.t('road.close'), 2); ds.speaker('secret'); }
+      if (Math.abs(T.z - P.z) < 1400 && Math.abs(tc + T.x - P.x) < .5 && P.bump <= 0) { const hit = Math.max(10, (P.speed - T.speed) / 80); T.damage = Math.min(100, T.damage + hit); P.bump = .5; P.speed = T.speed - 150; T.x += P.x < tc + T.x ? .25 : -.25; A.sfx('hit'); game.shake(5); buzz(P, .6, .2); P.score += 500; }
       if (T.damage >= 100 && !P.over) { P.over = { won: true, t: 0 }; say(E.t('road.arrest'), 3); A.sfx('secret'); A.music('victory'); }
       if (T.damage >= 100) T.speed = Math.max(0, T.speed - 3000 * dt);
     }
     if (P.rash || P.circuit && !P.qual) {   // Road Rash: seven riders who race and fight; a punch at the one beside you (three and he goes down), theirs at you (the circuit: seven cars who race; bump one and both lose speed)
       P.punch = Math.max(0, P.punch - dt);
-      const beside = P.rivals.filter(v => v.fall <= 0 && Math.abs(v.z - P.z) < 700 && Math.abs(v.x - P.x) < .6).sort((a, b) => Math.abs(a.z - P.z) - Math.abs(b.z - P.z))[0];
-      if (P.rash && k.nitro && P.punch <= 0 && P.crash <= 0) {
+      const beside = P.beside = P.rivals.filter(v => v.fall <= 0 && Math.abs(v.z - P.z) < 700 && Math.abs(v.x - P.x) < .6).sort((a, b) => Math.abs(a.z - P.z) - Math.abs(b.z - P.z))[0] || null;   // (P.beside: touch's PUNCH shows)
+      if (P.rash && (k.nitro || !auto && game.input.assist && beside) && P.punch <= 0 && P.crash <= 0) {   // (a punch: its button, or with the touch assists by itself at the rider beside you, as fast as tapping)
         P.punch = .45; P.side = beside ? Math.sign(beside.x - P.x) || 1 : P.side; A.sfx('swing', { vol: .5 });
-        if (beside) { beside.hp--; beside.x += P.side * .3; beside.wob = .4; P.score += 300; A.sfx('hit'); game.shake(2); if (beside.hp <= 0) { beside.fall = 2.4; P.downs++; P.score += 1500; A.sfx('explode'); say(E.t('road.rash.down'), 1.5); } }
+        if (beside) { beside.hp--; beside.x += P.side * .3; beside.wob = .4; P.score += 300; A.sfx('hit'); game.shake(2); buzz(P, .3, .08); if (beside.hp <= 0) { beside.fall = 2.4; P.downs++; P.score += 1500; A.sfx('explode'); say(E.t('road.rash.down'), 1.5); } }
       }
       for (const v of P.rivals) {
         if (still) { const gap = v.z - P.z; if (P.circuit && Math.abs(gap) < 1100 && Math.abs(v.x - P.x) < .4 && P.bump <= 0 && P.crash <= 0) bump(P, v, gap); continue; }   // (the duel's second car: the pack moved already)
@@ -500,7 +541,7 @@ const ROAD = (() => {
         for (const o of L.traffic) if (Math.abs(o.z - v.z) < 900 && Math.abs(c + o.lane - v.x) < .35) { v.speed *= .6; v.x += v.x > c + o.lane ? .2 : -.2; }
         if (P.circuit) { if (Math.abs(gap) < 1100 && Math.abs(v.x - P.x) < .4 && P.bump <= 0 && P.crash <= 0) bump(P, v, gap); }
         else if (Math.abs(gap) < 600 && Math.abs(v.x - P.x) < .55 && v.punch <= 0 && P.crash <= 0 && !P.over) {   // beside you: a blow, now and then
-          v.punch = 1.6 + Math.random() * 1.6; v.swing = .4; if (Math.random() < .55) { P.hp--; P.x += Math.sign(P.x - v.x) * .25 || .25; A.sfx('hurt'); game.shake(3); if (P.hp <= 0) { P.hp = 6; P.crash = 1.6; A.sfx('explode'); say(E.t('road.rash.thrown')); } }
+          v.punch = 1.6 + Math.random() * 1.6; v.swing = .4; if (Math.random() < .55) { P.hp--; P.x += Math.sign(P.x - v.x) * .25 || .25; A.sfx('hurt'); game.shake(3); buzz(P, .5, .15); if (P.hp <= 0) { P.hp = 6; P.crash = 1.6; A.sfx('explode'); buzz(P, .8, .5); say(E.t('road.rash.thrown')); } }
         }
       }
       P.place = 1 + P.rivals.filter(v => v.z > P.z).length + (DUO ? DUO.filter(Q => Q !== P && Q.z > P.z).length : 0);
@@ -606,8 +647,25 @@ const ROAD = (() => {
     } else if (d > 3200) { f.vx = clamp(P.x - f.x, -1, 1) * 1.2; f.va = clamp(P.alt + 140 - f.alt, -700, 700) * (f.form === 'dive' ? 2 : 1.3); f.x += f.vx * dt; f.alt += f.va * dt; }
     else { f.x += (f.vx || 0) * dt; f.alt = Math.max(60, f.alt + (f.va || 0) * dt); }
   }
-  function hit(P) { P.shield--; P.hurt = 1.2; A.sfx('hurt'); game.shake(5); if (P.shield <= 0 && !P.over) { P.over = { won: false, t: 0 }; say(E.t(P.cotton ? 'road.cotton.down' : 'road.striker.down'), 3); A.sfx('die'); } }
+  function hit(P) { P.shield--; P.hurt = 1.2; A.sfx('hurt'); game.shake(5); buzz(P, .6, .25); if (P.shield <= 0 && !P.over) { P.over = { won: false, t: 0 }; say(E.t(P.cotton ? 'road.cotton.down' : 'road.striker.down'), 3); A.sfx('die'); } }
   function end() { mode = 'results'; after.i = 0; P.best = best('road:' + (P.chase ? 'chase' : P.duel ? 'duel' : P.circuit ? 'circuit' : P.rash ? 'rash' : P.cotton ? 'cotton' : P.striker ? 'striker' : 'coast'), Math.round(P.score)); }   // (each mode its own record: their scores aren't alike)
+  /** a foe in line ahead, where a shot (a star) now would meet it: the striker's nearest foe ahead within .3 across;
+   *  the cotton's (the boss without one) within .4 across and 420 of her height. The autopilot fires on it, and so do the
+   *  touch assists */
+  function inLine(P) {
+    if (P.cotton) { const B = P.cotton.boss, f = P.foes.filter(o => o.z > P.z + 2500).sort((a, b) => a.z - b.z)[0] || (B && B.hp > 0 && B.d < 14000 && B), me = P.alt + 140; return !!f && Math.abs(f.x - P.x) < .4 && Math.abs(f.alt - me) < 420; }
+    const f = P.foes.filter(o => o.z > P.z + 2000).sort((a, b) => a.z - b.z)[0]; return !!f && Math.abs(f.x - P.x) < .3;
+  }
+  /** player 1's DualSense (the duel's top screen): the light bar the run's state (the chase's police lights; the rash's
+   *  rider hurt; the fuel or the clock low; the striker's shield, the witch's hearts), the throttle's spring (buzzing on a
+   *  boost and on the sand; free crashed, dry or over the line), a firm brake; the striker's and the cotton's fire a
+   *  gun's buzz; free off the road */
+  function sense() {
+    const Q = DUO ? DUO[0] : P; if (mode !== 'drive' || !Q || auto) { dsOff(); return; }
+    if (Q.striker) { dsSet(Q.cotton ? (Q.hurt > 0 ? '#ffffff' : '#ff4a7a') : ['#ff3030', '#ff3030', '#ff8030', '#ffd040', '#80e0ff', '#40e0ff'][clamp(Q.shield, 0, 5)], Q.over ? null : GUN, null); return; }
+    const light = Q.chase ? (t * 6 % 2 < 1 ? '#ff2a2a' : '#3a6aff') : Q.rash ? (Q.hp <= 2 ? '#ff4040' : '#ffd040') : Q.fuel !== undefined && !Q.qual && Q.fuel < 25 ? '#ffb020' : !Q.circuit && Q.clock < 10 ? '#ff3030' : Q.n ? '#2a6ae8' : '#e8202a';
+    dsSet(light, Q.over || Q.crash > 0 || Q.dry ? null : Q.boost > 0 ? BOOSTS : Q.off ? ROUGH : PULL, Q.over ? null : BRAKE);
+  }
   /** the autopilot (the bot, and a demo): the lane clear of traffic, the gas, a brake into the hardest bends, right at
    *  the first fork and left at the next (the coast run: the beach, the forest, the city); in the chase, at the getaway
    *  car with the nitro; on the circuit, one pit stop when the fuel won't last (P.pitGo: its call, kept until out of
@@ -624,9 +682,9 @@ const ROAD = (() => {
         for (const o of risk) { const r = Math.max(0, o.T - .08), x = P.x + clamp(X - P.x, -2.4 * r, 2.4 * r), a = P.alt + clamp(Al - P.alt, -850 * r, 850 * r); sc = Math.min(sc, ((x - o.x) / o.w) ** 2 + ((a + 140 - o.a) / o.h) ** 2); }   // (how far she gets before it arrives)
         sc -= .12 * (Math.abs(X - tx) + Math.abs(Al - ta) / 600); if (sc > top) { top = sc; go = [X, Al]; }
       }
-      return { x: clamp((go[0] - P.x) * 4, -1, 1), y: clamp((P.alt - go[1]) / 140, -1, 1), fire: !!f && Math.abs(f.x - P.x) < .4 && Math.abs(f.alt - me) < 420, gas: true };
+      return { x: clamp((go[0] - P.x) * 4, -1, 1), y: clamp((P.alt - go[1]) / 140, -1, 1), fire: inLine(P), gas: true };
     }
-    if (P.striker) { const f = P.foes.filter(o => o.z > P.z + 2000).sort((a, b) => a.z - b.z)[0], bolt = P.bolts.find(b => b.z - P.z < 5000 && Math.abs(b.x + b.vx * (b.z - P.z) / 7000 - P.x) < .35); return { x: clamp(((f ? f.x : P.L.road.centers(P.z)[0]) + (bolt ? .5 : 0) - P.x) * 4, -1, 1), y: clamp((P.alt - Math.max(150, f ? f.alt : 300)) / 120, -1, 1), fire: !!f && Math.abs(f.x - P.x) < .3, gas: true }; }   // (STRIKER: line up the nearest foe ahead and fire; a bolt coming: step aside; never under 150, over the traffic and an armoured car's ram, its shots still reaching one)
+    if (P.striker) { const f = P.foes.filter(o => o.z > P.z + 2000).sort((a, b) => a.z - b.z)[0], bolt = P.bolts.find(b => b.z - P.z < 5000 && Math.abs(b.x + b.vx * (b.z - P.z) / 7000 - P.x) < .35); return { x: clamp(((f ? f.x : P.L.road.centers(P.z)[0]) + (bolt ? .5 : 0) - P.x) * 4, -1, 1), y: clamp((P.alt - Math.max(150, f ? f.alt : 300)) / 120, -1, 1), fire: inLine(P), gas: true }; }   // (STRIKER: line up the nearest foe ahead and fire; a bolt coming: step aside; never under 150, over the traffic and an armoured car's ram, its shots still reaching one)
     const L = P.L, road = L.road, cs = road.centers(P.z), forkNear = !L.last && L.fork - P.z < 70 * SEG + 4000, side = P.chase ? P.target.side : P.route.length % 2 ? 1 : 0, want0 = forkNear ? (cs.length > 1 ? cs[side] : cs[0] + (side ? .66 : -.66)) : cs.reduce((a, c) => Math.abs(P.x - c) < Math.abs(P.x - a) ? c : a);
     let want = want0, top = -1e9;
     const obs = P.qual ? [] : P.circuit ? P.rivals.concat(DUO ? DUO.filter(Q => Q !== P) : []).map(v => ({ z: v.z, x: v.x })) : L.traffic.map(c => ({ z: c.z, x: road.centers(c.z)[0] + c.lane }));   // (what's in the way: the traffic, or the pack and the other player)
@@ -651,11 +709,11 @@ const ROAD = (() => {
       L.road.draw(r, { z, x: Math.sin(t * .4) * .4, h: 1000, turn: (t * 40) % 4000, cars: [] });
       r.overlay(g => { E.font.title(g, E.t('road.title'), W0 / 2, 18 * u, { scale: 4 * u, align: 'center', colors: ['#fff6d0', '#ffd060', '#ff7a2a', '#d02a5a'], depth: 3 * u }); });
       if (mode === 'menu') { menu.y = Math.round(H / 2) - 6 * u; menu.draw(r); return; }
-      if (mode === 'join') { r.overlay(g => E.font.text(g, E.t('road.duel.join'), W0 / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false, scale: u })); return; }
+      if (mode === 'join') { r.overlay(g => E.font.text(g, E.t('road.duel.join', { how: E.lang.upper(game.joinPrompt()) }), W0 / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false, scale: u, wrap: W0 - 16 * u })); return; }   // (Options or Menu, and 2: in the player's own symbols)
       r.overlay(g => {   // the radio: three songs to pick from
         E.font.text(g, E.t('road.radio'), W0 / 2, H * .34, '#ffffff', { align: 'center', shadow: '#000', outline: false, scale: u });
         SONGS.forEach((s, i) => { const w = Math.min(120 * u, W0 / 3 - 8 * u), x = Math.round(W0 * (i + .5) / 3 - w / 2), y = Math.round(H / 2 - 10 * u); E.ui.box(g, x, y, w, 26 * u, { bg: i === song ? '#3a2a6a' : '#141a3a', border: i === song ? '#ffe04a' : '#8888aa' }); E.font.text(g, E.t(s.name), x + w / 2, y + 9 * u, i === song ? '#ffe890' : '#c8c8e0', { align: 'center', outline: false, scale: u }); });
-        E.font.text(g, E.t('road.radio.go', { key: game.input.label('confirm') }), W0 / 2, H / 2 + 26 * u, '#ffffff', { align: 'center', shadow: '#000', outline: false, scale: u });
+        E.font.text(g, game.input.lastDevice === 'touch' ? E.t('road.radio.tap') : E.t('road.radio.go', { key: game.input.label('confirm') }), W0 / 2, H / 2 + 26 * u, '#ffffff', { align: 'center', shadow: '#000', outline: false, scale: u });   // (touch has no confirm button: the song tapped again drives)
       });
       return;
     }
@@ -664,7 +722,7 @@ const ROAD = (() => {
   /** a player's screen: the road, the cars (the other duellist's too), the HUD, in its viewport */
   function view(r, P) {
     const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }, W0 = vp.w, H = vp.h, u = ui(W0, H);
-    const lit = Q => !auto && !Q.striker && (DUO ? game.players[Q.n] || game.input : game.input).down('brake') ? '#ff6060' : '#a82020';   // (the tail lights: the brake of the player who drives that car)
+    const lit = Q => !auto && !Q.striker && (DUO ? game.players[Q.n] || game.input : game.input).value('brake') > .1 ? '#ff6060' : '#a82020';   // (the tail lights: the brake of the player who drives that car, pulled past a touch)
     const L = P.L, road = L.road, C = P.cotton, cars = [], tt = t;
     let h = P.striker ? 1000 + P.alt * .35 : P.bike ? 760 : 1000, camZ = P.z - road.ahead(h, r) - 1700, camY = 0, camX = P.x;
     if (C) {   // COTTON's camera: close behind her at her height (over the hill under it; higher on a screen stood upright, to keep her low on it), across with her by half, never so little she leaves the screen's middle 60%: she moves about the screen
@@ -720,7 +778,7 @@ const ROAD = (() => {
         else if (!P.qual && !P.over && (P.fuel <= 0 || lo)) txt(E.t(P.fuel <= 0 ? 'road.fuel.out' : 'road.fuel.low'), W0 / 2, H * .42, blink ? '#ff6060' : '#ffffff', { align: 'center' });
       }
       if (P.drift) { const y = 10 * u + lh * 3; txt(E.t('road.drift'), W0 / 2, y, P.charge > .6 ? '#ffe040' : '#ffffff', { align: 'center' }); px.rect(g, W0 / 2 - 30 * u, y + lh + 2 * u, Math.round(60 * u * Math.min(1, P.charge / 2)), 3 * u, P.charge > .6 ? '#ffe040' : '#a0a0b0'); }
-      if (P.striker && !touch) txt(E.t('road.striker.fire', { key: game.input.label('nitro') }), right, 6 * u + lh, '#c8c8e0', { align: 'right' });
+      if (P.striker && !touch) txt(E.t('road.striker.fire', { key: game.input.label('fire') }), right, 6 * u + lh, '#c8c8e0', { align: 'right' });
       if (!P.chase && !P.rash && !P.circuit && !P.striker) txt(touch ? E.t('road.rewinds.touch', { n: P.rewinds }) : E.t('road.rewinds', { n: P.rewinds, key: game.input.label('rewind') }), right, 6 * u + lh, P.rewinding ? '#80c8ff' : '#c8c8e0', { align: 'right' });
       if (P.circuit && !P.qual) txt(E.t('road.rash.place', { n: P.place, of: P.rivals.length + (DUO ? DUO.length : 1) }), right, 6 * u + lh, P.place <= 3 ? '#80ffa0' : '#ffb0b0', { align: 'right' });
       if (P.rash) { txt(E.t('road.rash.place', { n: P.place, of: P.rivals.length + 1 }), right, 6 * u + lh, P.place <= 3 ? '#80ffa0' : '#ffb0b0', { align: 'right' }); const w = 60 * u, x = right - w, y = 8 * u + lh * 2; px.rect(g, x - u, y - u, w + 2 * u, 6 * u, '#100818'); px.rect(g, x, y, Math.round(w * P.hp / 6), 4 * u, P.hp <= 2 ? '#ff4040' : '#ffd040'); if (!touch) txt(E.t('road.rash.punch', { key: game.input.label('nitro') }), right, y + 8 * u, '#c8c8e0', { align: 'right' }); }
@@ -770,11 +828,13 @@ const ROAD = (() => {
     } finally { Math.random = was; auto = false; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['brake', 'rewind', 'nitro'], camera: { zoom: false },
-    exit() { game.splitScreen(0); players(true); },   // (the joined leave with the scene: the next has the whole keyboard)
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['nitro', 'rewind', 'brake', 'gas'], camera: { zoom: false },
+    exit() { game.splitScreen(0); players(true); dsOff(); },   // (the joined leave with the scene: the next has the whole keyboard; the DualSense clean)
     enter(d) { mode = 'menu'; P = null; DUO = null; auto = false; menu.i = 0; game.allowJoin({ max: 2 }); game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); game.screen.setOptions({ res: d && d.part === 'hd' ? [960, 540] : 'ps1' });   // (#road/hd: the coast run at today's resolution, Horizon Chase's and Slipstream's)
       if (d && d.part) { if (d.part === 'duel') duel(); else if (['chase', 'rash', 'striker', 'circuit', 'cotton'].includes(d.part)) start(d.part); else { ride = d.part === 'bike' ? 'bike' : 'car'; start(ride); } } },
-    back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'radio' || mode === 'results' || mode === 'join') { toMenu(); return true; } return false; },
+    escape: 'back',   // (Esc, as a phone's back gesture: the radio, the join screen and the results to the menu, the menu to the title; on the road it pauses)
+    back() { const away = f => { f(); game.players.forEach(q => q.consumeAll()); return true; };   // (the key that went back is used up: the menu it lands on doesn't read it again)
+      if (mode === 'menu') return away(() => game.go('title')); if (mode === 'radio' || mode === 'results' || mode === 'join') return away(toMenu); return false; },
     update, draw, bot,
     /** a run driven by the autopilot (a demo; the bot's): 'car', 'bike', 'circuit', 'rash', 'duel', 'chase', 'striker' or 'cotton' */
     demo(what) { if (['chase', 'rash', 'duel', 'striker', 'circuit', 'cotton'].includes(what)) start(what); else { ride = what === 'bike' ? 'bike' : 'car'; start(ride); } auto = true; },

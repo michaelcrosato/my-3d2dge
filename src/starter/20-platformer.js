@@ -1,8 +1,13 @@
 /* =====================================================================================
- * SLICE 2  PLATFORMER  (side-scroller in the style of Castlevania: SotN, Mega Man X and Klonoa)
- * A night approach to a castle in five zones (graveyard, bailey, lava moat, rampart above the clouds, gate hall). Space jumps,
- * C dashes, X attacks (the move set is in reset()). Cut down skeletons, bats and knights, break candles for gold and hearts,
- * reach the gate. TOUCH: the stick, JUMP, ATTACK, DASH. V switches to a 2.5D view, - / = zoom. How the look is built:
+ * SLICE 2  PLATFORMER  (side-scroller in the style of Castlevania: SotN, Mega Man X and Klonoa). @modules dualsense
+ * A night approach to a castle in five zones (graveyard, bailey, lava moat, rampart above the clouds, gate hall). Cut down
+ * skeletons, bats and knights, break candles for gold and hearts, reach the gate. KEYS (PLATFORMER without its unused
+ * skill): arrows or WASD, Space / Z / K jump, X / J / a left click attack (the move set is in reset()), Shift / C dash;
+ * V switches to a 2.5D view, - / = zoom. PAD: ✕ jump, □ attack, R1 (or ○) dash, Options pauses. DUALSENSE: the light bar
+ * is his HP (blue-white, amber, red and pulsing; red when hit, gold at the gate); any pad rumbles on hits, the dive's
+ * landing, the charged spin and a fall. TOUCH: the stick, JUMP, ATTACK, DASH (no assists: the jumps are the game); a
+ * swipe takes the controls ribbon and the end's ribbon away, and Vale's words on a swipe across their box (play goes on
+ * under them, so no key turns their pages: they turn by themselves). How the look is built:
  *   1. SKIES   three E.Backdrops cross-faded by zone, a painted moon, a castle on its crag, soft mist, a sea of clouds
  *   2. LAYERS  two E.PlatformMaps: BACK (small-brick walls, never solid) and ROWS (big stone blocks you stand on)
  *   3. DRESS   engine props in two depth rows (against the wall, on the path in front), baked decals, an earth cut
@@ -211,10 +216,22 @@ const PLAT = (() => {
   };
   const DEBRIS = { knight: ['#c0c8e0', '#5a2a78', '#e0d4b8'], skeleton: [BONE, '#b0a68c', '#fff4dc'], bat: ['#4a2a5a', '#8a6a9a', '#1a0c22'] };
   const S = { shadow: '#05030a', outline: false }, SC = Object.assign({ align: 'center' }, S);   // HUD text styles
-  const talk = new E.Dialog(game, { bg: ['#2a2450', '#0e0a1e'], border: '#e0d0a8' }), say = text => talk.say(text, { name: E.t('platformer.vale'), auto: 2.5,
+  const talk = new E.Dialog(game, { bg: ['#2a2450', '#0e0a1e'], border: '#e0d0a8' }), say = text => talk.say(text, { name: E.t('platformer.vale'), auto: 2.5, modal: false,   // (play goes on: jump doesn't skip it)
     portrait: (g, x, y) => { E.ui.box(g, x - 2, y - 2, 44, 44, { bg: ['#4a1a3a', '#0c0612'], border: '#e0d0a8' }); px.sprite(g, VALE, x, y + 2); if (game.real % 4 < .12) px.rect(g, x + 26, y + 17, 4, 2, '#f0c8a8'); } });   // + a blink
   const fx = [], lights = [], shafts = [], addFx = (kind, x, z, o) => fx.push(Object.assign({ kind, x, z, t: 0, max: .3, size: 1, c: '#ffffff', vx: 0, vz: 0, dir: 1 }, o));
-  let level, hero, rig, combo, MV, atk, charge, idle, land, foes, coins, candles, drops, lift, lives, score, gold, hp, inv, cheer, clear, spawn, gate, lava, age, hint, darkCv, rimWas;
+  let level, hero, rig, combo, MV, atk, charge, idle, land, foes, coins, candles, drops, lift, lives, score, gold, hp, inv, cheer, clear, clearAt, spawn, gate, lava, age, hint, darkCv, rimWas;
+  // THE KEYS: PLATFORMER's (Space jumps, X or J attacks, Shift dashes), its unused skill left out (its V was the view's
+  // key too, and it listed a control that does nothing), the dash's R1 first so a pad's prompt names it (○ still dashes)
+  const KEYS = Object.assign((({ skill, ...k }) => k)(E.Input.PLATFORMER), { dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad5', 'Pad1'] });
+  // the DUALSENSE (the dualsense module): the light bar shows his HP; buzz: a rumble on any pad, while it is what he plays with
+  let ds = null, padLight = null, flashT = 0, flashC = null;
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  const flashPad = (c, t) => { flashC = c; flashT = t; };   // the light bar a moment in another colour (a hit, the gate)
+  function padExtras(dt) {
+    if (!ds) return; flashT -= dt;
+    const k = hp / MAXHP, c = flashT > 0 ? flashC : k > .5 ? '#a8c8ff' : k > .25 ? '#e8a030' : Math.floor(game.real * 3) % 2 ? '#e8283a' : '#5a0a14';
+    if (c !== padLight) ds.light(padLight = c);
+  }
   // 8. ANY SCREEN: soil = the band of earth under the level on a screen taller than it (0 on a wide one); FOOT = the level's
   // foot on screen when the camera rests on the ground (the screen's bottom edge, or the top of the soil): the skies hang from it
   let soil = 0, FOOT = 240;
@@ -259,13 +276,13 @@ const PLAT = (() => {
     addFx('blade', (h[0] + t[0]) / 2, (h[2] + t[2]) / 2, { max, vx: dir * 50, vz: 110, a: Math.atan2(t[2] - h[2], t[0] - h[0]), spin: dir * -12, L: rg.o.bladeLen * rg.o.size, c: rg.C.metal, h: rg.C.hilt });
   }
   function hurt(dir, n = 10) {
-    if (inv > 0 || clear || hero.ko) return; hp -= n; inv = 1.2; hero.knock(dir); A.sfx('hurt'); game.flash('#ff2030', .12, .25); stop();   // knocked back (the hurt pose)
+    if (inv > 0 || clear || hero.ko) return; hp -= n; inv = 1.2; hero.knock(dir); A.sfx('hurt'); game.flash('#ff2030', .12, .25); flashPad('#ff2030', .25); stop();   // knocked back (the hurt pose)
     game.hitFx(hero.x, 0, hero.z + 24, { power: 1.2, angle: dir > 0 ? 0 : Math.PI, color: '#ff8080', sound: false, damage: n, textZ: 32, textScale: 2, textColor: '#ff6a6a' });
     if (hp <= 0) die();
   }
   const stop = () => { if (atk) atk.cancel(); charge = 0; };   // a hit interrupts the hero's move
   function die() {                                     // knocked out: pose 'down', then respawn or game over
-    if (hero.ko) return; hp = 0; lives--; hero.ko = 1.6; stop(); disarm(rig, -hero.facing, 1.6); A.sfx('die'); game.flash('#ffffff', .5, .7); game.shake(4);
+    if (hero.ko) return; hp = 0; lives--; hero.ko = 1.6; stop(); disarm(rig, -hero.facing, 1.6); A.sfx('die'); game.flash('#ffffff', .5, .7); game.shake(4); buzz(.8, .4);
     addFx('glow', hero.x, hero.z + 16, { max: .5, size: 30, c: '#ff4060' }); P.sparks(hero.x, 0, hero.z + 16, 14); P.bits(hero.x, 0, hero.z + 20, 8, ['#b02840', '#e4e0f4', '#f0c860']);
   }
   // one hit: game.hitFx (hit-stop, shake, star, sparks, sound, a number), a slash flare, chips and a flinch (f.flash),
@@ -343,7 +360,7 @@ const PLAT = (() => {
         if (m === MV.rising && hero.onGround) hero.vz = 170;              // and the rising cut hops
       }
     }
-    if (inp.down('attack') && !(atk && atk.busy) && !hero.climbing) { if ((charge += dt) >= CHARGE && charge - dt < CHARGE) A.sfx('charge'); }   // charged: the blade glints (see draw)
+    if (inp.down('attack') && !(atk && atk.busy) && !hero.climbing) { if ((charge += dt) >= CHARGE && charge - dt < CHARGE) { A.sfx('charge'); buzz(.25, .08); } }   // charged: the blade glints (see draw)
     else { if (charge >= CHARGE && !inp.down('attack')) { atk = MV.spin; MV.spin.start(); } charge = 0; }   // released charged: spin
     if (atk && !(diving && atk.active && atk.u > .9) && atk.update(dt) === 'active') A.sfx(atk === MV.spin || atk.state.spec.name === 'overhead' ? 'whoosh' : 'swing');
     if (!atk || !atk.active) return;
@@ -362,7 +379,10 @@ const PLAT = (() => {
     }
     E.prune(fx, f => f.t >= f.max);
     const inp = game.input, ko = hero.ko > 0; inv -= dt; cheer -= dt; land -= dt; age += dt; if (!talk.open && age > 2) hint -= dt;
-    talk.update(dt);
+    talk.update(dt); padExtras(dt);   // (a swipe across Vale's box takes it away: E.Dialog)
+    // a swipe elsewhere (a touch screen) takes what is temporary away: the end's ribbon (to the title), the controls ribbon
+    if (clear && age - clearAt > 1 && inp.swipe(true)) return void game.go('title');
+    if (hint > 0 && age > 1.8 && !talk.open && inp.swipe(true)) hint = 0;
     if (age > 1.8 && age - dt <= 1.8 && !clear) say(E.t('platformer.say.start'));
     lift.t += dt; const nx = lift.x0 + Math.sin(lift.t * .8) * 64; lift.vx = (nx - lift.x) / dt; lift.x = nx;   // the lift glides over the moat and carries riders
     if (ko) { hero.ko -= dt; if (!level.touching(hero, 'hazard')) hero.update(dt, level, { x: 0 }, [lift]); if (hero.ko <= 0) return lives > 0 ? reset(false) : game.go('over', { from: 'platformer' }); }
@@ -372,7 +392,7 @@ const PLAT = (() => {
       hero.update(dt, level, clear ? { x: gate.x > hero.x + 2 ? .4 : 0 } : inp, [lift]);
       if (hero.jumped) { A.sfx('jump'); rig.kick(3); }                                 // stretch on take-off, squash and dust on landing
       if (hero.landed) { A.sfx(diving ? 'stomp' : 'land'); rig.kick(diving ? -8 : -5); for (const s of [-1, 1]) addFx('smoke', hero.x + s * 6, hero.z + 2, { vx: s * (diving ? 70 : 30), vz: 6, max: .35, size: 2.5 }); }
-      if (hero.landed && diving) { game.shake(3); land = .3; P.dust(hero.x, 0, hero.z, 14, { speed: 70 }); P.sparks(hero.x + hero.facing * 4, 0, hero.z, 6); }   // the dive's impact
+      if (hero.landed && diving) { game.shake(3); buzz(.5, .15); land = .3; P.dust(hero.x, 0, hero.z, 14, { speed: 70 }); P.sparks(hero.x + hero.facing * 4, 0, hero.z, 6); }   // the dive's impact
       if (!clear) fight(inp, dt, diving);
       for (const c of coins) if (!c.got && E.overlapBox(hero, c)) { c.got = true; gold++; score += 100; A.sfx('coin'); P.glints(c.x, 0, c.z + 5, 4, '#fff6c0', 10); }
     }
@@ -393,7 +413,7 @@ const PLAT = (() => {
     }
     if (!clear && !ko && (level.touching(hero, 'hazard') || hero.z < -40)) die();
     if (!clear && !ko && Math.abs(hero.x - gate.x) < 12 && hero.z >= gate.z - 2) {   // goal: step into the castle gate
-      clear = true; stop(); score += 1000; A.music('victory'); game.flash('#fff4d0', .6, .7); P.glints(gate.x, 0, gate.z + 20, 12, '#fff6c0', 30); game.after(6, () => game.go('title'));
+      clear = true; clearAt = age; stop(); score += 1000; A.music('victory'); game.flash('#fff4d0', .6, .7); flashPad('#ffd060', 99); P.glints(gate.x, 0, gate.z + 20, 12, '#fff6c0', 30); game.after(6, () => game.go('title'));
       say([E.t('platformer.say.clear'), E.t('platformer.say.score', { score: String(score), best: String(best('platformer', score)) })]);   // (as written: 1600, not 1,600)
     }
     // poses: cheer (gate, pickups); down when knocked out; crouch (a tuck) over the plunge and its landing; hips after a long idle,
@@ -546,17 +566,24 @@ const PLAT = (() => {
     E.font.text(g, '♥', 40, 23, '#ff5a6a', S); E.font.text(g, '×' + lives, 48, 23, '#f0e8ff', S); coin(g, 74, 27, 0); E.font.text(g, String(gold), 81, 23, '#ffe066', S);
     const ribbon = (y, h, a) => blend(g, 'source-over', a, () => { px.rect(g, 0, y, r.W, h, '#05030a'); px.rect(g, 0, y, r.W, 1, '#d8a848'); px.rect(g, 0, y + h - 1, r.W, 1, '#d8a848'); });
     if (age < 1.8) { const a = clamp((1.8 - age) * 2, 0, 1); ribbon(58, 26, .5 * a); if (a > .3) E.font.title(g, E.t('platformer.stage'), r.W / 2, 64, { scale: 2, align: 'center', colors: ['#ffffff', '#d8c8f0', '#9a7ad0'], depth: 1, depthColor: '#1c1430' }); }
-    else if (hint > 0 && !talk.open) {   // controls after the dialog, in the player's own keys; over the soil when there is some
-      const y = soil ? r.H - soil + 6 : r.H - 17, s = hint > 4 ? [prompt('jump', E.t('platformer.hint.jump')), prompt('attack', E.t('platformer.hint.slash')), prompt('dash', E.t('platformer.hint.dash')), touch() ? '' : E.t('platformer.hint.view')].filter(Boolean).join('  •  ')
-        : E.t('platformer.hint.moves'), fit = E.font.width(s) < r.W - 8;
-      ribbon(y, 13, .55 * clamp(hint, 0, 1)); E.font.text(g, s, r.W / 2, y + (fit ? 3 : 4), '#e8e0ff', fit ? SC : Object.assign({ font: 'tiny' }, SC));
+    else if (hint > 0 && !talk.open) {   // controls after the dialog, in the player's own keys; over the soil when there is some, else above the touch buttons
+      // (on a touch screen its buttons say jump, attack and dash: the moves only. The view's key is the shell's V, named
+      // as this keyboard prints it, for the keys and mouse only: a pad has no view key)
+      const dev = game.input.lastDevice, kb = dev === 'keyboard' || dev === 'mouse', ta = game.input.touchArea();
+      const s = hint > 4 && !touch() ? [prompt('jump', E.t('platformer.hint.jump')), prompt('attack', E.t('platformer.hint.slash')), prompt('dash', E.t('platformer.hint.dash')), kb ? E.t('platformer.hint.view', { key: game.input.codeLabel('KeyV') }) : ''].filter(Boolean).join('  •  ')
+        : E.t('platformer.hint.moves');
+      // too wide for the screen: two lines of the same type, broken at a dot (never smaller type: it is read from the sofa)
+      const parts = s.split('  •  '), cut = Math.ceil(parts.length / 2), L = E.font.width(s) < r.W - 8 ? [s] : parts.length > 1 ? [parts.slice(0, cut).join('  •  '), parts.slice(cut).join('  •  ')] : E.font.wrap(s, r.W - 8);
+      const lh = E.font.lineHeight(), h = 4 + lh * L.length, y = soil ? r.H - soil + 6 : ta ? Math.round(ta.y0) - h - 4 : r.H - h - 4;
+      ribbon(y, h, .55 * clamp(hint, 0, 1)); L.forEach((t, i) => E.font.text(g, t, r.W / 2, y + 3 + i * lh, '#e8e0ff', SC));
     }
     if (clear) { ribbon(40, 30, .6); E.font.title(g, E.t('platformer.clear'), r.W / 2, 46, { scale: 2, align: 'center', colors: ['#fffbe8', '#ffd36a', '#e0662a'] }); }   // a translucent ribbon keeps the lit gate visible
   }
-  return { view: 'side', views: ['side', 'brawler'], input: 'PLATFORMER', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2], tall: 1.5 },   // props at the hero's scale; the player zooms .75x to 2x (no turning), a phone held upright starts at 1.5x: the level fills more of it
+  return { view: 'side', views: ['side', 'brawler'], input: KEYS, res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2], tall: 1.5 },   // props at the hero's scale; the player zooms .75x to 2x (no turning), a phone held upright starts at 1.5x: the level fills more of it
     enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => { const b = level.bounds(v); return Object.assign({}, b, { y1: b.y1 + soilFor(b, game.H) }); }; A.music('adventure'); L.enabled = false; if (game.r) { rimWas = game.r.rimAlpha; game.r.rimAlpha = .5; }   // a stronger, zone-colored rim light (headless, no renderer)
-      P.ground = (x, y, z) => level.groundBelow(x, z + 1); },              // sparks and debris land and bounce on the platform under them
-    exit() { if (game.r) game.r.rimAlpha = rimWas; P.ground = null; }, update, draw,
+      P.ground = (x, y, z) => level.groundBelow(x, z + 1);                // sparks and debris land and bounce on the platform under them
+      ds = E.DualSense ? E.DualSense.attach(game, { light: true }) : null; padLight = null; flashT = 0; },
+    exit() { if (game.r) game.r.rimAlpha = rimWas; P.ground = null; if (ds) ds.clear(); }, update, draw,
     /** the proof: a run to the right through the graveyard, jumping, cutting and dashing; a hash of the run (with a new rig:
      *  the hero keeps his between visits, and his pose decides where the blade lands) */
     run: (n = 600) => proof('platformer', n, (i, k) => { if (!i) k.hold('right'); if (i % 70 === 10) k.tap('jump'); if (i % 45 === 30) k.tap('attack'); if (i % 240 === 200) k.tap('dash'); if (i % 150 === 100) k.tap('confirm'); },

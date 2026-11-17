@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.106.2: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.107.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -139,9 +139,11 @@ Input (game.input): down(a) held, pressed(a) this step only, released(a), repeat
   DEFAULT: attack (J, X, click), dash (Space, Shift, K), skill (L, E, right click), jump (Z)
   PLATFORMER: jump (Space, Z, K), attack (X, J, click), dash (Shift, C, L), skill (E, V)
   SHMUP: fire (Space, Z, J, click), bomb (X, K, right click)
-  label('jump') -> its key or button on the device in use, for prompts: 'Space', 'A', '✕'
+  label('jump') -> its key or button on the device in use, for prompts: 'Space', '✕' (PlayStation's by default; 'A' with
+  glyphs 'xbox'); every prompt comes from it (docs/CONTROLS.md: a pad on a TV first, the genre's keys, touch an add-on:
+  gate a touch assist on input.assist, swipe a box away with input.swipe(true), E.assist.aim and nearest for aim)
 Standard, with no code: game.settings (saved per game: volume music effects sound motion shake flashes scale deadzone
-  glyphs; set(key, v) checks, saves, applies; yours (or a standard one's default: { key: 'glyphs', value: 'playstation' }):
+  glyphs; set(key, v) checks, saves, applies; yours (or a standard one's default: { key: 'glyphs', value: 'xbox' }):
   new E.Game({ menu: { settings: [{ key: 'hints', value: true }] } })),
   game.fullscreen (a phone's first tap, a top-right button; toggle() from a key or click), and a pausable scene pausing
   when the page is hidden or the controller unplugs (pause(reason), resume(), pauseReason). Don't build your own. Leave
@@ -385,7 +387,7 @@ only what the game needs; never read one whole. Its home page, index.html, opens
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.106.2', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped in a shared copy
+const E = { version: '0.107.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped in a shared copy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
 // tools/play.mjs), where every page it carries shares the path, the page it plays (?play=<id>) too. href: a recorded
@@ -777,7 +779,7 @@ class Input {
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {}; this._rk = {};
     this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set(); this._holds = new Set(); this._freshCodes = new Set();
     this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this.padPrev = []; this.padIndex = null; this.padId = ''; this.deadzone = .18;
-    this.lastDevice = 'keyboard'; this.glyphs = 'auto'; this.padLost = false;   // label() follows the device used last; glyphs: 'auto' | 'xbox' | 'playstation' | 'nintendo' | 'generic'
+    this.lastDevice = 'keyboard'; this.glyphs = 'playstation'; this.padLost = false; this._swipeAt = this._gSwipe = this._f0 = null;   // label() follows the device used last; glyphs: 'playstation' (the standard's) | 'xbox' | 'auto' | 'nintendo' | 'generic'
     const el = screen.canvas; if (!el) return;
     const addEventListener = (type, fn) => window.addEventListener(type, fn, { signal }), typing = e => { const t = e.target; return !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(t.type))); };
     const at = e => { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; };
@@ -787,8 +789,12 @@ class Input {
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); }, { signal });
     el.addEventListener('contextmenu', e => e.preventDefault(), { signal });
     el.addEventListener('pointermove', at, { signal });
-    el.addEventListener('pointerdown', e => { at(e); this.press('Mouse' + e.button); }, { signal });
-    addEventListener('pointerup', e => this.release('Mouse' + e.button));
+    el.addEventListener('pointerdown', e => { at(e); this.press('Mouse' + e.button); if (e.pointerType !== 'mouse') { this.lastDevice = 'touch'; this._f0 = { id: e.pointerId, x: e.clientX, y: e.clientY, t: this.clock }; } }, { signal });
+    addEventListener('pointerup', e => {
+      this.release('Mouse' + e.button); const f = this._f0; if (!f || f.id !== e.pointerId) return; this._f0 = null;   // a quick flick of a finger: swipe()
+      const dx = e.clientX - f.x, dy = e.clientY - f.y, ax = Math.abs(dx), ay = Math.abs(dy);
+      if (this.clock - f.t <= .35 && Math.max(ax, ay) >= 40 && Math.max(ax, ay) >= 1.5 * Math.min(ax, ay)) { const p = this.mouseScreen() || [0, 0], q = this.screen.clientToScreen(f.x, f.y) || p; this._gSwipe = { dir: ax > ay ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'), x: q[0], y: q[1] }; }
+    });
     // a mouse button pressed or let go while another is held comes as a pointermove (Pointer Events' chorded buttons:
     // e.button the one that changed, e.buttons those down now): right held to aim, a left click fires
     addEventListener('pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } }, { signal });
@@ -831,7 +837,29 @@ class Input {
   }
   buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this._pt[a]; return t !== undefined && !this._used[a] && this.clock - t <= win; }
   consume(a) { this._used[a] = true; }
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._swipeAt = null; }
+  // Create is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (neither reaches
+  // the game, Options not until it is let go); let go sooner it is a tap; held, a press
+  _create(down, p) {
+    const c = this._cr;
+    if (!down) { if (c && !c.chord && !c.out) { this.press('Pad8'); this._taps.add('Pad8'); } this._cr = null; return false; }
+    if (!c) { this._cr = { t: this.clock, chord: false, out: false }; return false; }
+    if (c.chord || (!c.out && p.buttons[9] && p.buttons[9].pressed)) { c.chord = true; this._opt = true; return false; }
+    if (!c.out && this.clock - c.t >= .25) c.out = true;
+    return c.out;
+  }
+  // the move keys or stick as a prompt names them ('WASD', '↑↓←→', 'L stick', 'STICK'): {key:move} in a line
+  moveLabel(device = this.lastDevice) {
+    if (device === 'gamepad') return 'L stick';
+    if (device === 'touch') return 'STICK';
+    const k = ['up', 'left', 'down', 'right'].map(a => (this.map[a] || []).filter(c => !c.startsWith('Pad') && !c.startsWith('Act:')));
+    return k.every((c, i) => c.includes('Key' + 'WASD'[i])) ? 'WASD' : '↑↓←→';
+  }
+  // a quick one-finger flick on the canvas ({ dir: 'left' | 'right' | 'up' | 'down', x, y } in the step after it, else null; take:
+  // true uses it up): swipe away what is temporary (E.Dialog skips, E.Menu cancels on a sideways one)
+  swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
+  // true while the player plays by touch (and Touch assists is on): gate a touch assist on it (an attack or a shot by itself)
+  get assist() { return this.lastDevice === 'touch' && !(this._settings && this._settings.assists === false); }
   clear() { this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; }
   anyPressed() { return this._now.size > 0; }
   move() {
@@ -862,11 +890,11 @@ class Input {
     this.clock += dt; this.padLost = false;
     let p = null;
     try { p = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).find(q => q && q.connected !== false) || null; } catch (e) { /* gamepads blocked */ }
-    if ((p ? p.index : null) !== this.padIndex) { if (!p && this.padIndex !== null) this.padLost = this.lastDevice === 'gamepad'; this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; this.padId = p ? p.id : ''; }
+    if ((p ? p.index : null) !== this.padIndex) { if (!p && this.padIndex !== null) this.padLost = this.lastDevice === 'gamepad'; this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; this.padId = p ? p.id : ''; this._cr = null; this._opt = false; }
     if (p) {
       const x = p.axes[0] || 0, y = p.axes[1] || 0, l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;
       this.padMove = [x * k, y * k];
-      p.buttons.forEach((b, i) => { if (b.pressed && !this.padPrev[i]) this.press('Pad' + i); if (!b.pressed && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = b.pressed; });
+      p.buttons.forEach((b, i) => { if (i === 9 && !b.pressed) this._opt = false; const on = i === 8 ? this._create(b.pressed, p) : b.pressed && i !== 16 && !(i === 9 && this._opt); if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });   // (16, PS or Guide, is the host's: the 52in1 hub)
       [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5].forEach((on, i) => { const c = ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'][i]; if (on) this.press(c); else this.release(c); });
     }
     for (const c of this._tapsDue) if (!this._holds.has(c)) this.release(c);   // a tap is held for the one step after it (a hold() of the same action stays)
@@ -874,6 +902,7 @@ class Input {
     // presses since the last step become this step's pressed() / released()
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n; this._freshCodes.clear();
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
+    this._swipeAt = this._gSwipe; this._gSwipe = null;
   }
 }
 // menu actions in every preset. Pad9 = Start, Pad0 = A (bottom), Pad1 = B (right), Pad12-15 = d-pad
@@ -883,13 +912,31 @@ Input.DEFAULT = { ...DIRS, attack: ['KeyJ', 'KeyX', 'Mouse0', 'Pad0', 'Pad7'], d
 Input.PLATFORMER = { ...DIRS, jump: ['Space', 'KeyZ', 'KeyK', 'Pad0'], attack: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2'], dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad1', 'Pad5'], skill: ['KeyE', 'KeyV', 'Mouse2', 'Pad3'], ...MENU_KEYS };
 Input.SHMUP = { ...DIRS, fire: ['Space', 'KeyZ', 'KeyJ', 'Mouse0', 'Pad0', 'Pad7'], bomb: ['KeyX', 'KeyK', 'Mouse2', 'Pad1', 'Pad6'], ...MENU_KEYS };
 E.Input = Input;
-// a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders, 8 back, 9 start, 10-11 sticks, 12-15 d-pad)
-const PAD_GLYPHS = {
-  xbox: ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'LS', 'RS', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Guide'],
-  playstation: ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS'],
-  nintendo: ['B', 'A', 'Y', 'X', 'L', 'R', 'ZL', 'ZR', '−', '+', 'L stick', 'R stick', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home'],
-  generic: ['Bottom', 'Right', 'Left', 'Top', 'L1', 'R1', 'L2', 'R2', 'Select', 'Start', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home']
+// the touch standard's assists (gate each on input.assist): the target nearest a point within range, and aim turned onto
+// the target nearest the direction within cone radians (default .35) and range, as a unit [dx, dy]
+E.assist = {
+  nearest(x, y, targets, range = Infinity) { let best = null, bd = range * range; for (const t of targets || []) { if (!t || t.dead || (typeof t.hp === 'number' && t.hp <= 0)) continue; const tx = Array.isArray(t) ? t[0] : t.x, ty = Array.isArray(t) ? t[1] : t.y, d = (tx - x) ** 2 + (ty - y) ** 2; if (d <= bd) { bd = d; best = t; } } return best; },
+  aim(x, y, dx, dy, targets, o = {}) {
+    const l = Math.hypot(dx, dy); if (!(l > 0)) return [0, 0];
+    const ux = dx / l, uy = dy / l, cone = o.cone === undefined ? .35 : o.cone, range = o.range === undefined ? Infinity : o.range; let best = null, score = Infinity;
+    for (const t of targets || []) {
+      if (!t || t.dead || (typeof t.hp === 'number' && t.hp <= 0)) continue;
+      const tx = (Array.isArray(t) ? t[0] : t.x) - x, ty = (Array.isArray(t) ? t[1] : t.y) - y, d = Math.hypot(tx, ty); if (!(d > 0) || d > range) continue;
+      const a = Math.acos(clamp((tx * ux + ty * uy) / d, -1, 1)); if (a > cone) continue;
+      const sc = a / cone + d / (range === Infinity ? d * 4 : range) * .5; if (sc < score) { score = sc; best = [tx / d, ty / d]; }
+    }
+    return best || [ux, uy];
+  }
 };
+// a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders, 8 back, 9 start, 10-11 sticks, 12-15 d-pad,
+// 16 home (the host's, never pressed), 17 a DualSense's touchpad click)
+const PAD_GLYPHS = {
+  xbox: ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'LS', 'RS', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Guide', 'Share'],
+  playstation: ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS', 'Touchpad'],
+  nintendo: ['B', 'A', 'Y', 'X', 'L', 'R', 'ZL', 'ZR', '−', '+', 'L stick', 'R stick', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home', 'Capture'],
+  generic: ['Bottom', 'Right', 'Left', 'Top', 'L1', 'R1', 'L2', 'R2', 'Select', 'Start', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home', 'Touchpad']
+};
+const PS_INK = { '✕': '#7fa8ff', '○': '#ff7070', '□': '#f293d6', '△': '#3fd9aa' };   // the PlayStation buttons drawn in their own colours (o.glyphs: false: the text's)
 const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift', ControlLeft: 'Ctrl', ControlRight: 'R Ctrl', AltLeft: 'Alt', AltRight: 'R Alt', Enter: 'Enter', NumpadEnter: 'Enter',
   Escape: 'Esc', Backspace: 'Backspace', Tab: 'Tab', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Mouse0: 'Left click', Mouse1: 'Middle click', Mouse2: 'Right click' };
 
@@ -933,32 +980,32 @@ E.font = {
     const lines = o.wrap ? this.wrap(s, o.wrap, o) : String(s).split('\n'), top = m.asc - F.h * sc, ds = LANG_DEV.size(F.h + F.desc, sc);
     x = Math.round(x); y = Math.round(y);
     let w = 0;
-    const glyphs = (line, lx, ly, ox, oy, c, useGrad) => {
+    const glyphs = (line, lx, ly, ox, oy, c, useGrad, main) => {
       let cx = 0;
       for (const ch of line) {
         if (ch === ' ') { cx += F.space + 1; continue; }
         if (!has(ch) && LANG_DEV.ZW.test(ch)) continue;
-        const gl = glyph(ch);
-        for (const [rx, ry, rn] of gl.runs) { px.col(g, useGrad ? grad[Math.min(grad.length - 1, Math.floor(ry / F.h * grad.length))] : c); g.fillRect(lx + (cx + rx) * sc + ox, ly + ry * sc + oy, rn * sc, sc); }
+        const gl = glyph(ch), ink = main && o.glyphs !== false && PS_INK[ch];
+        for (const [rx, ry, rn] of gl.runs) { px.col(g, ink || (useGrad ? grad[Math.min(grad.length - 1, Math.floor(ry / F.h * grad.length))] : c)); g.fillRect(lx + (cx + rx) * sc + ox, ly + ry * sc + oy, rn * sc, sc); }
         cx += gl.w + 1;
       }
     };
     const RS = lines.map(line => LANG_DEV.runs(has, line, 'a')), LW = lines.map((line, li) => RS[li] ? lineWs(line, sc, g) : lineW(line) * sc);   // (each line measured once, not once a pass)
-    const draw = (ox, oy, c, useGrad) => lines.forEach((line, li) => {
+    const draw = (ox, oy, c, useGrad, main) => lines.forEach((line, li) => {
       const R = RS[li], lw = LW[li], ly = y + li * lh;
       const rtl = !!R && R.length === 1 && LANG_DEV.RTL.test(line), box = rtl && o.wrap && (!o.align || o.align === 'left');   // (right to left in a box: from its right edge)
       const al = box ? 'right' : o.align, lx = (box ? x + Math.round(o.wrap) : x) + (al === 'center' ? -Math.round(lw / 2) : al === 'right' ? -lw : 0);
       w = Math.max(w, lw);
-      if (!R) { glyphs(line, lx, ly + top, ox, oy, c, useGrad); return; }
+      if (!R) { glyphs(line, lx, ly + top, ox, oy, c, useGrad, main); return; }
       let cx = 0;
       for (const [d, t] of R) {
-        if (!d) { glyphs(t, lx + cx, ly + top, ox, oy, c, useGrad); cx += lineW(t) * sc + sc; continue; }
+        if (!d) { glyphs(t, lx + cx, ly + top, ox, oy, c, useGrad, main); cx += lineW(t) * sc + sc; continue; }
         px.col(g, useGrad ? grad[0] : c); LANG_DEV.draw(g, t, lx + cx + ox, ly + m.asc + oy, ds, rtl); cx += LANG_DEV.measure(g, t, ds) + sc;
       }
     });
     if (o.shadow) draw(sc, sc, o.shadow, false);
     if (outline) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) draw(ox, oy, outline, false);
-    draw(0, 0, color, !!grad);
+    draw(0, 0, color, !!grad, true);
     return { w, h: lh * (lines.length - 1) + m.rows };
   },
   // big logo text: title(g, 'NAME', x, y, { scale: 3, colors: [top .. bottom], outline, depth, depthColor, align, shine })
@@ -1093,7 +1140,10 @@ E.lang = {
   },
   /** the key, button or touch label that does action a on the device in use (the latest game's input.label); set it to a
    *  function of your own for a game without E.Game's input */
-  control(a) { const g = E.current; return (g && g.input && g.input.map && g.input.map[a] && g.input.label(a)) || a; },
+  control(a) { const g = E.current, I = g && g.input; if (a === 'move' && I && I.map && !I.map.move && I.moveLabel) return I.moveLabel(); return (I && I.map && I.map[a] && I.label(a)) || a; },   // ({key:move}: the move keys or stick, where no action is called move)
+  /** text a game draws itself (not a line) with its {key:action} tags filled: E.font.text(g, E.lang.keys('{key:jump} to
+   *  jump'), ...) shows the player's own key or button for it, on the device used last */
+  keys(text) { return String(text).replace(/\{key:(\w+)\}/g, (tag, a) => this.control(a)); },
   /** the original line's letter count for text E.t gave in another language (E.Dialog types it over the original's time), or 0 */
   sourceLength(text) { return this._len.get(text) || 0; },
   /** whole letters in s, tags left out (a Chinese, Japanese or Korean character is one) */
@@ -1877,7 +1927,7 @@ const STANDARD_SETTINGS = {
   shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
   flashes: { group: 'Comfort', label: 'Screen flashes', type: 'slider', value: 1 },
   deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, apply: (g, v) => { g.input.deadzone = v; } },
-  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { g.input.glyphs = v; } }
+  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'playstation', options: [['playstation', 'PlayStation'], ['xbox', 'Xbox']], help: 'The buttons prompts show for a controller: ✕ ○ □ △, or A B X Y', apply: (g, v) => { g.input.glyphs = v; } }
 };
 function settingValue(sp, v) {   // a value checked against its setting: the value kept, or undefined
   if (sp.type === 'toggle') return typeof v === 'boolean' ? v : undefined;
@@ -1901,7 +1951,7 @@ class Settings {
     if (!sp || !sp.key || typeof sp.key !== 'string' || sp.key in Settings.prototype || sp.key === 'saved' || sp.key === 'onChange' || sp.key[0] === '_') { warn('setting:' + (sp && sp.key), 'a setting needs a key of its own: { key: "hints", label: "Hints", value: true }'); return undefined; }
     const s = Object.assign({ group: 'Game', type: sp.options ? 'select' : typeof sp.value === 'number' ? 'slider' : typeof sp.value === 'boolean' || sp.value === undefined ? 'toggle' : 'value' }, sp);
     this._specs[s.key] = s;
-    const saved = settingValue(s, this._raw[s.key]); if (saved !== undefined) this._saved[s.key] = saved;
+    const saved = settingValue(s, s.key in this._saved ? this._saved[s.key] : this._raw[s.key]); if (saved !== undefined) this._saved[s.key] = saved;   // (defined again: this session's choice)
     this[s.key] = saved !== undefined ? saved : this.default(s.key); this._apply(s.key);
     return this[s.key];
   }
@@ -1915,7 +1965,7 @@ class Settings {
     if (this.onChange) this.onChange(key, ok);
     return ok;
   }
-  reset(group) { for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; this[k] = this.default(k); this._apply(k); } this._save(); }
+  reset(group) { for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; delete this._raw[k]; this[k] = this.default(k); this._apply(k); } this._save(); }
   _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g.fail('setting "' + key + '"', e); } }
   _save() { if (this._g.headless) return; this.saved = store.set(this._key, { v: SETTINGS_VERSION, values: this._saved }); if (!this.saved) warn('settings:save', 'the settings could not be saved (storage is blocked or full): they last for this visit'); }
 }
@@ -3882,6 +3932,10 @@ class Dialog {
     }
     if (this._rest > 0) this._rest -= dt;
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
+    if (this.modal && !asking && inp.swipe && inp.swipe(true)) {   // swiped away: the rest skipped (a question goes to its last page, to be answered)
+      if (this.choices) { this.i = this.pages.length - 1; this.shown = this.pageLen; this._hold = 0; this._held = -1; return true; }
+      this.close(); if (this.onDone) this.onDone(); return false;
+    }
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {
       this._wait = 0;
       if (last) { this.open = false; if (this.onDone) this.onDone(); } else { this.i++; this.shown = 0; this._held = -1; }
@@ -3953,7 +4007,8 @@ class Menu {
     if (inp.repeat('down')) { this.i = (this.i + 1) % n; this._skip(1); }
     if (this.i !== old) { if (this.sound) this.game.audio.sfx('select'); if (this.onMove) this.onMove(this.i, this.items[this.i]); }
     if (inp.pressed('confirm') && !this._off(this.items[this.i])) { if (this.sound) this.game.audio.sfx('confirm'); inp.consumeAll(); if (this.onPick) this.onPick(this.i, this.items[this.i]); return true; }
-    if (inp.pressed('cancel') && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); inp.consumeAll(); this.onCancel(); return true; }
+    const sw = this.onCancel && inp.swipe && inp.swipe(), away = sw && (sw.dir === 'left' || sw.dir === 'right');   // (a sideways swipe goes back)
+    if ((inp.pressed('cancel') || away) && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); inp.consumeAll(); this.onCancel(); return true; }
     return false;
   }
   draw(r) {

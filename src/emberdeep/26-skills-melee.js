@@ -340,7 +340,7 @@ def('skills', 'leap', {
   name: 'Leap Slam', kind: 'mobility', tags: ['melee', 'attack', 'aoe', 'movement'], el: 'phys', cost: 12, cd: 6, unlock: 8, color: '#5a4a2a',
   runes: [{ id: 'meteor', name: 'Meteor Slam', desc: 'He comes down like a falling star: a fire blast on landing that leaves the ground burning.' },
     { id: 'quake', name: 'Aftershock', desc: 'Two more shockwaves roll out after the landing, each wider than the last.' }],
-  desc: (rank, rune) => 'Leap to the cursor and plunge the sword into the floor: ' + SKM_pct(2.3, rank) + ' weapon damage and a shockwave that launches. Untouchable in the air.' +
+  desc: (rank, rune) => 'Leap to where you aim and plunge the sword into the floor: ' + SKM_pct(2.3, rank) + ' weapon damage and a shockwave that launches. Untouchable in the air.' +
     (rune === 'meteor' ? ' Lands in a fire blast and burning ground.' : rune === 'quake' ? ' Two aftershocks follow.' : ''),
   icon: (g, x, y, s) => {
     const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s));

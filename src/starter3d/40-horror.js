@@ -1,13 +1,24 @@
 /* =====================================================================================
- * SLICE 4  HORROR  (Resident Evil, Alone in the Dark, Silent Hill). @modules rpg
+ * SLICE 4  HORROR  (Resident Evil, Alone in the Dark, Silent Hill). @modules rpg dualsense
  * A mansion's east and west wings by flashlight, each room under its own fixed camera (a cut as you walk on, the stick
- * keeping its way across it). Hold K (or a right click) to aim the pistol: it locks on the nearest thing in front, up and
- * down aim high and low (a dog is low), left and right pick another; J fires, or slashes with the knife (Q swaps).
- * J alone checks what is in front: doors (the door opens between rooms), things to take, the item box, the typewriter
- * (a save, in the 2D engine's slots). Shift runs; I opens the items: herbs heal, green and green or green and red mix.
- * Zombies shamble and grab (tap J to shake free), dogs run and leap; two keys and a crank open the way to what waits
- * in the gallery. Few bullets: walk round what you can. Settings, Tank controls: up walks the way you face, left and
- * right turn you. THE 3D: camera zones (world.camera.zones: fixed, one that turns after you, one on a rail), lock-on
+ * keeping its way across it). Hold aim to raise the pistol: it locks on the nearest thing in front, up and down aim high
+ * and low (a dog is low), left and right pick another; act fires, or slashes with the knife (swap). Act alone checks
+ * what is in front: doors (the door opens between rooms), things to take, the item box, the typewriter (a save, in the
+ * 2D engine's slots). Run; the items screen: herbs heal, green and green or green and red mix. Zombies shamble and grab
+ * (tap act to shake free), dogs run and leap; two keys and a crank open the way to what waits in the gallery. Few
+ * bullets: walk round what you can. Settings, Tank controls: up walks the way you face, left and right turn you.
+ * KEYS (the Resident Evil remakes' on a PC): WASD or arrows, E, F, J or Space checks (fires while aiming), a right click
+ * or K aims (a left click fires), Shift runs, Q swaps the gun and the knife, I or Tab the items; Esc closes the items
+ * screen or the box before it pauses. The mouse picks on the items screen and in the box (a click outside closes them).
+ * PAD (PlayStation names): the left stick (or the d-pad) walks, L2 (or L1) aims, R2 or ✕ fires, ✕ checks, ○ runs, △
+ * swaps, □ or the touchpad the items, ○ back in them, Options pauses. DUALSENSE: the light bar is the condition (green,
+ * amber, red beating with the heart; red as you are hurt), L2 a firm pull, R2 the handgun's break while it has a round;
+ * the pickups, the reload and the dry click from the controller's speaker; any pad rumbles on each shot, a bite, a
+ * grab, a blow, a door, and beats with your heart in DANGER. TOUCH: the stick, ITEMS, RUN, AIM, ACT named for what
+ * is there (OPEN, TAKE, BOX, SAVE, USE, LOOK; FIRE while aiming, SHAKE in a grab), SWAP (to the knife or the gun) while
+ * not aiming; the touch assists (Settings, on at first) run at the stick's rim and lower the aim at a dog when the lock
+ * moves to it. A tap picks on the items screen and in the box; a swipe closes them and takes a message away.
+ * THE 3D: camera zones (world.camera.zones: fixed, one that turns after you, one on a rail), lock-on
  * (camera.lock, cycle), tank steering (camera.steer), the door between rooms (world.through), a flashlight with a
  * failing bulb (world.flashlight), fog. HORROR.run(n): a scripted walk's hash (the proof); HORROR.bot(): to the boss
  * ===================================================================================== */
@@ -146,6 +157,24 @@ const HORROR = (() => {
   let world = null, flow = null, hero = null, H = null, lamp = null, muzzle = null, rnd = Math.random;
   let enemies = [], items = [], doors = {}, gate = null, socket = null, inv = null, box = null, flags = null, mode = 'play', menu = null, msg = null, song = null, ended = 0, scripted = false;
   const shots = [];
+  // the DUALSENSE (the dualsense module): the light bar is the condition, beating with the heart in DANGER; L2 a firm
+  // pull, R2 the handgun's break; the small sounds from its speaker (sfx). buzz: a rumble on any pad, while it is what
+  // the player plays with. ds.* only in update (a proof's steps never read them)
+  let ds = null, padLight = null, padTrig = null, flashT = 0, beat = 0, beat2 = 0, grip = 0;
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  const sfx = (name, o) => ds ? ds.speaker(name, o) : A.sfx(name, o);
+  function padExtras(dt) {
+    const S = H, rate = S.hp > 66 ? 1.2 : S.hp > 33 ? 1.8 : 2.6, live = mode === 'play' && !S.dead;
+    // any pad: the heart in DANGER (two beats at the ECG's rate), a grab's grip held on
+    if (live && S.hp <= 33) { if ((beat += dt * rate * .5) >= 1) { beat -= 1; buzz(.15, .05); beat2 = .16; } } else beat = 0;
+    if (beat2 > 0 && (beat2 -= dt) <= 0) buzz(.1, .05);
+    if (live && S.grabbed && (grip -= dt) <= 0) { grip = .1; buzz(.3, .12); }
+    if (!ds) return; flashT -= dt;
+    const [, col] = status(), pulse = (game.real * rate * .5) % 1, c = flashT > 0 ? '#ff2020' : S.dead ? '#3a0408' : S.hp > 33 ? col : pulse > .4 && pulse < .55 ? '#ff4a3a' : '#7a1810';
+    if (c !== padLight) ds.light(padLight = c);
+    const k = S.dead || mode !== 'play' ? 'free' : S.gun && S.clip > 0 ? 'gun' : 'dry';   // (set on change: the last round, the knife, a reload, a menu)
+    if (k !== padTrig) { padTrig = k; ds.trigger('left', k === 'free' ? null : { resist: [.2, .4] }); ds.trigger('right', k === 'gun' ? { weapon: [.3, .5, .6] } : null); }
+  }
   BOOT.push([E.t('horror3d.boot'), () => {
     for (const [k, v] of Object.entries(SOUNDS)) A.define(k, v);
     world = new W3(game, { level: LEVEL, torchLights: 4, torchShadows: 0, torchPower: 22, torchReach: 140, torchColor: '#ffb070', lights: 1, spots: 1,
@@ -205,7 +234,7 @@ const HORROR = (() => {
     if (S.dead) { S.deadT += dt; h.vx = h.vy = 0; h.anim = { pose: 'die' }; return; }
     if (S.grabbed) {   // held by the dead: tap the button to shake free; a bite halfway
       const z = S.grabbed; S.grabT -= dt * (ctl.pressed('act') ? 6 : 1); h.vx = h.vy = 0; h.facing = Math.atan2(z.y - h.y, z.x - h.x);
-      if (!z.bit && S.grabT < .55) { z.bit = true; hurtHero(z.type === 'boss' ? 30 : 16, h.facing + PI, true); A.sfx('bite'); }
+      if (!z.bit && S.grabT < .55) { z.bit = true; hurtHero(z.type === 'boss' ? 30 : 16, h.facing + PI, true); A.sfx('bite'); buzz(.7, .2); }
       if (S.grabT <= 0 || !z.alive) { S.grabbed = null; const a = Math.atan2(h.y - z.y, h.x - z.x); h.push(Math.cos(a) * 140, Math.sin(a) * 140); z.push(-Math.cos(a) * 90, -Math.sin(a) * 90); z.state = 'recoil'; z.t = 1; }
       h.anim = { hurt: true, expr: 'wince', point: false };
       return;
@@ -226,12 +255,15 @@ const HORROR = (() => {
       h.vx = approach(h.vx, 0, 600 * dt); h.vy = approach(h.vy, 0, 600 * dt);
       if (ctl.pressed('up')) S.aimLv = Math.min(1, S.aimLv + 1); if (ctl.pressed('down')) S.aimLv = Math.max(-1, S.aimLv - 1);
       const L = cam.lockOn;
-      if (L) { if (ctl.pressed('left')) cam.cycle(targets, -1); if (ctl.pressed('right')) cam.cycle(targets, 1); const T2 = cam.lockOn; h.facing = E.approachAng(h.facing, Math.atan2(T2.y - h.y, T2.x - h.x), dt * 9); }
+      if (L) {
+        if (ctl.pressed('left')) cam.cycle(targets, -1); if (ctl.pressed('right')) cam.cycle(targets, 1); const T2 = cam.lockOn; h.facing = E.approachAng(h.facing, Math.atan2(T2.y - h.y, T2.x - h.x), dt * 9);
+        if (ctl.assist && T2 !== L) S.aimLv = T2.type === 'dog' ? -1 : 0;   // (the touch assists: the aim's height follows the one now locked, as the first lock's does)
+      }
       else { if (!cam.lock(h, targets)) h.facing += (ctl.move[0] ? Math.sign(ctl.move[0]) : 0) * 2.6 * dt; }
       if (ctl.pressed('act') && S.fireT <= 0) { ctl.use('act'); S.gun ? fire() : slash(); }
     } else {
       // walk or run: the camera's way, or tank controls (Settings)
-      const mv = ctl.move, ml = Math.hypot(mv[0], mv[1]), sp = (ctl.down('run') ? RUN : WALK) * (S.hp <= 33 ? .7 : 1), acc = 500 * dt;
+      const mv = ctl.move, ml = Math.hypot(mv[0], mv[1]), sp = (ctl.down('run') || (ctl.assist && ml > .9) ? RUN : WALK) * (S.hp <= 33 ? .7 : 1), acc = 500 * dt;   // (the touch assists: a run at the stick's rim)
       h.vx = approach(h.vx, mv[0] * sp, acc); h.vy = approach(h.vy, mv[1] * sp, acc);
       if (ml > .1 && !ctl.tank) h.facing = E.approachAng(h.facing, Math.atan2(mv[1], mv[0]), dt * 9);
       if (ctl.pressed('swap')) { ctl.use('swap'); S.gun = !S.gun; h.rig.o.weapon = S.gun ? 'gun' : 'sword'; h.rig.o.bladeLen = 5; A.sfx('select'); say(E.t(S.gun ? 'horror3d.say.handgun' : 'horror3d.say.knife'), 1); }
@@ -243,8 +275,8 @@ const HORROR = (() => {
   /** the handgun: a shot along the aim (world.ray), the first body it meets hurt; a high shot at a head hurts more */
   function fire() {
     const h = hero, S = H;
-    if (S.clip <= 0) { if (inv.count('ammo') > 0) { S.reloadT = 1.1; S.aim = false; world.camera.unlock(); A.sfx('reload'); } else { A.sfx('dry'); say(E.t('horror3d.say.no_bullets'), 1.2); } S.fireT = .4; return; }
-    S.clip--; S.fireT = .42; S.shots++; A.sfx('gun'); game.shake(1.5);
+    if (S.clip <= 0) { if (inv.count('ammo') > 0) { S.reloadT = 1.1; S.aim = false; world.camera.unlock(); sfx('reload'); } else { sfx('dry'); say(E.t('horror3d.say.no_bullets'), 1.2); } S.fireT = .4; return; }
+    S.clip--; S.fireT = .42; S.shots++; A.sfx('gun'); game.shake(1.5); buzz(.35, .08);
     const a = h.facing, va = AIM_A[S.aimLv + 1], ca = Math.cos(va), x = h.x + Math.cos(a) * 7, y = h.y + Math.sin(a) * 7, z = h.z + 19;
     const hit = world.ray(x, y, z, Math.cos(a) * ca, Math.sin(a) * ca, Math.sin(va), 300, { skip: h });
     shots.push({ x, y, z, x1: hit ? hit.x : x + Math.cos(a) * ca * 300, y1: hit ? hit.y : y + Math.sin(a) * ca * 300, z1: hit ? hit.z : z + Math.sin(va) * 300, t: .06 });
@@ -258,7 +290,7 @@ const HORROR = (() => {
   function hurtHero(dmg, ang, held = false) {
     const h = hero, S = H; if (S.dead || (S.inv > 0 && !held)) return false;
     S.hp -= dmg; S.inv = .6; h.flash = .08; if (!held) { S.hurtT = .35; h.push(Math.cos(ang) * 110, Math.sin(ang) * 110); }
-    game.shake(3); game.flash('#7a0000', .12, .35); A.sfx('hurt'); P.bits(h.x, h.y, h.z + 16, 6, ['#7a1010', '#a02020']);
+    game.shake(3); game.flash('#7a0000', .12, .35); A.sfx('hurt'); P.bits(h.x, h.y, h.z + 16, 6, ['#7a1010', '#a02020']); if (!held) buzz(dmg >= 26 ? .8 : .5, dmg >= 26 ? .3 : .15); flashT = .3;
     world.camera.unlock(); S.aim = false;
     if (S.hp <= 0) { S.hp = 0; S.dead = true; S.deadT = 0; S.grabbed = null; A.music(null); A.sfx('die'); }
     return true;
@@ -284,12 +316,12 @@ const HORROR = (() => {
         if (r === 'locked') { say(E.t(was === 'ironkey' ? 'horror3d.say.locked_iron' : 'horror3d.say.locked_brass')); A.sfx('bump'); return; }
         flags.open.push(d.id); say(E.t('horror3d.say.used', { item: E.lang.upper(rpg.items[was].name) })); A.sfx('key'); return;
       }
-      if (world.through(t, hero, { then: () => { autosave(); } })) A.sfx('door');
+      if (world.through(t, hero, { then: () => { autosave(); } })) { A.sfx('door'); buzz(.1, .6); }
       return;
     }
     if (d.item) {
       if (!inv.add(d.item, d.n)) { say(E.t('horror3d.say.no_room_box')); A.sfx('bump'); return; }
-      flags.taken.push(d.key); world.remove(t); items.splice(items.indexOf(t), 1); A.sfx(d.item.endsWith('key') ? 'key' : 'pickup');
+      flags.taken.push(d.key); world.remove(t); items.splice(items.indexOf(t), 1); sfx(d.item.endsWith('key') ? 'key' : 'pickup');
       say(E.t('horror3d.say.took', { item: E.lang.upper(rpg.items[d.item].name), count: d.n })); return;
     }
     if (t.kind === 'trunk') { openBox(); return; }
@@ -389,40 +421,60 @@ const HORROR = (() => {
 
   /* ---- THE ITEMS SCREEN (I) and THE ITEM BOX: the world stands still while they are open ---- */
   const status = () => H.hp > 66 ? [E.t('horror3d.status.fine'), '#5ad070'] : H.hp > 33 ? [E.t('horror3d.status.caution'), '#e8c040'] : [E.t('horror3d.status.danger'), '#e8483a'];
-  function openItems() { mode = 'items'; menu = { i: 0, pick: null, sub: null }; A.sfx('select'); world.camera.unlock(); H.aim = false; }
-  function openBox() { mode = 'box'; menu = { side: 0, i: 0 }; A.sfx('door'); }
+  function openItems() { mode = 'items'; menu = { i: 0, pick: null, sub: null, mt: game.input.mouse.t, skip: game.input.down('act') }; A.sfx('select'); world.camera.unlock(); H.aim = false; }
+  function openBox() { mode = 'box'; menu = { side: 0, i: 0, top: [0, 0], mt: game.input.mouse.t, skip: game.input.down('act') }; A.sfx('door'); }
+  function closeScreen() { const was = mode; mode = 'play'; menu = null; if (was === 'box') A.sfx('door'); }
   function useItem(id) {
     const it = rpg.items[id];
     if (it.heal) { if (H.hp >= HP) { say(E.t('horror3d.say.fine')); return; } inv.remove(id); H.hp = Math.min(HP, H.hp + it.heal); A.sfx('heal'); say(E.t('horror3d.say.better')); return; }
     say(it.info);
   }
+  // where the screens' parts were drawn last (the HUD writes them; the steps hit-test the mouse and taps on them): the
+  // panel, the items' six slots and the USE / MIX / INFO rows; the box's rows ([side, index, x, y, w, h]) and headings
+  const lay = { panel: null, slots: [], sub: [], rows: [], heads: [] };
+  /** this step's way in on a screen: the keys and buttons, the mouse's hover (the cursor goes where it points), a click or
+   *  a tap (on a part: pick it; outside the panel: back), a swipe (back). A left click is read as a click only, not as
+   *  act's press as well (it is one of act's codes) */
+  function screenInput() {
+    const I = game.input, M = menu, moved = I.mouse.t !== M.mt; M.mt = I.mouse.t;
+    let click = I.clicked(); if (M.skip && (click || !I.down('act'))) { M.skip = false; click = null; }   // (the click that ends the press that opened it is not one on it)
+    const pick = (I.pressed('act') && I.lastDevice !== 'mouse') || I.pressed('confirm'), back = I.pressed('items') || I.pressed('cancel') || !!I.swipe(true);
+    return { I, click, hover: moved ? I.pointer() : null, pick, back, outside: !!click && lay.panel && I.hit([lay.panel], click) < 0 };
+  }
   function itemsStep() {
-    const I = game.input, M = menu, list = inv.list(), n = 6;
-    if (I.pressed('items') || I.pressed('cancel')) { I.consumeAll(); if (M.sub) M.sub = null; else { mode = 'play'; menu = null; } return; }
+    const { I, click, hover, pick: key, back, outside } = screenInput(), M = menu, list = inv.list(), n = 6;
+    let pick = key, out = back || outside;
+    if (M.sub) { if (hover) { const j = I.hit(lay.sub, hover); if (j >= 0) M.sub.i = j; } if (click) { const j = I.hit(lay.sub, click); if (j >= 0) { M.sub.i = j; pick = true; } else out = true; } }
+    else { if (hover) { const k = I.hit(lay.slots, hover); if (k >= 0) M.i = k; } if (click && !outside) { const k = I.hit(lay.slots, click); if (k >= 0) { M.i = k; pick = true; } } }
+    if (out) { I.consumeAll(); if (M.sub) M.sub = null; else closeScreen(); return; }
     if (M.sub) {   // USE, MIX, INFO
       if (I.pressed('up')) M.sub.i = (M.sub.i + 2) % 3; if (I.pressed('down')) M.sub.i = (M.sub.i + 1) % 3;
-      if (I.pressed('act') || I.pressed('confirm')) { I.consumeAll(); const s = list[M.i], c = M.sub.i; M.sub = null; if (!s) return; if (c === 0) useItem(s.id); else if (c === 1) { M.pick = M.i; say(E.t('horror3d.say.mix_with'), 2); } else say(s.item.info); A.sfx('confirm'); }
+      if (pick) { I.consumeAll(); const s = list[M.i], c = M.sub.i; M.sub = null; if (!s) return; if (c === 0) useItem(s.id); else if (c === 1) { M.pick = M.i; say(E.t('horror3d.say.mix_with'), 2); } else say(s.item.info); A.sfx('confirm'); }
       return;
     }
     if (I.pressed('left')) M.i = (M.i + n - 1) % n; if (I.pressed('right')) M.i = (M.i + 1) % n;
     if (I.pressed('up') || I.pressed('down')) M.i = (M.i + 3) % n;
-    if (I.pressed('act') || I.pressed('confirm')) {
+    if (pick) {
       I.consumeAll(); const s = list[M.i]; if (!s) return;
       if (M.pick !== null) { const a = list[M.pick], r = a && M.pick !== M.i && MIX[a.id + '+' + s.id]; M.pick = null; if (!r) { say(E.t('horror3d.say.no_mix')); A.sfx('bump'); return; } inv.remove(a.id); inv.remove(s.id); inv.add(r); A.sfx('heal'); say(E.t('horror3d.say.mixed', { item: rpg.items[r].name })); return; }
       M.sub = { i: 0 }; A.sfx('select');
     }
   }
   function boxStep() {
-    const I = game.input, M = menu, lists = [inv.list(), box.list()];
-    if (I.pressed('cancel') || I.pressed('items')) { I.consumeAll(); mode = 'play'; menu = null; A.sfx('door'); return; }
+    const { I, click, hover, pick: key, back, outside } = screenInput(), M = menu, lists = [inv.list(), box.list()];
+    let pick = key;
+    if (back || outside) { I.consumeAll(); closeScreen(); return; }
+    const row = p => { const k = I.hit(lay.rows.map(r => r.slice(2)), p); return k >= 0 ? lay.rows[k] : null; };
+    if (hover) { const r = row(hover); if (r) { M.side = r[0]; M.i = r[1]; } }
+    if (click) { const r = row(click), h = I.hit(lay.heads, click); if (r) { M.side = r[0]; M.i = r[1]; pick = true; } else if (h >= 0 && h !== M.side) { M.side = h; M.i = 0; A.sfx('select'); } }
     if (I.pressed('left') || I.pressed('right')) { M.side ^= 1; M.i = 0; A.sfx('select'); }
     const L = lists[M.side], cap = M.side ? Math.max(1, L.length) : 6;
     if (I.pressed('up')) M.i = (M.i + cap - 1) % cap; if (I.pressed('down')) M.i = (M.i + 1) % cap;
-    if (I.pressed('act') || I.pressed('confirm')) {
+    if (pick) {
       I.consumeAll(); const s = L[M.i]; if (!s) return;
       const from = M.side ? box : inv, to = M.side ? inv : box;
       if (!to.add(s.id, s.n)) { say(E.t('horror3d.say.no_room')); A.sfx('bump'); return; }
-      from.remove(s.id, s.n); A.sfx('pickup'); M.i = Math.max(0, Math.min(M.i, lists[M.side].length - 2));
+      from.remove(s.id, s.n); sfx('pickup'); M.i = Math.max(0, Math.min(M.i, lists[M.side].length - 2));
     }
   }
 
@@ -451,48 +503,85 @@ const HORROR = (() => {
     for (let i = 0; i < w; i++) { const u = (i / w + t * rate * .5) % 1, v = u > .42 && u < .46 ? -6 : u > .46 && u < .5 ? 5 : u > .5 && u < .53 ? -2 : 0; E.px.rect(g, x + i, y + v, 1, 1, color); }
   }
   function hud(g, r) {
-    const [word, col] = status();
+    const [word, col] = status(), lh = E.font.lineHeight(), ta = game.input.touchArea();
     if (mode === 'play') {
-      E.font.text(g, word, 6, 6, col, { outline: '#000', font: 'tiny' }); ecg(g, 6, 18, 40, col, game.real);
-      if (H.aim) { const weapon = H.gun ? E.t('horror3d.hud.handgun', { clip: H.clip, ammo: inv.count('ammo') }) : E.t('horror3d.hud.knife'); E.font.text(g, H.aimLv ? E.t(H.aimLv > 0 ? 'horror3d.hud.high' : 'horror3d.hud.low', { weapon }) : weapon, r.W - 6, 6, '#e8e0d0', { align: 'right', outline: '#000', font: 'tiny' }); }
-      if (H.reloadT > 0) E.font.text(g, E.t('horror3d.hud.reloading'), r.W - 6, 6, '#e8c040', { align: 'right', outline: '#000', font: 'tiny' });
-      if (H.grabbed) E.font.text(g, E.t('horror3d.hud.shake_free', { key: touch() ? TOUCH_LABELS.act : game.input.label('act') }), r.W / 2, r.H / 2 + 30, '#ff8a7a', { align: 'center', outline: '#000' });
+      // the condition, top left; the weapon while aiming, top right (under the corner's buttons where they stay)
+      const ca = game.cornerArea({ pinned: true }), ry = ca ? Math.ceil(ca.y1) + 3 : 6;
+      E.font.text(g, word, 6, 6, col, { outline: '#000' }); ecg(g, 6, 14 + lh, 40, col, game.real);
+      if (H.aim) { const weapon = H.gun ? E.t('horror3d.hud.handgun', { clip: H.clip, ammo: inv.count('ammo') }) : E.t('horror3d.hud.knife'); E.font.text(g, H.aimLv ? E.t(H.aimLv > 0 ? 'horror3d.hud.high' : 'horror3d.hud.low', { weapon }) : weapon, r.W - 6, ry, '#e8e0d0', { align: 'right', outline: '#000' }); }
+      if (H.reloadT > 0) E.font.text(g, E.t('horror3d.hud.reloading'), r.W - 6, ry, '#e8c040', { align: 'right', outline: '#000' });
+      if (H.grabbed) E.font.text(g, E.t('horror3d.hud.shake_free', { key: game.input.label('act') }), r.W / 2, r.H / 2 + 30, '#ff8a7a', { align: 'center', outline: '#000' });   // (on a touch screen its button's label: SHAKE)
     }
-    // (the message: above the touch buttons on a phone)
-    if (msg) { const w = Math.min(r.W - 20, 300), ta = game.input.touchArea(), y = ta && ta.y0 < r.H - 24 ? Math.min(r.H - 46, ta.y0 - 28) : r.H - 46; E.ui.box(g, (r.W - w) / 2, y, w, 22, { bg: '#08060a', border: '#5a5060' }); E.font.text(g, msg.text, r.W / 2, y + 7, '#e8e0d0', { align: 'center', outline: false, font: Math.max(msg.text.length * 6, E.font.width(msg.text)) > w - 12 ? 'tiny' : undefined }); }   // (counted at 6 a letter, as the widest; wider where the device's font draws it)
+    // the message, wrapped (the normal font, read from a sofa), above the touch buttons on a phone; a swipe takes it away
+    const foot = ta && ta.y0 < r.H - 8 ? Math.round(ta.y0) - 6 : r.H - 8;
+    let top = foot;
+    if (msg) {
+      const w = Math.min(r.W - 20, 300), L = E.font.wrap(msg.text, w - 12), h = L.length * lh + 8; top = foot - h;
+      E.ui.box(g, Math.round((r.W - w) / 2), top, w, h, { bg: '#08060a', border: '#5a5060' }); L.forEach((t, k) => E.font.text(g, t, r.W / 2, top + 5 + k * lh, '#e8e0d0', { align: 'center', outline: false }));
+    }
+    // the controls for the first seconds of play, in the player's own keys or buttons (on a touch screen its buttons say
+    // them), over the message; a swipe takes them away
+    if (mode === 'play' && hintT > 0 && !touch() && !H.dead) {
+      const L = []; let row = ''; for (const p of E.t('horror3d.hint').split(/\s{2,}/)) { const t = row ? row + '   ' + p : p; if (row && E.font.width(t) > r.W - 12) { L.push(row); row = p; } else row = t; } if (row) L.push(row);
+      const y0 = top - 6 - L.length * lh, a = clamp(hintT, 0, 1);
+      g.save(); g.globalAlpha = .5 * a; g.fillStyle = '#05030c'; g.fillRect(0, y0 - 3, r.W, L.length * lh + 4); g.restore(); g._c = null;
+      L.forEach((t, k) => E.font.text(g, t, r.W / 2, y0 + k * lh, '#e8e0d0', { align: 'center', outline: '#000' }));
+    }
+    // the items screen: the condition and the gun on the left, six slots on the right, the focused one's name and what it
+    // is under them (the normal font, wrapped to three rows: read from a sofa); USE, MIX, INFO over a slot picked
     if (mode === 'items') {
-      const M = menu, list = inv.list(), w = Math.min(r.W - 16, 330), x0 = (r.W - w) / 2, y0 = Math.max(8, r.H / 2 - 90);
+      const M = menu, list = inv.list(), w = Math.min(r.W - 16, 330), x0 = Math.round((r.W - w) / 2), s = list[M.i], info = (s ? E.font.wrap(s.item.info, w - 20) : []).slice(0, 3), h = 118 + lh + 6 + 3 * lh + 8, y0 = Math.max(8, Math.round(r.H / 2 - h / 2));
       g.save(); g.fillStyle = '#000'; g.globalAlpha = .7; g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
-      E.ui.box(g, x0, y0, w, 160, { bg: '#0c0a10', border: '#6a6070' });
-      E.font.text(g, E.t('horror3d.items.condition'), x0 + 10, y0 + 8, '#a8a0b0', { font: 'tiny', outline: false }); E.font.text(g, word, x0 + 10, y0 + 20, col, { outline: false }); ecg(g, x0 + 10, y0 + 40, 90, col, game.real);
-      E.font.text(g, H.gun ? E.t('horror3d.items.handgun', { clip: H.clip, ammo: inv.count('ammo') }) : E.t('horror3d.hud.knife'), x0 + 10, y0 + 54, '#e8e0d0', { font: 'tiny', outline: false });
+      E.ui.box(g, x0, y0, w, h, { bg: '#0c0a10', border: '#6a6070' }); lay.panel = [x0, y0, w, h];
+      E.font.text(g, E.t('horror3d.items.condition'), x0 + 10, y0 + 8, '#a8a0b0', { outline: false }); E.font.text(g, word, x0 + 10, y0 + 10 + lh, col, { outline: false }); ecg(g, x0 + 10, y0 + 22 + 2 * lh, Math.min(90, w - 206), col, game.real);
+      E.font.wrap(H.gun ? E.t('horror3d.items.handgun', { clip: H.clip, ammo: inv.count('ammo') }) : E.t('horror3d.hud.knife'), w - 206).forEach((t, k) => E.font.text(g, t, x0 + 10, y0 + 34 + 2 * lh + k * lh, '#e8e0d0', { outline: false }));
+      lay.slots = [];
       for (let i = 0; i < 6; i++) {
-        const s = list[i], cx = x0 + w - 186 + (i % 3) * 60, cy = y0 + 10 + Math.floor(i / 3) * 52, sel = i === M.i, pk = M.pick === i;
+        const t = list[i], cx = x0 + w - 186 + (i % 3) * 60, cy = y0 + 10 + Math.floor(i / 3) * 52, sel = i === M.i, pk = M.pick === i; lay.slots.push([cx, cy, 54, 46]);
         E.ui.box(g, cx, cy, 54, 46, { bg: sel ? '#2a2234' : '#16121c', border: pk ? '#e8c040' : sel ? '#e8e0d0' : '#4a4250' });
-        if (s) { E.px.sprite(g, ICONS[s.id], cx + 17, cy + 7, { scale: 2 }); if (s.n > 1) E.font.text(g, String(s.n), cx + 50, cy + 34, '#e8e0d0', { align: 'right', font: 'tiny', outline: '#000' }); }
+        if (t) { E.px.sprite(g, ICONS[t.id], cx + 17, cy + 7, { scale: 2 }); if (t.n > 1) E.font.text(g, String(t.n), cx + 50, cy + 46 - lh, '#e8e0d0', { align: 'right', outline: '#000' }); }
       }
-      const s = list[M.i]; E.font.text(g, s ? s.item.name : '', x0 + 10, y0 + 120, '#ffe0a0', { outline: false }); E.font.text(g, s ? s.item.info : '', x0 + 10, y0 + 134, '#c8c0d0', { font: 'tiny', outline: false });
-      if (M.sub) { const sx = x0 + w - 186 + (M.i % 3) * 60 + 30, sy = y0 + 10 + Math.floor(M.i / 3) * 52 + 26; E.ui.box(g, sx, sy, 50, 40, { bg: '#08060a', border: '#e8e0d0' }); [E.t('horror3d.items.use'), E.t('horror3d.items.mix'), E.t('horror3d.items.info')].forEach((t, k) => E.font.text(g, (k === M.sub.i ? '▸' : ' ') + t, sx + 5, sy + 5 + k * 11, k === M.sub.i ? '#ffd36a' : '#e8e0d0', { font: 'tiny', outline: false })); }
+      E.font.text(g, s ? s.item.name : '', x0 + 10, y0 + 118, '#ffe0a0', { outline: false }); info.forEach((t, k) => E.font.text(g, t, x0 + 10, y0 + 118 + lh + 6 + k * lh, '#c8c0d0', { outline: false }));
+      lay.sub = [];
+      if (M.sub) {
+        const L = [E.t('horror3d.items.use'), E.t('horror3d.items.mix'), E.t('horror3d.items.info')], bw = Math.max(...L.map(t => E.font.width('▸' + t))) + 12, bh = 3 * (lh + 2) + 8;
+        const sx = Math.min(x0 + w - bw - 4, x0 + w - 186 + (M.i % 3) * 60 + 30), sy = y0 + 10 + Math.floor(M.i / 3) * 52 + 26; E.ui.box(g, sx, sy, bw, bh, { bg: '#08060a', border: '#e8e0d0' });
+        L.forEach((t, k) => { lay.sub.push([sx, sy + 4 + k * (lh + 2), bw, lh + 2]); E.font.text(g, (k === M.sub.i ? '▸' : ' ') + t, sx + 5, sy + 5 + k * (lh + 2), k === M.sub.i ? '#ffd36a' : '#e8e0d0', { outline: false }); });
+      }
     }
+    // the item box: yours and the box's, side by side, six rows each (the list scrolls to keep the cursor in view), each an
+    // item's icon and its name in the normal font
     if (mode === 'box') {
-      const M = menu, w = Math.min(r.W - 16, 330), x0 = (r.W - w) / 2, y0 = Math.max(8, r.H / 2 - 90), L = [inv.list(), box.list()];
+      const M = menu, w = Math.min(r.W - 16, 330), x0 = Math.round((r.W - w) / 2), rh = Math.max(lh + 3, 12), h = 12 + lh + 6 * rh + 8, y0 = Math.max(8, Math.round(r.H / 2 - h / 2)), L = [inv.list(), box.list()];
       g.save(); g.fillStyle = '#000'; g.globalAlpha = .7; g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
+      lay.panel = [x0, y0, w, h]; lay.rows = []; lay.heads = [];
       [E.t('horror3d.box.yours'), E.t('horror3d.box.box')].forEach((t, side) => {
-        const x = x0 + side * (w / 2 + 2), ww = w / 2 - 2; E.ui.box(g, x, y0, ww, 170, { bg: '#0c0a10', border: M.side === side ? '#e8e0d0' : '#4a4250' });
-        E.font.text(g, t, x + 8, y0 + 7, '#a8a0b0', { font: 'tiny', outline: false });
-        const rows = side ? Math.max(1, L[1].length) : 6;
-        for (let i = 0; i < Math.min(rows, 12); i++) { const s = L[side][i], sel = M.side === side && M.i === i; E.font.text(g, (sel ? '▸ ' : '  ') + (s ? E.t('horror3d.box.item', { item: s.item.name, count: s.n }) : '-'), x + 6, y0 + 20 + i * 12, sel ? '#ffd36a' : '#e8e0d0', { font: 'tiny', outline: false }); }
+        const x = x0 + side * (w / 2 + 2), ww = w / 2 - 2; E.ui.box(g, x, y0, ww, h, { bg: '#0c0a10', border: M.side === side ? '#e8e0d0' : '#4a4250' }); lay.heads.push([x, y0, ww, lh + 8]);
+        E.font.text(g, t, x + 8, y0 + 6, M.side === side ? '#ffd36a' : '#a8a0b0', { outline: false });
+        const rows = side ? Math.max(1, L[1].length) : 6, top = M.side === side ? (M.top[side] = clamp(M.top[side], M.i - 5, M.i)) : M.top[side];
+        for (let k = 0; k < Math.min(6, rows - top); k++) {
+          const i = top + k, s = L[side][i], sel = M.side === side && M.i === i, y = y0 + 10 + lh + k * rh; lay.rows.push([side, i, x + 2, y - 1, ww - 4, rh]);
+          if (sel) E.px.rect(g, x + 3, y - 1, ww - 6, rh, '#2a2234');
+          if (s) { E.px.sprite(g, ICONS[s.id], x + 6, y + Math.round((rh - 9) / 2) - 1); E.font.text(g, E.t('horror3d.box.item', { item: s.item.name, count: s.n }), x + 18, y + 1, sel ? '#ffd36a' : '#e8e0d0', { outline: false }); }
+          else E.font.text(g, '-', x + 18, y + 1, '#6a6070', { outline: false });
+        }
+        if (top > 0) E.font.text(g, '▲', x + ww - 10, y0 + 6, '#a8a0b0', { outline: false }); if (rows - top > 6) E.font.text(g, '▼', x + ww - 10, y0 + h - lh - 2, '#a8a0b0', { outline: false });
       });
     }
   }
 
   /* ---- the controls this step: the stick by the player's setting (camera.steer), the buttons ---- */
   const KEYS = { up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
-    act: ['KeyJ', 'Space', 'Mouse0', 'Pad0'], aim: ['KeyK', 'Mouse2', 'Pad6', 'Pad4'], run: ['ShiftLeft', 'ShiftRight', 'Pad1'], swap: ['KeyQ', 'Pad3'], items: ['KeyI', 'Tab', 'Pad2'],
+    // (E and F check as a PC's remake does, J, Space and a left click too; R2 fires while aiming, the remakes' trigger;
+    // the touchpad opens the items as well as □)
+    act: ['KeyE', 'KeyF', 'KeyJ', 'Space', 'Mouse0', 'Pad0', 'Pad7'], aim: ['KeyK', 'Mouse2', 'Pad6', 'Pad4'], run: ['ShiftLeft', 'ShiftRight', 'Pad1'], swap: ['KeyQ', 'Pad3'], items: ['KeyI', 'Tab', 'Pad2', 'Pad17'],
     start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
-  const TOUCH = ['items', 'run', 'aim', 'act'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t('action.' + a))]));   // (the actions' names: ITEMS, RUN, AIM, ACT)
-  const ctl = { move: [0, 0], tank: false, down: a => game.input.down(a), pressed: a => game.input.pressed(a), use: a => game.input.consume(a) };
-  function controls(dt) { ctl.tank = world.camera.tank; world.camera.steer(hero, game.input.move(), H.aim || H.grabbed || H.dead ? 0 : dt, ctl.move); if (H.aim) ctl.move[0] = game.input.move()[0]; return ctl; }
+  // the touch buttons (the actions' names: ITEMS, SWAP, RUN, AIM, ACT); ACT and SWAP are named for what they do (update)
+  const TOUCH = ['swap', 'items', 'run', 'aim', 'act'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t('action.' + a))]));
+  // (assist: the touch assists, from the player's input: a proof's and the bot's own controls have none)
+  const ctl = { move: [0, 0], tank: false, assist: false, down: a => game.input.down(a), pressed: a => game.input.pressed(a), use: a => game.input.consume(a) };
+  function controls(dt) { ctl.tank = world.camera.tank; ctl.assist = game.input.assist; world.camera.steer(hero, game.input.move(), H.aim || H.grabbed || H.dead ? 0 : dt, ctl.move); if (H.aim) ctl.move[0] = game.input.move()[0]; return ctl; }
+  let hintT = 0;   // the controls' hint: seconds left
 
   /** the proof: a scripted walk from the foyer, the stick held up across a cut (it keeps its way, as a player's does),
    *  to the west door (the door between rooms), then aim at the dead in the hall (the lock) and shoot; n steps of 1/120
@@ -570,21 +659,35 @@ const HORROR = (() => {
 
   return {
     view: 'iso', input: KEYS, pausable: true, touch: TOUCH, camera: { zoom: [.6, 2] },
+    // (Esc, as a phone's back gesture: the items screen or the box closes, else the pause)
+    escape: 'back',
+    back() { if (mode !== 'items' && mode !== 'box') return false; if (menu.sub) menu.sub = null; else closeScreen(); game.input.consumeAll(); return true; },
     enter() {
-      game.settings.define(W3.CONTROLS); reset(1); active = world; A.music(null); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
+      game.settings.define(Object.assign({}, W3.CONTROLS, { show: g => g.sceneName === 'horror' })); reset(1); active = world; A.music(null); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
+      ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; padLight = padTrig = null; flashT = beat = beat2 = 0; hintT = 8;
       game.saves.write = state; game.saves.read = s => reset(1, s.data);
       if (game.saves.any) { mode = 'intro'; menu = new E.Menu(game, [E.t('horror3d.intro.continue'), E.t('horror3d.intro.new')], { y: 'center', onPick: i => { mode = 'play'; menu = null; if (i === 0) game.saves.load(game.saves.latest().slot); } }); }
       say(E.t('horror3d.say.intro'), 3.5);
     },
+    exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
     update(dt) {
+      const inp = game.input; padExtras(dt);
       if (mode === 'intro') { menu.update(dt); world.step(0); return; }
       if (mode === 'items') { itemsStep(); world.step(0); return; }
       if (mode === 'box') { boxStep(); world.step(0); return; }
-      if (game.input.pressed('items') && !H.dead && !world.passing && !H.grabbed) { openItems(); return; }
+      hintT -= dt;
+      if (inp.swipe()) { if (msg) { inp.swipe(true); msg = null; } else if (hintT > 0) { inp.swipe(true); hintT = 0; } }   // (a swipe: the message away, else the controls)
+      if (inp.pressed('items') && !H.dead && !world.passing && !H.grabbed) { openItems(); return; }
       step(dt, controls(dt));
       const want = H.room === 'gallery' && enemies.some(e => e.type === 'boss' && e.alive) ? DREAD : H.room === 'foyer' ? SAFE : HALL;
       if (want !== song && !ended && !H.dead) { song = want; A.music(want); }
-      const inp = game.input; inp.touchSet('act', H.aim ? E.t('horror3d.touch.fire') : null, true);
+      // ACT named for what it does here (OPEN, TAKE, BOX, SAVE, USE, LOOK; FIRE or STAB while aiming, SHAKE in a grab),
+      // always in its place at the edge (FIRE comes where the thumb that aims expects it); SWAP to the other weapon while
+      // not aiming, first in the row, so its coming and going moves no other button
+      const t = H.aim || H.grabbed || H.dead || world.passing ? null : world.reach(hero, 16), d = (t && t.data) || {};
+      const what = H.dead ? null : H.grabbed ? 'shake' : H.aim ? (H.gun ? 'fire' : 'stab') : !t ? null : t.kind === 'door' ? (d.id === 'gate' ? 'look' : 'open') : d.item ? 'take' : t.kind === 'trunk' ? 'box' : t.kind === 'typewriter' ? 'save' : t === socket ? 'use' : null;
+      inp.touchSet('act', what ? E.t('horror3d.touch.' + what) : null);
+      inp.touchSet('swap', E.t(H.gun ? 'horror3d.hud.knife' : 'horror3d.touch.gun'), !H.aim && !H.grabbed && !H.dead);
     },
     draw(r) {
       world.draw(r);

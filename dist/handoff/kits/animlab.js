@@ -1,5 +1,5 @@
 // The ANIMATION LAB kit's game (every move, pose, skin and view of the character rigs), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/60-animlab.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/60-animlab.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. animlab.html plays it; node kits/test.mjs animlab runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -168,10 +173,15 @@ scenes.over = {
 /* =====================================================================================
  * SLICE 6  ANIMATION LAB. Every animation the rigs can do, on every skin, from every view: locomotion, every E.MOVES
  * attack (with its wind / hit / recover timeline and frozen key poses), combos, poses, reactions, stances and gun aims.
- * Up / Down pick the animation, Left / Right the skin, L lines every skin up, F turns them round, B shows the skeleton,
- * T the weapon trail, Space pauses, . steps one frame, S plays at quarter speed, J (or Enter) replays, H hides the HUD,
- * Esc goes back to the title. The shell's camera keys work: V view, - = zoom, [ ] turn, 0 reset. TOUCH: the stick picks
- * (up, down) and changes the skin (left, right); REPLAY, SLOW, HOLD (pause).
+ * KEYS: ↑ ↓ pick the animation, ← → the skin, L lines every skin up, F turns them round, B shows the skeleton, T the
+ * weapon trail, Space pauses, . steps one frame, S plays at quarter speed, J (or Enter) replays, H hides the HUD, V the
+ * camera's view and [ ] turn it (the lab's own: the shell's stand aside), - = or the wheel zoom, 0 resets; Esc opens the
+ * menu (Settings, Controls, Quit to title). THE MOUSE: over the animation list it lights a row, a click plays it; a click
+ * on ← or → beside the skin's name changes it, on the name lines them up. PAD: the d-pad or stick picks, ✕ replay, □
+ * pause, △ slow, ○ flip, L1 lineup, R1 step, L2 trail, R2 bones, L3 HUD, R3 view, the right stick turns (← →) and zooms
+ * (↑ ↓), Options the menu. The legend names the most used for the device in use; the Controls screen has them all. TOUCH:
+ * the stick, or a swipe (↕ animation, ↔ skin); REPLAY, SLOW, PAUSE, FLIP, LINEUP (STEP while paused); a tap on a list row
+ * or a skin arrow, as a click.
  * HOW IT WORKS: one clock drives every subject, so the lineup stays in sync. A move is an E.Attack, a combo an E.Combo,
  * and a straw dummy takes the hits with hit-stop. Everything else is a list of timed phases whose fields go straight
  * into rig.update. Blobs turn every move into their own attack: a bite, a leap, a pounce (the bat darts and dives) or a spit.
@@ -518,42 +528,51 @@ const ANIMLAB = (() => {
    * The top line stays free for the shell's notes (ZOOM 2x, SIDE VIEW) ---- */
   const WIN = { bg: ['#2c2458', '#0e0a20'], border: '#b0a0e8' }, SEE = Object.assign({ alpha: .75 }, WIN);
   const TXT = { outline: false, shadow: '#07050e' }, TINY = Object.assign({ font: 'tiny' }, TXT), RIGHT = o => Object.assign({ align: 'right' }, o);
-  // the keys: two rows of hints, each a line (animlab.legend.<hint>: the lab's own keys as control tags, the shell's camera
-  // keys by name); on a phone, two lines of their own
-  const LEGEND = [['animation', 'skin', 'view', 'zoom', 'turn', 'reset', 'flip'], ['pause', 'step', 'slow', 'trail', 'bones', 'lineup', 'replay', 'hud']];
-  const legend = () => touch() ? [E.t('animlab.legend.touch_pick'), E.t('animlab.legend.touch_buttons')] : LEGEND.map(row => row.map(h => E.t('animlab.legend.' + h)).join('  '));
+  // the keys: two rows of the hints used most, each a line (animlab.legend.<hint>: the player's own keys or buttons, a
+  // pair of them as one: ↑↓, [ ], 'R stick ←→'; the engine's zoom keys by their names); the rest are on the Controls
+  // screen. On a phone, two lines of their own
+  const LEGEND = [['animation', 'skin', 'replay', 'pause', 'slow'], ['lineup', 'flip', 'view', 'turn', 'zoom']];
+  const pair = (a, b) => { const I = game.input, x = I.label(a, undefined, { short: true }), y = I.label(b, undefined, { short: true }); return x.slice(0, -1) === y.slice(0, -1) && x.length > 1 ? x + y.slice(-1) : x.length === 1 && y.length === 1 && x !== '[' ? x + y : x + ' ' + y; };
+  const PAIRS = { animation: ['up', 'down'], skin: ['left', 'right'], turn: ['camL', 'camR'] };
+  const hint = h => h === 'zoom' ? (game.input.lastDevice === 'gamepad' ? E.t('animlab.legend.zoom', { keys: pair('zoomIn', 'zoomOut') }) : E.t('animlab.legend.zoom', { keys: game.input.codeLabel('Minus') + ' ' + game.input.codeLabel('Equal') })) : PAIRS[h] ? E.t('animlab.legend.' + h, { keys: pair(...PAIRS[h]) }) : E.t('animlab.legend.' + h);
+  const legend = () => touch() ? [E.t('animlab.legend.touch_pick'), E.t('animlab.legend.touch_swipe')] : LEGEND.map(row => row.map(hint).join('  '));
+  // the mouse's places on the HUD (set as it draws): the list's rows (an animation each), the skin's arrows and name
+  let rows = [], skinAt = null, lit = -1, mt = -1;
   function hud(g, r) {
     const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = word('group', anim.group) + ' ▸ ', T0 = Math.max(0, Math.round(corner()[1]) - 9);   // T0: under the corner's buttons (they stay up in a lab)
-    E.ui.box(g, 4, T0 + 11, W - 8, 34, WIN);
+    E.ui.box(g, 4, T0 + 11, W - 8, 38, WIN);
     E.font.title(g, E.t('animlab.title'), 10, T0 + 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
-    E.font.text(g, lineup ? E.t('animlab.hud.lineup', { count: actors.length }) : E.t('animlab.hud.skin', { skin: word('skin', a.s.name) }), W - 10, T0 + 15, '#ffffff', RIGHT(TXT));
+    const sk = lineup ? E.t('animlab.hud.lineup', { count: actors.length }) : E.t('animlab.hud.skin', { skin: word('skin', a.s.name) }), skw = E.font.width(sk);
+    E.font.text(g, sk, W - 10, T0 + 15, '#ffffff', RIGHT(TXT)); skinAt = { x: W - 10 - skw, y: T0 + 12, w: skw, h: 14 };
     E.font.text(g, lead, 10, T0 + 26, '#a8a0d8', TXT);
     E.font.text(g, named(anim), 10 + E.font.width(lead), T0 + 26, '#ffe070', TXT);
     const cam = [E.t('animlab.cam.view', { view: game.view.label }), E.t('animlab.cam.zoom', { zoom: +game.zoom.toFixed(2) }), game.yaw ? E.t('animlab.cam.turn', { angle: game.yaw }) : '',
       E.t(paused ? 'animlab.cam.paused' : game.timeScale < 1 ? 'animlab.cam.slow' : 'animlab.cam.speed')];
-    E.font.text(g, cam.filter(Boolean).join('    '), 10, T0 + 37, paused ? '#ff9a7a' : '#c8c0f0', TINY);
+    E.font.text(g, cam.filter(Boolean).join('   '), 10, T0 + 37, paused ? '#ff9a7a' : '#c8c0f0', TXT);
+    rows = [];
     if (!lineup) {
-      // the animation list: the neighbours of the current one, groups in alternating tints
-      E.ui.box(g, 4, T0 + 48, 100, 61, SEE);
-      for (let k = -3; k <= 3; k++) {
-        const n = ANIMS[(ai + k + N) % N], odd = GROUPS.indexOf(n.group) % 2;
-        E.font.text(g, (k ? '  ' : '> ') + named(n), 8, T0 + 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
+      // the animation list: the neighbours of the current one, groups in alternating tints, the one under the mouse lit
+      E.ui.box(g, 4, T0 + 52, 124, 64, SEE);
+      for (let k = -2; k <= 2; k++) {
+        const i = (ai + k + N) % N, n = ANIMS[i], odd = GROUPS.indexOf(n.group) % 2, y = T0 + 55 + (k + 2) * 10;
+        if (i === lit && k) px.rect(g, 6, y - 1, 120, 10, '#3a3070');
+        E.font.text(g, (k ? '  ' : '> ') + named(n), 8, y, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TXT); rows.push({ x: 4, y: y - 1, w: 124, h: 10, i });
       }
-      E.font.text(g, (ai + 1) + '/' + N, 100, T0 + 101, '#8a82b0', RIGHT(TINY));
+      E.font.text(g, (ai + 1) + '/' + N, 124, T0 + 105, '#8a82b0', RIGHT(TXT));
       // key poses of a move; the one playing now is lit
       const cur = attack ? ['wind', 'active', 'recover'].indexOf(attack.phase) : combo && combo.busy ? combo.step : -1;
       keyPoses().forEach((k, i) => {
-        const y = T0 + 48 + i * 39, lit = i === cur;
+        const y = T0 + 52 + i * 39, lit = i === cur;
         E.ui.box(g, W - 46, y, 42, 38, lit ? { bg: ['#5a4a2a', '#1a1208'], border: '#ffe070' } : SEE);
         g.drawImage(k.cv, W - 45, y + 1);
         E.font.text(g, k.label, W - 25, y + 31, lit ? '#ffe070' : '#c8c0f0', Object.assign({ align: 'center' }, TINY));
       });
     }
     // the timeline: one bar per phase (the current one lit), the clock as a white mark, the phase's name and the time; clear
-    // of the touch buttons when they show: beside them where there is room, else above them
-    const ta = game.input.touchArea(), side = ta && ta.x0 > 200, B = ta && !side ? Math.floor(ta.y0) - 2 : H, BW = side ? Math.floor(ta.x0) - 8 : W - 8;
-    E.ui.box(g, 4, B - 36, BW, 33, WIN);
-    const bx = 10, bw = BW - 116, by = B - 31;
+    // of the touch buttons when they show: beside them where there is room (300 px), else above them
+    const ta = game.input.touchArea(), side = ta && ta.x0 > 310, B = ta && !side ? Math.floor(ta.y0) - 2 : H, BW = side ? Math.floor(ta.x0) - 8 : W - 8;   // (beside: room for the legend's rows)
+    E.ui.box(g, 4, B - 46, BW, 43, WIN);
+    const bx = 10, bw = BW - 116, by = B - 41;
     let t0 = 0, label = '';
     for (const [name, secs, c] of anim.segs) {
       const x0 = bx + Math.round(t0 / anim.len * bw), x1 = bx + Math.round((t0 + secs) / anim.len * bw), on = t > t0 && t <= t0 + secs;
@@ -562,28 +581,45 @@ const ANIMLAB = (() => {
       t0 += secs;
     }
     px.rect(g, bx + Math.round(Math.min(1, t / anim.len) * bw), by - 2, 1, 11, '#ffffff');
-    E.font.text(g, E.t('animlab.hud.time', { phase: label, t: t.toFixed(2), len: anim.len.toFixed(2) }), BW - 2, by + 1, '#ffe8b0', RIGHT(TINY));
-    legend().forEach((s, i) => E.font.text(g, s, 10, B - 21 + i * 8, '#b8b0e0', TINY));
+    E.font.text(g, E.t('animlab.hud.time', { phase: label, t: t.toFixed(2), len: anim.len.toFixed(2) }), BW - 2, by - 1, '#ffe8b0', RIGHT(TXT));
+    legend().forEach((s, i) => E.font.text(g, s, 10, B - 30 + i * 11, '#b8b0e0', TXT));
   }
+  // THE MOUSE (and a tap): over the list a row lights (the clock doesn't restart as the mouse passes), a click plays it; a
+  // click on the skin's ← or → changes it, on its name lines them up (or back to one)
+  function pointer(inp) {
+    const inside = (p, b) => p && b && p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
+    if (inp.mouse.t !== mt) { mt = inp.mouse.t; const p = inp.pointer(), row = rows.find(b => inside(p, b)); lit = row ? row.i : -1; }
+    const c = inp.clicked(); if (!c) return;
+    const row = rows.find(b => inside(c, b)); if (row) { paused = false; play(row.i); A.sfx('select'); return; }
+    if (inside(c, skinAt)) { const k = (c[0] - skinAt.x) / skinAt.w; if (lineup || (k > .15 && k < .85)) toggleLineup(); else pick(skin + (k <= .15 ? -1 : 1)); A.sfx('select'); }
+  }
+  function toggleLineup() { lineup = !lineup; if (lineup) fit(); else game.setZoom(1.5); play(ai); game.note(E.t(lineup ? 'animlab.note.lineup' : 'animlab.note.one')); }
 
   /* ---- UPDATE: keys, then the clock (paused: . steps one 60th of a second) ---- */
   function update(dt) {
     const inp = game.input, vk = game.view.id + game.view.yawDeg;
     if (vk !== viewKey) { viewKey = vk; if (lineup) fit(); play(ai); }   // a new view or turn: moves pick their swing plane again
-    if (inp.pressed('turn')) game.note(E.t('animlab.note.turn', { angle: game.yaw }));     // the pixel font has no degree sign
+    // the camera: its view and its turn are the lab's own keys and buttons (the shell's V and [ ] stand aside), the pad's
+    // right stick turns and zooms
+    if (inp.pressed('camView')) { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
+    for (const [a, d] of [['camL', -45], ['camR', 45]]) if (inp.pressed(a)) { game.rotateView(d); game.note(E.t('animlab.note.turn', { angle: game.yaw })); }   // the pixel font has no degree sign
+    if (inp.repeat('zoomIn', .3, .08)) game.zoomBy(1.1); if (inp.repeat('zoomOut', .3, .08)) game.zoomBy(1 / 1.1);
+    // a swipe on a touch screen picks as the stick does: up and down the animation, sideways the skin
+    const sw = inp.swipe(true); if (sw) { if (sw.dir === 'up' || sw.dir === 'down') play(ai + (sw.dir === 'up' ? -1 : 1)); else pick(skin + (sw.dir === 'left' ? -1 : 1)); }
+    pointer(inp);
     if (inp.repeat('up')) play(ai - 1);
     if (inp.repeat('down')) play(ai + 1);
     if (inp.repeat('left')) pick(skin - 1);
     if (inp.repeat('right')) pick(skin + 1);
     if (inp.pressed('replay')) { paused = false; play(ai); }
-    if (inp.pressed('hold')) paused = !paused;
+    if (inp.pressed('still')) paused = !paused;
+    inp.touchSet('step', null, paused); inp.touchSet('slow', null, !paused);   // (STEP only while paused, SLOW only while not)
     if (inp.pressed('slow')) { game.timeScale = game.timeScale < 1 ? 1 : .25; game.note(E.t(game.timeScale < 1 ? 'animlab.note.slow' : 'animlab.note.full')); }
     if (inp.pressed('trail')) { trail = !trail; game.note(E.t(trail ? 'animlab.note.trail_on' : 'animlab.note.trail_off')); }
     if (inp.pressed('bones')) { bones = !bones; game.note(E.t(bones ? 'animlab.note.bones_on' : 'animlab.note.bones_off')); }
     if (inp.pressed('flip')) { face = Math.PI - face; play(ai); game.note(E.t(Math.cos(face) > 0 ? 'animlab.note.right' : 'animlab.note.left')); }
     if (inp.pressed('hud')) hidden = !hidden;
-    if (inp.pressed('lineup')) { lineup = !lineup; if (lineup) fit(); else game.setZoom(1.5); play(ai); game.note(E.t(lineup ? 'animlab.note.lineup' : 'animlab.note.one')); }
-    if (inp.pressed('back')) game.go('title');
+    if (inp.pressed('lineup')) toggleLineup();
     dum.x = CX + Math.cos(face) * dum.d; dum.y = CY + Math.sin(face) * dum.d;
     if (!paused) tick(dt); else if (inp.pressed('step')) tick(1 / 60);
     // look at the spot (between the subject and the dummy, or after a knocked-back subject), up with a climber;
@@ -596,9 +632,14 @@ const ANIMLAB = (() => {
     game.cam.bounds = null; game.cam.room = null; game.timeScale = 1; L.enabled = false; A.music(null);
     game.resetCamera(); lineup = false; paused = false; viewKey = ''; play(ai);
   }
-  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], start: 1.5, rotate: true }, touch: ['replay', 'slow', 'hold'],   // the stick picks (up, down) and dresses (left, right)
-    input: { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], replay: ['KeyJ', 'Enter'], hold: ['Space'], step: ['Period'],
-      slow: ['KeyS'], trail: ['KeyT'], bones: ['KeyB'], lineup: ['KeyL'], flip: ['KeyF'], hud: ['KeyH'], turn: ['BracketLeft', 'BracketRight'], back: ['Escape'] },
+  // THE KEYS AND BUTTONS: the lab's mnemonic keys, a pad's buttons for each, the menus' (Esc and Options open the menu:
+  // pausable), the camera's view and turn (V, [ ], R3, the right stick) and the pad's zoom
+  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], start: 1.5, rotate: true }, pausable: true,
+    touch: { buttons: ['replay', 'slow', 'step', 'still', 'flip', 'lineup'], layout: 'grid' },   // the stick (or a swipe) picks (up, down) and dresses (left, right)
+    input: { up: ['ArrowUp', 'Pad12'], down: ['ArrowDown', 'Pad13'], left: ['ArrowLeft', 'Pad14'], right: ['ArrowRight', 'Pad15'], replay: ['KeyJ', 'Enter', 'Pad0'], still: ['Space', 'Pad2'], step: ['Period', 'Pad5'],
+      slow: ['KeyS', 'Pad3'], trail: ['KeyT', 'Pad6'], bones: ['KeyB', 'Pad7'], lineup: ['KeyL', 'Pad4'], flip: ['KeyF', 'Pad1'], hud: ['KeyH', 'Pad10'], camView: ['KeyV', 'Pad11'], camL: ['BracketLeft', 'PadRAxisLeft'], camR: ['BracketRight', 'PadRAxisRight'],
+      zoomIn: ['PadRAxisUp'], zoomOut: ['PadRAxisDown'], start: E.Input.DEFAULT.start, pause: E.Input.DEFAULT.pause, confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] },
+    back() { game.go('title'); return true; },   // a phone's back gesture: the title (Esc and Options open the menu, Quit to title in it)
     enter, exit() { game.timeScale = 1; game.resetCamera(); }, update, draw,
     // for tools and tests: __game.scenes.animlab.select('overhead', 'mage') or select('poses-cast') (spaces and dashes ignored)
     select(name, skinName) {

@@ -1,5 +1,5 @@
 /* =====================================================================================
- * SLICE 20  ARTILLERY  (Worms, Scorched Earth). @modules physics terrain grid
+ * SLICE 20  ARTILLERY  (Worms, Scorched Earth). @modules physics terrain grid dualsense
  * BLAST ISLAND: two teams of three grubs on an island of earth, rock and sand that every blast carves. The teams take
  * turns (E.Turns, the grid module's), each sending its next grub; in its thirty seconds a grub walks, jumps, aims and
  * fires. Three weapons: a ROCKET the wind blows, a GRENADE that bounces (a physics body on the terrain's collider) and
@@ -7,9 +7,17 @@
  * drowns; from turn 16 the sea rises (sudden death). One player against the CPU, two players on one screen in turn, or
  * two CPUs. The CPU tries its shots in simulation (each weapon at every angle and power, with the wind and the fuse as
  * they are), takes the one that hurts its foes most and its own least, and fires it with a hand a little unsteady.
- * Keys: left and right (A, D) walk, up and down (W, S) aim, hold Space to charge and let go to fire, Enter jumps, Q or E
- * (or 1, 2, 3) picks the weapon. MOUSE: drag back from anywhere and let go to fire (the pull is the power); a click
- * walks there. TOUCH: the same: a drag back fires, a tap walks; the JUMP and WEAPON buttons. HOW IT WORKS: E.Terrain is
+ * KEYS (its own, KEYS: the moves and the menus' keys, no action it doesn't read): left and right (A, D) walk, up and down
+ * (W, S) aim, hold Space to charge and let go to fire, Enter jumps, Q or E, the wheel (or 1, 2, 3) picks the weapon.
+ * MOUSE: drag back from anywhere and let go to fire (the pull is the power); a click walks there; a right drag looks
+ * along the island; hover moves the menus' focus. PAD: the left stick or d-pad walks and aims, R2 or ✕ held charges
+ * and let go fires, □ jumps, △ or R1 the weapon, the right stick looks along the island, Options pauses. DUALSENSE: the
+ * light bar is the team whose turn it is, R2 stiffens as the shot charges, gyro aim fine-tunes the aim, a swipe on the
+ * touchpad changes the weapon; any pad rumbles at a blast (by how near) and
+ * a long fall. TOUCH: the same: a drag back fires, a tap walks; the JUMP and WEAPON buttons (only on a player's turn);
+ * with Touch assists on (Settings) a walk a tap asked for hops the step it would stop at. A swipe takes nothing away
+ * here, on purpose: every finger is the pull (steer: 'drag'), a flick is a shot, and the banner goes by itself.
+ * HOW IT WORKS: E.Terrain is
  * the island (carve, ground, walk, ray); E.Physics bounces the grenades on land.collider(); E.Turns alternates the
  * teams. bot() lets two CPUs play a match to its end, twice (tools/kits-test.mjs). Deep links: #artillery (the choice
  * of players), #artillery/cpu (two CPUs at once).
@@ -32,8 +40,14 @@ const ARTILLERY = (() => {
     { wave: 'square', vol: .08, notes: 'G4 . B4 . D5 - B4 . C5 . A4 . F#4 . D4 . | G4 . B4 . D5 . G5 - F#5 . E5 . D5 . C5 . | B4 . G4 . A4 . F#4 . G4 - - . . . D4 .' },
     { wave: 'triangle', vol: .28, notes: 'G2 . D3 . G2 . D3 . D2 . A2 . D2 . A2 . | G2 . D3 . G2 . D3 . C2 . G2 . D2 . A2 . | G2 . D3 . D2 . A2 . G2 . . . G2 . . .' },
     { wave: 'drums', vol: .09, notes: 'k . h . s . h . k k h . s . h h' }] };
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { walkL: ['ArrowLeft', 'KeyA', 'Pad14'], walkR: ['ArrowRight', 'KeyD', 'Pad15'], aimUp: ['ArrowUp', 'KeyW', 'Pad12'], aimDown: ['ArrowDown', 'KeyS', 'Pad13'],
-    fire: ['Space', 'Pad0', 'Pad7'], jump: ['Enter', 'NumpadEnter', 'KeyJ', 'Pad2'], weapon: ['KeyQ', 'KeyE', 'Pad3', 'Pad5'], w1: ['Digit1'], w2: ['Digit2'], w3: ['Digit3'] });
+  // THE KEYS (docs/CONTROLS.md, Worms on PC and console): the moves and the menus' (E.Input.MENU); walking and aiming on the
+  // arrows, WASD, the d-pad and the left stick (its PadAxis codes stay through a rebinding, as the d-pad does); fire on
+  // Space, R2 (first: its prompt, and the trigger that pushes back) and ✕; the weapon on Q E, the wheel (the camera doesn't
+  // zoom: the wheel is the game's), △ and R1
+  const KEYS = Object.assign({}, E.Input.MENU, { walkL: ['ArrowLeft', 'KeyA', 'Pad14', 'PadAxisLeft'], walkR: ['ArrowRight', 'KeyD', 'Pad15', 'PadAxisRight'], aimUp: ['ArrowUp', 'KeyW', 'Pad12', 'PadAxisUp'], aimDown: ['ArrowDown', 'KeyS', 'Pad13', 'PadAxisDown'],
+    fire: ['Space', 'Pad7', 'Pad0'], jump: ['Enter', 'NumpadEnter', 'KeyJ', 'Pad2'], weapon: ['KeyQ', 'KeyE', 'WheelDown', 'WheelUp', 'Pad3', 'Pad5'], w1: ['Digit1'], w2: ['Digit2'], w3: ['Digit3'] });
+  let ds = null, padLight = null, padTrig = -1;   // the DualSense's extras (the dualsense module), and what they show now
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);   // (haptics on any pad, while it is what the player plays with)
 
   /* ---- 1. THE ISLAND: hills of earth over rock, beaches of sand, a few caves; the grubs spread along it, the teams mixed ---- */
   let land, back, profile, grubs = [], teams, turns, water = 34;
@@ -74,8 +88,7 @@ const ARTILLERY = (() => {
     turnNo++; cur = nextGrub(); look.t = 0; phase = 'aim'; phT = 0; turnT = TURN_T; power = 0; charging = false; pull = null;
     wind = Math.round((Math.random() * 2 - 1) * 10) / 10;
     if (turnNo > SUDDEN) { water += 8; banner = { s: E.t('artillery.banner.sea'), sub: E.t('artillery.banner.sudden_death'), t: 1.6, team: -1 }; }
-    else banner = { s: cur.name, sub: E.t(play === 'two' ? 'artillery.banner.player' : teams[cur.team].human ? 'artillery.banner.you' : 'artillery.banner.cpu', { team: TEAMS[cur.team].name, n: cur.team + 1 }), t: 1.4, team: cur.team };
-    cpu = teams[cur.team].human ? null : { phase: 'think', t: 0, i: 0, cands: null, best: null };
+    else banner = { s: cur.name, sub: E.t(play === 'two' ? 'artillery.banner.player' : teams[cur.team].human ? 'artillery.banner.you' : 'artillery.banner.cpu', { team: TEAMS[cur.team].name, n: cur.team + 1 }), t: 1.4, team: cur.team };    cpu = teams[cur.team].human ? null : { phase: 'think', t: 0, i: 0, cands: null, best: null };
     A.sfx('select');
   }
   const weapon = () => WEAPONS[teams[cur.team].weapon];
@@ -122,6 +135,7 @@ const ARTILLERY = (() => {
   // a blast: a crater in the island, damage by distance, grubs thrown away from it
   function blast(x, y, r, dmg) {
     const took = land.carve(x, y, r, { particles: P, debris: 14 }); for (const k in took) stats.carved += took[k]; profile = null;
+    if (play !== 'demo') buzz(Math.min(1, r / 30) * (cur ? Math.max(.2, 1 - Math.hypot(x - cur.x, y - cur.y) / 300) : .5), .25);   // (a pad shakes by the blast's size and how near the grub whose turn it is)
     for (const g of grubs) {
       if (g.dead) continue; const dx = g.x - x, dy = g.y + 5 - y, d = Math.hypot(dx, dy); if (d >= r + 6) continue;
       const k = 1 - d / (r + 6), n = d || 1; hurt(g, Math.round(dmg * k)); g.vx = dx / n * 260 * k; g.vy = Math.max(70, dy / n * 260 * k + 120 * k); g.ground = false; g.fly = true; g.goto = null;
@@ -134,7 +148,7 @@ const ARTILLERY = (() => {
     for (const g of grubs) {
       if (g.dead && (g.drowned || !g.grave)) { if (g.sunk) g.sunk += dt; continue; }
       const was = g.x, landed = land.walk(g, dt, { gravity: G_GRUB, climb: 4, h: 9 });
-      if (landed) { if (g.fly || g.jump) { g.vx = 0; g.fly = g.jump = false; } if (landed > 230 && !g.dead) { stats.falls++; hurt(g, Math.round((landed - 230) / 4)); A.sfx('land'); } }
+      if (landed) { if (g.fly || g.jump) { g.vx = 0; g.fly = g.jump = false; } if (landed > 230 && !g.dead) { stats.falls++; hurt(g, Math.round((landed - 230) / 4)); A.sfx('land'); if (play !== 'demo') buzz(.3, .1); } }
       if (!g.dead && g.y < water - 2) drown(g);
       g.still = g.vx && Math.abs(g.x - was) < 1e-3 ? g.still + dt : 0;
       g.shown += (g.hp - g.shown) * Math.min(1, dt * 5); g.hurt = Math.max(0, g.hurt - dt);
@@ -161,9 +175,10 @@ const ARTILLERY = (() => {
     const c = cpu ? cpuHands(dt) : hands(I);
     if (phase === 'fly' && !shots.length) { phase = 'settle'; phT = 0; }
     if (g.ground && !g.fly && !g.jump) { g.vx = c.walk * 32; if (c.walk) { g.face = c.walk; g.walkT += dt; } else g.walkT = 0; }
-    if (c.jump && g.ground) { g.vy = 150; g.vx = g.face * 70; g.ground = false; g.jump = true; g.goto = null; A.sfx('jump'); }
+    if (c.jump && g.ground) { g.vy = 150; g.vx = g.face * 70; g.ground = false; g.jump = true; if (!c.hop) g.goto = null; A.sfx('jump'); }   // (a hop the touch assist asked for walks on after it)
     if (phase !== 'aim') return;   // (after a shot: the grub may only walk away, a grenade's retreat)
     if (c.aim) g.aim = clamp(g.aim + c.aim * 1.4 * dt, -AIM, AIM);
+    if (ds && !cpu && I.lastDevice === 'gamepad') { const gy = ds.gyroAim(dt)[1]; if (gy) g.aim = clamp(g.aim - gy * .01, -AIM, AIM); }   // (the DualSense's gyro aim, on top of the stick: tilted up, the aim rises)
     if (c.pick >= 0) pickWeapon(c.pick); else if (c.weapon) pickWeapon((teams[g.team].weapon + 1) % 3);
     if (c.shot) { fire(g, c.shot[0], c.shot[1]); return; }
     if (c.charge) { if (!charging) A.sfx('charge', { vol: .3 }); charging = true; power = Math.min(1, power + dt / 1.4); }
@@ -173,7 +188,8 @@ const ARTILLERY = (() => {
   // a world point under a screen point (the view is whole pixels: x across, y up)
   const toWorld = p => [p[0] + game.screen.ix, -(p[1] + game.screen.iy)];
   function hands(I) {
-    const g = cur, c = { walk: (I.down('walkR') ? 1 : 0) - (I.down('walkL') ? 1 : 0), aim: (I.down('aimUp') ? 1 : 0) - (I.down('aimDown') ? 1 : 0), jump: I.pressed('jump'), weapon: I.pressed('weapon'), pick: ['w1', 'w2', 'w3'].findIndex(a => I.pressed(a)), charge: I.down('fire'), shot: null };
+    const pad = ds && ds.swipe();   // (a swipe on the DualSense's touchpad, left or right, changes the weapon as △ does)
+    const g = cur, c = { walk: (I.down('walkR') ? 1 : 0) - (I.down('walkL') ? 1 : 0), aim: (I.down('aimUp') ? 1 : 0) - (I.down('aimDown') ? 1 : 0), jump: I.pressed('jump'), weapon: I.pressed('weapon') || pad === 'left' || pad === 'right', pick: ['w1', 'w2', 'w3'].findIndex(a => I.pressed(a)), charge: I.down('fire'), shot: null };
     // a pull: a mouse's left drag (input.box) or a finger anywhere (the touch stick in drag mode, input.drag()); the shot
     // goes the other way, its power the pull's length
     const B = I.box(), d = I.drag();
@@ -186,9 +202,16 @@ const ARTILLERY = (() => {
       if (pull.done) { if (l > 12 && phase === 'aim') c.shot = [aimAngle(g), Math.min(1, l / PULL)]; pull = null; if (!c.shot) power = 0; }
     }
     // a click or a tap on the island walks there (the keys take over)
-    const ck = I.clicked(); if (ck && !pull) { const w = toWorld(ck); g.goto = w[0]; }
+    const ck = I.clicked(); if (ck && !pull) { const w = toWorld(ck); g.goto = w[0]; g.hops = 0; }
     if (c.walk) g.goto = null;
-    else if (g.goto !== null) { const dx = g.goto - g.x; if (Math.abs(dx) < 1.5 || g.still > .3) g.goto = null; else c.walk = Math.sign(dx); }
+    else if (g.goto !== null) {
+      const dx = g.goto - g.x;
+      if (Math.abs(dx) < 1.5) g.goto = null;
+      // TOUCH ASSIST (input.assist: touch play with Settings, Touch assists on): a step the walk would stop at is hopped
+      // (twice a walk at most), and the walk goes on
+      else if (g.still > .3) { if (I.assist && g.ground && !g.jump && (g.hops || 0) < 2) { c.jump = c.hop = true; g.hops = (g.hops || 0) + 1; g.face = Math.sign(dx); g.still = 0; } else g.goto = null; }
+      else c.walk = Math.sign(dx);
+    }
     return c;
   }
   const POWERS = [.3, .4, .5, .6, .7, .8, .9, 1], AIM = 1.45;   // (the aim: up to 1.45 radians above level, or below)
@@ -234,6 +257,7 @@ const ARTILLERY = (() => {
   function start(data) {
     shots = []; cur = null; banner = null; winner = -1; menuI = 0; water = 34; island(7); mode = 'menu'; modeT = 0;
     game.input.touchEnabled = true; game.input.steer = 'drag'; game.input.zones = null; L.enabled = false; game.follow(null); A.music(null);
+    ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, gyro: true }) : null; padLight = null; padTrig = -1; menuT = game.input.mouse.t;
     game.cam.bounds = () => ({ x0: -40, y0: -SKY, x1: WW + 40, y1: 12 }); game.cam.align = 'bottom'; game.focus(WW / 2, 0, 160); game.cam.snap = true;
     if (data && data.part === 'cpu') begin('demo');
   }
@@ -242,15 +266,27 @@ const ARTILLERY = (() => {
     const k = game.screen.dpr / game.screen.S, h = Math.max(24, Math.ceil(46 * k)), w = Math.min(W - 24, 200), gap = 6, y0 = Math.round(Math.max(H * .42, H - (h + gap) * list.length - 34));
     return list.map((b, i) => ({ x: Math.round((W - w) / 2), y: y0 + i * (h + gap), w, h, label: b[0], sub: b[1], i }));
   }
+  let menuT = 0;   // (the mouse's last move the menu has seen: hover moves its focus when it moves)
   function menu(I, list, pick) {
     const B = buttons(list, game.W, game.H), ck = I.clicked(), hit = ck && B.find(b => ck[0] >= b.x && ck[0] < b.x + b.w && ck[1] >= b.y && ck[1] < b.y + b.h);
+    if (I.mouse.t !== menuT) { menuT = I.mouse.t; const h = I.lastDevice === 'touch' ? -1 : I.hit(B); if (h >= 0 && h !== menuI) { menuI = h; A.sfx('select'); } }
     if (I.pressed('up')) { menuI = (menuI + list.length - 1) % list.length; A.sfx('select'); }
     if (I.pressed('down')) { menuI = (menuI + 1) % list.length; A.sfx('select'); }
     if (hit || I.pressed('confirm') || I.pressed('start')) { if (hit) menuI = hit.i; A.sfx('confirm'); I.consumeAll(); pick(menuI); }
   }
+  // the DUALSENSE: the light bar is the team whose turn it is (the winner's at the end, white on the menu); R2 stiffens in
+  // three steps as a player's shot charges, free once it flies. Each is sent as it changes
+  function padExtras() {
+    if (!ds) return;
+    const c = mode === 'play' && cur ? TEAMS[cur.team].color : mode === 'over' && winner >= 0 ? TEAMS[winner].color : '#e8e8ff';
+    if (c !== padLight) ds.light(padLight = c);
+    const k = mode === 'play' && cur && !cpu && charging && phase === 'aim' ? Math.min(3, 1 + Math.floor(power * 3)) : 0;
+    if (k !== padTrig) { padTrig = k; ds.trigger('right', k ? { resist: [0, k * .25] } : null); }
+  }
   function update(dt) {
     const I = game.input, human = mode === 'play' && cur && !cpu && (phase === 'aim' || phase === 'fly'); modeT += dt;
     I.touchSet('jump', null, human); I.touchSet('weapon', human ? weapon().name : null, human && phase === 'aim');   // (the buttons only on a player's turn)
+    padExtras();
     stepGrubs(dt); stepShots(dt);
     if (mode === 'menu') { menu(I, CHOICES, i => begin(CHOICES[i][2])); game.focus(WW / 2 + Math.sin(modeT * .1) * 160, 0, 160); return; }
     if (mode === 'over') { if (modeT > 1.2) menu(I, AFTER, i => i === 0 ? begin(play) : i === 1 ? start() : game.go('title')); return; }
@@ -259,6 +295,7 @@ const ARTILLERY = (() => {
     const ck = I.clicked(), mb = miniBox(game.W), pn = I.pan();
     if (ck && ck[0] >= mb.x && ck[0] < mb.x + mb.w && ck[1] >= mb.y && ck[1] < mb.y + mb.h + 6) { const f0 = cur || { x: WW / 2, y: 100 }; look = { x: -40 + (ck[0] - mb.x) / mb.w * (WW + 80) - f0.x, y: 0, t: 3 }; I.consumeAll(); }
     else if (pn && !I.stickOn) { look.x -= pn[0]; look.y += pn[1]; look.t = 3; }
+    else if (I.padAim) { look.x += I.padAim[0] * 260 * dt; look.y -= I.padAim[1] * 160 * dt; look.t = 3; }   // (a pad's right stick looks along the island)
     if ((look.t -= dt) <= 0) { look.x *= 1 - Math.min(1, dt * 4); look.y *= 1 - Math.min(1, dt * 4); }
     turn(dt, I);
     // the camera: on a shot, else on whoever falls, else the grub whose turn it is, led along its aim as it charges
@@ -348,7 +385,10 @@ const ARTILLERY = (() => {
       // the weapon, and what to press
       if (cur && mode === 'play' && !cpu) {
         const Wp = weapon(), t = teams[cur.team], n = t.ammo[t.weapon], wy = by - 14; E.font.text(g, n !== Infinity ? E.t('artillery.weapon.ammo', { weapon: Wp.name, count: n }) : Wp.name, bx, wy, '#ffe7a8', { shadow: '#000', outline: false });
-        if (phase === 'aim' && turnNo <= 2) E.font.text(g, touch ? E.t('artillery.how.touch') : E.lang.upper(E.t('artillery.how.keys')), bx, wy - 11, '#d8e0ff', { shadow: '#000', outline: false });
+        if (phase === 'aim' && turnNo <= 2) {   // (the device used last: a finger's, the mouse's, the keys' or a pad's; the tiny font where the touch buttons, shown on a touch screen whatever is used, leave too little room)
+          const s = touch ? E.t('artillery.how.touch') : E.lang.upper(E.t(game.input.lastDevice === 'mouse' ? 'artillery.how.mouse' : 'artillery.how.keys')), tb = game.input.touchArea(), f = tb && E.font.width(s) > tb.x0 - bx - 4 ? { font: 'tiny' } : {};
+          E.font.text(g, s, bx, wy - 11, '#d8e0ff', Object.assign({ shadow: '#000', outline: false }, f));
+        }
       }
       if (banner) { const T = TEAMS[banner.team], a = Math.min(1, banner.t * 3); px.blend(g, a, 'normal', () => { E.font.title(g, banner.s, W / 2, H * .3, { align: 'center', scale: 2, colors: T ? ['#ffffff', T.color, T.dark] : ['#ffffff', '#6ac0ff', '#1a4a8a'], depth: 2 }); E.font.text(g, banner.sub, W / 2, H * .3 + 22, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }); }
     });
@@ -382,9 +422,9 @@ const ARTILLERY = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'artillery', views: ['artillery'], res: 'ps1', pausable: true, touch: ['jump', 'weapon'], camera: { zoom: false }, input: KEYS,
+  return { view: 'artillery', views: ['artillery'], res: 'ps1', pausable: true, touch: ['weapon', 'jump'], camera: { zoom: false }, input: KEYS,
     enter: start, update, draw, bot: botRun,
-    exit() { game.input.steer = 'stick'; game.cam.bounds = null; game.cam.align = null; A.music(null); },
+    exit() { game.input.steer = 'stick'; game.cam.bounds = null; game.cam.align = null; A.music(null); if (ds) ds.clear(); },
     back() { if (mode === 'menu') return false; start(); return true; },
     /** for tests: the island, the grubs, the turn, the shots, where a world point is on the screen; begin(how, seed) starts a match */
     state: () => ({ land, grubs, cur, phase, mode, turnNo, wind, water, shots, power, teams, stats, winner, weapon: cur ? weapon().id : null, at: (x, y) => { const q = game.view.p(x, 0, y); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; }, buttons: () => buttons(mode === 'menu' ? CHOICES : AFTER, game.W, game.H) }),

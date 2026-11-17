@@ -7,7 +7,7 @@ function selectCharacter(id) {
 	TITLE.confirmNew = false;
 	return true;
 }
-function renderCharacters() {
+function renderCharacters(again = false) {
 	const id = CHAR.preview || CHAR.selected,
 		C = CHARACTERS[id],
 		saved = characterSave(id);
@@ -26,7 +26,7 @@ function renderCharacters() {
 		for (const profile of Object.values(CHARACTERS)) {
 			const b = formButton(choices, profile.name, () => {
 				CHAR.preview = profile.id;
-				renderCharacters();
+				renderCharacters(true);
 			});
 			b.setAttribute("aria-pressed", String(profile.id === id));
 		}
@@ -59,6 +59,10 @@ function renderCharacters() {
 			game.go("gallery");
 		});
 	});
+	// the focus a pad or the keys go on from: the choice just made (the window was drawn again under it), or, opened from
+	// a controller, PLAY AS (not Back)
+	const f = FORM.el && (again ? FORM.el.querySelector(".ed-character-choices [aria-pressed=true]") : game.input.lastDevice === "gamepad" && [...FORM.el.querySelectorAll("button")].find((b) => /^PLAY AS /.test(b.textContent)));
+	if (f) f.focus({ preventScroll: again });
 }
 function updateCharacterPreview(dt) {
 	updateForm();

@@ -256,6 +256,19 @@ function matrixInput2(E, ed) {
   I.press('WheelDown'); g.advance(1 / 120); const next = I.pressed('next'); I.release('WheelDown');
   const rb = [I.rebind('next', 'keys', 'WheelUp'), I.rebind('look', 'pad', 'PadRAxisLeft')];
   check(`${ed}: the right stick (PadRAxisUp ...) and the wheel (WheelUp, WheelDown) are codes: held, bound, rebound and named`, look && !I.down('look') && next && rb[0] === null && rb[1] === null && I.codeLabel('PadRAxisLeft') === 'R stick ←' && I.codeLabel('WheelUp') === 'Wheel up', JSON.stringify({ look, next, rb, l: I.codeLabel('PadRAxisLeft'), w: I.codeLabel('WheelUp') }));
+  // the 52in1 hub's buttons (docs/CONTROLS.md): Create is held back a quarter of a second, so a tap arrives as a tap and a
+  // hold as a hold, while Create with Options (the hub's chord) reaches the game as nothing, no pause; PS never does
+  {
+    const P2 = [{ index: 0, id: 'pad', connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 18 }, btn) }], seen = [];
+    const EC = load(ed === 'full' ? 'engine/my-3d2dge.js' : 'engine/my-3d2dge-agent.js', { globals: { navigator: { getGamepads: () => P2 } } }), cg = new EC.Game({ headless: true, input: { ...EC.Input.DEFAULT, map: ['KeyM', 'Pad8'] } });
+    cg.start({ update() { for (const a of ['map', 'pause']) if (cg.input.pressed(a)) seen.push(a); }, draw() {} });
+    const st = n => { for (let i = 0; i < n; i++) cg.advance(1 / 120); }, set = (i, on) => { P2[0].buttons[i] = { pressed: on, value: on ? 1 : 0 }; };
+    st(2); set(8, true); st(5); set(8, false); st(3); const tap = seen.splice(0).join();
+    set(8, true); st(40); const hold = seen.splice(0).join() + (cg.input.down('map') ? '+held' : ''); set(8, false); st(3); seen.length = 0;
+    set(8, true); st(5); set(9, true); st(130); set(8, false); st(5); set(9, false); st(5); const chord = seen.splice(0).join();
+    set(16, true); st(3); const ps = cg.input.held.has('Pad16'); set(16, false); st(2);
+    check(`${ed}: Create: a tap is a tap, a hold a hold; Create with Options (the hub's chord) is nothing, no pause; PS never reaches the game`, tap === 'map' && hold === 'map+held' && chord === '' && !ps, JSON.stringify({ tap, hold, chord, ps }));
+  }
   // 1.7 touch: 'never': no touch controls ever, and no Touch settings to turn them back on
   const tg = new E.Game({ headless: true, touch: 'never' });
   check(`${ed}: new E.Game({ touch: 'never' }): touch off, no Touch settings`, tg.input.touchEnabled === false && !tg.settings.keys('Touch').length, JSON.stringify({ on: tg.input.touchEnabled, keys: tg.settings.keys('Touch') }));
@@ -351,13 +364,34 @@ function matrixFixes(E, ed) {
   // a rig moved with vx alone (no vy) walks: its joints stay finite, and so after a NaN
   const rig = new E.Humanoid({}); for (let i = 0; i < 30; i++) rig.update(1 / 120, { x: 0, y: 0, vx: 40 }); rig.update(1 / 120, { x: 0, y: 0, vx: NaN, vy: 20 });
   check(`${ed}: a rig moved with vx alone keeps finite joints`, Object.values(rig.J).every(p => p.every(Number.isFinite)) && rig._mv.every(Number.isFinite), JSON.stringify(rig._mv));
-  // a game sets a standard setting's default: PlayStation symbols unless the player picks Xbox; a player who joins shows them
-  const sg = new E.Game({ headless: true, menu: { settings: [{ key: 'glyphs', value: 'playstation', options: [['playstation', 'PlayStation'], ['xbox', 'Xbox']] }] } }), sp = sg.settings.spec('glyphs');
-  check(`${ed}: menu.settings with a standard key sets that setting's default, its other fields kept`, sg.settings.glyphs === 'playstation' && sg.input.glyphs === 'playstation' && sp.group === 'Controller' && sp.label === 'Button symbols' && sp.options.length === 2 && sg.input.label('jump', 'gamepad') === '△', JSON.stringify({ v: sg.settings.glyphs, group: sp.group, label: sg.input.label('jump', 'gamepad') }));
-  check(`${ed}: a game that sets nothing keeps the standard default`, new E.Game({ headless: true }).settings.glyphs === 'auto');
+  // a game sets a standard setting's default: Xbox symbols unless the player picks PlayStation (the standard's default is
+  // PlayStation, docs/CONTROLS.md); a player who joins shows them
+  const sg = new E.Game({ headless: true, menu: { settings: [{ key: 'glyphs', value: 'xbox' }] } }), sp = sg.settings.spec('glyphs');
+  check(`${ed}: menu.settings with a standard key sets that setting's default, its other fields kept`, sg.settings.glyphs === 'xbox' && sg.input.glyphs === 'xbox' && sp.group === 'Controller' && sp.label === 'Button symbols' && sp.options.length === 2 && sg.input.label('jump', 'gamepad') === 'Y', JSON.stringify({ v: sg.settings.glyphs, group: sp.group, label: sg.input.label('jump', 'gamepad') }));
+  const plain = new E.Game({ headless: true });
+  check(`${ed}: a game that sets nothing keeps the standard default: PlayStation's buttons, the touchpad's click named, the PS button the host's`, plain.settings.glyphs === 'playstation' && plain.input.label('jump', 'gamepad') === '△' && plain.input.codeLabel('Pad17') === 'Touchpad', plain.settings.glyphs + ' ' + plain.input.codeLabel('Pad17'));
   if (sg.addPlayer) {
-    const p2 = sg.addPlayer({ pad: 1 }); const joined = p2.glyphs; sg.settings.set('glyphs', 'xbox');
-    check(`${ed}: a player who joins shows the chosen symbols, and a change reaches every player`, joined === 'playstation' && p2.glyphs === 'xbox' && sg.input.glyphs === 'xbox', joined + ' ' + p2.glyphs);
+    const p2 = sg.addPlayer({ pad: 1 }); const joined = p2.glyphs; sg.settings.set('glyphs', 'playstation');
+    check(`${ed}: a player who joins shows the chosen symbols, and a change reaches every player`, joined === 'xbox' && p2.glyphs === 'playstation' && sg.input.glyphs === 'playstation', joined + ' ' + p2.glyphs);
+  }
+  // the touch standard (docs/CONTROLS.md): aim assist and the nearest target; input.assist only on touch, with Touch assists
+  // on; a flick swipes away a dialog (a question goes to its last page), a menu (sideways: cancel) and a notice
+  {
+    const tg = new E.Game({ headless: true }), TI = tg.input; tg.start({ update() {}, draw() {} });
+    const aim = E.assist.aim(0, 0, 1, 0, [{ x: 100, y: 10 }, { x: 0, y: 50 }]), wide = E.assist.aim(0, 0, 1, 0, [{ x: -50, y: 0 }]), near = E.assist.nearest(0, 0, [{ x: 5, y: 0, hp: 0 }, { x: 9, y: 0 }, [40, 0]], 20);
+    check(`${ed}: E.assist.aim turns onto the target in its cone (none there: the aim as it was); nearest skips the fallen`, Math.abs(aim[0] - .995) < .01 && aim[1] > .09 && wide.join() === '1,0' && near && near.x === 9, JSON.stringify([aim, wide, near]));
+    TI.lastDevice = 'keyboard'; const kb = TI.assist; TI.lastDevice = 'touch'; const tc = TI.assist; let off = false;
+    if (tg.settings.spec('assists')) { tg.settings.set('assists', false); off = TI.assist; tg.settings.set('assists', true); }
+    check(`${ed}: input.assist: on touch alone, and not with Touch assists turned off`, !kb && tc && !off, [kb, tc, off].join());
+    if (TI.feed) {
+      const flick = (dir, x = 100, y = 200) => { TI.feed('swipe', x, y, { dir }); tg.advance(1 / 120); };
+      let done = 0, asked = null, cancelled = 0;
+      const talk = new E.Dialog(tg); talk.say(['The first page.', 'The second.'], { onDone: () => done++ }); flick('up'); talk.update(1 / 120);
+      const q = new E.Dialog(tg); q.say(['Ready?', 'Really?'], { choices: ['YES', 'NO'], onChoice: i => { asked = i; } }); flick('left'); q.update(1 / 120);
+      const menu = new E.Menu(tg, ['ONE', 'TWO'], { onCancel: () => cancelled++ }); flick('down'); menu.update(); flick('right'); menu.update();
+      tg.note('Saved', 5); flick('up', 160, 10); const noted = tg.shownNote;
+      check(`${ed}: a swipe closes a dialog (onDone), takes a question to its last page (still asking), cancels a menu sideways, clears a notice`, !talk.open && done === 1 && q.open && q.i === 1 && !q.typing && asked === null && cancelled === 1 && !noted, JSON.stringify({ open: talk.open, done, q: [q.open, q.i], asked, cancelled, noted }));
+    }
   }
   // E.Dialog: a voice may be a function, once per letter typed; say's voice is that line's; width sizes the box
   const dg = new E.Game({ headless: true }); dg.start({ update() {}, draw() {} }); dg.advance(.05);
@@ -1765,7 +1799,7 @@ const SHELL = () => {
   I.tap('attack'); step(2); out.heldBack = out.attacked || 0;
   document.querySelectorAll('.esh-sh button')[1].click(); step(); out.actPassed = out.attacked || 0;
   out.results = q('.esh-stats').textContent + '|' + q('.esh-med').textContent;
-  ui.show('settings'); [...document.querySelectorAll('.esh-sh .esh-row')].find(r => /Reduce motion/.test(r.textContent)).querySelector('[role=switch]').click(); step(); out.motion = game.reduceMotion; out.still = ui.root.classList.contains('esh-still'); out.saved = ui.settings.motion;
+  ui.show('settings', { tab: 'Comfort' }); [...document.querySelectorAll('.esh-sh .esh-row')].find(r => /Reduce motion/.test(r.textContent)).querySelector('[role=switch]').click(); step(); out.motion = game.reduceMotion; out.still = ui.root.classList.contains('esh-still'); out.saved = ui.settings.motion;
   ui.hide(); ui.toast('Hi'); out.toastOn = q('.esh-toast').classList.contains('on'); step(600); out.toastOff = !q('.esh-toast').classList.contains('on');
   game.dispose(); out.gone = !q('.esh') && game.shell === null;
   return out;

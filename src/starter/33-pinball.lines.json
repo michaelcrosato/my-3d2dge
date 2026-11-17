@@ -7,7 +7,7 @@
   "pinball.table": "NEBULA RUN HIGH SCORES",
   "pinball.shoot_again": "SHOOT AGAIN",
   "pinball.insert_coin": "INSERT COIN",
-  "pinball.dmd.press_start": "PRESS START",
+  "pinball.dmd.press_start": "PRESS {key:confirm}",
   "pinball.dmd.high_score": "HIGH SCORE",
   "pinball.dmd.balls": {
    "one": "{count} BALL",
@@ -30,10 +30,14 @@
   "pinball.dmd.game_over": "GAME OVER",
   "pinball.dmd.tilt": "TILT",
   "pinball.dmd.danger": "DANGER",
+  "pinball.dmd.flip": "FLIP {left} {right}",
+  "pinball.dmd.nudge": "NUDGE {key:nudge}",
+  "pinball.dmd.flip_touch": "TAP A SIDE TO FLIP",
+  "pinball.dmd.nudge_touch": "FLICK UP TO NUDGE",
   "pinball.how.launch.touch": "SWIPE UP TO LAUNCH",
   "pinball.how.launch.keys": "HOLD {key:plunge}, LET GO TO LAUNCH",
   "pinball.how.play.touch": "TAP TO PLAY",
-  "pinball.how.play.keys": "{key:start} TO PLAY",
+  "pinball.how.play.keys": "{key:confirm} TO PLAY",
   "action.flip_l": "Flip l",
   "action.flip_r": "Flip r",
   "action.plunge": "Plunge",
@@ -47,7 +51,7 @@
   "pinball.table": "The title of the table's high-score table.",
   "pinball.shoot_again": "Painted on the apron between the flippers: the light that means a lost ball comes back (the ball saver).",
   "pinball.insert_coin": "Painted on the coin door under the table (a tall screen shows it).",
-  "pinball.dmd.press_start": "The dot-matrix display (128 x 32 dots, two short lines) in its attract loop. All its lines are short capitals.",
+  "pinball.dmd.press_start": "The dot-matrix display (128 x 32 dots, two short lines) in its attract loop: {key:confirm} is the key or button that starts a game (Enter, ✕). All its lines are short capitals.",
   "pinball.dmd.high_score": "The display: the best score, shown on the line under it.",
   "pinball.dmd.balls": "The display: a game is three balls.",
   "pinball.dmd.last": "The display: the last game's score.",
@@ -68,11 +72,15 @@
   "pinball.dmd.danger": "The display: one more nudge and the table tilts.",
   "pinball.how.launch.touch": "Help at the screen's foot while the ball waits in the plunger lane, on a touch screen.",
   "pinball.how.launch.keys": "The same on a keyboard or controller (shown in capitals): {key:plunge} is the plunger's key.",
-  "pinball.how.play.keys": "On the title (shown in capitals): {key:start} starts a game.",
+  "pinball.how.play.keys": "Under the table on the title: {key:confirm} is the key or button that starts a game (Enter, ✕).",
   "action.flip_l": "The left flipper (on the controls screen: Flip l is flip left).",
   "action.flip_r": "The right flipper (Flip r: flip right).",
   "action.plunge": "Pull and let go of the plunger that launches the ball.",
-  "action.nudge": "Nudge the table (too much tilts it)."
+  "action.nudge": "Nudge the table (too much tilts it).",
+  "pinball.dmd.flip": "The display's attract loop, how to play: {left} and {right} are the flipper keys or buttons in short (SHIFT RSHFT, L1 R1).",
+  "pinball.dmd.nudge": "Under it: {key:nudge} is the key or button that nudges the table (N, △).",
+  "pinball.dmd.flip_touch": "The same on a touch screen: a finger on either half of the screen raises that side's flipper.",
+  "pinball.dmd.nudge_touch": "Under it on a touch screen: a quick flick up nudges the table."
  },
  "max": {
   "pinball.dmd.press_start": 21,
@@ -85,7 +93,11 @@
   "pinball.dmd.jackpot": 10,
   "pinball.dmd.star_storm": 10,
   "pinball.dmd.game_over": 10,
-  "pinball.dmd.tilt": 10
+  "pinball.dmd.tilt": 10,
+  "pinball.dmd.flip": 21,
+  "pinball.dmd.nudge": 21,
+  "pinball.dmd.flip_touch": 21,
+  "pinball.dmd.nudge_touch": 21
  },
  "names": [
   "NEBULA RUN"

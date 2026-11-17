@@ -1,12 +1,21 @@
 /* =====================================================================================
- * SLICE 6  FLIGHT  (Star Fox 64, Panzer Dragoon).
+ * SLICE 6  FLIGHT  (Star Fox 64, Panzer Dragoon). @modules dualsense
  * A stage on rails: out over the sea between rock islands, fighters coming at you in waves, rings to fly through, then
  * over the coast and the enemy's base (turrets on the plateau, masts to weave between, fighters taking off), and into a
  * bay where their flagship waits: there the rails end and you fly free round it, its four engines first, then its core.
- * J (or Space, a click) fires the twin lasers; hold it to charge: the reticle locks on what is ahead, let go and the
- * charged shot flies to it. K (or Q) barrel-rolls toward the stick: a roll turns shots aside. Shift boosts, X brakes
- * (the meter refills). The stick moves the ship about the screen (on rails) or turns it (free). Silver rings mend the
- * shield, a gold one more. Your wingman, KESTREL, calls on the radio and needs a hand once. Settings: Invert flight.
+ * Fire the twin lasers; hold it to charge: the reticle locks on what is ahead, let go and the charged shot flies to it.
+ * A barrel roll turns shots aside. Boost and brake (the meter refills). The stick moves the ship about the screen (on
+ * rails) or turns it (free). Silver rings mend the shield, a gold one more. Your wingman, KESTREL, calls on the radio and
+ * needs a hand once. Settings: Invert flight.
+ * KEYS: WASD or arrows steer (or the mouse: the ship heads for the pointer), J, Space or a left click fire (hold:
+ * charge), Q and E roll left and right (K toward the stick, a right click toward the pointer), Shift or L boost, X or H
+ * brake. PAD (PlayStation names): the left stick steers, ✕ fires (hold: charge), L1 and R1 roll left and right, R2 boosts
+ * and L2 brakes (as far as they are pulled), ○ and □ boost and brake too, Options pauses. DUALSENSE: gyro aim steers on
+ * top of the stick (Controls, Controller), R2 and L2 push back while the meter lasts, the light bar is the shield (green,
+ * a red pulse when low, red as you are hit, gold when the flagship falls), the radio's call clicks from its speaker; any
+ * pad rumbles on a hit, a shot turned aside, the charged shot, a kill, a scrape and a boost. TOUCH: the stick, BRAKE,
+ * BOOST, ROLL, FIRE (hold: charge); the touch assists (Settings, on at first) fire by themselves at what is in the
+ * reticle. A swipe takes the radio and the controls away.
  * THE 3D: world.flyer (on rails along an E.Path, the ship moving in a window across it; then free within the bay's
  * bounds), f.seek (the charged shot's lock), barrel rolls (f.rolling), the 'behind' camera (behind the rail's point,
  * then the ship), a terrain (the sea, islands, the coast, the base's plateau, mountains round the bay), Dialog's radio.
@@ -14,10 +23,25 @@
  * ===================================================================================== */
 const FLIGHT = (() => {
   const PI = Math.PI, U = 16;
-  const KEYS = Object.assign({}, W3.INPUT, { fire: ['KeyJ', 'Space', 'Mouse0', 'Pad0'], roll: ['KeyK', 'KeyQ', 'Pad4', 'Pad5'], boost: ['ShiftLeft', 'ShiftRight', 'KeyL', 'Pad1'], brake: ['KeyX', 'KeyH', 'Pad2'] });
-  for (const k of ['attack', 'dash', 'skill', 'jump', 'lock']) delete KEYS[k];
+  // (R2 and L2 first in boost and brake, the analog pair: the ship takes how far each is pulled, and a prompt names them;
+  // L1 and R1 roll left and right, Star Fox's Z and R; K and the touch ROLL toward the stick, a right click toward the
+  // pointer; no camera key: the ship's camera is its own)
+  const KEYS = Object.assign({}, W3.INPUT, { fire: ['KeyJ', 'Space', 'Mouse0', 'Pad0'], roll: ['KeyK', 'Mouse2'], rollL: ['KeyQ', 'Pad4'], rollR: ['KeyE', 'Pad5'], boost: ['ShiftLeft', 'ShiftRight', 'KeyL', 'Pad7', 'Pad1'], brake: ['KeyX', 'KeyH', 'Pad6', 'Pad2'] });
+  for (const k of ['attack', 'dash', 'skill', 'jump', 'lock', 'camera']) delete KEYS[k];
   const TOUCH = ['brake', 'boost', 'roll', 'fire'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t((a === 'fire' ? 'engine.action.' : 'action.') + a))]));   // (the actions' names: FIRE, ROLL, BOOST, BRAKE)
-  const INVERT = { key: 'invertFlight', label: E.t('flight3d.setting.invert'), group: 'Game', value: false, help: E.t('flight3d.setting.invert.help') };
+  const INVERT = { key: 'invertFlight', label: E.t('flight3d.setting.invert'), group: 'Game', value: false, help: E.t('flight3d.setting.invert.help'), show: g => g.sceneName === 'flight' };
+  // the DUALSENSE (the dualsense module): gyro aim, the triggers (boost and brake push back while the meter lasts), the
+  // light bar (the shield), the radio's click from its speaker; buzz: a rumble on any pad, while it is what the player
+  // plays with. ds.* only in update (a proof's steps never read them)
+  let ds = null, padLight = null, padTrig = null, flashT = 0, hint = 0, mouseFly = false, mouseT = -1;
+  const buzz = (s, t) => !scripted && game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  function padExtras(dt) {
+    if (!ds) return; flashT -= dt;
+    const c = flashT > 0 ? '#ff3a2a' : ended > 0 ? '#ffd040' : S.shield > 30 ? '#4ae07a' : Math.floor(game.real * 3) % 2 ? '#e8283a' : '#5a0a14';
+    if (c !== padLight) ds.light(padLight = c);
+    const k = ended || S.boost <= 0 ? 'free' : 'meter';   // (set on change: the meter run dry, refilled, the end)
+    if (k !== padTrig) { padTrig = k; ds.trigger('right', k === 'free' ? null : { resist: [.1, .35] }); ds.trigger('left', k === 'free' ? null : { resist: [.1, .6] }); }
+  }
 
   /* ---- THE WORLD: a terrain. The sea (height 0), rock islands by the rail, the coast (a diagonal line: x + y = 30,500),
    * the base's plateau beyond it, mountains further in, and a bay carved out of them for the flagship ---- */
@@ -61,7 +85,11 @@ const FLIGHT = (() => {
   const camT = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0 };   // the camera's target: the rail's point, drawn a little after the ship
   const talk = new E.Dialog(game, { lines: 2, place: 'top', border: '#8ad0ff' });
   const PILOT = new E.Humanoid({ hair: 'short', colors: { cloth: '#3a6ad8', pants: '#2a3a5a', hair: '#e8c060', skin: '#e8b890' } });
-  const radio = (name, id) => { if (!scripted) talk.say(E.t('flight3d.radio.' + id), { name, auto: 2.6, modal: false, alpha: .75, portrait: PILOT, portraitOpts: { zoom: 3, turn: .4 } }); };
+  // the radio: at the top, under the corner's buttons where they stay (a touch screen); a click from the DualSense's speaker
+  const radio = (name, id) => {
+    if (scripted) return; const ca = game.cornerArea({ pinned: true });
+    talk.say(E.t('flight3d.radio.' + id), { name, auto: 2.6, modal: false, alpha: .75, portrait: PILOT, portraitOpts: { zoom: 3, turn: .4 }, y: ca ? Math.ceil(ca.y1) + 2 : undefined }); if (ds && ds.connected) ds.speaker('blip', { vol: .4 });
+  };
   const SONG = { bpm: 140, steps: 4, tracks: [
     { wave: 'square', vol: .055, notes: 'A4 . C5 E5 . A5 . G5 | F5 . E5 C5 . D5 . E5 | A4 . C5 E5 . A5 . B5 | C6 . B5 G5 . E5 . . ' },
     { wave: 'triangle', vol: .26, notes: 'A2 A2 E3 A2 A2 E3 A2 G2 | F2 F2 C3 F2 G2 G2 D3 G2 | A2 A2 E3 A2 A2 E3 A2 G2 | F2 F2 G2 G2 A2 A2 A2 A2' },
@@ -131,7 +159,7 @@ const FLIGHT = (() => {
   }
   function charged() {
     const f = nose(); lasers.push({ x: ship.x + f[0] * 14, y: ship.y + f[1] * 14, z: ship.z, vx: f[0] * 1300, vy: f[1] * 1300, vz: f[2] * 1300, t: 0, dmg: 6, big: true, target: lock });
-    if (!scripted) A.sfx('powerup');
+    if (!scripted) A.sfx('powerup'); buzz(.4, .15);
   }
   const targets = () => { const L = foes.filter(f => f.alive && f.t >= 0).concat(turrets.filter(q => q.alive)); if (freed && boss.alive) { for (const p of boss.parts) if (p.alive) L.push(partAt(p)); if (boss.core) L.push(coreAt()); } return L; };
   function partAt(p) { const c = Math.cos(boss.yaw), s = Math.sin(boss.yaw); return Object.assign(p, { type: 'part', x: boss.x + p.o[0] * c - p.o[1] * s, y: boss.y + p.o[0] * s + p.o[1] * c, z: boss.z + p.o[2], r: 34 }); }
@@ -139,10 +167,10 @@ const FLIGHT = (() => {
   function coreAt() { return Object.assign(partAt(CORE), { type: 'core', alive: boss.alive && boss.core, hp: boss.hp }); }
   function hurtFoe(q, dmg, x, y, z) {
     P.sparks(x, y, z, 5, null, { color: '#ffd080' }); if (!scripted) A.sfx('hit', { vol: .4 });
-    if (q.type === 'core') { boss.hp -= dmg; if (boss.hp <= 0) { boss.alive = false; boss.dying = 3; score += 5000; hits += 10; } return; }
+    if (q.type === 'core') { boss.hp -= dmg; if (boss.hp <= 0) { boss.alive = false; boss.dying = 3; score += 5000; hits += 10; buzz(.9, .8); } return; }
     q.hp -= dmg; if (q.hp > 0) return;
     q.alive = false; score += q.type === 'part' ? 1000 : q.type === 'turret' ? 300 : 100; hits++;
-    P.fire(q.x, q.y, q.z, 10, { size: 9, speed: 80 }); P.bits(q.x, q.y, q.z, 8, ['#5a5a6a', '#8a8a9a', '#ff9a3a']); game.shake(q.type === 'part' ? 5 : 2); if (!scripted) A.sfx('explode', { vol: .5 });
+    P.fire(q.x, q.y, q.z, 10, { size: 9, speed: 80 }); P.bits(q.x, q.y, q.z, 8, ['#5a5a6a', '#8a8a9a', '#ff9a3a']); game.shake(q.type === 'part' ? 5 : 2); if (!scripted) A.sfx('explode', { vol: .5 }); if (q.type === 'part') buzz(.6, .3);
     if (q.chase) radio(KESTREL, 'thanks');
     if (q.type === 'part' && boss.parts.every(p => !p.alive)) { boss.core = true; radio(KESTREL, 'core'); }
   }
@@ -160,7 +188,7 @@ const FLIGHT = (() => {
       const x0 = s.x, y0 = s.y, z0 = s.z; s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.t += dt;
       if (s.back) { for (const q of L) if (q.alive !== false && segHit(x0, y0, z0, s.x, s.y, s.z, q.x, q.y, q.z, q.r)) { hurtFoe(q, 2, s.x, s.y, s.z); s.t = 9; break; } continue; }
       if (segHit(x0, y0, z0, s.x, s.y, s.z, ship.x, ship.y, ship.z, ship.rolling > 0 ? 26 : 11)) {
-        if (ship.rolling > 0) { s.vx *= -1.3; s.vy *= -1.3; s.vz *= -1.3; s.back = true; P.sparks(s.x, s.y, s.z, 4, null, { color: '#a0e0ff' }); if (!scripted) A.sfx('blip', { vol: .5 }); }   // (a roll turns it aside)
+        if (ship.rolling > 0) { s.vx *= -1.3; s.vy *= -1.3; s.vz *= -1.3; s.back = true; P.sparks(s.x, s.y, s.z, 4, null, { color: '#a0e0ff' }); if (!scripted) A.sfx('blip', { vol: .5 }); buzz(.2, .05); }   // (a roll turns it aside)
         else { hurt(8); s.t = 9; }
       }
     }
@@ -170,7 +198,7 @@ const FLIGHT = (() => {
     const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0, L2 = dx * dx + dy * dy + dz * dz || 1, k = clamp(((cx - x0) * dx + (cy - y0) * dy + (cz - z0) * dz) / L2, 0, 1);
     return Math.hypot(x0 + dx * k - cx, y0 + dy * k - cy, z0 + dz * k - cz) < r;
   }
-  function hurt(n) { if (S.hurtT > 0 || ended) return; S.shield -= n; S.hurtT = .5; game.shake(3); game.flash('#ff3a2a'); if (!scripted) A.sfx('hurt'); if (S.shield <= 0) { S.shield = 0; end(-1); } }
+  function hurt(n) { if (S.hurtT > 0 || ended) return; S.shield -= n; S.hurtT = .5; game.shake(3); game.flash('#ff3a2a'); if (!scripted) A.sfx('hurt'); buzz(.5, .2); flashT = .3; if (S.shield <= 0) { S.shield = 0; end(-1); } }
   function end(k) { if (ended) return; ended = k; endT = 0; if (k < 0) { P.fire(ship.x, ship.y, ship.z, 16, { size: 10 }); } }
 
   /* ---- the flagship: it circles the bay, fires spreads from its engines and homing mines; its core opens when they burn ---- */
@@ -191,10 +219,22 @@ const FLIGHT = (() => {
   }
 
   /* ---- one step: the controls, the ship, the stage's script, the shots, the camera's target ---- */
-  const ctl = { steer: [0, 0], boost: false, brake: false, roll: 0, fire: false, down: a => game.input.down(a), pressed: a => game.input.pressed(a) };
-  function controls() {
-    const I = game.input, m = I.move(); ctl.steer[0] = m[0]; ctl.steer[1] = m[1];
-    ctl.boost = I.down('boost'); ctl.brake = I.down('brake'); ctl.roll = I.pressed('roll') ? (Math.sign(m[0]) || 1) : 0; ctl.fire = I.down('fire'); ctl.tap = I.pressed('fire');
+  // (boost and brake 0..1: how far a trigger is pulled, a key's 1; assist: the touch assists, from the player's input: a
+  // proof's and the bot's own controls have none)
+  const ctl = { steer: [0, 0], boost: 0, brake: 0, roll: 0, fire: false, assist: false, down: a => game.input.down(a), pressed: a => game.input.pressed(a) };
+  function controls(dt) {
+    const I = game.input, m = I.move().slice(), W = game.W, H = game.H;
+    // the mouse flies it: moved (and no key or stick steering), the ship heads for the pointer, the further from the middle
+    // the harder (a dead middle); a key or the stick takes over again
+    if (Math.hypot(m[0], m[1]) > .1 || I.lastDevice === 'gamepad' || I.lastDevice === 'touch') mouseFly = false; else if (I.mouse.t !== mouseT && I.mouse.active && mouseT >= 0) mouseFly = true;
+    mouseT = I.mouse.t;
+    const p = mouseFly && I.pointer();
+    if (p) { const dz = v => Math.abs(v) < .06 ? 0 : v; m[0] = clamp(dz((p[0] - W / 2) / (W * .3)), -1, 1); m[1] = clamp(dz((p[1] - H / 2) / (H * .3)), -1, 1) * (ship.o.invert ? -1 : 1); }   // (toward the pointer with Invert flight on too: the flyer's invert undone)
+    // gyro aim (a DualSense's turn and tilt) on top of the stick
+    if (ds && dt > 0) { const g = ds.gyroAim(dt); m[0] = clamp(m[0] + g[0] / dt / 160, -1, 1); m[1] = clamp(m[1] + g[1] / dt / 160, -1, 1); }   // (a step of no time: none)
+    ctl.steer[0] = m[0]; ctl.steer[1] = m[1]; ctl.assist = I.assist;
+    ctl.boost = I.value('boost'); ctl.brake = I.value('brake'); ctl.fire = I.down('fire'); ctl.tap = I.pressed('fire');
+    ctl.roll = I.pressed('rollL') ? -1 : I.pressed('rollR') ? 1 : I.pressed('roll') ? (Math.sign(m[0]) || 1) : 0;
     return ctl;
   }
   function step(dt, c) {
@@ -202,12 +242,16 @@ const FLIGHT = (() => {
     if (ended) { endT += dt; if (ended < 0) ship.z -= 60 * dt; for (const l of lasers) l.t += dt; return; }
     if (S.hurtT > 0) S.hurtT -= dt;
     // the boost meter: boost or brake while it lasts, then it refills
-    const use = (c.boost || c.brake) && S.boost > 0; S.boost = clamp(S.boost + (use ? -.45 : .25) * dt, 0, 1);
-    ship.update(dt, { steer: c.steer, boost: use && c.boost, brake: use && c.brake, roll: c.roll });
+    // (boost and brake as far as they are pulled: 0..1, a key's or a proof's true being 1; the meter drains as hard)
+    const bo = +c.boost || 0, br = +c.brake || 0, use = (bo > .05 || br > .05) && S.boost > 0; S.boost = clamp(S.boost + (use ? -.45 * Math.max(bo, br) : .25) * dt, 0, 1);
+    ship.update(dt, { steer: c.steer, boost: use && bo > .05 ? bo : 0, brake: use && br > .05 ? br : 0, roll: c.roll });
     if (c.roll && !scripted) A.sfx('whoosh', { vol: .5 });
-    if (ship.hitGround) { if ((world.n & 7) === 0) { P.sparks(ship.x, ship.y, ship.z - 6, 3); hurt(4); } }
+    if (ship.hitGround) { if ((world.n & 7) === 0) { P.sparks(ship.x, ship.y, ship.z - 6, 3); hurt(4); buzz(.2, .1); } }
+    if (use && bo > .05 && (world.n & 15) === 0) buzz(.15 * bo, .14);   // (a boost hums)
     // fire: a tap shoots; held, it charges (a lock on what is ahead), let go, the charged shot flies
     S.fireT -= dt;
+    // the touch assists: the lasers by themselves at what is in the reticle (not while FIRE is held: it charges)
+    if (c.assist && !c.fire && S.fireT <= 0 && ship.seek(targets(), { cone: .12, range: 1600 })) { laser(); S.fireT = .2; }
     if (c.fire) { S.charge = Math.min(1, S.charge + dt * 1.4); if (S.charge > .35) lock = ship.seek(targets(), { cone: .3, range: 1800 }) || lock; if (lock && lock.alive === false) lock = null; }
     if (c.tap && S.fireT <= 0) { laser(); S.fireT = .12; }
     if (!c.fire && S.held) { if (S.charge >= 1) charged(); S.charge = 0; lock = null; }
@@ -277,17 +321,31 @@ const FLIGHT = (() => {
   function hud(r) {
     const g0 = r, W = r.W, H = r.H;
     r.overlay(g => {
-      E.ui.bar(g, 8, H - 16, 90, 7, S.shield / 100, S.shield > 30 ? '#4ae07a' : '#ff5a3a', { bg: '#1a1a2a', border: '#e8e4ff' });
-      E.font.text(g, E.t('flight3d.hud.shield'), 8, H - 26, '#c8d8ff', { font: 'tiny', shadow: '#000', outline: false });
-      E.ui.bar(g, 104, H - 16, 50, 7, S.boost, '#4ac0ff', { bg: '#1a1a2a', border: '#e8e4ff' });
-      E.font.text(g, E.t('flight3d.hud.hits', { hits }), W - 8, 8, '#ffe04a', { align: 'right', shadow: '#000', outline: false });
-      E.font.text(g, String(score).padStart(6, '0'), W - 8, 18, '#ffffff', { align: 'right', font: 'tiny', shadow: '#000', outline: false });
+      // the shield and the boost meter bottom left, the hits and the score bottom right (the radio has the top): above the
+      // touch buttons on a phone
+      const lh = E.font.lineHeight(), ta = game.input.touchArea(), above = (x0, x1) => ta && ta.y0 < H - 8 && ta.x0 < x1 && ta.x1 > x0 ? Math.round(ta.y0) - 6 : H - 8, foot = above(0, 160), footR = above(W - 70, W);
+      E.ui.bar(g, 8, foot - 8, 90, 7, S.shield / 100, S.shield > 30 ? '#4ae07a' : '#ff5a3a', { bg: '#1a1a2a', border: '#e8e4ff' });
+      E.font.text(g, E.t('flight3d.hud.shield'), 8, foot - 10 - lh, '#c8d8ff', { shadow: '#000', outline: false });
+      E.ui.bar(g, 104, foot - 8, 50, 7, S.boost, '#4ac0ff', { bg: '#1a1a2a', border: '#e8e4ff' });
+      E.font.text(g, E.t('flight3d.hud.hits', { hits }), W - 8, footR - 2 * lh - 2, '#ffe04a', { align: 'right', shadow: '#000', outline: false });
+      E.font.text(g, String(score).padStart(6, '0'), W - 8, footR - lh, '#ffffff', { align: 'right', shadow: '#000', outline: false });
+      // the controls for the first seconds, in the player's own keys or buttons (on a touch screen its buttons say them),
+      // over the meters; a swipe takes them away
+      if (hint > 0 && !touch() && !ended) {
+        const L = []; let row = ''; for (const p of E.t('flight3d.hint').split(/\s{2,}/)) { const t = row ? row + '   ' + p : p; if (row && E.font.width(t) > W - 12) { L.push(row); row = p; } else row = t; } if (row) L.push(row);
+        const y0 = Math.min(foot, footR) - 2 * lh - 10 - L.length * lh;
+        g.save(); g.globalAlpha = .5 * clamp(hint, 0, 1); g.fillStyle = '#05030c'; g.fillRect(0, y0 - 3, W, L.length * lh + 4); g.restore(); g._c = null;
+        L.forEach((t, k) => E.font.text(g, t, W / 2, y0 + k * lh, '#ffffff', { align: 'center', shadow: '#000', outline: false }));
+      }
       // the reticle: where the lasers go (a point ahead of the nose); the lock: a box on its target
       const f = nose(500), p = world.project(ship.x + f[0], ship.y + f[1], ship.z + f[2]);
       if (p && !ended) { const c = S.charge >= 1 ? '#ff4a3a' : '#7aff8a'; g.strokeStyle = c; g.lineWidth = 1; g.strokeRect(Math.round(p[0]) - 5.5, Math.round(p[1]) - 5.5, 11, 11); E.px.rect(g, Math.round(p[0]), Math.round(p[1]), 1, 1, c); }
       if (lock && lock.alive !== false) { const q = world.project(lock.x, lock.y, lock.z); if (q) { g.strokeStyle = '#ff4a3a'; g.lineWidth = 1; const s = 9 + Math.sin(t * 12) * 2; g.strokeRect(Math.round(q[0] - s) + .5, Math.round(q[1] - s) + .5, s * 2, s * 2); } }
-      if (S.charge > 0 && S.charge < 1) E.ui.bar(g, W / 2 - 20, H - 10, 40, 4, S.charge, '#ff9a3a', { bg: '#1a1a2a' });
-      if (freed && (boss.alive || boss.dying > 0)) { const left = boss.parts.reduce((n, p) => n + Math.max(0, p.hp), 0) + Math.max(0, boss.hp); E.font.text(g, E.t('flight3d.hud.flagship'), W / 2, 8, '#ffb0a0', { align: 'center', font: 'tiny', shadow: '#000', outline: false }); E.ui.bar(g, W / 2 - 50, 16, 100, 5, left / 70, '#ff5a3a', { bg: '#1a1a2a', border: '#e8e4ff' }); }
+      if (S.charge > 0 && S.charge < 1) E.ui.bar(g, W / 2 - 20, above(W / 2 - 20, W / 2 + 20) - 6, 40, 4, S.charge, '#ff9a3a', { bg: '#1a1a2a' });
+      if (freed && (boss.alive || boss.dying > 0)) {   // the flagship's strength: under the radio while it talks, else at the top (under the corner's buttons)
+        const left = boss.parts.reduce((n, p) => n + Math.max(0, p.hp), 0) + Math.max(0, boss.hp), ca = game.cornerArea({ pinned: true }), top = ca ? Math.ceil(ca.y1) + 2 : 8, y = talk.open ? Math.max(top, 12) + Math.max(2 * lh + 9, 48) + 4 : top;   // (the radio: two rows beside its portrait)
+        E.font.text(g, E.t('flight3d.hud.flagship'), W / 2, y, '#ffb0a0', { align: 'center', shadow: '#000', outline: false }); E.ui.bar(g, W / 2 - 50, y + lh, 100, 5, left / 70, '#ff5a3a', { bg: '#1a1a2a', border: '#e8e4ff' });
+      }
       if (ended > 0) E.font.title(g, E.t('flight3d.complete'), W / 2, H * .36, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
     });
     talk.draw(g0);
@@ -356,11 +414,18 @@ const FLIGHT = (() => {
     view: 'iso', input: KEYS, pausable: true, touch: TOUCH, camera: { zoom: false },
     enter() {
       game.settings.define(INVERT); reset(1); active = world; A.music(SONG); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
-      ship.o.invert = !!game.settings[INVERT.key];
+      ship.o.invert = !!game.settings[INVERT.key]; hint = 8; mouseFly = false; mouseT = -1;
+      ds = E.DualSense ? E.DualSense.attach(game, { gyro: true, triggers: true, light: true, speaker: true }) : null; padLight = padTrig = null; flashT = 0;
     },
+    exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene: the triggers free)
     update(dt) {
-      talk.update(dt);
-      step(dt, controls());
+      const inp = game.input; hint -= dt;
+      talk.update(dt);   // (a swipe across the radio takes it away: E.Dialog)
+      if (hint > 0 && inp.swipe(true)) hint = 0;   // (elsewhere, the controls)
+      // the camera behind: further back and wider on a screen held upright, so the ship stays in the frame across the rails'
+      // window (its picture only: the rules and the window stay)
+      Object.assign(world.camera.behind, game.H > game.W ? { dist: 190, fov: 88 } : { dist: 120, fov: 70 });
+      step(dt, controls(dt)); padExtras(dt);
       if (ended && endT > (ended > 0 ? 4 : 2.5)) game.go('over', { from: 'flight', world, won: ended > 0, title: ended > 0 ? E.t('flight3d.complete') : null, lines: [E.t('flight3d.over.score', { hits, score: E.lang.num(score, { useGrouping: false }) }), E.t(ended > 0 ? 'flight3d.over.won' : 'flight3d.over.lost')] });
     },
     draw(r) { world.draw(r); hud(r); },

@@ -2,7 +2,8 @@
  "lines": {
   "rooftop.title": "ROOFTOP",
   "rooftop.title.how": "Climb with {key:jump}  take the gem  stay unseen",
-  "rooftop.title.press": "Press {key:start}",
+  "rooftop.title.press": "Press {key:confirm}",
+  "rooftop.title.tap": "Tap to start",
   "rooftop.controls.jump": "Jump and climb",
   "rooftop.goal.gem": "Take the gem",
   "rooftop.goal.gem.text": "It lies on the roof",
@@ -15,7 +16,8 @@
   "rooftop.keys.jump": "Jump, climb, glide",
   "rooftop.end.won": "STOLEN",
   "rooftop.end.lost": "CAUGHT",
-  "rooftop.end.again": "Press {key:start} to try again"
+  "rooftop.end.again": "Press {key:confirm} to try again",
+  "rooftop.end.tap": "Tap to try again"
  },
  "notes": {
   "rooftop.title.how": "Three short hints on the title, two spaces apart, shown in capitals. {key:jump} is the player's key or button for jump.",

@@ -1,15 +1,23 @@
 /* =====================================================================================
- * SLICE 12  METROIDVANIA  (Metroid, Super Metroid, Symphony of the Night). @modules rooms
+ * SLICE 12  METROIDVANIA  (Metroid, Super Metroid, Symphony of the Night). @modules rooms dualsense
  * A research station buried in a moon: twelve rooms on a grid of screens (the landing site, the caverns, a grotto, a
  * flooded shaft, a shrine under the water, the save room, a tower, the nest, the laboratory, the cold store, a lift
  * shaft, the reactor). Two abilities found on the way open the gates: the SPRING BOOTS (a second jump in the air; the
  * green hatch and the tower's climb), in the shrine at the shaft's foot, and the PHASE DASH (the blue hatch), which the
  * CARAPACE guards at the top of the tower. The WARDEN waits in the reactor.
- * KEYS: arrows / WASD move, Space / Z jump, X / J fire (hold it: a charged shot), E / F the lash (a short energy whip
- *   from the cannon: it cuts, knocks shots away and catches the rings to swing from), Shift / C dash, Q held stands
- *   still to aim, Tab / R the map. The cannon aims eight ways: up, up and forward, forward, and in the air down and
- *   forward, or down (crouched, it fires low). Down crouches and crawls; a ledge caught when falling is climbed with up.
- * TOUCH: the stick (it aims too), JUMP, FIRE (beside a foe, or near a ring in the air, it lashes), DASH and MAP.
+ * KEYS: arrows / WASD move, Space / Z jump, X / J / a left click fire (hold it: a charged shot), E / F / a right click
+ *   the lash (a short energy whip from the cannon: it cuts, knocks shots away and catches the rings to swing from),
+ *   Shift / C dash, Q held stands still to aim, Tab / R the map. The cannon aims eight ways: up, up and forward, forward,
+ *   and in the air down and forward, or down (crouched, it fires low). Down crouches and crawls; a ledge caught when
+ *   falling is climbed with up. THE MOUSE aims too, the eight ways, where it points (moved in the last two seconds, and
+ *   no up or down key held: those win); standing, a point behind the hero turns him.
+ * PAD: the stick or d-pad moves and aims, ✕ jump, □ or R2 fire, △ the lash, R1 (or ○) dash, L1 or L2 held aims in
+ *   place, the touchpad or Create the map, Options pauses. DUALSENSE: the light bar is the suit's energy (green, amber,
+ *   red and flashing low; white as it saves), R2 clicks as it fires and buzzes once a charged shot is ready; any pad
+ *   rumbles on hits taken, kills, the bosses' blows, a charged shot and a pickup.
+ * TOUCH: the stick (it aims too), JUMP, FIRE, DASH (once found) and MAP; with Touch assists on (Settings), FIRE beside a
+ *   foe, or near a ring in the air, lashes (it says LASH: a context button). A swipe closes the map and takes the
+ *   banners, the controls hint and the end's box away.
  * THE MAP: the rooms seen, cell by cell, their doors, the save room (S) and the bosses' (B); the corner shows the cells
  * round you. SAVE: step onto the station (it refills energy); the next visit starts there.
  * Deep links: #metroidvania/miniboss and #metroidvania/boss (a practice: the abilities given, at the arena's door),
@@ -19,7 +27,11 @@
  * the bosses and the look.
  * ===================================================================================== */
 const MVANIA = (() => {
-  const T = 16, KEYS = Object.assign({}, E.Input.PLATFORMER, { fire: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2', 'Pad7'], melee: ['KeyE', 'KeyF', 'Pad3'], lock: ['KeyQ', 'Pad4', 'Pad6'], map: ['Tab', 'KeyR', 'Pad8'] });
+  // THE KEYS: PLATFORMER's moves and jump; fire and the lash on a mouse's buttons too; the dash's R1 first (a pad's prompt
+  // names it; ○ still dashes); the map on the DualSense's touchpad as well as Create (first: other pads' prompt). No M for
+  // the map: the shell's M mutes
+  const T = 16, KEYS = Object.assign({}, E.Input.PLATFORMER, { fire: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2', 'Pad7'], melee: ['KeyE', 'KeyF', 'Mouse2', 'Pad3'], lock: ['KeyQ', 'Pad4', 'Pad6'], map: ['Tab', 'KeyR', 'Pad8', 'Pad17'],
+    dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad5', 'Pad1'] });
   delete KEYS.attack; delete KEYS.skill;
   /* ---- THE WORLD: each room's top-left screen on the grid, its name (a line) and area (the look), its rows (top first) ---- */
   const ROOMS = {
@@ -338,6 +350,18 @@ const MVANIA = (() => {
     colors: { skin: '#f0c8a8', cloth: '#d86a24', pants: '#b85a1c', boot: '#6a3218', metal: '#5ad050', glove: '#e8c040', belt: '#e8c040', trim: '#f0d048' } });
   let seals = [], recharge = null, onRe = false, world, hero, rig, hp, inv, aim, aimA, charge, cool, lash, foes, items, rings, orbs, gates, station, ship, fx, banner, got, mapOpen, dead, won, wonT, visited, song, onPad, mode = null, age, hint, bolt;
   const tanks = () => [...world.got].filter(g => g.startsWith('tank:')).length, MAXHP = () => 99 + tanks() * 100;
+  // the DUALSENSE (the dualsense module): the light bar is the suit's energy (green, amber, red and flashing low; white
+  // as it saves), R2 clicks like a gun's trigger as it fires and buzzes while a charged shot waits. Each is sent as it
+  // changes. buzz: a rumble on any pad, while it is what the player plays with
+  let ds = null, padLight = null, padTrig = null;
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  function padExtras() {
+    if (!ds) return;
+    const k = hp / MAXHP(), c = won ? '#ffd060' : dead > 0 ? '#400808' : got && got.title === E.t('metroidvania.saved') && got.t < 1.5 ? '#ffffff' : k > .5 ? '#5ad050' : k > .25 ? '#e8a030' : Math.floor(game.real * 6) % 2 ? '#ff2a2a' : '#5a0a0a';
+    if (c !== padLight) ds.light(padLight = c);
+    const t = mapOpen || dead > 0 || won ? null : charge >= .7 ? 'ready' : 'gun';
+    if (t !== padTrig) { padTrig = t; ds.trigger('right', t === 'ready' ? { pulse: [0, 30, .35] } : t && { weapon: [.15, .45, .5] }); }
+  }
   // a new run in a world: loaded from its save unless fresh; at: a practice's room (got: what it is given)
   function start(o = {}) {
     world = makeWorld(o.id || 'metroidvania'); won = false; wonT = 0; visited = new Set(); song = null; fx = []; banner = got = null; mapOpen = false; dead = 0; age = 0; hint = 7;
@@ -351,7 +375,7 @@ const MVANIA = (() => {
   const ENTRY = { arena: [17 * T, 2 * T], reactor: [2.5 * T, 2 * T] };   // (a practice's start: inside the door)
   // into a room: its creatures (the bosses beaten stay beaten), what is still to find, the rings, the hatches, the song
   function arrive() {
-    const R = world.room, m = R.map; foes = []; items = []; rings = []; orbs = []; shots.clear(); lash = null; if (hero.swinging) hero.release();
+    const R = world.room, m = R.map; foes = []; items = []; rings = []; orbs = []; shots.clear(); lash = null; if (hero.swinging) hero.release();   // (the hero's room, entered)
     for (const s of m.spawns) {
       const k = s.tag;
       if (FOES[k]) { if (!(k === 'carapace' && world.has('dash')) && !(k === 'warden' && won)) foes.push(spawn(k, s, m)); }
@@ -381,9 +405,19 @@ const MVANIA = (() => {
   }
 
   /* ---- PLAY ---- */
-  // the cannon's aim from the stick, one of eight ways ([x, z], a unit): forward by default; crouched it fires low
+  // THE MOUSE aims where it points: the way from the hero's chest to the pointer on screen (x right, y down, as the
+  // stick's), while it aimed last (moved or clicked in the last two seconds) and no up or down key is held; else null
+  function mouseAim(I) {
+    if (I.aimSource !== 'mouse' || !(I.mouse.t > I.clock - 2) || I.down('up') || I.down('down') || !game.r) return null;
+    const m = I.pointer(), c = game.r.w(hero.x, 0, hero.z + 16); if (!m) return null;   // (the pointer and him on screen, the last frame's)
+    const dx = m[0] - c[0], dy = m[1] - c[1], l = Math.hypot(dx, dy); return l > 6 ? [dx / l, dy / l] : null;
+  }
+  // the cannon's aim from the stick (or the mouse), one of eight ways ([x, z], a unit): forward by default; crouched it
+  // fires low. The mouse behind him turns him while he stands; running, he aims on the side he runs
   function aimFrom(I, lock) {
-    const [mx, my] = I.move(), sx = Math.abs(mx) > .35 ? Math.sign(mx) : 0, up = my < -.45, dn = my > .45, air = !hero.onGround && !hero.swimming;
+    const ma = mouseAim(I), [mx, my] = ma || I.move(), up = my < -.45, dn = my > .45, air = !hero.onGround && !hero.swimming;
+    let sx = Math.abs(mx) > .35 ? Math.sign(mx) : 0;
+    if (ma && sx && sx !== hero.facing) { if (Math.abs(I.move()[0]) > .35) sx = hero.facing; else hero.facing = sx; }
     if (lock && sx) hero.facing = sx;
     const f = hero.facing, k = Math.SQRT1_2;
     return up ? (sx || lock && mx ? [sx * k, k] : [0, 1]) : dn && (air || lock) ? (sx ? [sx * k, -k] : air ? [0, -1] : [f * k, -k]) : [f, 0];
@@ -425,7 +459,7 @@ const MVANIA = (() => {
   }
   function kill(f) {
     f.dead = true; const z = f.kind === 'warden' ? f.z + 46 : f.z + f.h / 2;
-    P.explosion(f.x, 0, z, f.boss ? 2.2 : .7, { debris: DEBRIS[f.kind] }); A.sfx('explode'); game.shake(f.boss ? 8 : 2);
+    P.explosion(f.x, 0, z, f.boss ? 2.2 : .7, { debris: DEBRIS[f.kind] }); A.sfx('explode'); game.shake(f.boss ? 8 : 2); buzz(f.boss ? .9 : .2, f.boss ? .5 : .05);
     if (!f.boss && Math.random() < .4) orbs.push({ x: f.x, z: f.z + 4, vx: 0, vz: 110, w: 8, h: 8, t: 0 });
     if (f.boss) game.after(.8, frame);   // (the camera back on the hero)
     if (f.kind === 'carapace') { items.push({ kind: 'dash', x: clamp(f.x, 3 * T, world.map.w * T - 3 * T), z: f.z + 10, w: 14, h: 14, float: true }); tune(); game.flash('#ffffff', .5, .4); }
@@ -433,7 +467,7 @@ const MVANIA = (() => {
   }
   function hurt(n, dir) {
     if (inv > 0 || dead || won) return;
-    hp -= n; inv = 1.1; hero.knock(dir || -hero.facing, 110, 150, .22); A.sfx('hurt'); game.flash('#ff3030', .12, .2); game.shake(2);
+    hp -= n; inv = 1.1; hero.knock(dir || -hero.facing, 110, 150, .22); A.sfx('hurt'); game.flash('#ff3030', .12, .2); game.shake(2); buzz(.5, .15);
     P.text(hero.x, 0, hero.z + 40, '-' + n, '#ff8a8a');
     if (hp <= 0) { hp = 0; dead = 2; A.music(null); song = null; A.sfx('die'); P.explosion(hero.x, 0, hero.z + 14, 1, { debris: ['#d86a24', '#e8c040', '#5ad050'] }); }
   }
@@ -472,9 +506,9 @@ const MVANIA = (() => {
     const m = world.map; f.vz -= 900 * dt;
     if (f.state === 'idle') { f.dir = Math.sign(dx) || f.dir; f.vx = approach(f.vx, f.dir * 38, 220 * dt); if (f.st > 1.4 && f.onGround) { f.st = 0; f.state = f.n++ % 3 === 2 ? 'leap' : 'rear'; } }
     else if (f.state === 'rear') { f.vx = approach(f.vx, 0, 400 * dt); if (f.st > .6) { f.state = 'charge'; f.st = 0; A.sfx('whoosh', { pitch: .5 }); } }
-    else if (f.state === 'charge') { f.vx = f.dir * 215; if (f.hitWall || f.st > 2.5) { f.state = 'dazed'; f.st = 0; f.vx = -f.dir * 70; f.vz = 170; game.shake(5); A.sfx('stomp'); P.dust(f.x + f.dir * 20, 0, f.z + 10, 14); } }
+    else if (f.state === 'charge') { f.vx = f.dir * 215; if (f.hitWall || f.st > 2.5) { f.state = 'dazed'; f.st = 0; f.vx = -f.dir * 70; f.vz = 170; game.shake(5); buzz(.5, .2); A.sfx('stomp'); P.dust(f.x + f.dir * 20, 0, f.z + 10, 14); } }
     else if (f.state === 'dazed') { if (f.onGround) f.vx = approach(f.vx, 0, 260 * dt); if (f.st > 1.6) { f.state = 'idle'; f.st = 0; } }
-    else if (f.state === 'leap') { if (f.st < dt * 1.5) { f.vz = 390; f.vx = clamp(dx * 1.1, -150, 150); f.dir = Math.sign(dx) || f.dir; } else if (f.onGround && f.st > .25) { f.state = 'idle'; f.st = 0; game.shake(4); P.dust(f.x, 0, f.z, 12); A.sfx('stomp', { pitch: .7 }); } }
+    else if (f.state === 'leap') { if (f.st < dt * 1.5) { f.vz = 390; f.vx = clamp(dx * 1.1, -150, 150); f.dir = Math.sign(dx) || f.dir; } else if (f.onGround && f.st > .25) { f.state = 'idle'; f.st = 0; game.shake(4); buzz(.5, .2); P.dust(f.x, 0, f.z, 12); A.sfx('stomp', { pitch: .7 }); } }
     m.move(f, dt);
   }
   // the WARDEN: the reactor's core, grown into its far wall. Its shell shuts while it fires (a fan of orbs at the hero;
@@ -489,7 +523,7 @@ const MVANIA = (() => {
         A.sfx('laser', { pitch: .4, vol: .5 }); }
       if (f.n >= 3 && f.cool <= 0) { f.state = half && f.beams++ % 2 === 0 ? 'beam' : 'open'; f.st = 0; f.n = 0; }
     } else if (f.state === 'beam') {   // a warning line, then the beam
-      if (f.st > .9 && f.st - dt <= .9) { A.sfx('explode', { pitch: 1.6 }); game.shake(3); }
+      if (f.st > .9 && f.st - dt <= .9) { A.sfx('explode', { pitch: 1.6 }); game.shake(3); buzz(.7, .5); }
       if (f.st > .9 && f.st < 1.5 && hero.z < 30) hurt(22, -1);
       if (f.st > 1.7) { f.state = 'open'; f.st = 0; }
     } else if (f.state === 'open') { if (f.st > 2.6) { f.state = 'fan'; f.st = 0; f.cool = .6; } }
@@ -497,7 +531,7 @@ const MVANIA = (() => {
   // is the line between two points clear of rock?
   const clearLine = (x0, z0, x1, z1) => { const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 6); for (let i = 1; i < n; i++) if (world.map.solidAt(x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n)) return false; return true; };
   // an item's banner (the world holds still a moment, as in Metroid); the room's name on a first visit
-  const say = (title, text) => { got = { title, text, t: 0 }; A.sfx('powerup'); game.flash('#ffffff', .35, .3); };
+  const say = (title, text) => { got = { title, text, t: 0 }; A.sfx('powerup'); game.flash('#ffffff', .35, .3); buzz(.3, .2); };
   function pickUp(it) {
     it.got = true; P.glints(it.x, 0, it.z + 7, 10, '#ffffff', 16);
     if (it.kind === 'boots') { world.give('boots'); say(E.t('metroidvania.item.boots'), E.t('metroidvania.item.boots.how')); }   // ({key:jump}: the player's own key)
@@ -506,15 +540,18 @@ const MVANIA = (() => {
     hp = MAXHP(); hatches();
   }
   function update(dt) {
-    const I = game.input; age += dt; hint -= dt;
+    const I = game.input; age += dt; hint -= dt; padExtras();
     if (I.pressed('map') && !dead) { mapOpen = !mapOpen; A.sfx(mapOpen ? 'select' : 'cancel'); I.consumeAll(); }
-    if (mapOpen) { if (I.pressed('confirm') || I.pressed('cancel')) { mapOpen = false; I.consumeAll(); } return; }   // (the world holds still under the map)
-    if (banner) { banner.t += dt; if (banner.t > 2.4) banner = null; }
-    if (got) { got.t += dt; if (got.t > 3.6) got = null; if (got && got.t < 1.2) return; }
+    if (mapOpen) { if (I.pressed('confirm') || I.pressed('cancel') || I.swipe(true)) { mapOpen = false; A.sfx('cancel'); I.consumeAll(); } return; }   // (the world holds still under the map; a swipe closes it)
+    // what is temporary goes at a swipe (a touch screen): the item's banner once read (1.2 s), the room's name, the hint
+    if (got) { got.t += dt; if (got.t > 3.6 || (got.t > 1.2 && I.swipe(true))) got = null; }
+    if (banner) { banner.t += dt; if (banner.t > 2.4 || (!got && I.swipe(true))) banner = null; }
+    if (hint > 0 && !got && !banner && age > 1 && I.swipe(true)) hint = 0;
+    if (got && got.t < 1.2) return;
     for (const f of fx) f.t += dt; E.prune(fx, f => f.t >= f.max);
     if (world.moving) { world.update(dt, hero); return; }   // (a room's slide: everyone holds still)
     if (dead > 0) { dead -= dt; rig.update(dt, hero.rigState({ pose: 'die' })); if (dead <= 0) start({ id: world.id }); return; }
-    if (won) { wonT += dt; if (wonT > 7 && mode !== 'bot') game.go('title'); }
+    if (won) { wonT += dt; if ((wonT > 7 || (wonT > 1.2 && I.swipe(true))) && mode !== 'bot') game.go('title'); }   // (a swipe: the title at once)
     // the abilities found: a second jump, the dash
     hero.airJumps = world.has('boots') ? 1 : 0; hero.dash = world.has('dash') ? 270 : 0;
     const lock = I.down('lock') && hero.onGround;
@@ -529,11 +566,14 @@ const MVANIA = (() => {
     // the cannon and the lash
     aim = aimFrom(I, lock); aimA = aim[0] ? Math.atan2(aim[1], Math.abs(aim[0])) : aim[1] * Math.PI / 2;
     cool -= dt; inv -= dt;
+    // beside a foe, or near a ring in the air, the lash can act. TOUCH ASSIST (input.assist: touch play, Settings' Touch
+    // assists on): there FIRE lashes (its button says LASH); with assists off the lash pops up as a button of its own.
+    // The keys and a pad lash with their own key only: FIRE always fires
     const near = foes.some(f => !f.dead && inside(f, hero.x + hero.facing * 14, hero.z + 14, 12)) || (!hero.onGround && !hero.swimming && rings.some(g => Math.hypot(g.x - hero.x, g.z - hero.z - 20) < 70 && g.z > hero.z + 12));
-    if (!lash && (I.pressed('melee') || (I.pressed('fire') && near))) { startLash(); I.consume('melee'); I.consume('fire'); charge = 0; }
+    if (!lash && (I.pressed('melee') || (I.assist && I.pressed('fire') && near))) { startLash(); I.consume('melee'); I.consume('fire'); charge = 0; }
     else if (I.pressed('fire')) { if (cool <= 0) { shoot(false); cool = .14; } charge = 0; I.consume('fire'); }
     if (I.down('fire') && !lash) { const was = charge; charge += dt; if (charge >= .7 && was < .7) A.sfx('charge'); }
-    else { if (charge >= .7) shoot(true); charge = 0; }
+    else { if (charge >= .7) { shoot(true); buzz(.35, .08); } charge = 0; }
     updateLash(dt);
     // shots: the hero's at the creatures, theirs at the hero
     shots.update(dt, world.map);
@@ -564,7 +604,8 @@ const MVANIA = (() => {
     // the suit: the cannon held out along the aim, but not on a rope, the bars or a ledge (its hands are full)
     const busy = hero.onRope || hero.onBars || hero.hanging || hero.climbUp || hero.clinging;
     rig.update(dt, hero.rigState(Object.assign({ point: !busy, aim: aimA, hurt: hero.stun > 0, expr: hero.stun > 0 ? 'wince' : null }, won && hero.onGround && { pose: 'cheer' })));
-    for (const k of ['jump', 'fire', 'dash']) game.input.touchSet(k, k === 'fire' && near ? E.t('metroidvania.touch.lash') : null, k !== 'dash' || world.has('dash'));
+    for (const k of ['jump', 'fire', 'dash']) game.input.touchSet(k, k === 'fire' && near && I.assist ? E.t('metroidvania.touch.lash') : null, k !== 'dash' || world.has('dash'));
+    game.input.touchSet('melee', E.t('metroidvania.touch.lash'), near && !I.assist);
   }
   /* ---- THE LOOK ---- */
   const cache = new Map(), bake = (key, w, h, fn) => { if (!cache.has(key)) { const c = E.mkCanvas(w, h); fn(E.ctx2d(c), w, h); cache.set(key, c); } return cache.get(key); };
@@ -605,7 +646,7 @@ const MVANIA = (() => {
   // the save station: a pad between two pillars, its beam when it saves
   function drawStation(r, s) {
     r.queue(s.x, -4, s.z, g => {
-      const [x, y] = r.w(s.x, -4, s.z), on = got && got.title === 'GAME SAVED' ? 1 - got.t / 3.6 : 0, k = .5 + .5 * Math.sin(game.time * 3);
+      const [x, y] = r.w(s.x, -4, s.z), on = got && got.title === E.t('metroidvania.saved') ? 1 - got.t / 3.6 : 0, k = .5 + .5 * Math.sin(game.time * 3);
       for (const d of [-1, 1]) { px.rect(g, x + d * 20 - 3, y - 40, 6, 40, '#4a5468'); px.rect(g, x + d * 20 - 3, y - 40, 6, 2, '#8a94a8'); add(g, .6 + .4 * k, () => px.rect(g, x + d * 20 - 1, y - 34, 2, 26, '#3ae0a0')); }
       px.rect(g, x - 16, y - 4, 32, 4, '#6a7488'); add(g, .7, () => px.rect(g, x - 14, y - 4, 28, 1, '#7affc8'));
       if (on > 0) add(g, on * .8, () => { px.rect(g, x - 15, y - 120, 30, 116, '#3affb0'); px.rect(g, x - 6, y - 120, 12, 116, '#d0ffe8'); });
@@ -736,11 +777,14 @@ const MVANIA = (() => {
     g.restore(); g._c = null;
     // the room's name on a first visit; an item's banner; the controls at first; the end
     if (banner && !got && !mapOpen) { const a = clamp(Math.min(banner.t * 3, (2.4 - banner.t) * 2), 0, 1); if (a > .05) px.blend(g, a, 'normal', () => { px.rect(g, 0, 34, r.W, 15, '#000000'); E.font.text(g, banner.text, r.W / 2, 38, '#e8f0ff', SC); }); }
-    if (got) { const y = Math.round(r.H * .36); E.ui.box(g, r.W / 2 - 110, y - 6, 220, 40, { bg: ['#1a2a4a', '#0a1020'], border: '#8ab0e8' }); E.font.title(g, got.title, r.W / 2, y, { scale: 2, align: 'center', colors: ['#ffffff', '#c8e0ff', '#6a9ae0'] }); E.font.text(g, got.text, r.W / 2, y + 20, '#e8f0ff', Object.assign({ font: 'tiny' }, SC)); }
+    // (text a player reads from the sofa: the normal type, a line more where it is too wide, never the tiny one)
+    const lh = E.font.lineHeight();
+    if (got) { const w = Math.min(r.W - 16, 260), L = E.font.wrap(got.text, w - 12), y = Math.round(r.H * .36); E.ui.box(g, Math.round(r.W / 2 - w / 2), y - 6, w, 30 + L.length * lh, { bg: ['#1a2a4a', '#0a1020'], border: '#8ab0e8' }); E.font.title(g, got.title, r.W / 2, y, { scale: 2, align: 'center', colors: ['#ffffff', '#c8e0ff', '#6a9ae0'] }); L.forEach((t, i) => E.font.text(g, t, r.W / 2, y + 20 + i * lh, '#e8f0ff', SC)); }
     if (hint > 0 && !got && !banner && age > 1) {
-      const s = E.t(touch() ? 'metroidvania.hint.touch' : 'metroidvania.hint.keys');
-      const ta = game.input.touchArea && game.input.touchArea(), y = ta ? Math.round(ta.y0) - 16 : r.H - 16;   // (above the touch buttons)
-      px.blend(g, .6 * clamp(hint, 0, 1), 'normal', () => px.rect(g, 0, y, r.W, 12, '#000000')); E.font.text(g, s, r.W / 2, y + 3, '#d8e0ff', Object.assign({ font: E.font.width(s) > r.W - 8 ? 'tiny' : undefined }, SC));
+      const s = E.t(touch() ? (game.input.assist ? 'metroidvania.hint.touch' : 'metroidvania.hint.touch_lash') : 'metroidvania.hint.keys'), parts = s.split('  •  '), cut = Math.ceil(parts.length / 2);
+      const L = E.font.width(s) < r.W - 8 ? [s] : parts.length > 1 ? [parts.slice(0, cut).join('  •  '), parts.slice(cut).join('  •  ')] : E.font.wrap(s, r.W - 8);   // (broken at a dot)
+      const ta = game.input.touchArea && game.input.touchArea(), h = 3 + L.length * lh, y = (ta ? Math.round(ta.y0) : r.H) - h - 4;   // (above the touch buttons)
+      px.blend(g, .6 * clamp(hint, 0, 1), 'normal', () => px.rect(g, 0, y, r.W, h, '#000000')); L.forEach((t, i) => E.font.text(g, t, r.W / 2, y + 3 + i * lh, '#d8e0ff', SC));
     }
     const bf = foes.find(f => f.boss && !f.dead);
     if (bf) { const w = Math.round(120 * bf.hp / bf.max), x = Math.round(r.W / 2 - 60), y = 16; E.font.text(g, bf.boss, r.W / 2, y - 9, '#ffb0c0', Object.assign({ font: 'tiny' }, SC)); px.rect(g, x - 1, y - 1, 122, 6, '#000000'); px.rect(g, x, y, w, 4, '#e04a6a'); px.rect(g, x, y, w, 1, '#ffb0c0'); }   // (top middle: clear of the floor it fights on)
@@ -751,7 +795,7 @@ const MVANIA = (() => {
   // the map screen: the whole grid, what was seen, the doors, S and B, the hero blinking; what was found
   function mapScreen(g, r) {
     px.blend(g, .9, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#04060e'));
-    const G = world.grid, cell = Math.max(6, Math.min(18, Math.floor((r.W - 32) / G.w), Math.floor((r.H - 96) / G.h))), w = G.w * cell, h = G.h * cell, x = Math.round((r.W - w) / 2), y = Math.round((r.H - h) / 2) + 6;
+    const G = world.grid, cell = Math.max(6, Math.min(18, Math.floor((r.W - 32) / G.w), Math.floor((r.H - 96) / G.h))), w = G.w * cell, h = G.h * cell, x = Math.round((r.W - w) / 2), y = Math.round((r.H - h) / 2) + 6, lh = E.font.lineHeight();
     E.font.title(g, E.t('metroidvania.map'), r.W / 2, y - 42, { scale: 2, align: 'center', colors: ['#ffffff', '#a0c0ff', '#4a6ad0'] });
     E.font.text(g, E.t('metroidvania.map.explored', { room: world.room.def.name, percent: explored() }), r.W / 2, y - 20, '#c8d8ff', SC);
     for (let a = 0; a <= G.w; a++) for (let b = 0; b <= G.h; b++) px.dot(g, x + a * cell, y + b * cell, '#1e2a48');
@@ -759,7 +803,12 @@ const MVANIA = (() => {
     // what was found: a square for each, lit once it is got
     const found = [['boots', E.t('metroidvania.item.boots'), world.has('boots')], ['dash', E.t('metroidvania.item.dash'), world.has('dash')], ['tank', E.t('metroidvania.item.tank'), tanks() > 0]], wd = found.reduce((s, f) => s + E.font.width(f[1]) + 18, -8);
     let fx0 = Math.round((r.W - wd) / 2); for (const [k, s, on] of found) { px.rect(g, fx0, y + h + 11, 7, 7, '#000000'); px.rect(g, fx0 + 1, y + h + 12, 5, 5, on ? ITEM[k][0] : '#2a3048'); E.font.text(g, s, fx0 + 10, y + h + 10, on ? '#e8f0ff' : '#6a7898', S); fx0 += E.font.width(s) + 18; }
-    E.font.text(g, E.t('metroidvania.map.key'), r.W / 2, y + h + 24, '#8a9ac8', Object.assign({ font: 'tiny' }, SC));
+    // the key: the save room's and a boss's cells as the map draws them (a colour and its letter: no bare S or B to be read
+    // as a button), then what closes the map; on two rows where one is too wide
+    const keyRow = [['#c8408a', E.t('engine.rooms.map.save'), E.t('metroidvania.map.save')], ['#b03a3a', E.t('engine.rooms.map.boss'), E.t('metroidvania.map.boss')], [null, '', E.t('metroidvania.map.close')]];
+    const iw = it => (it[0] ? 12 : 0) + E.font.width(it[2]), rw = row => row.reduce((a, it) => a + iw(it) + 16, -16), rows = rw(keyRow) < r.W - 8 ? [keyRow] : [keyRow.slice(0, 2), keyRow.slice(2)];
+    rows.forEach((row, j) => { let kx = Math.round((r.W - rw(row)) / 2); const ky = y + h + 24 + j * (lh + 2);
+      for (const [c, k, t] of row) { if (c) { px.rect(g, kx, ky, 9, 9, '#000000'); px.rect(g, kx + 1, ky + 1, 7, 7, c); E.font.text(g, k, kx + 5, ky + 2, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); kx += 12; } E.font.text(g, t, kx, ky, '#8a9ac8', S); kx += E.font.width(t) + 16; } });
   }
 
   /* ---- THE BOT (tools/kits-test.mjs): it plays the route with the keys, from the landing site to the WARDEN ---- */
@@ -874,7 +923,7 @@ const MVANIA = (() => {
     } finally { for (const a of ['left', 'right', 'up', 'down', 'fire', 'lock', 'jump', 'melee']) I.hold(a, false); Math.random = was; if (!stop) mode = null; }
   }
 
-  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: ['jump', 'fire', 'dash', 'map'], camera: { zoom: [.75, 1.5], tall: 1.6 },
+  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: ['melee', 'jump', 'fire', 'dash', 'map'], camera: { zoom: [.75, 1.5], tall: 1.6 },   // (melee: LASH, popped up only where it acts with assists off; first, so the others stay under the thumb)
     enter(d) {
       const part = d && d.part;
       if (mode === 'bot') { E.store.remove('rooms:mv-bot'); start({ id: 'mv-bot', fresh: true }); }
@@ -882,9 +931,10 @@ const MVANIA = (() => {
       else if (part === 'boss') start({ id: 'mv-practice', fresh: true, at: 'reactor', got: ['boots', 'dash'] });
       else if (part === 'miniboss') start({ id: 'mv-practice', fresh: true, at: 'arena', got: ['boots'] });
       else { start(); if (part === 'map') mapOpen = true; }
-      game.cam.align = 'center';
+      game.cam.align = 'center'; ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true }) : null; padLight = padTrig = null;
+      game.input.touchSet('melee', E.t('metroidvania.touch.lash'), false);   // (until a foe or a ring is near)
     },
-    exit() { L.enabled = false; game.cam.align = null; }, update, draw, bot,
+    exit() { L.enabled = false; game.cam.align = null; if (ds) ds.clear(); }, update, draw, bot,
     state: () => { const b = shots.list.filter(b => b.team === 'player').pop(); return { room: world.room.id, x: hero.x, z: hero.z, hp, got: [...world.got], seen: world.seen.size, foes: foes.filter(f => !f.dead).length, mapOpen, won, dead: dead > 0, shot: b ? { vx: b.vx, vz: b.vz } : null }; },   // (for tests)
     world: () => world, hero: () => hero, rig: () => rig, foes: () => foes, go: (id, x, z) => { world.enter(id); hero.x = x; hero.z = z; hero.vx = hero.vz = 0; arrive(); world.update(0, hero); },   // (for tests)
     /** the proof: a fresh run from the landing site: right past the ship, jumping, firing, a crouch and a lash; a hash of it */

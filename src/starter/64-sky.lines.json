@@ -28,9 +28,11 @@
   "sky.hud.alt": "ALT {m} M",
   "sky.hud.speed": "{kmh} KM/H",
   "sky.hud.open": "{key}: OPEN THE CHUTE",
+  "sky.hud.open.touch": "OPEN THE CHUTE",
   "sky.hud.home": "HOME {m} M",
   "sky.hud.beacon": "BEACON {m} M",
   "sky.hud.land": "{key}: LAND",
+  "sky.hud.land.touch": "LAND HERE",
   "sky.hud.lower": "FLY LOWER TO LAND",
   "sky.hud.flare": "LAND: SLOW AND LEVEL",
   "sky.part.rings": "RINGS",
@@ -71,7 +73,9 @@
   "sky.part.soft": "SOFT LANDING",
   "sky.part.turrets": "TURRETS",
   "sky.part.damage": "DAMAGE AVOIDED",
-  "sky.touch.fire": "FIRE"
+  "sky.touch.fire": "FIRE",
+  "sky.touch.chute": "CHUTE",
+  "sky.touch.land": "LAND"
  },
  "notes": {
   "sky.title": "The flight game's title, on its menu.",
@@ -102,9 +106,11 @@
   "sky.hud.alt": "The height above the ground, {m} metres.",
   "sky.hud.speed": "The speed, {kmh} kilometres an hour.",
   "sky.hud.open": "A prompt: {key} is the key or button that opens the parachute.",
+  "sky.hud.open.touch": "The same prompt on a touch screen, beside the CHUTE button: open the parachute now.",
   "sky.hud.home": "The compass's goal: the castle, {m} metres away.",
   "sky.hud.beacon": "The compass's goal: the nearest unlit beacon, {m} metres away.",
   "sky.hud.land": "A prompt by a beacon: {key} lands the airship.",
+  "sky.hud.land.touch": "The same prompt on a touch screen, beside the LAND button: the airship can land here.",
   "sky.hud.lower": "Near a beacon but too high to land: go lower.",
   "sky.hud.flare": "Advice for the landing: come down slowly, wings level.",
   "sky.part.rings": "The results: points for the rings.",
@@ -145,6 +151,8 @@
   "sky.part.soft": "The results: points for touching down gently.",
   "sky.part.turrets": "The results: points for the turrets destroyed.",
   "sky.part.damage": "The results: points for the hits the helicopter did not take.",
-  "sky.touch.fire": "The helicopter's touch button that fires a missile: short."
+  "sky.touch.fire": "The helicopter's touch button that fires a missile: short.",
+  "sky.touch.chute": "The skydive's touch button that opens the parachute (a chute): short.",
+  "sky.touch.land": "The airship's touch button by a beacon: land beside it. Short."
  }
 }

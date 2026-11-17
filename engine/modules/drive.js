@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module DRIVE v0.106.2: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.107.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -72,7 +72,8 @@ class Car extends E.Body {
   /** one step: steering, engine, grip, drift, the surface, then E.Body's walls and hop. c: an input or an intent */
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
-    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
+    const pull = a => typeof c.value === 'function' ? c.value(a) : c.down(a) ? 1 : 0;   // (an input's travel: R2 and L2 halfway, half the gas; a key, all of it)
+    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? Math.max(o.auto ? 1 : 0, pull('gas')) : c.gas || 0, brake = inp ? pull('brake') : c.brake || 0, hold = !inp && !!c.hold;
     const dr = inp && (!c.map || c.map.drift), drift = inp ? !!dr && c.down('drift') : !!c.drift, hop = inp ? !!dr && c.pressed('drift') : drift && !this._held;   // (an input with no drift action: none, and no warning)
     this._held = drift;
     const tag = o.ground ? o.ground(this.x, this.y) : map && map.floorAt ? map.floorAt(this.x, this.y) : null, S = (tag && o.surfaces[tag]) || {};
@@ -166,8 +167,15 @@ class Race {
     if (car.speed < 12 && this.go) R._stuck += dt; else R._stuck = 0;
     if (R._stuck > 1.2) { R._back = .8; R._stuck = 0; }
     if (R._back > 0) { R._back -= dt; return { steer: -Math.sign(diff || 1), brake: 1 }; }
-    if (R.item && (R.item === 'boost' ? k < .004 : R.item === 'shot' ? this.racers.some(Q => Q !== R && Q.prog - R.prog > 20 && Q.prog - R.prog < 160) : this.racers.some(Q => Q !== R && R.prog - Q.prog > 10 && R.prog - Q.prog < 60))) this.use(R);
+    if (this.wantsItem(R, k)) this.use(R);
     return it;
+  }
+  /** would a driver use racer R's item now (the CPU's own test: a boost on a straight, a shot with a car ahead, a hazard
+   *  with one behind)? A touch assist uses it to fire the player's item by itself. k: the bend ahead (the CPU's own) */
+  wantsItem(R, k) {
+    if (!R.item) return false;
+    if (R.item === 'boost') { if (k === undefined) { const P = this.path; k = Math.abs(angDiff(P.at(R._d + 20).angle, P.at(R._d + 90).angle)) / 70; } return k < .004; }
+    return R.item === 'shot' ? this.racers.some(Q => Q !== R && Q.prog - R.prog > 20 && Q.prog - R.prog < 160) : this.racers.some(Q => Q !== R && R.prog - Q.prog > 10 && R.prog - Q.prog < 60);
   }
   // where a racer is across the track: -1 left edge .. 1 right
   _lane(R) { const p = this.path.at(R._d); return ((R.car.x - p.x) * -Math.sin(p.angle) + (R.car.y - p.y) * Math.cos(p.angle)) / (this.o.width * .55); }
@@ -222,7 +230,7 @@ class Race {
       F.text(g, place, x, y, R.place === 1 ? '#ffe04a' : col, { scale: 2, shadow: '#000', outline: false });
       const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
       F.text(g, E.t('engine.drive.lap', { lap: Math.min(this.o.laps, R.lap + 1), laps: this.o.laps }), rx, y, col, { align: 'right', shadow: '#000', outline: false });
-      F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
+      F.text(g, fmt(R.time), rx, y + 11, col, { align: 'right', shadow: '#000', outline: false });   // (the 5 x 7 font: read from a sofa)
       if (this.o.items && this.o.items.length) E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });   // (the item's slot, where the race has items)
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;

@@ -1770,3 +1770,102 @@ An entry:
   choice, as a game may load anything; the engine stays dependency-free.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.106.0
+
+## D100 · 2026-11-16 · The controls standard: a DualSense on a TV first
+
+- **Principle:** 2 (agent-operable) and the owner's own standard for every game's controls and interface
+- **Call:** the owner's word (2026-11-16, quoted whole in `docs/CONTROLS.md`): every game is designed around a DualSense
+  (or any standard-mapping pad) on a TV at ten feet; keyboard and mouse native; prompts follow the last device, with
+  PlayStation symbols by default and Xbox's in Settings; a DualSense's extras where they mean something; no dense,
+  web-style screens; touch an add-on, upright and on its side, with swipes, multitouch, context buttons and simple
+  assists. The engine meets each clause once (`input.label`, `input.assist`, `input.swipe`, `E.assist`, the Shell, the
+  dualsense module), and each kit and Emberdeep apply it to their genre.
+- **Why:** the owner's standardization pass; the owner tests the games afterwards and gives feedback.
+- **Answered:** the owner
+- **Landed in:** v0.107.0
+
+## D101 · 2026-11-16 · The Shell is sized for a TV by default, and Settings and Controls are tabbed pages
+
+- **Principle:** the controls standard (D100): readable at ten feet, no dense web-style screens
+- **Call:** `E.Shell` grows with the window unless a game says `tv: false` (14 px text up to 875 px wide, about twice
+  that on a 1,920 px TV); it was opt-in (`tv: true`). The standard Settings screen is a tab a group (Display, Sound,
+  Comfort, the game's own) and Controls a tab a device (keyboard and mouse, controller, touch), turned by L1 R1, Q E, a
+  click or a tap, with the focused row's help under the list instead of under every row, and the buttons that work the
+  screen along its bottom. The Button symbols setting offers PlayStation and Xbox, the two the owner named; a game may
+  still set `input.glyphs` to `'nintendo'`, `'generic'` or `'auto'` in code.
+- **Why:** a long list of small rows with help under each is the web-style screen the standard rules out; tabs and short
+  pages are how a console's settings read from a sofa.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0
+
+## D102 · 2026-11-16 · Permissions found, never asked: the DualSense's extras and the microphone wait for 52in1
+
+- **Principle:** the controls standard (D100): "Features that need permission (like the mic) can only be turned on in the
+  game's settings if the player has already allowed them in their 52in1 settings"
+- **Call:** the dualsense module never calls `navigator.hid.requestDevice` or prompts for the microphone. It opens a
+  DualSense only from `navigator.hid.getDevices()` (what the player already allowed), reads the microphone only when the
+  Permissions API says `granted`, and the controller's speaker only when it can be named and chosen; the frame's
+  Permissions Policy must allow each (`hid`, `microphone`, `speaker-selection`). Until then each row is locked and says
+  where to allow it. 52in1 today frames a game on its separate games address with `allow` naming gamepad, gyroscope and
+  accelerometer but not `hid`, `microphone` or `speaker-selection` (`52in1/assets/js/ui/player.js`, FRAME_ALLOW), and
+  keeps its own DualSense connection for its light bar: inside 52in1 these extras stay locked until the hub allows them
+  in a game's frame and its Settings grant them. Outside 52in1 they work wherever the browser already allows them.
+- **Why:** the owner's rule; asking from inside a game would be the prompt the rule forbids.
+- **Answered:** the owner's rule; how it is met is a reversible call, flagged in the pull request
+- **Landed in:** v0.107.0
+
+## D103 · 2026-11-16 · Create reaches a game a quarter of a second late
+
+- **Principle:** the 52in1 hub's controls (its README: "PS, and Create + Options, are the hub's")
+- **Call:** the engine held back Options while Create was held, but Create's own press reached the game first (Emberdeep
+  opened its bag every time a player called the hub's bar). Create is now held back 0.25 s: with Options pressed meanwhile
+  it is the hub's chord and the game sees neither (Options not until it is let go); let go sooner it arrives as a tap;
+  held, as a press. The PS button (16) never reaches a game. Both editions.
+- **Why:** a player calling the hub's bar must not also open a game's map or bag; a quarter of a second on a button
+  games use for a map or a menu is not felt.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0
+
+## D104 · 2026-11-16 · Emberdeep's d-pad leaves movement; ○ backs out a layer, □ is the second action
+
+- **Principle:** the controls standard (D100): the pad in the PlayStation layout, the keyboard native, no dense screens
+- **Call:** in play the left stick alone moves; the d-pad holds the map (↑, and the touchpad), the loot labels (←),
+  opens a portal (↓, R3 kept) and uses (→, L3 kept), and saved move bindings drop their old d-pad codes. In panels ○
+  backs out one layer before it closes, □ does the second action (drop, sell, salvage, take back a star), L1 R1 turn
+  tabs and L2 R2 the bag, skills and passives. Backspace moves from `cancel` to that second action (Esc alone backs
+  out); C also opens the bag and Alt also holds the labels; the camera, mute and hide-HUD keys became `INPUT` actions;
+  Settings, Controls is a page a device.
+- **Why:** a hack-and-slash on a pad moves on the stick and keeps the d-pad for its quick actions; a back that closes
+  the whole panel from a sub-step, and a second action only reachable by a key, are the stand-ins the standard rules out.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0
+
+## D105 · 2026-11-16 · Input and a free camera run on the player's own time
+
+- **Principle:** the controls standard (D100): the pad's cursor and the camera are the player's, at any game speed
+- **Call:** the pad's cursor and a free camera's keys, stick and edge pan move by the step unscaled, not by
+  `timeScale`; input's clock (double taps, long presses, swipes, `buffered()`, `input.history`) keeps game time as
+  before, so slow motion keeps a buffer as long as it was, and runs on the player's own time only while the game's
+  stands still (timeScale 0). A sim stopped at timeScale 0 still has a cursor, a camera, a double click and a long
+  press. Game time, `game.real` and every scene's `dt` are as before. (A first version ran input's clock unscaled
+  always; the review found it shortened Emberdeep's buffers in its perfect-dodge slow motion, and it was narrowed.)
+- **Why:** at timeScale 0 the pad's cursor and the camera stood still, so a stopped park could not be built on a pad.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0
+
+## D106 · 2026-11-16 · Kits whose keys or buttons moved to their genre's
+
+- **Principle:** the controls standard (D100): the keys PC players expect for the genre, the pad in the PlayStation
+  layout, one action per key in a scene
+- **Call:** where a kit's old keys clashed or were not the genre's, they moved (the old ones kept as alternates where they
+  don't clash): 3D CRAWLER takes Legend of Grimrock's (A D sidestep, Q E turn); 3D ACTION's lock-on is L2 first;
+  PUZZLE rotates on ↑ X W K and back on Z J, and a click no longer rotates; SIM pauses on Esc, P and Options again and
+  stops time on Space; RTS keeps Space for the alert and Z X for the panel, so they no longer also confirm; ROGUELIKE
+  drops the mouse buttons its play never used (a left click no longer waits a turn, a right click no longer drinks),
+  and the adventure, platformer, stealth, artillery, tactics and pinball drop preset actions they never used; RHYTHM's J and K no longer pick and back out;
+  POINT-AND-CLICK takes SCUMM's verb keys in its nine-verbs room; the racers put gas on R2 and brake on L2 first.
+  Each kit's header and Controls screen say the keys it has now.
+- **Why:** a key that does two things in one scene, or a genre's player reaching for a key that does nothing, is what
+  the standard asks the pass to end.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.107.0

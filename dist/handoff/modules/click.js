@@ -1,41 +1,40 @@
 /*!
-my-3D2dge module CLICK v0.106.2: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.107.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
 Monkey Island's, Day of the Tentacle's and Broken Sword's rooms: a picture the hero walks about by clicks and taps (talk
 through story's E.Story when one is given).
 - new E.Walkbox(outline, holes = []) (polygons of [x, y], room pixels): wb.inside(x, y), wb.nearest(x, y) (the closest
-  point you can stand on), wb.path(a, b) -> [a, ..., b] (the shortest way round the holes: A* over the corners, then
-  straight where nothing is in the way).
+  point you can stand on), wb.path(a, b) -> [a, ..., b] (the shortest way round the holes, by A*).
 - const pc = new E.Click(game, { rooms, items, rules, hero: { rig, speed: 60 }, ui: 'verbs' | 'icons' | 'coin' | 'two',
   story, room: 'dock', at: [x, y], on: { enter(pc, room), done(pc, verb, item, target) } }).
   rooms[id]: { w, h (room pixels; wider than the screen scrolls), paint(g) (the backdrop, painted once), pad: pixels
-  painted past each side, or [x, y] (past the sides, above and below: a bigger screen shows them; a tall one zooms the
-  room), walk: [outline, ...holes] or a Walkbox, depth: [yFar, kFar, yNear, kNear] (a body's scale by its feet's y),
+  painted past each side, or [x, y] (above and below too: a bigger screen shows them; a tall one zooms the room), walk:
+  [outline, ...holes] or a Walkbox, depth: [yFar, kFar, yNear, kNear] (a body's scale by its feet's y),
   hotspots: [...], things: [{ y, draw(g, x, y) }] (drawn by depth, not clicked), front(g, x, y) (over it all) }.
   A hotspot: { id, name, rect: [x, y, w, h] | poly | actor (anything with x, y, rig: drawn by depth), at: [x, y]
   (where the hero stands), face: 'left' | 'right' | 'up' | 'down', y (its baseline: drawn over the hero behind it),
-  draw(g, x, y) (a thing in the room: its picture at its place), exit: 'room' (and enter: [x, y] there), if (shown
-  while it holds), look / talk / use / pickup / open / close / push / pull / give: a line the hero says, a function
-  (pc, item), or a rule's actions, default: the verb a plain click does (two buttons: talk for people, pick up what can
-  be, else use) }.
+  draw(g, x, y) (its picture), exit: 'room' (and enter: [x, y] there), if (shown while it holds), look / talk / use /
+  pickup / open / close / push / pull / give: a line the hero says, a function (pc, item), or a rule's actions,
+  default: the verb a plain click does (two buttons: talk for people, pick up what can be, else use) }.
   items[id]: { name, look, icon: a sprite or (g, x, y, size) }. rules: [{ verb, item, on (a hotspot or an item), if,
   say: 'line' | [lines], give, take, set (story vars), talk (a story node), go: [room, x, y], do(pc) }]: the first that
-  matches runs; else the hotspot's own verb; else a line ("I can't pick that up.").
-- pc.update(dt) each step; pc.draw(r) after the scene (the room, bodies and things by depth, the hero's line over him,
-  the sentence line, the verbs or the coin, the inventory). pc.busy: true while a fade, a line, a talk or a walk is
-  under way. pc.room, pc.hero ({ x, y, k, face, path }), pc.inv (item ids), pc.give(id), pc.take(id), pc.has(id),
-  pc.say(lines, who), pc.go(room, [x, y]), pc.walkTo(x, y, then), pc.act(verb, target, item) (what a click does),
-  pc.panel = false (the verbs hidden: a cutscene), pc.state() / pc.restore(s), pc.end() (on leaving: the cursor back).
-  For tests and bots: pc.where(id) and pc.screen(x, y) (screen points), pc.boxes (the buttons drawn last frame).
+  matches runs; else the hotspot's own verb; else a line.
+- pc.update(dt) each step; pc.draw(r) after the scene (the room, bodies and things by depth, the hero's line, the
+  sentence line, the verbs or the coin, the inventory). pc.busy: true while a fade, a line, a talk or a walk is on.
+  pc.room, pc.hero ({ x, y, k, face, path }), pc.inv (item ids), pc.give(id), pc.take(id), pc.has(id), pc.say(lines,
+  who), pc.go(room, [x, y]), pc.walkTo(x, y, then), pc.act(verb, target, item) (what a click does), pc.panel = false
+  (the verbs hidden: a cutscene), pc.state() / pc.restore(s), pc.end() (on leaving). For tests and
+  bots: pc.where(id) and pc.screen(x, y) (screen points), pc.boxes (the buttons drawn last frame).
 - The interfaces: 'verbs' (SCUMM's nine: a verb, then what; USE and GIVE take an item first), 'icons' (Sierra's: WALK,
-  LOOK, HAND, TALK; a right click turns the cursor), 'coin' (a click, or a long press, on a hotspot opens its verbs over
-  the pointer), 'two' (a click does the default, a right click looks). The right click is the input's look action:
-  bind look: ['Mouse2']. The cursor is a hand over a hotspot, its name beside it. An item in the inventory goes on the
-  cursor: "Use rope with hook" (an item on an item works either way round; on someone, a give rule). A double click
-  runs. Touch: a tap walks; a tap on a hotspot opens its verbs; the inventory by taps, a thumb's size; a long press
-  looks.
+  LOOK, HAND, TALK; a right click turns the cursor), 'coin' (a click on a hotspot opens its verbs), 'two' (a click
+  does the default, a right click looks). The cursor is a hand over a hotspot, its name beside it. An item from the
+  inventory goes on the cursor: "Use rope with hook" (either way round; on someone, a give rule). A double click runs.
+  Touch: a tap walks; a tap on (input.assist: or near) a hotspot opens its verbs; the inventory by taps, DROP while an
+  item is held; a long press looks; a swipe closes the verbs or drops the item.
+- A pad (the scene's cursor: true) plays as two buttons: the cursor eases onto things; a click does a hotspot's default.
+  Actions read where bound: look (a right click: ['Mouse2']), verbs (the coin at the cursor), prevSpot, nextSpot.
 
 ```js click
 const E = My3D2dge, game = new E.Game({ headless: true });
@@ -127,7 +126,8 @@ const LINES = {
   'engine.click.do.walk': 'Walk to {what}', 'engine.click.give_to': 'Give {item} to {what}', 'engine.click.use_with': 'Use {item} with {what}',
   'engine.click.no.look': 'It\'s {name}.', 'engine.click.no.look_item': 'It\'s a {name}.', 'engine.click.no.pickup': 'I can\'t pick that up.', 'engine.click.no.use': 'I can\'t use that.',
   'engine.click.no.talk': 'It doesn\'t say much.', 'engine.click.no.give': 'I\'d rather keep it.', 'engine.click.no.open': 'It doesn\'t open.', 'engine.click.no.close': 'It doesn\'t close.',
-  'engine.click.no.push': 'It won\'t budge.', 'engine.click.no.pull': 'It won\'t budge.', 'engine.click.no.with': 'That doesn\'t work.'
+  'engine.click.no.push': 'It won\'t budge.', 'engine.click.no.pull': 'It won\'t budge.', 'engine.click.no.with': 'That doesn\'t work.',
+  'engine.click.drop': 'DROP'
 };
 const sentence = s => s[0] + s.slice(1).toLowerCase() + ' {what}';   // ('PICK UP' -> 'Pick up {what}')
 for (const [v, s] of VERBS) { LINES['engine.click.verb.' + v] = s; LINES['engine.click.do.' + v] = sentence(s); }
@@ -140,6 +140,7 @@ const low = s => { try { return String(s).toLocaleLowerCase(E.lang.test ? 'en' :
 const PICS = { walk: ['..KK...', '.KSSK..', '.KSSK..', '..KK.KK', '....KSSK', '....KSSK', '.....KK'], look: ['..KKKKK..', '.KWWWWWK.', 'KWWBBBWWK', 'KWWBKBWWK', '.KWWWWWK.', '..KKKKK..'],
   hand: ['..K.K.K..', '.KSKSKSK.', '.KSKSKSKK', '.KSSSSSKS', 'KKSSSSSSK', 'KSSSSSSK.', '.KSSSSK..', '..KKKK...'], talk: ['.KKKKKK.', 'KRRRRRRK', 'KRWWWWRK', 'KRKKKKRK', 'KRRRRRRK', '.KKKKKK.'] };
 const PAINTED = new WeakMap();   // each room's picture, painted once (a room kept between games keeps it)
+const mid = b => [b.x + b.w / 2, b.y + b.h / 2];   // (a button's middle)
 const PAL = { K: '#1a1420', S: '#f0c8a0', W: '#ffffff', B: '#3a6ad8', R: '#c83a4a' };
 const NO = ['look', 'pickup', 'use', 'talk', 'give', 'open', 'close', 'push', 'pull'];   // (the verbs with a line of their own when nothing answers; others: use's)
 class Click {
@@ -241,7 +242,8 @@ class Click {
   update(dt) {
     const G = this.game, I = G.input, R = this.rooms[this.room], H = this.hero;
     if (this._fade) { this._fade += dt * 4; if (this._fade >= 1 && this._swap) { this._swap(); this._swap = null; } if (this._fade >= 2) this._fade = 0; return true; }
-    if (this.line) { const L = this.line; L.t += dt; if (L.t > 1 + L.lines[L.i].length * .05 || (L.t > .3 && (I.clicked() || I.pressed('confirm')))) { L.i++; L.t = 0; if (L.i >= L.lines.length) this.line = null; } }
+    let ate = false;   // (the click, press or swipe that turns a line does only that)
+    if (this.line) { const L = this.line; L.t += dt; ate = L.t > .3 && !!(I.clicked() || I.pressed('confirm') || (I.swipe && I.swipe(true))); if (ate) I.consumeAll(); if (L.t > 1 + L.lines[L.i].length * .05 || ate) { L.i++; L.t = 0; if (L.i >= L.lines.length) this.line = null; } }
     const talking = this.story && this.story.running && this.story.update(dt);
     // the hero's walk
     H.k = this.scaleAt(H.y); H.moving = false;
@@ -255,14 +257,40 @@ class Click {
     this._scroll = this._scroll === null ? this._want() : this._scroll + (this._want() - this._scroll) * (1 - Math.pow(.88, dt * 60));   // (the view follows him, eased)
     if (H.rig) H.rig.update(dt, { x: H.x, y: H.y * 2, vx: H.moving ? Math.cos(H.face) * 40 * (H.run ? 2 : 1) : 0, vy: H.moving ? Math.sin(H.face) * 40 * (H.run ? 2 : 1) : 0, facing: H.face });
     for (const h of R.hotspots || []) if (h.actor && h.actor.rig) h.actor.rig.update(dt, { x: h.actor.x, y: h.actor.y * 2, facing: h.actor.face !== undefined ? h.actor.face : Math.PI / 2, pose: h.actor.pose, expr: h.actor.expr });
-    if (talking || this.line) return true;
+    if (this.panel && I.padCursor && I.cursorSnap) I.cursorSnap(this._coin ? this.boxes.filter(b => b.id.startsWith('coin:')).map(mid) : this._spots().concat(this.boxes.map(mid)), 16);   // (the pad's cursor eases onto what it can point at)
+    if (talking || this.line || ate) return true;
     if (this.panel) this._input(I);
     return !!this._then;
   }
+  // the room's hotspots on the screen now, as points left to right (their middles: where(id))
+  _spots() { const L = this._layout(); return (this.rooms[this.room].hotspots || []).filter(h => !h.if || this._test(h.if)).map(h => this.where(h.id)).filter(q => q && q[0] >= 0 && q[0] < L.W && q[1] >= 0 && q[1] < L.py).sort((a, b) => a[0] - b[0]); }
+  // the hotspot whose box (its rect, its poly's or its actor's) is nearest room point (x, y), within r room pixels, or
+  // null (a thumb's tap that just missed: input.assist)
+  _near(x, y, r) {
+    let best = null, bd = Infinity;
+    for (const h of this.rooms[this.room].hotspots || []) {
+      if (h.if && !this._test(h.if)) continue;
+      const a = h.actor, k = a && this.scaleAt(a.y), P = h.rect ? [[h.rect[0], h.rect[1]], [h.rect[0] + h.rect[2], h.rect[1] + h.rect[3]]] : h.poly || (a ? [[a.x - 10 * k, a.y - (a.h || 48) * k], [a.x + 10 * k, a.y + 3]] : null);
+      if (!P) continue;
+      const xs = P.map(q => q[0]), ys = P.map(q => q[1]), d = hyp(x - clamp(x, Math.min(...xs), Math.max(...xs)), y - clamp(y, Math.min(...ys), Math.max(...ys)));   // (to its box's nearest edge)
+      if (d <= r && d < bd) { bd = d; best = h; }
+    }
+    return best;
+  }
+  // L1 and R1 (prevSpot, nextSpot): the pad's cursor to the next thing to point at: the coin's verbs while it is open,
+  // the panel's buttons (in their order) while it is on the panel, else the room's hotspots left to right; first the one
+  // nearest it
+  _cycle(I, p, dir, L) {
+    const q = p || [L.W / 2, L.py / 2], pts = this._coin ? this.boxes.filter(b => b.id.startsWith('coin:')).map(mid) : q[1] >= L.py ? this.boxes.map(mid) : this._spots();
+    if (!pts.length) return;
+    let k = 0, bd = Infinity; pts.forEach((t, i) => { const d = hyp(t[0] - q[0], t[1] - q[1]); if (d < bd) { bd = d; k = i; } });
+    I.setPointer(...pts[bd < 6 ? (k + dir + pts.length) % pts.length : k]);
+  }
   // how far a wide room scrolls to keep the hero in the middle
   _want() { const R = this.rooms[this.room], W = this.game.W / this._zoom(); return clamp(this.hero.x - W / 2, 0, Math.max(0, R.w - W)); }
-  // a tall screen (a phone held upright) shows the room at a whole zoom, keeping at least 180 room pixels across
-  _zoom() { const G = this.game; return Math.max(1, Math.min(Math.floor((G.H - this._panelH()) / this.rooms[this.room].h), Math.floor(G.W / 180))); }
+  // a tall screen (a phone held upright) shows the room at a whole zoom, keeping at least 160 room pixels across (a phone
+  // 320 wide: twice the size, things a thumb can tap; the room scrolls with the hero)
+  _zoom() { const G = this.game; return Math.max(1, Math.min(Math.floor((G.H - this._panelH()) / this.rooms[this.room].h), Math.floor(G.W / 160))); }
   _panelH() { return this.game.input.lastDevice === 'touch' ? this._thumb() + 14 : this.ui === 'verbs' ? 56 : 30; }
   // the screen's layout: the panel along the bottom, the room over it (scrolled to the hero, or centred)
   _layout() {
@@ -273,7 +301,8 @@ class Click {
   }
   // the pointer: hover labels; clicks on the room, the verbs, the inventory, the coin
   _input(I) {
-    const L = this._layout(), touch = I.lastDevice === 'touch', p = I.pointer(), c = I.clicked(), right = !!(I.map.look && I.pressed('look')), drop = I.pressed('cancel'), lp = I.longPress(), d2 = I.doubleTap();
+    const L = this._layout(), touch = I.lastDevice === 'touch', pad = I.lastDevice === 'gamepad' && I.padCursor, p = I.pointer(), c = I.clicked(), right = !!(I.map.look && I.pressed('look')), drop = I.pressed('cancel'), lp = I.longPress(), d2 = I.doubleTap();
+    const on = (q, b) => q && q[0] >= b.x && q[0] < b.x + b.w && q[1] >= b.y && q[1] < b.y + b.h;
     const toRoom = q => q && q[1] >= L.oy && q[1] < L.py ? [(q[0] - L.ox) / L.z, (q[1] - L.oy) / L.z] : null;
     const hp = toRoom(p); this._hover = hp && !touch ? this.at(...hp) : null;
     const cv = this.game.screen.canvas; if (cv && cv.style) cv.style.cursor = touch ? '' : this._hover ? 'pointer' : 'crosshair';
@@ -281,18 +310,25 @@ class Click {
     if (lp) this._lp = lp; else if (I.box() || I.pan()) this._lp = null;
     if (c && this._lp) { const was = this._lp; this._lp = null; if (hyp(c[0] - was[0], c[1] - was[1]) < 12) return; }
     // a click on a box (a verb, an inventory slot, a coin's verb, a scroll arrow)
-    if (c) { const b = this.boxes.find(b => c[0] >= b.x && c[0] < b.x + b.w && c[1] >= b.y && c[1] < b.y + b.h); if (b) { this._coin = null; b.fn(); return; } }
-    if (this._coin && c) { this._coin = null; return; }   // (a click away closes the coin)
+    if (c) { const b = this.boxes.find(b => on(c, b)); if (b) { this._coin = null; b.fn(); return; } }
+    if (this._coin && (c || drop)) { this._coin = null; return; }   // (a click away, or cancel, closes the coin)
+    if ((this._coin || this.item) && I.swipe && I.swipe(true)) { if (this._coin) this._coin = null; else this.item = null; return; }   // (a swipe: the coin closes, the item goes back)
     if ((right || drop) && this.item) { this.item = null; return; }
-    if (right && this.ui === 'icons') { const i = ICONS.findIndex(v => v[0] === this.verb); this.verb = ICONS[(i + 1) % ICONS.length][0]; return; }   // (Sierra's: a right click turns the cursor)
+    const step = (I.map.nextSpot && I.pressed('nextSpot') ? 1 : 0) - (I.map.prevSpot && I.pressed('prevSpot') ? 1 : 0);
+    if (step && I.setPointer) { this._cycle(I, p, step, L); return; }
+    if (I.map.verbs && I.pressed('verbs')) { if (this._coin) { this._coin = null; return; } const q = toRoom(p), h = q && this.at(...q); if (h) { this._coin = { h, x: p[0], y: p[1] }; return; } }   // (the coin at the cursor, every verb; again: it closes)
+    if (right && this.ui === 'icons' && !pad) { const i = ICONS.findIndex(v => v[0] === this.verb); this.verb = ICONS[(i + 1) % ICONS.length][0]; return; }   // (Sierra's: a right click turns the cursor; a pad's □ looks, as its hint says)
+    if (right && p) { const b = this.boxes.find(b => b.id.startsWith('item:') && on(p, b)); if (b) { this.act('look', b.id.slice(5)); return; } }   // (a right click on an item in the inventory looks at it)
+    const spotAt = q => this.at(...q) || (touch && I.assist ? this._near(q[0], q[1], this._thumb() / 2.5 / L.z) : null);   // (a thumb that just missed, by under half its width: the nearest)
     const rc = toRoom(c) || toRoom(lp), lookAt = toRoom(right ? p : null);
     if (lookAt) { const h = this.at(...lookAt); if (h) this.act('look', h.id); return; }
-    if (lp && rc) { const h = this.at(...rc); if (h) { this.act('look', h.id); return; } }
+    if (lp && rc) { const h = spotAt(rc); if (h) { this.act('look', h.id); return; } }
     if (!rc) return;
-    const h = this.at(...rc), run = !!d2;
+    const h = spotAt(rc), run = !!d2;
     if (!h) { if (!this.item) { this.verb = 'walk'; this.walkTo(rc[0], rc[1], null, run); } return; }
     if (this.item) { this.act(this.verb === 'give' ? 'give' : 'use', h.id, this.item); return; }
     if (h.exit && (this.verb === 'walk' || run)) { if (run) this.go(h.exit, h.enter); else this.act('walk', h.id); return; }
+    if (pad && this.verb === 'walk') { this.act(this._def(h), h.id); return; }   // (a controller: ✕ does what the thing is for, as two buttons do)
     if ((this.ui === 'verbs' || this.ui === 'icons') && !touch) { if (this.verb === 'walk') this.walkTo(...(h.at || rc), null, run); else this.act(this.verb === 'hand' ? this._hand(h) : this.verb, h.id); return; }
     if (this.ui === 'two' && !touch) { this.act(this._def(h), h.id); return; }
     this._coin = { h, x: c ? c[0] : lp[0], y: c ? c[1] : lp[1] };   // the coin: its verbs round the pointer
@@ -303,7 +339,7 @@ class Click {
   draw(r) {
     const R = this.rooms[this.room], L = this._layout(), G = this.game, touch = G.input.lastDevice === 'touch', z = L.z, pad = [].concat(R.pad || 0), px0 = pad[0], py0 = pad[1] || 0;
     let cv = PAINTED.get(R); if (!cv && R.paint) { cv = E.mkCanvas(R.w + px0 * 2, R.h + py0 * 2); const g = E.ctx2d(cv); g.translate(px0, py0); R.paint(g); PAINTED.set(R, cv); }   // (painted once, with its margins)
-    this.boxes = [];
+    this._was = this.boxes; this.boxes = [];   // (last frame's, for what the pointer is over before the panel is drawn)
     r.overlay(g => {
       g.save(); g.fillStyle = '#05040a'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g); g.imageSmoothingEnabled = false;
       const x0 = L.ox - px0 * z, top = L.oy - py0 * z, bot = L.oy + (R.h + py0) * z;
@@ -337,15 +373,20 @@ class Click {
   // the sentence line; the verbs (SCUMM's nine) or the icons (Sierra's), not on a touch screen; the inventory; the coin
   _panel(g, L, touch) {
     const y0 = L.py + 1, h = this._hover, it = this.item && this.items[this.item], verbs = this.ui === 'verbs' && !touch, icons = this.ui === 'icons' && !touch, th = this._thumb();
-    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? low(h.name) : '';
-    const words = it ? E.t(this.verb === 'give' ? 'engine.click.give_to' : 'engine.click.use_with', { item: low(it.name), what: name }) : touch ? '' : vb ? E.t('engine.click.' + (verbs ? 'do.' : 'do_icon.') + this.verb, { what: name }) : h ? name : E.t('engine.click.do.walk', { what: '' });
+    // what the pointer is over (no touch screen): its button lights; a verb's or an item's shows in the sentence first
+    const P = this.game.input.pointer(), over = (x, y, w, hh) => !touch && !!P && P[0] >= x && P[0] < x + w && P[1] >= y && P[1] < y + hh, ob = (this._was || []).find(b => over(b.x, b.y, b.w, b.h));
+    const vNow = this.verb !== 'walk' ? this.verb : ob && /^(verb|icon):/.test(ob.id) ? ob.id.slice(5) : 'walk', oi = !h && ob && ob.id.startsWith('item:') && this.items[ob.id.slice(5)];
+    const vb = vNow !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[vNow], name = h ? low(h.name) : oi ? low(oi.name) : '';
+    const words = it ? E.t(this.verb === 'give' ? 'engine.click.give_to' : 'engine.click.use_with', { item: low(it.name), what: name }) : touch ? '' : vb ? E.t('engine.click.' + (verbs ? 'do.' : 'do_icon.') + vNow, { what: name }) : h || oi ? name : E.t('engine.click.do.walk', { what: '' });
     E.font.text(g, words, L.W / 2, y0 + 1, '#c8e8ff', { align: 'center', outline: false });
-    const box = (id, x, y, w, hh, label, on, fn, small) => { this.boxes.push({ id, x, y, w, h: hh, fn }); E.ui.box(g, x, y, w, hh, { alpha: .9, bg: on ? '#3a4a9a' : '#141428' }); if (label) E.font.text(g, label, x + w / 2, y + hh / 2 - 3, on ? '#ffffff' : '#9ab0ff', { align: 'center', outline: false, font: small ? 'tiny' : undefined }); };
+    const box = (id, x, y, w, hh, label, on, fn) => { const lit = on || over(x, y, w, hh); this.boxes.push({ id, x, y, w, h: hh, fn }); E.ui.box(g, x, y, w, hh, { alpha: .9, bg: lit ? '#3a4a9a' : '#141428' }); if (label) E.font.text(g, label, x + w / 2, Math.floor(y + (hh - 7) / 2), on ? '#ffffff' : lit ? '#d8e0ff' : '#9ab0ff', { align: 'center', outline: false }); };
     let ix = 4;
-    if (verbs) { const bw = Math.max(52, ...VERBS.map(([v]) => E.font.width(E.t('engine.click.verb.' + v), { font: 'tiny' }) + 6)), bh = 14; VERBS.forEach(([v], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, E.t('engine.click.verb.' + v), this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
+    if (verbs) { const bw = Math.max(52, ...VERBS.map(([v]) => E.font.width(E.t('engine.click.verb.' + v)) + 6)), bh = 14; VERBS.forEach(([v], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, E.t('engine.click.verb.' + v), this.verb === v, () => { this.verb = v; this.item = null; })); ix = 4 + 3 * (bw + 2) + 6; }   // (the 5x7 font: read from across a room)
     if (icons) { ICONS.forEach(([v], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, E.t('engine.click.icon.' + v), x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
     // the inventory: icons in a row (two in the verbs' panel; a thumb's size on a touch screen), arrows when it is longer
-    const S = touch ? th : verbs ? 20 : 24, rows = verbs ? 2 : 1, aw = touch ? th : 14, cols = Math.max(1, Math.floor((L.W - ix - aw - 8) / (S + 2))), per = cols * rows, iy = verbs ? y0 + 11 : touch ? y0 + 10 : y0 + 4;
+    const dropW = touch && this.item ? Math.max(th, E.font.width(E.t('engine.click.drop')) + 10) : 0;   // (a touch screen holding an item: DROP at the row's end)
+    const S = touch ? th : verbs ? 20 : 24, rows = verbs ? 2 : 1, aw = touch ? th : 14, cols = Math.max(1, Math.floor((L.W - ix - aw - 8 - (dropW && dropW + 4)) / (S + 2))), per = cols * rows, iy = verbs ? y0 + 11 : touch ? y0 + 10 : y0 + 4;
+    if (dropW) box('inv:drop', L.W - aw - 8 - dropW, iy, dropW, S, E.t('engine.click.drop'), false, () => { this.item = null; });
     this._invAt = clamp(this._invAt, 0, Math.max(0, Math.ceil(this.inv.length / cols) - rows) * cols);
     this.inv.slice(this._invAt, this._invAt + per).forEach((id, i) => {
       const x = ix + (i % cols) * (S + 2), y = iy + Math.floor(i / cols) * (S + 2), I = this.items[id];
@@ -357,8 +398,8 @@ class Click {
     // the coin: the hotspot's verbs round where it was clicked (a thumb's size on a touch screen)
     if (this._coin) {
       const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v === 'talk' ? C.h.actor || C.h.talk : v === 'pickup' ? C.h.pickup : v === 'walk' ? C.h.exit : true);
-      const bw = sz + 14, all = vs.length * (bw + 3) - 3, x0 = clamp(C.x - all / 2, 2, L.W - all - 2), up = C.y - sz - 12 >= 2, y = up ? C.y - sz - 12 : Math.min(C.y + 12, L.py - sz - 2);   // (a row over the point, or under it near the top)
-      vs.forEach(([v], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, E.t('engine.click.coin.' + v), false, () => this.act(v, C.h.id), true));
+      const bw = Math.max(sz + 14, ...vs.map(([v]) => E.font.width(E.t('engine.click.coin.' + v)) + 6)), all = vs.length * (bw + 3) - 3, x0 = clamp(C.x - all / 2, 2, L.W - all - 2), up = C.y - sz - 12 >= 2, y = up ? C.y - sz - 12 : Math.min(C.y + 12, L.py - sz - 2);   // (a row over the point, or under it near the top)
+      vs.forEach(([v], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, E.t('engine.click.coin.' + v), false, () => this.act(v, C.h.id)));
       E.font.text(g, C.h.name, clamp(C.x, 40, L.W - 40), up ? Math.max(2, y - 10) : y + sz + 3, '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
     }
   }

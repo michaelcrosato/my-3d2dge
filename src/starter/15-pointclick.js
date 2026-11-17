@@ -1,5 +1,5 @@
 /* =====================================================================================
- * SLICE 18  POINT-AND-CLICK  (Monkey Island, Day of the Tentacle, Broken Sword). @modules click story
+ * SLICE 18  POINT-AND-CLICK  (Monkey Island, Day of the Tentacle, Broken Sword). @modules click story dualsense
  * THE LIGHT ON GULL ROCK: dusk on a fishing harbour, and the lighthouse out on Gull Rock has gone dark with the fleet out
  * in the fog. PIP, a deckhand, relights it. Three painted rooms (the dock, the Salty Gull tavern, the lighthouse's lamp
  * room), eight hotspots or fewer in each, and a chain of four puzzles: a ROPE and a HOOK make a GRAPPLE that fishes
@@ -8,8 +8,15 @@
  * it. The people talk through E.Story (choices, flags), with live close-ups. The interface is a setting (Point and
  * click, Interface): SCUMM's nine verbs, Sierra's icons, a verb coin or two buttons. An opening, an ending and THE END.
  * The mouse: a click walks, or does the verb on what it points at; an item, then a hotspot (or another item), uses it;
- * a right click looks; a double click runs. TOUCH: a tap walks; a tap on a hotspot shows its verbs; the inventory by
- * taps; a long press looks. HOW IT WORKS: E.Click (the click module) keeps the rooms, the walk areas (E.Walkbox: the
+ * a right click looks (at an item too); a double click runs; the button under it lights. The keys pick SCUMM's verbs: G
+ * give, P pick up, U use, O open, L look at, S push, C close, T talk to, Y pull (Esc pauses). A PAD plays it as two
+ * buttons whatever the interface: a cursor on the left stick that eases onto things, ✕ does what a thing is for (or
+ * the chosen verb), □ looks, △ shows every verb, L1 R1 hop the cursor from thing to thing (or button to button on the
+ * panel), ○ drops the item; a hint along the top says so. A DualSense's gyro fine-tunes the cursor (Settings, Controls),
+ * its light bar is the lighthouse's (dark blue, then gold once it is lit). TOUCH: a tap walks; a tap on a hotspot (or a
+ * thumb's width off one, with Touch assists on) shows its verbs; the inventory by taps, DROP while an item is held; a
+ * long press looks; a swipe closes the verbs, drops the item and turns a line; held upright the room is drawn twice the
+ * size and scrolls with Pip. HOW IT WORKS: E.Click (the click module) keeps the rooms, the walk areas (E.Walkbox: the
  * lamp, the table, Finn and the hatch are holes), the depth scale, the hotspots, the inventory and the rules (data);
  * the rooms are painted once by code. bot() clicks through the whole chain with input.feed, a wrong riddle first
  * (tools/kits-test.mjs). Deep link: #pointclick.
@@ -321,10 +328,12 @@ const POINTCLICK = (() => {
   };
 
   /* ---- 3. THE GAME: the opening card and talk, play, the ending, THE END ---- */
-  let pc = null, story = null, rigs = null, mode = 'open', modeT = 0, acts = 0, played = 0, caption = null;
+  let pc = null, story = null, rigs = null, mode = 'open', modeT = 0, acts = 0, played = 0, caption = null, ds = null, lit = null;
+  const VERB_KEYS = ['give', 'pickup', 'use', 'open', 'look', 'push', 'close', 'talk', 'pull'];   // (SCUMM's hotkeys: the actions v_give, v_pickup...)
+  const buzz = (s, t) => { if (game.input.lastDevice === 'gamepad') game.input.rumble(s, t); };   // (a shake in the player's hands, a gamepad only)
   // the interface (Settings, Point and click): the nine verbs, the icons, the coin or two buttons
   game.settings.define({ key: 'pcInterface', group: E.t('pointclick.setting.group'), label: E.t('pointclick.setting.ui'), options: ['verbs', 'icons', 'coin', 'two'].map(v => [v, E.t('pointclick.setting.ui.' + v)]), value: 'verbs',
-    help: E.t('pointclick.setting.ui.help'), apply: (g, v) => { if (pc) pc.ui = v; } });
+    help: E.t('pointclick.setting.ui.help', { look: '{key:look}' }), apply: (g, v) => { if (pc) pc.ui = v; } });   // ({look}: a {key:look} the Shell fills for the device in use)
   const endMenu = new E.Menu(game, [E.t('pointclick.end.again'), E.t('pointclick.end.title')], { y: 0, onPick: i => i === 0 ? game.go('pointclick', null, { fade: 'iris' }) : game.go('title') });
   function start() {
     rigs = {
@@ -338,9 +347,10 @@ const POINTCLICK = (() => {
     story = new E.Story(game, { people: { pip: { name: E.t('pointclick.name.pip'), portrait: rigs.pip }, finn: { name: E.t('pointclick.name.finn'), portrait: rigs.finn }, morwen: { name: E.t('pointclick.name.morwen'), portrait: rigs.morwen }, bruno: { name: E.t('pointclick.name.bruno'), portrait: rigs.bruno } },
       nodes: NODES, vars: { tries: 0 }, on: { key: () => { pc.give('key'); A.sfx('key'); } } });
     pc = new E.Click(game, { rooms: ROOMS, items: ITEMS, rules: RULES, story, hero: { rig: rigs.pip, speed: 52 }, ui: game.settings.pcInterface || 'verbs', room: 'dock', at: [40, 140],
-      on: { done: (pc, verb) => { acts++; if (verb === 'pickup' && !pc.line) A.sfx('pickup'); }, enter: (pc, id) => { A.sfx('door'); if (id === 'lamp' && !story.get('climbed')) { story.set('climbed'); pc.say(E.t('pointclick.lamp.climbed')); } } } });
+      on: { done: (pc, verb) => { acts++; if (verb === 'pickup' && !pc.line) { A.sfx('pickup'); buzz(.25, .08); } }, enter: (pc, id) => { A.sfx('door'); if (id === 'lamp' && !story.get('climbed')) { story.set('climbed'); pc.say(E.t('pointclick.lamp.climbed')); } } } });
     mode = 'open'; modeT = 0; acts = 0; played = 0; caption = null; pc.panel = false;
     game.input.touchEnabled = false; L.enabled = false; game.follow(null); A.music(SONG);
+    ds = E.DualSense.attach(game, { light: true, gyro: true }); lit = null;   // (a DualSense: the light bar, gyro on the cursor)
   }
   // the rowboat: chained, then oarless, then off to Gull Rock
   function row() {
@@ -351,11 +361,18 @@ const POINTCLICK = (() => {
   function bell() { A.sfx({ wave: 'triangle', freq: 392, to: 388, dur: 1.4, vol: .35 }); pc.say(E.t('pointclick.lamp.bell.ring')); }
   // the matches on the oiled lamp: it blazes, the beams sweep, Pip's last words, THE END
   function light() {
-    story.set('lit'); mode = 'lit'; modeT = 0; pc.panel = false; A.sfx('powerup'); A.music(HYMN); game.flash('#fff6d0', .5);
+    story.set('lit'); mode = 'lit'; modeT = 0; pc.panel = false; A.sfx('powerup'); A.music(HYMN); game.flash('#fff6d0', .5); buzz(.4, .8);   // (a long soft shake as it blazes)
   }
   function update(dt) {
     modeT += dt; if (caption) caption.t += dt;
     const I = game.input;
+    // the pad's cursor in play (talk and the menus take the d-pad and ✕ as theirs); a DualSense's gyro fine-tunes it; the
+    // light bar is the lighthouse's: harbour blue while it is dark, gold once lit
+    I.padCursor = mode === 'play' && !story.running;
+    const gy = ds.gyroAim(dt), q = (gy[0] || gy[1]) && I.padCursor && I.lastDevice === 'gamepad' && I.pointer(); if (q) I.setPointer(q[0] + gy[0], q[1] + gy[1]);
+    const bar = story.get('lit') ? '#ffb040' : '#1a3a8a'; if (bar !== lit) { lit = bar; ds.light(bar); }
+    // SCUMM's verb keys, in the nine verbs' interface
+    if (mode === 'play' && pc.ui === 'verbs' && !story.running) for (const v of VERB_KEYS) if (I.pressed('v_' + v)) { pc.verb = v; pc.item = null; }
     if (mode === 'open') { if (modeT > 3.5 || (modeT > .4 && (I.clicked() || I.pressed('confirm')))) { I.consumeAll(); mode = 'play'; pc.panel = true; story.run('intro'); } return; }
     if (mode === 'end') { if (!endMenu.update(dt)) pickOnStart(endMenu); return; }
     if (mode === 'play') played += dt;
@@ -367,6 +384,8 @@ const POINTCLICK = (() => {
     r.overlay(g => {
       const W = r.W, H = r.H;
       if (caption && caption.t < 3) E.font.text(g, caption.s, W / 2, 20, '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
+      const I = game.input;   // on a pad, in play: its buttons along the top, from labels (the mouse and a touch screen need none)
+      if (mode === 'play' && I.lastDevice === 'gamepad' && !story.running) E.font.text(g, [prompt('confirm', E.t('pointclick.hint.do')), prompt('look', E.t('pointclick.hint.look')), prompt('verbs', E.t('pointclick.hint.verbs')), E.t('pointclick.hint.spots', { prev: I.label('prevSpot'), next: I.label('nextSpot') })].join('   '), W / 2, 4, '#c8e8ff', { align: 'center', shadow: '#000', outline: false });
       if (mode === 'open') {
         const a = Math.min(1, modeT * 2) * (modeT > 3 ? Math.max(0, 1 - (modeT - 3) * 2) : 1);
         g.fillStyle = 'rgba(5,4,10,' + (.55 * a).toFixed(2) + ')'; g.fillRect(0, H / 2 - 40, W, 70);
@@ -378,7 +397,7 @@ const POINTCLICK = (() => {
         E.font.title(g, E.t('pointclick.end'), W / 2, y, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
         E.font.text(g, E.t('pointclick.title'), W / 2, y + 40, '#e8e0ff', { align: 'center', shadow: '#000', outline: false });
         const m = Math.floor(played / 60), s = Math.floor(played % 60);
-        E.font.text(g, E.t('pointclick.end.stats', { time: m + ':' + String(s).padStart(2, '0'), actions: acts, missed: story.get('tries') || 0 }), W / 2, y + 54, '#b8b0d8', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+        E.font.text(g, E.t('pointclick.end.stats', { time: m + ':' + String(s).padStart(2, '0'), actions: acts, missed: story.get('tries') || 0 }), W / 2, y + 54, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
         endMenu.y = y + 72;
       }
     });
@@ -427,10 +446,15 @@ const POINTCLICK = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'side', views: ['side'], res: 'ps1', pausable: true, touch: [], camera: { zoom: false },
-    input: { ...E.Input.DEFAULT, look: ['Mouse2'] },
+  // the keys: the menus' own and the moves on the arrows and d-pad (S and P are SCUMM's verbs here, so no WASD), look on the right
+  // button and □, every verb on △, L1 R1 from thing to thing, the nine verbs on their letters; cursor: the pad's cursor
+  const D = E.Input.DEFAULT;
+  return { view: 'side', views: ['side'], res: 'ps1', pausable: true, touch: [], camera: { zoom: false }, cursor: true,
+    input: { up: ['ArrowUp', 'Pad12'], down: ['ArrowDown', 'Pad13'], left: ['ArrowLeft', 'Pad14'], right: ['ArrowRight', 'Pad15'], start: D.start, pause: ['Escape', 'Pad9'], confirm: D.confirm, cancel: D.cancel,
+      look: ['Mouse2', 'Pad2'], verbs: ['Pad3'], prevSpot: ['Pad4'], nextSpot: ['Pad5'],
+      v_give: ['KeyG'], v_pickup: ['KeyP'], v_use: ['KeyU'], v_open: ['KeyO'], v_look: ['KeyL'], v_push: ['KeyS'], v_close: ['KeyC'], v_talk: ['KeyT'], v_pull: ['KeyY'] },
     enter: start, update, draw, bot,
-    exit() { if (pc) pc.end(); game.input.touchEnabled = true; },
+    exit() { if (pc) pc.end(); const I = game.input; I.touchEnabled = true; I.padCursor = false; I.cursorSnap(null); if (ds) ds.clear(); },
     back() { if (mode === 'end' || mode === 'open') { game.go('title'); return true; } if (pc && pc.item) { pc.item = null; return true; } return false; },
     /** for tests: the click module's E.Click (pc), the story, the scene's mode, the actions taken */
     state: () => ({ pc, story, mode, acts, room: pc && pc.room, inv: pc ? pc.inv.slice() : [] }),

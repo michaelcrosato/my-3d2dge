@@ -901,6 +901,7 @@ BUS.on('bossDown', ({ m }) => {
 });
 BUS.on('kill', e => { const m = e.tgt; if (m && m.bosBurning) { P.fire(m.x, m.y, 10, 6, { size: 3.5 }); P.smoke(m.x, m.y, 14, 3, { size: 3 }); } });
 BUS.on('levelStart', () => { BOS_card = null; });
+BUS.on('cardAway', () => { BOS_card = null; });   // a flick up on a touch screen sweeps the name card away (60-ui-core NT_swipe)
 
 /* =============================================================================
  * THE CINDER KING

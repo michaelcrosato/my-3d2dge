@@ -69,7 +69,7 @@ const DIET = [
   { part: 'weather', sections: ['10g'], entries: ['weather'] },   // game.weather = { ... }
   { part: 'sequences', sections: ['10h'], entries: ['history'] },   // input.sequence, input.motion, input.history
   { part: 'camera', sections: ['10i'], entries: ['window', 'snapY', 'frame'] },   // game.cam.window, cam.snapY, cam.frame
-  { part: 'players', sections: ['10j'], entries: ['allowJoin', 'addPlayer', 'removePlayer', 'splitScreen', 'viewport', 'halfKeys'] },   // game.allowJoin, game.splitScreen, Input.halfKeys (game.players and game.viewports are the core's)
+  { part: 'players', sections: ['10j'], entries: ['allowJoin', 'addPlayer', 'removePlayer', 'splitScreen', 'viewport', 'halfKeys', 'joinPrompt'] },   // game.allowJoin, game.splitScreen, Input.halfKeys (game.players and game.viewports are the core's)
   { part: 'saves', sections: ['10k'], entries: ['saves'], names: ['saves'] },   // game.saves, and menu: { saves }
   { part: 'spans', sections: ['9b'], entries: ['queueSpan'] },   // r.queueSpan
   { part: 'input2', sections: ['10l'], entries: ['value', 'hook'], names: ['never'] }   // input.value, game.hook, and touch: 'never''s notice
@@ -129,7 +129,7 @@ const builds = [
   // the same list with every page inside it: built last, below)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: { HOME: 'labs', TITLE: 'Labs · my-3D2dge', H1: 'Labs', INTRO: 'Every page of my-3D2dge to play, test or judge, one tap away. Each opens in this tab; your browser\'s back button returns here.' } },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
-  { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {} },
+  { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {}, modules: ['dualsense'] },   // (a DualSense's extras: docs/CONTROLS.md)
   // the files to share with AI models: API card + engine + starter slices
   { template: 'src/starter.template.html', out: 'dist/my-3d2dge.html', vars: Object.assign({ EDITION: 'single-file edition' }, ALL), modules: 'all' },
   { template: 'src/starter.template.html', out: 'dist/my-3d2dge-compact.html', vars: Object.assign({ EDITION: 'compact edition (engine minified)' }, ALL), compact: true, modules: 'all' },

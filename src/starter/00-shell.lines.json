@@ -4,8 +4,8 @@
   "starter.tagline": "My \"3D\" 2D Game Engine",
   "starter.prompt": "{key} {word}",
   "starter.how.touch": "Tap a game to play it",
-  "starter.how.pad": "D-pad + {key:confirm}   {key:start} menu",
-  "starter.how.keys": "Arrows + Enter or click   V view   - = zoom   M mute",
+  "starter.how.pad": "{key:move} + {key:confirm}   {key:options} settings",
+  "starter.how.keys": "{key:move} + {key:confirm} or click   V view   - = zoom   M mute",
   "starter.note.view": "{view} view",
   "starter.note.camera_reset": "CAMERA RESET",
   "starter.note.turn": "TURN {angle}",
@@ -82,7 +82,7 @@
  "notes": {
   "starter.logo": "The engine's name, as its logo on the title screen: keep it as written.",
   "starter.prompt": "A button prompt: {key} is the key or button, {word} what it does (a line of its own), e.g. \"J Sword\".",
-  "starter.how.keys": "The title screen's key help: four hints separated by three spaces. Keep the key names (Enter, V, - =, M).",
+  "starter.how.keys": "The title screen's key help: four hints separated by three spaces. {key:move} and {key:confirm} are the player's own keys; keep the fixed key names (V, - =, M).",
   "starter.note.view": "{view} is the camera view's name (side, iso, top-down); shown in capitals.",
   "starter.note.turn": "The camera turned to {angle} degrees.",
   "starter.slice.pointclick": "The genre point-and-click adventure."

@@ -195,7 +195,10 @@
   "rpg.logo": "BRIGHTWATER",
   "rpg.logo.sub": "AND THE DREAD KNIGHT",
   "rpg.the_end": "THE END",
-  "rpg.walk_on": "{key:confirm}: WALK ON"
+  "rpg.walk_on": "{key:confirm}: WALK ON",
+  "rpg.battle.auto_key": "{key:auto} AUTO {state}",
+  "action.auto": "Auto battle",
+  "action.party": "Party menu"
  },
  "notes": {
   "rpg.name.rowan": "The party's leader, a young swordsman (he).",
@@ -210,7 +213,7 @@
   "rpg.move.gale": "The Gargoyle's wing beat that hits the whole party.",
   "rpg.move.blaze": "The Bomb's spat flame.",
   "rpg.battle.auto": "A battle button: the party fights by itself. ON / OFF beside it.",
-  "rpg.battle.keys": "The battle's key help, under the command list: {key:confirm} is the key that confirms, {key:cancel} the one that goes back. Tiny font: keep it short.",
+  "rpg.battle.keys": "The battle's key help over the band (keys and controllers): {key:confirm} is the key or button that confirms, {key:cancel} the one that goes back. Keep it short.",
   "rpg.count": "How many the party carries, beside an item (×3).",
   "rpg.back": "A touch button: back to the commands.",
   "rpg.won.spoils": "Said after a battle: {exp} experience points and {gold} gold won.",
@@ -254,7 +257,10 @@
   "rpg.gold": "An amount of gold: G for gold.",
   "rpg.touch.next": "Touch button labels, in capitals: short (one word).",
   "rpg.logo": "The journey's title: BRIGHTWATER AND THE DREAD KNIGHT, in two lines.",
-  "rpg.walk_on": "After THE END: {key:confirm} is the key to press to walk on."
+  "rpg.walk_on": "After THE END: {key:confirm} is the key to press to walk on.",
+  "rpg.battle.auto_key": "Beside the key help: {key:auto} is the key or button that turns AUTO (the party fighting by itself) on or off; {state} is ON or OFF (rpg.battle.on / rpg.battle.off).",
+  "action.auto": "A control's name on the controls screen (the battle): AUTO on or off, the party picking its own moves.",
+  "action.party": "A control's name on the controls screen (the journey): opens the party's menu (items, equipment, status, quests, save)."
  },
  "max": {},
  "names": [

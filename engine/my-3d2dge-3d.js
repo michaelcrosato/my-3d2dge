@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.106.2: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.107.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -189,7 +189,8 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   game.yaw (game.rotateView(45)): the starter's shell binds V and [ ] to them, the engine no key; game.zoom (the wheel,
   a pinch, Settings, where the scene's camera.zoom allows); proj 'persp' | 'ortho'; dist; walls in
   front cut low), 'chase' (behind the target; it swings round behind as the target moves; a click captures the mouse to
-  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own,
+  turn it; the right stick and a finger on a touch screen's free half turn it too: camera.padLook, camera.touchLook
+  false leave them to the game), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own,
   roll as pen.at's), 'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z]
   (fixed) | follow: true (turning after the target) | rail: [[x, y, z], [x, y, z]] (sliding level with it), fov (framed
   for 4:3: a taller screen widens it) }]: the target's zone is the camera, cut once it is camera.margin (8) units in
@@ -197,7 +198,7 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   camera: { capture: true (a click captures the mouse in any mode; camera.takeMouse(out) -> its [dx, dy] since the last
   call: turn your own camera), near, far (units) }; camera.target also sizes the outlines and centres the sun's shadow
   camera.set(mode), camera.follow(actor), camera.ground(move, out) -> the stick turned to the ground,
-  camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it, or null; camera.heading,
+  camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it (where the stick turns the camera, ahead), or null; camera.heading,
   camera.pose, camera.chase = { pitch, dist, fov, height, auto }, camera.first = { pitch, fov }
   camera.steer(hero, move, dt, out) -> the way to go by the player's setting (game.settings.define(E.World3D.CONTROLS)):
   ground(), or tank controls (up forward along hero.facing, down back, left and right turn it: set facing yourself only
@@ -332,12 +333,17 @@ async function init(game, o = {}) {
  *  never). Off while a session is recorded or replayed: the lock is not in its record, so the replay would turn apart */
 function mouseLook(gc) {
   const cam = () => { const w = PAGE.active; return w && w.camera; }, S = E.session;
+  let refused = false;   // (the last request was refused: a frame without the allowance, or Chrome's second after Esc; the next click is the game's too)
+  document.addEventListener('pointerlockerror', () => { refused = true; });
   gc.addEventListener('pointerdown', e => {
     const c = cam(); if (!c || e.pointerType !== 'mouse' || !c.mouseLook || !(c.capture || ['chase', 'first', 'fly'].includes(c.mode)) || document.pointerLockElement) return;
     if (PAGE.game.paused || (S && (S.recording || S.replaying))) return;
-    try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* refused: [ and ] still turn it */ }
+    const was = refused; try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => { refused = true; }); } catch (err) { refused = true; return; }   // (asked on every click: a refusal passes)
+    if (was) return;   // (refused before: this click swings and fires as well, [ and ] still turn the camera)
+    const I = PAGE.game.input; I.release('Mouse' + e.button); I.consumeAll();   // (the click that takes the mouse is no swing or shot)
   });
-  document.addEventListener('pointerlockchange', () => { for (const w of PAGE.worlds) w.camera.locked = document.pointerLockElement === gc; });
+  document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement === gc) refused = false; for (const w of PAGE.worlds) w.camera.locked = document.pointerLockElement === gc; });
+  PAGE.game.hook('enter', () => { if (document.pointerLockElement === gc) document.exitPointerLock(); });   // (a scene change frees the mouse: a menu, a game over)
   document.addEventListener('mousemove', e => {
     const c = cam(); if (!c || !c.locked || PAGE.game.paused) return;
     const k = .0024, dx = e.movementX || 0, dy = e.movementY || 0;
@@ -1636,7 +1642,7 @@ function makeAtlas(world) {
  *    camera.steer(actor, move, dt) -> the same, or tank controls (the player's setting: World3D.CONTROLS);
  *    camera.lock(from, target | list) -> lock-on (Zelda's targeting): the chase and first cameras turn to frame both,
  *    ground() strafes round the target, a reticle marks it; cycle(list) the next in sight, unlock();
- *    camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it, or null;
+ *    camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it (where the stick turns the camera, ahead), or null;
  *    camera.heading: the ground angle it looks along; camera.pose: { x, y, z, yaw, pitch, fov, ortho } now
  * ============================================================================= */
 const headingOf = yawDeg => Math.atan2(-Math.cos(yawDeg * DEG), -Math.sin(yawDeg * DEG));
@@ -1706,6 +1712,20 @@ class Camera3D {
     // [ and ] (game.rotateView) turn the chase, first and fly cameras too
     const gy = g.yaw || 0; if (this._gyaw !== null && gy !== this._gyaw) { const d = ((gy - this._gyaw + 540) % 360) - 180; this.yaw += d * DEG; this.fly.yaw += d * DEG; this._held = 1.5; } this._gyaw = gy;
     this._held = Math.max(0, this._held - dt);
+    // the right stick turns the chase, first and fly cameras as the captured mouse does (a pad's look: about 2.6 radians a
+    // second at full tilt, up and down as the player set them), and so does a finger dragging on a touch screen's free
+    // half; padLook: false or touchLook: false leaves a kit the stick or the finger (a twin-stick aim)
+    const I = g.input, look = ['chase', 'first', 'fly'].includes(this.mode) && !this.capture && !(this.lockOn && this.lockFrom === t) && dt > 0;
+    if (look) {
+      const a = this.padLook !== false && I.padAim, f = this.touchLook !== false && I.lastDevice === 'touch' && I.look && I.look();
+      const dx = (a ? a[0] * 2.6 * dt : 0) + (f ? f[0] * .012 : 0), dy = (a ? a[1] * 2 * dt : 0) + (f ? f[1] * .012 : 0);
+      if (dx || dy) {
+        this.yaw += dx; this._held = 1.5;
+        if (this.mode === 'chase') this.chase.pitch = clamp(this.chase.pitch - dy, -1.3, .15);
+        else if (this.mode === 'first') this.first.pitch = clamp(this.first.pitch - dy, -1.2, 1.1);
+        else this.fly.pitch = clamp(this.fly.pitch - dy, -1.5, 1.5);
+      }
+    }
     // the lock lets go of a target that died, left the world or got too far away
     const L = this.lockOn, F = this.lockFrom; if (L && (L.alive === false || !this.world.actors.includes(L) || !F || Math.hypot(L.x - F.x, L.y - F.y) > this.lockRange * 1.25)) this.unlock();
     const m = this.mode, P = this.world.passing;
@@ -1855,12 +1875,13 @@ class Camera3D {
     for (const a of list) { if (a === C || !this.sight(F, a)) continue; const d = ((((Math.atan2(a.y - F.y, a.x - F.x) - base) * dir) % TAU) + TAU) % TAU || TAU; if (d < bd) { bd = d; best = a; } }
     if (best) this.lockOn = best; return best;
   }
-  /** the angle an actor aims at: straight ahead with the mouse captured (chase, first), the right stick (turned to the
-   *  ground), the mouse's point on the floor at the actor's height; null when nothing aims */
+  /** the angle an actor aims at: straight ahead with the mouse captured (chase, first), or with the right stick where it
+   *  turns the camera (chase, first, fly; padLook not false); else the right stick turned to the ground, the mouse's
+   *  point on the floor at the actor's height; null when nothing aims */
   aim(a) {
-    const I = this.world.game.input, p = this.pose || this.update(0);
+    const I = this.world.game.input, p = this.pose || this.update(0), behind = (this.mode === 'chase' || this.mode === 'first' || this.mode === 'fly') && !this.capture;
     if ((this.mode === 'chase' || this.mode === 'first') && this.locked) return p.yaw;
-    if (I.aimSource === 'pad' && I.padAim) { const v = this.ground([I.padAim[0], I.padAim[1]], [0, 0]); return Math.atan2(v[1], v[0]); }
+    if (I.aimSource === 'pad' && I.padAim) { if (behind && this.padLook !== false) return p.yaw; const v = this.ground([I.padAim[0], I.padAim[1]], [0, 0]); return Math.atan2(v[1], v[0]); }   // (the stick turns the camera there: it aims where it looks, never round in circles)
     if (I.aimSource === 'mouse' && I.mouse.active) { const m = this.world.screenToFloor(I.mouse.cx, I.mouse.cy, (a.z || 0) + 4); if (m && Math.hypot(m[0] - a.x, m[1] - a.y) > 3) return Math.atan2(m[1] - a.y, m[0] - a.x); }
     return null;
   }
@@ -1994,7 +2015,8 @@ class Vehicle extends Actor {
    *  drift: actions). E.Race calls it as it does an E.Car's (map: not read). Sets the velocity world.step gives Rapier */
   update(dt, map, c = {}) {
     const o = this.o, inp = typeof c.move === 'function';
-    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? (c.down('gas') || o.auto ? 1 : 0) : c.gas || 0, brake = inp ? (c.down('brake') ? 1 : 0) : c.brake || 0, hold = !inp && !!c.hold;
+    const pull = a => typeof c.value === 'function' ? c.value(a) : c.down(a) ? 1 : 0;   // (an input's travel: R2 and L2 halfway, half the gas; a key, all of it)
+    let steer = inp ? c.move()[0] : c.steer || 0, gas = inp ? Math.max(o.auto ? 1 : 0, pull('gas')) : c.gas || 0, brake = inp ? pull('brake') : c.brake || 0, hold = !inp && !!c.hold;
     const dr = inp && (!c.map || c.map.drift), drift = inp ? !!dr && c.down('drift') : !!c.drift, hop = inp ? !!dr && c.pressed('drift') : drift && !this._held; this._held = drift;   // (an input with no drift action: none, and no warning)
     const S = o.surfaces[this.surface] || {}, air = !this.onGround;
     if (S.boost && !air) this.boost(S.boost);
@@ -2081,7 +2103,8 @@ class Flyer {
   update(dt, c = {}) {
     (this._ip || (this._ip = [0, 0, 0, 0, 0, 0])).splice(0, 6, this.x, this.y, this.z, this.yaw, this.pitch, this.roll);   // (where it was: a frame between steps draws it part way)
     const o = this.o, st = c.steer || [0, 0], sx = clamp(st[0], -1, 1), sy = clamp(st[1], -1, 1) * (o.invert ? -1 : 1);
-    this.speed += ((c.boost ? o.max : c.brake ? o.min : o.speed) - this.speed) * Math.min(1, dt * 3);
+    const bo = +c.boost || 0, br = +c.brake || 0;   // (0..1: a trigger's travel; true is 1)
+    this.speed += ((bo > 0 ? lerp(o.speed, o.max, clamp(bo, 0, 1)) : br > 0 ? lerp(o.speed, o.min, clamp(br, 0, 1)) : o.speed) - this.speed) * Math.min(1, dt * 3);
     if (c.roll && this.rolling <= 0) { this.rolling = .6; this.rollDir = Math.sign(c.roll) || 1; }
     if (this.rolling > 0) this.rolling = Math.max(0, this.rolling - dt);
     this._bank += (sx * o.bank - this._bank) * Math.min(1, dt * 6);

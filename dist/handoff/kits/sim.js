@@ -1,5 +1,5 @@
 // The SIM kit's game (a theme park: paths, four rides and two shops, guests with needs and money, prices, a rating, day and night, time controls), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/49-sim.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/49-sim.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. sim.html plays it; node kits/test.mjs sim runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,7 +171,7 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 17  SIM  (Theme Park, RollerCoaster Tycoon, SimCity). @modules grid strategy
+ * SLICE 17  SIM  (Theme Park, RollerCoaster Tycoon, SimCity). @modules grid strategy dualsense
  * SUNNY BAY PARK: a field by the bay, a gate on the road, a path, a carousel and a burger stand to start, and $5,000.
  * Lay paths (a tap a tile, a drag a line), build rides (CAROUSEL, FERRIS WHEEL, TEACUPS, SWINGS) and shops (BURGERS,
  * LEMONADE) beside them. Guests come through the gate while the park is open (9:00 to 21:00), more when its rating is
@@ -175,9 +180,18 @@ scenes.over = {
  * rating is how happy they leave. Money: the gate's fee, tickets and sales, less building and each ride's upkeep at
  * midnight. Tap a ride to set its price or knock it down; tap a guest to read their mind. Day and night (E.Clock), time
  * controls (PAUSE, 1x, 2x, 4x: more fixed steps a frame), the CROWDS overlay (E.overlay), tooltips (E.tooltip).
- * Keys: arrows / WASD pan, the wheel zooms; Space pauses, 1 2 3 the speeds; Q path, E erase; Escape ends a tool. The
- * mouse: a click places or inspects, a drag lays a line of path, hovering shows a tooltip. TOUCH: a tap places or
- * inspects, a long press and a drag lays a line of path, a drag pans, two fingers zoom.
+ * KEYS (its own, KEYS): arrows / WASD pan, the wheel zooms; Space pauses time, 1 2 3 the speeds (, and . slower and
+ * faster); Q path, E erase, O the CROWDS overlay; Esc ends a tool or closes a panel (else the menu, as P does); X,
+ * Backspace or a right click end a tool or close a panel too. The MOUSE: a click places or inspects, a drag lays a line
+ * of path, hovering shows a tooltip and lights the button under it. PAD (the engine's cursor: cursor: true): the left
+ * stick moves the cursor (it eases onto a button when let go), ✕ clicks (held and moved, a line of path), ○ ends a tool
+ * or closes a panel, □ pauses time, L1 R1 slower and faster, △ the path tool, R3 (or the touchpad's click) CROWDS, L2 R2
+ * zoom, the right stick pans and the cursor at an edge pushes, Options the menu. DUALSENSE: the light bar is the park's
+ * rating (green, amber, red), gyro aim fine-tunes the cursor, the opening chime and a build sound from the controller;
+ * any pad rumbles when something is knocked down. TOUCH: a tap places or inspects, a long press and a drag lays a line of
+ * path, a drag pans, two fingers zoom; PATH and ERASE read DONE while they are on; a swipe takes the message away, a
+ * sideways one on a ride's or a guest's card closes it. With Touch assists on (Settings) a ride's plan slides to the
+ * nearest place it fits, and a tap near a guest takes them.
  * HOW IT WORKS: paths are the TileMap's floor tags; guests walk an E.Grid of them (grid.path); E.needs and E.choose
  * pick their next stop; E.Clock runs the days and the light. bot() lays out a park through the same calls the HUD makes
  * and runs ten days at 4x headless, its money each midnight (tools/kits-test.mjs). Deep link: #sim.
@@ -277,8 +291,18 @@ const SIM = (() => {
   const NUM = n => E.lang.num(n, { useGrouping: false }), cash = n => E.t('sim.money', { money: NUM(n) });
 
   let map = null, grid = null, clock = null, guests = [], spots = [], money = 0, rating = 50, fee = 5, tool = null, placing = null, picked = null, overlay = false, auto = false;
-  let day = null, ledger = null, msg = null, gate = null, arrive = 0, served = 0, left = [], speed = 1, open = true, boxes = { tools: [], time: [], panel: [], place: [] };
+  let day = null, ledger = null, msg = null, gate = null, arrive = 0, served = 0, left = [], speed = 1, open = true, boxes = { tools: [], time: [], panel: [], place: [], card: null };
+  let ds = null, padLight = null, gyroing = false, hintLeft = 0;   // the DualSense's extras (the dualsense module) and what they show; the keys' hint's seconds left
   const say = (s, c = '#fff2c4') => { msg = { s, c, at: game.real }; };   // (a message's time is the player's: it fades at any speed, paused too)
+  // THE KEYS (docs/CONTROLS.md, builders): the moves and the menus' (E.Input.MENU: Esc, P and Options pause, ○ goes back in
+  // the menu), a right click ends a tool as Esc, X and Backspace do; time on Space (□), 1 2 3, , and . (L1 R1); the tools Q
+  // (△) and E; the CROWDS overlay O (R3, the touchpad's click); zoom L2 R2. Space is time's here, not the menus' confirm
+  // (one action a key)
+  const KEYS = { ...E.Input.MENU, confirm: E.Input.MENU.confirm.filter(c => c !== 'Space'), cancel: [...E.Input.MENU.cancel, 'Mouse2'],
+    freeze: ['Space', 'Pad2'], x1: ['Digit1'], x2: ['Digit2'], x4: ['Digit3'], slower: ['Comma', 'Pad4'], faster: ['Period', 'Pad5'],
+    toolPath: ['KeyQ', 'Pad3'], toolErase: ['KeyE'], crowds: ['KeyO', 'Pad11', 'Pad17'], zoomIn: ['Pad7'], zoomOut: ['Pad6'] };
+  const SPEEDS = [0, 1, 2, 4];
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);   // (haptics on any pad, while it is what the player plays with)
   const isPath = (x, y) => map.floorTags[y * map.w + x] === 'path';
   const cellOf = (x, y) => [Math.floor(x / T), Math.floor(y / T)];
   const spend = (n, why) => { money -= n; ledger.out += n; if (why) ledger[why] = (ledger[why] || 0) + n; };
@@ -295,6 +319,7 @@ const SIM = (() => {
     build('carousel', 19, 25, true); build('burger', 24, 29, true);
     game.cam.free = { bounds: [0, 0, map.w * T, map.h * T] }; game.focus(gate.x, gate.y - 90); game.cam.snap = true; game.timeScale = 1;
     game.input.touchEnabled = false; L.enabled = false; A.music(SONG);
+    ds = E.DualSense ? E.DualSense.attach(game, { light: true, gyro: true, speaker: true }) : null; padLight = null; hintLeft = 45;
     if (!auto) say(E.t('sim.say.opens'), '#ffe8b0');
   }
   // a ride or a shop at corner (cx, cy): on open grass, beside a path (its entrance: the path cell beside it nearest its
@@ -312,7 +337,7 @@ const SIM = (() => {
     if (!free && money < K.cost) { if (!auto) { A.sfx('bump'); say(E.t('sim.say.no_money'), '#ffb070'); } return null; }
     if (!free) spend(K.cost, 'build');
     const s = { kind, K, cx, cy, door, x: (cx + K.w / 2) * T, y: (cy + K.h / 2) * T, price: K.price, queue: [], riders: [], state: 'load', t: 0, spin: 0, v: 0, today: { riders: 0, take: 0 }, total: 0 };
-    spots.push(s); if (!auto && !free) { A.sfx('powerup'); say(E.t('sim.say.built', { name: K.name }), '#a8ffb0'); }
+    spots.push(s); if (!auto && !free) { if (ds) ds.speaker('powerup'); else A.sfx('powerup'); say(E.t('sim.say.built', { name: K.name }), '#a8ffb0'); }
     return s;
   }
   const spotAt = (x, y) => spots.find(s => x >= s.cx && x < s.cx + s.K.w && y >= s.cy && y < s.cy + s.K.h);
@@ -320,7 +345,7 @@ const SIM = (() => {
     spots.splice(spots.indexOf(s), 1); money += Math.round(s.K.cost / 2); ledger.in += Math.round(s.K.cost / 2);
     for (const g of [...s.queue, ...s.riders]) { g.at = null; g.state = 'decide'; g.ride = null; g.happy -= .1; g.thought = THINK.knocked; }
     for (const g of guests) if (g.goal === s) { g.goal = null; g.state = 'decide'; }
-    if (picked === s) picked = null; A.sfx('explode'); game.particles.dust(s.x, s.y, 4, 12);
+    if (picked === s) picked = null; A.sfx('explode'); if (!auto) buzz(.5, .25); game.particles.dust(s.x, s.y, 4, 12);
   }
   // a path from cell a to cell b, along x then y (a drag's line); each new tile costs 10
   function layPath(a, b) {
@@ -407,30 +432,62 @@ const SIM = (() => {
   const hitBox = (b, p) => b && p && p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
   const groundAt = p => { const h = map.pick(p[0], p[1]); return h ? [h.cx, h.cy] : cellOf(...game.view.toGround(p[0] + game.screen.ix, p[1] + game.screen.iy)); };
   function setSpeed(k) { speed = k; game.timeScale = k; A.sfx(k ? 'select' : 'cancel'); }
-  function useTool(t) { tool = tool === t ? null : t; placing = null; picked = null; A.sfx(tool ? 'blip' : 'cancel'); if (tool && KINDS[tool]) say(E.t(touch() ? 'sim.say.tool.touch' : 'sim.say.tool.mouse', { name: KINDS[tool].name, cost: NUM(KINDS[tool].cost) }), '#ffe8b0'); else if (tool === 'path') say(E.t(touch() ? 'sim.say.path.touch' : 'sim.say.path.mouse'), '#ffe8b0'); }
+  // which words a prompt takes: a touch screen's, a pad's (its cursor), else the mouse's
+  const how = () => touch() ? 'touch' : game.input.lastDevice === 'gamepad' ? 'pad' : 'mouse';
+  function useTool(t) { tool = tool === t ? null : t; placing = null; picked = null; A.sfx(tool ? 'blip' : 'cancel'); if (tool && KINDS[tool]) say(E.t('sim.say.tool.' + how(), { name: KINDS[tool].name, cost: NUM(KINDS[tool].cost) }), '#ffe8b0'); else if (tool === 'path') say(E.t('sim.say.path.' + how()), '#ffe8b0'); }
+  // TOUCH ASSIST: a plan that doesn't fit where the finger put it slides to the nearest place within two cells that does
+  function snapPlan(K) {
+    if (fits(tool, placing.cx, placing.cy)) return;
+    let best = null; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const d = dx * dx + dy * dy; if ((!best || d < best.d) && fits(tool, placing.cx + dx, placing.cy + dy)) best = { d, dx, dy }; }
+    if (best) { placing.cx += best.dx; placing.cy += best.dy; }
+  }
+  // a guest or an attraction on the screen: where it stands (the HUD's pixels)
+  const scr = (x, y) => { const q = game.view.p(x, y, 0); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; };
   function update(dt) {
-    const I = game.input, tap = I.clicked(), p = I.pointer();
+    const I = game.input, tap = I.clicked(), p = I.pointer(), rdt = speed ? dt / speed : 1 / 120;   // (rdt: the player's time this step, at any speed, stopped too: zoom and gyro go by it)
+    padExtras(rdt); hintLeft -= rdt;
     if (!auto) {
       let used = false;
       for (const b of boxes.time) if (hitBox(b, tap)) { setSpeed(b.k); used = true; }
       for (const b of boxes.tools) if (hitBox(b, tap)) { useTool(b.t); used = true; }
       for (const b of boxes.panel) if (hitBox(b, tap)) { panelButton(b.id); used = true; }
       for (const b of boxes.place) if (hitBox(b, tap)) { if (b.id === 'place' && placing) { if (build(tool, placing.cx, placing.cy)) { placing = null; tool = null; } } else { placing = null; tool = null; A.sfx('cancel'); } used = true; }
-      if (I.pressed('pause')) setSpeed(speed ? 0 : 1); if (I.pressed('x1')) setSpeed(1); if (I.pressed('x2')) setSpeed(2); if (I.pressed('x4')) setSpeed(4);
-      if (I.pressed('toolPath')) useTool('path'); if (I.pressed('toolErase')) useTool('erase'); if (I.pressed('cancel') && tool) useTool(tool);
+      if (!used && hitBox(boxes.card, tap)) used = true;   // (a click on a card's empty part is not a look at what is behind it)
+      if (I.pressed('freeze')) setSpeed(speed ? 0 : 1); if (I.pressed('x1')) setSpeed(1); if (I.pressed('x2')) setSpeed(2); if (I.pressed('x4')) setSpeed(4);
+      if (I.pressed('faster')) setSpeed(SPEEDS[Math.min(3, SPEEDS.indexOf(speed) + 1)]); if (I.pressed('slower')) setSpeed(SPEEDS[Math.max(0, SPEEDS.indexOf(speed) - 1)]);
+      if (I.pressed('crowds')) { overlay = !overlay; A.sfx(overlay ? 'select' : 'cancel'); }
+      if (I.pressed('toolPath')) useTool('path'); if (I.pressed('toolErase')) useTool('erase');
+      if (I.pressed('cancel')) { if (tool) useTool(tool); else if (picked) { picked = null; A.sfx('cancel'); } }   // (○, X, Backspace, a right click: the tool, else the card)
+      // L2 and R2 zoom on a pad, by how far they are pulled (the wheel and - = are the engine's)
+      const zi = I.value('zoomIn'), zo = I.value('zoomOut'); if (zi > .1 || zo > .1) game.zoomBy(Math.pow(1.8, rdt * (zi > zo ? zi : -zo)));   // (1.8 times a second, pulled all the way)
+      // a swipe (touch) takes what is temporary away: the message (a flick that began at the top), a card (a sideways one on it)
+      const sw = I.swipe();
+      if (sw && msg && game.real - msg.at < 3.5 && sw.y < game.H * .25) { msg = null; I.swipe(true); }
+      else if (sw && picked && (sw.dir === 'left' || sw.dir === 'right') && hitBox(boxes.card, [sw.x, sw.y])) { picked = null; I.swipe(true); A.sfx('cancel'); }
       const b = I.box();
       if (!used && tool === 'path' && b && b.done) layPath(groundAt(b.from), groundAt(b.to));
       else if (!used && tap && tool === 'path') layPath(groundAt(tap), groundAt(tap));
       else if (!used && tap && tool === 'erase') erase(groundAt(tap));
       else if (tool && KINDS[tool]) {
         const at = !used && (tap || (!touch() && p)) ? groundAt(tap || p) : null, K = KINDS[tool];
-        if (at) placing = { cx: at[0] - Math.floor(K.w / 2), cy: at[1] - Math.floor(K.h / 2) };
+        if (at) { placing = { cx: at[0] - Math.floor(K.w / 2), cy: at[1] - Math.floor(K.h / 2) }; if (tap && I.assist) snapPlan(K); }
         if (!used && tap && !touch() && placing && build(tool, placing.cx, placing.cy)) { placing = null; tool = null; }
-      } else if (!used && tap) {   // a look: the guest or the attraction under the tap
-        const hit = game.r ? game.r.pick(...tap) : []; picked = hit[0] || (spotAt(...groundAt(tap)) || null); if (picked) A.sfx('select');
+      } else if (!used && tap) {   // a look: the guest or the attraction under the tap (a touch assist: a guest within 14 pixels)
+        const hit = game.r ? game.r.pick(...tap) : [], near = !hit.length && I.assist && E.assist.nearest(tap[0], tap[1], guests.filter(g => g.state !== 'ride').map(g => { const [x, y] = scr(g.x, g.y); return { x, y: y - 6, g }; }), 14);
+        picked = hit[0] || (near && near.g) || (spotAt(...groundAt(tap)) || null); if (picked) A.sfx('select');
       }
+      // the pad's cursor eases onto the HUD's buttons when the stick lets go (not while the gyro is turning it)
+      if (I.lastDevice === 'gamepad') I.cursorSnap(gyroing ? null : [...boxes.tools, ...boxes.time, ...boxes.panel, ...boxes.place].map(b => [b.x + b.w / 2, b.y + b.h / 2]), 12);
     }
     simStep(dt);
+  }
+  // the DUALSENSE: the light bar is the park's rating (as its number on the HUD: green, amber, red; sent as it changes);
+  // gyro aim nudges the pad's cursor
+  function padExtras(dt) {
+    if (!ds || auto) return;
+    const c = rating >= 60 ? '#30d050' : rating >= 35 ? '#e8b020' : '#e83020'; if (c !== padLight) ds.light(padLight = c);
+    const I = game.input, [dx, dy] = ds.gyroAim(dt), p = I.lastDevice === 'gamepad' && (dx || dy) && I.pointer(); gyroing = !!p;
+    if (p) I.setPointer(Math.max(0, Math.min(game.W - 1, p[0] + dx)), Math.max(0, Math.min(game.H - 1, p[1] + dy)));
   }
   function simStep(dt) {
     const was = clock.hour, empty = !guests.length;
@@ -445,7 +502,7 @@ const SIM = (() => {
     for (const s of spots) spotStep(s, dt);
     for (const g of guests) { if (!g.rig || !onScreen(g)) continue; g.rig.update(dt, { x: g.x, y: g.y, vx: g.moving ? Math.cos(g.face) * 22 : 0, vy: g.moving ? Math.sin(g.face) * 22 : 0, facing: g.face }); }
     if (was === 23 && h === 0) midnight();
-    if (!auto && was !== h && h === 9) { say(E.t('sim.say.open'), '#a8ffb0'); A.sfx('secret'); }
+    if (!auto && was !== h && h === 9) { say(E.t('sim.say.open'), '#a8ffb0'); if (ds) ds.speaker('secret'); else A.sfx('secret'); }   // (the chime from the controller's speaker, where the player has it on)
     if (!auto && was !== h && h === 21) say(E.t('sim.say.closing'), '#ffd0a0');
   }
   // midnight: each ride's upkeep; the day's books into the log
@@ -498,7 +555,8 @@ const SIM = (() => {
   }
   function hud(r) {
     const W = r.W, H = r.H, tc = touch(), th = Math.max(16, Math.ceil(44 * game.screen.dpr / game.screen.S));
-    boxes = { tools: [], time: [], panel: [], place: [] };
+    const hv = tc ? null : game.input.pointer(), lit = b => !!hitBox(b, hv);   // (hover lights a button under the mouse or the pad's cursor)
+    boxes = { tools: [], time: [], panel: [], place: [], card: null };
     r.overlay(g => {
       // money, guests, the rating, the day and hour; the time controls
       E.ui.box(g, 3, 3, 150, 14, { alpha: .8 });
@@ -507,40 +565,47 @@ const SIM = (() => {
       E.font.text(g, E.t('sim.hud.rating', { rating: Math.round(rating) }), 104, 7, rating >= 60 ? '#a8ffb0' : rating >= 35 ? '#ffe070' : '#ff8a7a', { outline: false, font: 'tiny' });
       E.ui.box(g, 156, 3, 64, 14, { alpha: .8 }); E.font.text(g, clock.label(), 188, 7, '#ffe8b0', { align: 'center', outline: false, font: 'tiny' });
       const bw = tc ? th : 20, bh = tc ? th : 14, wide = 223 + 4 * (bw + 2) <= (tc ? cornerX() : W), x0 = wide ? 223 : 3, y0 = wide ? 3 : 20;   // (beside the clock, or under it: the corner's buttons keep the top right)
-      [[0, E.t('sim.speed.pause')], [1, E.t('sim.speed.x', { speed: 1 })], [2, E.t('sim.speed.x', { speed: 2 })], [4, E.t('sim.speed.x', { speed: 4 })]].forEach(([k, s], i) => { const b = { k, x: x0 + i * (bw + 2), y: y0, w: bw, h: bh }; boxes.time.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .85, bg: speed === k ? '#3a5aa0' : '#1a1a30' }); E.font.text(g, s, b.x + bw / 2, b.y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
+      [[0, E.t('sim.speed.pause')], [1, E.t('sim.speed.x', { speed: 1 })], [2, E.t('sim.speed.x', { speed: 2 })], [4, E.t('sim.speed.x', { speed: 4 })]].forEach(([k, s], i) => { const b = { k, x: x0 + i * (bw + 2), y: y0, w: bw, h: bh }; boxes.time.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .85, bg: speed === k ? '#3a5aa0' : lit(b) ? '#2e3a7a' : '#1a1a30', border: lit(b) ? '#ffe070' : undefined }); E.font.text(g, s, b.x + bw / 2, b.y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
       // the tools: a row along the bottom (two on a narrow screen)
       const cols = W >= 8 * 44 ? 8 : 4, tw = Math.floor((Math.min(W, 8 * 56) - 8) / cols) - 2, tth = tc ? th : 18, rows = 8 / cols, ty0 = H - rows * (tth + 2) - 3;
       TOOLS.forEach((t, i) => {
         const b = { t, x: 4 + (i % cols) * (tw + 2), y: ty0 + Math.floor(i / cols) * (tth + 2), w: tw, h: tth }, K = KINDS[t], on = tool === t, poor = K && money < K.cost;
-        boxes.tools.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .88, bg: on ? '#3a6a3a' : poor ? '#1a1828' : '#22284a' });
-        E.font.text(g, K ? K.short : E.t('sim.tool.' + t), b.x + tw / 2, b.y + tth / 2 - (K ? 6 : 3), poor ? '#6a6680' : '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+        boxes.tools.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .88, bg: on ? '#3a6a3a' : poor ? '#1a1828' : lit(b) ? '#3a4a9a' : '#22284a', border: lit(b) && !poor ? '#ffe070' : undefined });
+        E.font.text(g, K ? K.short : E.t(tc && on ? 'sim.tool.done' : 'sim.tool.' + t), b.x + tw / 2, b.y + tth / 2 - (K ? 6 : 3), poor ? '#6a6680' : '#ffffff', { align: 'center', outline: false, font: 'tiny' });   // (PATH and ERASE read DONE while on, on a touch screen: a tap ends them)
         if (K) E.font.text(g, cash(K.cost), b.x + tw / 2, b.y + tth / 2 + 1, poor ? '#6a6680' : '#ffd860', { align: 'center', outline: false, font: 'tiny' });
       });
       // PLACE and CANCEL (touch, a ride's plan shown)
       if (tc && tool && KINDS[tool] && placing) [['place', E.t('sim.place.place')], ['cancel', E.t('sim.place.cancel')]].forEach(([id, s], i) => { const b = { id, x: W / 2 - 64 + i * 66, y: ty0 - th - 4, w: 62, h: th }; boxes.place.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: i ? '#3a1a1a' : '#2a5a3a' }); E.font.text(g, s, b.x + 31, b.y + th / 2 - 3, '#ffffff', { align: 'center', outline: false }); });
       // what is picked: a ride's price, riders and takings (PRICE - +, DEMOLISH), or a guest's mind
-      if (picked) panel(g, picked, W, ty0, tc, th);
+      if (picked) panel(g, picked, W, ty0, tc, th, lit);
       if (msg && game.real - msg.at < 3.5) E.font.text(g, msg.s, W / 2, 22, msg.c, { align: 'center', shadow: '#000', outline: false });
+      // the first 45 seconds, no tool or card: the keys on the device used last (the normal font on a box where it fits,
+      // else the tiny one), over the tools
+      if (!tc && !picked && !tool && hintLeft > 0) {
+        const s = E.lang.upper(E.t(how() === 'pad' ? 'sim.hint.pad' : 'sim.hint')), big = E.font.width(s) + 10 <= W - 8, f = big ? {} : { font: 'tiny' }, w = E.font.width(s, f) + 10, h = big ? E.font.lineHeight() + 4 : 10;
+        E.ui.box(g, Math.round(W / 2 - w / 2), ty0 - h - 3, w, h, { alpha: .75 }); E.font.text(g, s, W / 2, ty0 - h - 3 + (big ? 3 : 2), '#e8e0f0', Object.assign({ align: 'center', outline: false }, f));
+      }
     });
     // a tooltip under the mouse (a ride or a guest)
     const p = game.input.pointer();
     if (p && !tc && !tool) { const o = r.pick(...p)[0]; if (o) E.tooltip(r, p[0], p[1], o.K ? [o.K.name, E.t(o.K.shop ? 'sim.tip.served' : 'sim.tip.riders', { price: NUM(o.price), count: NUM(o.today.riders) })] : [o.name, o.thought]); }
   }
-  function panel(g, o, W, ty0, tc, th) {
-    const x = 4, w = 168, bh = tc ? Math.min(th, 22) : 12, h = o.K ? 42 + bh : 50, y = ty0 - h - 4;
-    E.ui.box(g, x, y, w, h, { alpha: .9 });
-    if (o.K) {
+  function panel(g, o, W, ty0, tc, th, lit) {
+    const x = 4, w = 168, bh = tc ? Math.min(th, 22) : 12, h = o.K ? 53 + bh : 50, y = ty0 - h - 4;
+    E.ui.box(g, x, y, w, h, { alpha: .9 }); boxes.card = { x, y, w, h };
+    if (o.K) {   // (one thing a line, in the normal font: the day's riders and takings, the queue, the price)
       E.font.text(g, o.K.name, x + 5, y + 4, '#ffe8b0', { outline: false });
-      E.font.text(g, E.t(o.K.shop ? 'sim.panel.served' : 'sim.panel.riders', { count: NUM(o.today.riders), take: NUM(o.today.take), waiting: o.queue.length }), x + 5, y + 15, '#c8c0d8', { outline: false, font: 'tiny' });
-      E.font.text(g, E.t(o.price > o.K.worth ? 'sim.panel.price_dear' : 'sim.panel.price', { price: o.price }), x + 5, y + 26, o.price > o.K.worth ? '#ffb070' : '#a8ffb0', { outline: false });
+      E.font.text(g, E.t(o.K.shop ? 'sim.panel.served' : 'sim.panel.riders', { count: NUM(o.today.riders), take: NUM(o.today.take) }), x + 5, y + 15, '#c8c0d8', { outline: false });
+      E.font.text(g, E.t('sim.panel.waiting', { count: o.queue.length }), x + 5, y + 26, '#a8a0c0', { outline: false });
+      E.font.text(g, E.t(o.price > o.K.worth ? 'sim.panel.price_dear' : 'sim.panel.price', { price: o.price }), x + 5, y + 37, o.price > o.K.worth ? '#ffb070' : '#a8ffb0', { outline: false });
       [['down', '-'], ['up', '+'], ['demolish', E.t('sim.panel.knock')], ['close', 'X']].forEach(([id, s], i) => {   // (- + X: signs, not words)
         const b = { id, x: x + 5 + [0, 26, 52, 136][i], y: y + h - bh - 4, w: [22, 22, 80, 24][i], h: bh }; boxes.panel.push(b);
-        E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: id === 'demolish' ? '#5a2020' : '#2a3a7a' }); E.font.text(g, s, b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
+        E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: id === 'demolish' ? (lit(b) ? '#7a3030' : '#5a2020') : lit(b) ? '#3a4a9a' : '#2a3a7a', border: lit(b) ? '#ffe070' : undefined }); E.font.text(g, s, b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
     } else {
       E.font.text(g, E.t('sim.panel.guest', { name: o.name, money: NUM(o.money) }), x + 5, y + 4, '#ffe8b0', { outline: false });
       E.font.text(g, E.t('sim.panel.thought', { thought: o.thought }), x + 5, y + 15, '#ffffff', { outline: false, font: 'tiny' });
       [[E.t('sim.need.fun'), 1 - o.needs.fun], [E.t('sim.need.food'), 1 - o.needs.hunger], [E.t('sim.need.drink'), 1 - o.needs.thirst], [E.t('sim.need.happy'), o.happy]].forEach(([s, v], i) => { const bx = x + 5 + (i % 2) * 80, by = y + 26 + Math.floor(i / 2) * 9; E.font.text(g, s, bx, by, '#a8a0c0', { outline: false, font: 'tiny' }); E.ui.bar(g, bx + 30, by + 1, 40, 3, Math.max(0, v), v > .5 ? '#5ad86a' : v > .25 ? '#ffd060' : '#ff4a4a'); });
-      const b = { id: 'close', x: x + w - 18, y: y + 3, w: 14, h: tc ? Math.min(th, 16) : 10 }; boxes.panel.push(b); E.font.text(g, 'X', b.x + 7, b.y + 1, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+      const b = { id: 'close', x: x + w - 18, y: y + 3, w: 14, h: tc ? Math.min(th, 16) : 10 }; boxes.panel.push(b); if (lit(b)) E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: '#3a4a9a', border: '#ffe070' }); E.font.text(g, 'X', b.x + 7, b.y + 1, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
     }
   }
 
@@ -562,16 +627,18 @@ const SIM = (() => {
   }
 
   return { view: 'iso', views: ['iso'], res: 'ps1', pausable: true, propSize: 1, touch: [], camera: { zoom: [.6, 1.8], start: 1, tall: 1.2 },
-    input: { ...E.Input.DEFAULT, pause: ['Space'], x1: ['Digit1'], x2: ['Digit2'], x4: ['Digit3'], toolPath: ['KeyQ'], toolErase: ['KeyE'], cancel: ['Escape', 'Mouse2'] },
+    input: KEYS, cursor: true, escape: 'back',
     enter: start, update, draw, bot,
-    exit() { game.cam.free = null; game.input.touchEnabled = true; game.timeScale = 1; L.enabled = false; game.resetCamera(); },
-    back() { if (tool || picked) { tool = null; placing = null; picked = null; return true; } return false; },
+    exit() { game.cam.free = null; game.input.touchEnabled = true; game.input.cursorSnap(null); game.timeScale = 1; L.enabled = false; game.resetCamera(); if (ds) ds.clear(); },
+    // a phone's back, and a PC's Esc (escape: 'back'): a tool ends, a card closes (the press is spent: the step's back key
+    // does no more); else false, and Esc opens the menu
+    back() { game.input.suppress('cancel'); if (tool || picked) { tool = null; placing = null; picked = null; A.sfx('cancel'); return true; } return false; },
     /** for tests: the park's state, a cell's or a thing's place on the screen, the HUD's boxes, the calls the HUD makes */
     state: () => ({ money, rating, guests, spots, tool, placing, picked, boxes, clock, day, speed, open, overlay, map,
       at: (x, y) => { const q = game.view.p(x, y, 0); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; }, isPath, fits, build, layPath, setOverlay: v => { overlay = v; } }),
-    /** the proof: the park's first hours at 4x (key 3), a pause and on again; the guests' places, money and needs, the
-     *  rides' states, hashed */
-    run: (n = 1800) => proof('sim', n, (i, k) => { if (i === 20) k.tap('x4'); if (i === 1400) k.tap('pause'); if (i === 1500) k.tap('x2'); },
+    /** the proof: the park's first hours at 4x (key 3), time paused (Space) and on again at 2x; the guests' places, money
+     *  and needs, the rides' states, hashed */
+    run: (n = 1800) => proof('sim', n, (i, k) => { if (i === 20) k.tap('x4'); if (i === 1400) k.tap('freeze'); if (i === 1500) k.tap('x2'); },
       () => [Math.round(money), Math.round(rating), clock.label(), guests.map(g => [g.id, Math.round(g.x), Math.round(g.y), g.state, Math.round(g.happy * 100)]), spots.map(s => [s.kind, s.state, s.today.riders])]) };
 })();
 scenes.sim = SIM;

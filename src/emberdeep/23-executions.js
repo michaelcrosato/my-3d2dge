@@ -98,8 +98,8 @@ BUS.on('step', () => {
   for (const m of ED.foes) if (m.reelT > game.time && m.alive && !m.exeBy && Math.floor(game.time * 8) % 2) m.rimT = Math.max(m.rimT || 0, 1 / 60);   // the outline flickers (a glory-kill flash)
   const t = EXE.cur = exeTarget(h); if (!t) return;
   if (h.bot && !h.bot.manual) { exeStart(h, t.m, t.kind); EXE.cur = null; return; }   // the autopilot takes every one it can
-  if (!EXE.told[t.kind]) { EXE.told[t.kind] = true; tip(t.kind, t.kind === 'silent' ? 'IT HAS NOT SEEN YOU: E TAKES IT DOWN FROM BEHIND, QUIETLY' : 'A WOUNDED FOE REELS (ITS OUTLINE FLICKERS)  •  E EXECUTES IT: LIFE AND A DODGE COME BACK', '#ffb04a'); }
-  UI.prompt = '[E] ' + (t.kind === 'silent' ? 'Take down ' : 'Execute ') + (t.m.elite === 2 ? t.m.name : 'the ' + t.m.name);
+  if (!EXE.told[t.kind]) { EXE.told[t.kind] = true; tip(t.kind, t.kind === 'silent' ? 'IT HAS NOT SEEN YOU: TAKE IT DOWN FROM BEHIND ({key:interact}), QUIETLY' : 'A WOUNDED FOE REELS (ITS OUTLINE FLICKERS)  •  EXECUTE IT ({key:interact}): LIFE AND A DODGE COME BACK', '#ffb04a'); }
+  UI.prompt = '{key:interact} ' + (t.kind === 'silent' ? 'Take down ' : 'Execute ') + (t.m.elite === 2 ? t.m.name : 'the ' + t.m.name); UI.promptVerb = t.kind === 'silent' ? 'Take down' : 'Execute';   // (the touch Use button says it)
   const inp = game.input;
   if (inp.pressed('interact')) { inp.consume('interact'); exeStart(h, t.m, t.kind); EXE.cur = null; }
 });

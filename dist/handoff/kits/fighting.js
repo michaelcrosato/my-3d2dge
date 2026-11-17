@@ -1,5 +1,5 @@
 // The FIGHTING kit's game (one on one: three fighters, versus, arcade, training), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/55-fighting.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/55-fighting.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. fighting.html plays it; node kits/test.mjs fighting runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,7 +171,7 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 11  FIGHTING  (Street Fighter II, Darkstalkers, Samurai Shodown). @modules fight
+ * SLICE 11  FIGHTING  (Street Fighter II, Darkstalkers, Samurai Shodown). @modules fight dualsense
  * One on one in the side view, best of three rounds, on a temple courtyard at dusk with a crowd that cheers the blows.
  *   RYO, the all-rounder: a fireball (236 + a punch), a rising uppercut (623 + HP), a spinning kick (214 + HK); his
  *     super, a great fireball (236236 + HP), once his meter is full.
@@ -177,17 +182,26 @@ scenes.over = {
  * The numbers are a number pad for a fighter facing right (2 down, 6 forward, 4 back; 236 is a quarter circle forward):
  * they mirror when it faces left. Hold back to block (down-back for low moves; jump attacks must be blocked standing);
  * forward or back + HP close to a foe throws it.
- * MODES: VERSUS (a second player joins with 2 on the keyboard or Start on a pad), ARCADE (the other two, then your own
- * shadow, each CPU stronger), TRAINING (the boxes drawn, frame data, your inputs; Tab or a pad's Back changes the dummy:
- * stand, crouch, jump, guard). Deep links: #fighting/versus, #fighting/arcade, #fighting/training.
- * KEYS: arrows / WASD move, jump (up) and crouch (down); U, I punch and J, K kick (light, heavy); a pad's X, Y, A, B.
- * Two on one keyboard: each takes half, and the menus say whose keys are which. TOUCH: the stick (motions work on it)
- * and four buttons.
+ * MODES: VERSUS (a second player joins with 2 on the keyboard or Options on a pad), ARCADE (the other two, then your own
+ * shadow, each CPU stronger), TRAINING (the boxes drawn, frame data, your inputs; Tab, Create or the touchpad changes the
+ * dummy, as a click or tap on its line does: stand, crouch, jump, guard). Deep links: #fighting/versus, #fighting/arcade,
+ * #fighting/training.
+ * KEYS: arrows / WASD move, jump (up) and crouch (down); U, I punch over J, K kick (light, heavy); a pad's □ △ over ✕ ○,
+ * with R1 and R2 the heavy punch and kick too. Two on one keyboard: each half the same block, punches over kicks (R T over
+ * F G; L ; over . /), and the menus say whose keys are which. ○ or a sideways swipe backs out of the menus, a sideways
+ * swipe out of the select (where ○, a heavy kick, picks a fighter as every attack does).
+ * A DualSense's light bar shows player 1's life (cyan while the super is ready); each player's own pad shakes.
+ * TOUCH: the stick (motions work on it; with Touch assists on, a motion may skip its diagonal and takes half as long
+ * again) and LP HP over LK HK, a finger sliding from one to the next; HP reads THROW next to a foe while the stick
+ * points.
  * HOW IT WORKS: E.Fighter, E.Match, E.FightAI and E.FightSelect (the fight module) hold the rules; this file is the
  * roster with each fighter's moves, the stage and the menus.
  * ===================================================================================== */
 const FIGHT = (() => {
-  const A = game.audio, X0 = 0, X1 = 560, KEYS = Object.assign({}, E.FIGHT_KEYS, { dummy: ['Tab', 'Pad8'] });
+  // the fight module's keys, with the shoulders as the heavies too (R1 HP, R2 HK: a six-button pad's place for them) and the
+  // dummy on Create or the touchpad; on a shared keyboard each half is the same 2 x 2 block as U I over J K: punches over kicks
+  const A = game.audio, X0 = 0, X1 = 560, KEYS = Object.assign({}, E.FIGHT_KEYS, { hp: E.FIGHT_KEYS.hp.concat('Pad5'), hk: E.FIGHT_KEYS.hk.concat('Pad7'), dummy: ['Tab', 'Pad8', 'Pad17'],
+    halves: { left: { lp: ['KeyR'], hp: ['KeyT'], lk: ['KeyF'], hk: ['KeyG'], dummy: ['KeyY'] }, right: { lp: ['KeyL', 'Numpad4'], hp: ['Semicolon', 'Numpad5'], lk: ['Period', 'Numpad1'], hk: ['Slash', 'Numpad2'], dummy: ['Quote', 'Numpad6'] } } });
   const M = E.MOVES, spin = (name, o) => Object.assign({}, M[name], { spin: true }, o);   // (a move turned into a spin)
 
   /* ---- THE ROSTER: each a rig and a move list (frame data in frames at 60: [startup, active, recovery]); its name and
@@ -261,17 +275,21 @@ const FIGHT = (() => {
   }
 
   /* ---- MODES: the menu, the select, the match, the results ---- */
-  let mode = 'menu', match = null, select = null, kind = 'versus', picks = null, ladder = [], step = 0, dummy = 0, result = null, t = 0;
+  let mode = 'menu', match = null, select = null, kind = 'versus', picks = null, ladder = [], step = 0, dummy = 0, result = null, t = 0, ds = null, lit = null, dummyAt = null;
   const DUMMY = ['stand', 'crouch', 'jump', 'guard'];   // (each shown as its line, fighting.dummy.<what>)
-  const menu = new E.Menu(game, [E.t('fighting.menu.versus'), E.t('fighting.menu.arcade'), E.t('fighting.menu.training')], { y: 0, onPick: i => choose(['versus', 'arcade', 'training'][i]) });
-  const after = new E.Menu(game, [E.t('fighting.menu.rematch'), E.t('fighting.menu.select'), E.t('fighting.menu.title')], { y: 0, onPick: i => i === 0 ? fight(picks) : i === 1 ? choose(kind) : game.go('title') });
-  const cont = new E.Menu(game, [E.t('fighting.menu.continue'), E.t('fighting.menu.title')], { y: 0, onPick: i => i ? game.go('title') : fight(picks) });
-  const p2 = () => game.players[1] || null;
+  // the menus: ○ (or Esc) and a sideways swipe back out of each, as the scene's back() does
+  const menu = new E.Menu(game, [E.t('fighting.menu.versus'), E.t('fighting.menu.arcade'), E.t('fighting.menu.training')], { y: 0, onPick: i => choose(['versus', 'arcade', 'training'][i]), onCancel: () => game.go('title') });
+  const after = new E.Menu(game, [E.t('fighting.menu.rematch'), E.t('fighting.menu.select'), E.t('fighting.menu.title')], { y: 0, onPick: i => i === 0 ? fight(picks) : i === 1 ? choose(kind) : game.go('title'), onCancel: () => choose(kind) });
+  const cont = new E.Menu(game, [E.t('fighting.menu.continue'), E.t('fighting.menu.title')], { y: 0, onPick: i => i ? game.go('title') : fight(picks), onCancel: () => game.go('title') });
+  const p2 = () => game.players[1] || null, THROW = E.t('fighting.touch.throw');
+  // how player 2 joins: the keyboard's key and a pad's button, by name (2, OPTIONS or MENU)
+  const joinLine = () => E.t('fighting.join', { key: game.input.codeLabel('Digit2'), pad: E.lang.upper(game.input.codeLabel('Pad9')) });
   function choose(k) {
     kind = k; mode = 'select'; t = 0;
     select = new E.FightSelect(game, { roster: ROSTER, inputs: [game.input, k === 'versus' ? p2() : null], cpu: [false, k !== 'versus'], seed: 1 + Math.floor(Math.random() * 1e6),
-      onDone: ids => { if (k === 'arcade') { ladder = ROSTER.filter(e => e.id !== ids[0]).map(e => e.id).concat([ids[0]]); step = 0; picks = [ids[0], ladder[0]]; } else picks = ids; fight(picks); } });
+      onDone: ids => { if (k === 'arcade') { ladder = ROSTER.filter(e => e.id !== ids[0]).map(e => e.id).concat([ids[0]]); step = 0; picks = [ids[0], ladder[0]]; } else picks = ids; fight(picks); }, onBack: () => { mode = 'menu'; } });
   }
+  function nextDummy() { dummy = (dummy + 1) % DUMMY.length; match.o.training.dummy = DUMMY[dummy]; A.sfx('select'); }
   function fight(ids) {
     const a = make(ids[0], 0, 1), shadow = kind === 'arcade' && step === ladder.length - 1, b = make(ids[1], 0, -1, shadow, ids[0] === ids[1] && !shadow), cpu = kind === 'arcade';
     const s = game.view.p(1, 0, 0)[0] - game.view.p(0, 0, 0)[0], span = Math.max(160, game.W / s - 36);
@@ -291,7 +309,14 @@ const FIGHT = (() => {
 
   function update(dt) {
     t += dt; cheer = Math.max(0, cheer - dt * .8);
-    for (const k of ['lp', 'hp', 'lk', 'hk']) game.input.touchSet(k, null, mode === 'fight' && !(result && result.t > 1.2));   // (the fight's buttons only in a fight: taps pick on the menus)
+    // the fight's buttons only in a fight (taps pick on the menus); HP reads THROW while the stick points and player 1 stands
+    // close to a foe on the ground (forward or back + HP throws)
+    const I = game.input, f0 = match && match.f[0], f1 = match && match.f[1], mv = I.move(), near = !!f0 && Math.abs(mv[0]) > .5 && Math.abs(f1.x - f0.x) < f0.o.throwRange && f0.body.onGround && f1.body.onGround && !f1.ko;
+    for (const k of ['lp', 'hp', 'lk', 'hk']) I.touchSet(k, k === 'hp' && near ? THROW : null, mode === 'fight' && !(result && result.t > 1.2));
+    // a DualSense's light bar: player 1's life in a fight (yellow, orange below a quarter), cyan while the super is ready,
+    // white on a win, dark once knocked out; blue on the menus
+    const life = f0 && f0.life / f0.o.life, bar = mode !== 'fight' || !f0 ? '#2a5ad8' : f0.win ? '#ffffff' : f0.ko ? '#300a0a' : !match.o.training && f0.meter >= 100 ? '#40e8ff' : life < .25 ? '#ff7a1a' : '#ffd23a';
+    if (bar !== lit) { lit = bar; ds.light(bar); }
     if (mode === 'menu') { if (!menu.update(dt)) pickOnStart(menu); return; }
     if (mode === 'select') {
       if (kind === 'versus' && !select.inputs[1] && p2()) select.inputs[1] = p2();   // player 2 joined: its cursor comes alive
@@ -301,12 +326,16 @@ const FIGHT = (() => {
     const lifeWas = match.f.map(f => f.life);
     match.update(dt);
     match.f.forEach((f, i) => { if (f.life < lifeWas[i]) cheer = Math.min(1, cheer + (lifeWas[i] - f.life) / 150); });
-    if (kind === 'training' && game.input.pressed('dummy')) { dummy = (dummy + 1) % DUMMY.length; match.o.training.dummy = DUMMY[dummy]; A.sfx('select'); }
+    if (kind === 'training') {   // the dummy: Tab, Create, the touchpad, or a click or tap on its line (a thumb's height round it)
+      const c = I.clicked(), d = dummyAt, on = c && d && c[0] >= d[0] && c[0] < d[0] + d[2] && c[1] >= d[1] - 12 && c[1] < d[1] + d[3] + 12;
+      if (I.pressed('dummy') || on) nextDummy();
+    }
     if (result) {
       result.t += dt; if (result.t < 1.2) return;
       match.call = null;   // (the menu's own title instead)
-      if (kind === 'arcade') { if (result.w === 0) { if (result.next) { picks = [picks[0], ladder[step]]; fight(picks); } else if (result.t > 5 || game.input.pressed('start')) game.go('title'); } else if (!cont.update(dt)) pickOnStart(cont); }
-      else if (!after.update(dt)) pickOnStart(after);
+      const leave = () => result.t > 5 || I.pressed('start') || (result.t > 2 && (game.players.some(P => P.pressed('confirm')) || I.clicked() || I.swipe(true)));   // (CHAMPION: in its own time, or at a press, a click or a swipe)
+      if (kind === 'arcade') { if (result.w === 0) { if (result.next) { picks = [picks[0], ladder[step]]; fight(picks); } else if (leave()) game.go('title'); } else if (result.t > 2.2 && !cont.update(dt)) pickOnStart(cont); }   // (the menus read a second after they show: the last blows mashed are no answer)
+      else if (result.t > 2.2 && !after.update(dt)) pickOnStart(after);
     }
   }
   function draw(r) {
@@ -317,17 +346,26 @@ const FIGHT = (() => {
       if (mode === 'menu') {
         px.blend(g, .55, 'normal', () => px.rect(g, 0, 0, W, H, '#0a0614'));
         E.font.title(g, E.t('fighting.title'), W / 2, 30, { scale: 4, align: 'center', colors: ['#fff6d0', '#ff9a4a', '#c0302a'], depth: 3 });
-        const two = game.players.length > 1, line = E.t(menu.i === 0 ? (two ? 'fighting.mode.versus_two' : 'fighting.join') : menu.i === 1 ? 'fighting.mode.arcade' : 'fighting.mode.training');
-        E.font.text(g, line, W / 2, H - 34, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
-        // each player's four buttons (two players: P1's, P2's, side by side)
+        const two = game.players.length > 1, line = menu.i === 0 ? (two ? E.t('fighting.mode.versus_two') : joinLine()) : E.t(menu.i === 1 ? 'fighting.mode.arcade' : 'fighting.mode.training');
+        E.font.text(g, line, W / 2, H - 38, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
+        // each player's four buttons (two players: P1's, P2's, side by side), and the notation where the screen is wide enough
         const keys = I => E.t(two ? 'fighting.keys.player' : 'fighting.keys', { player: I.player, lp: I.label('lp'), hp: I.label('hp'), lk: I.label('lk'), hk: I.label('hk') });
-        E.font.text(g, two ? game.players.map(keys).join('     ') : E.t('fighting.keys.help', { keys: keys(game.input) }), W / 2, H - 22, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
-        E.font.text(g, E.t('fighting.notation'), W / 2, H - 12, '#7a6aa8', { align: 'center', outline: false, font: 'tiny' });
+        const help = two ? game.players.map(keys).join('     ') : E.t('fighting.keys.help', { keys: keys(game.input) }), note = E.t('fighting.notation'), wide = E.font.width(note) <= W - 16;
+        E.font.text(g, help, W / 2, H - (wide ? 25 : 14), '#9a8ac8', { align: 'center', outline: false });
+        if (wide) E.font.text(g, note, W / 2, H - 13, '#7a6aa8', { align: 'center', outline: false });
       }
-      if (mode === 'select' && kind === 'versus' && !select.inputs[1]) E.font.text(g, E.t('fighting.join'), W / 2, 26, '#ff8a6a', { align: 'center', shadow: '#000', outline: false });
+      if (mode === 'select' && kind === 'versus' && !select.inputs[1]) E.font.text(g, joinLine(), W / 2, H - 10, '#ff8a6a', { align: 'center', shadow: '#000', outline: false });   // (along the bottom, under the cursors' tags)
       if (mode === 'fight' && kind === 'arcade' && match.phase === 'intro') E.font.text(g, E.t('fighting.stage', { stage: step + 1, stages: ladder.length }), W / 2, H / 2 + 6, '#ffffff', { align: 'center', shadow: '#000', outline: false });
       const ta = game.input.touchArea && game.input.touchArea();   // (clear of the touch buttons)
-      if (mode === 'fight' && kind === 'training') E.font.text(g, E.t('fighting.dummy', { dummy: E.t('fighting.dummy.' + DUMMY[dummy]) }), W / 2, ta ? Math.round(ta.y0) - 10 : H - 24, '#ffd060', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+      dummyAt = null;
+      // what the dummy does, on a chip (a click or tap on it changes it): over the touch buttons, or on a screen on its side
+      // (where they reach up beside the fighters) under the life bars
+      const ca = game.cornerArea({ pinned: true }), hudY = ca && ca.y0 < 40 ? Math.ceil(ca.y1) + 6 : 10;   // (where the match's HUD starts)
+      if (mode === 'fight' && kind === 'training') {
+        const s = E.lang.upper(E.t(game.input.lastDevice === 'touch' ? 'fighting.dummy.tap' : 'fighting.dummy', { dummy: E.t('fighting.dummy.' + DUMMY[dummy]) })), w = E.font.width(s) + 12, y = !ta ? H - 28 : W > H ? hudY + 36 : Math.round(ta.y0) - 18;
+        dummyAt = [Math.round(W / 2 - w / 2), y, w, 13]; E.ui.box(g, ...dummyAt, { bg: '#1a1030', border: '#a08040', alpha: .8 });
+        E.font.text(g, s, W / 2, y + 3, '#ffd060', { align: 'center', outline: false });
+      }
       if (result && result.t > 1.2) {
         if (kind === 'arcade' && result.w === 0 && !result.next) { E.font.title(g, E.t('fighting.champion'), W / 2, H / 2 - 34, { scale: 3, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] }); }
         else if (kind === 'arcade' && result.w === 1) { E.font.title(g, E.t('fighting.continue'), W / 2, H / 2 - 40, { scale: 2, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] }); }
@@ -354,14 +392,15 @@ const FIGHT = (() => {
     const a = one(), b = one(); return Object.assign(a, { repeat: a.hash === b.hash, errors: game.errors.length });
   }
 
-  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: ['lp', 'hp', 'lk', 'hk'], camera: { zoom: false, tall: 1.8 },   // (a phone held upright: closer, the fight filling it)
+  // the touch buttons as the pad and the keys: punches over kicks, in a 2 x 2 block a finger slides across (LP into HP)
+  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: { buttons: ['lp', 'hp', 'lk', 'hk'], layout: 'grid', slide: true }, camera: { zoom: false, tall: 1.8 },   // (a phone held upright: closer, the fight filling it)
     enter(d) {
       mode = 'menu'; match = null; select = null; result = null; menu.i = 0; game.follow(null); game.cam.snap = true; game.focus((X0 + X1) / 2, 0, 52);
       game.cam.bounds = v => { const a = v.p(X0, 0, 0), b = v.p(X1, 0, 0), top = v.p(0, 0, 200)[1], bot2 = v.p(0, 0, -70)[1]; return { x0: a[0], x1: b[0], y0: top, y1: bot2 }; };
-      game.allowJoin({ max: 2 }); A.music('title');
+      game.allowJoin({ max: 2 }); A.music('title'); ds = E.DualSense.attach(game, { light: true }); lit = null;
       if (d && d.part) choose(d.part === 'training' ? 'training' : d.part === 'arcade' ? 'arcade' : 'versus');
     },
-    exit() { game.timeScale = 1; },
+    exit() { game.timeScale = 1; if (ds) ds.clear(); },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'select') { mode = 'menu'; return true; } return false; },
     update, draw, bot,
     state: () => ({ mode, kind, picks, phase: match && match.phase, wins: match && match.wins.slice(), life: match && match.f.map(f => f.life), x: match && match.f.map(f => f.x), winner: match && match.winner, dummy: DUMMY[dummy] }),   // for tests

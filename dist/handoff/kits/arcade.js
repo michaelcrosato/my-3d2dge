@@ -1,5 +1,5 @@
 // The ARCADE kit's game (a cabinet of three: maze, formation, rocks), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/32-arcade.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/32-arcade.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. arcade.html plays it; node kits/test.mjs arcade runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,10 +171,10 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 10  ARCADE  (a cabinet of three golden-age classics: Pac-Man, Galaga, Asteroids). @modules arcade grid gen
+ * SLICE 10  ARCADE  (a cabinet of three golden-age classics: Pac-Man, Galaga, Asteroids). @modules arcade grid gen dualsense
  * Three short games, each a remaster (lit, with HD rigs, glowing lines and particles) with the classic look one key away
- * (C, a pad's Y, or Settings: Arcade, Look), each with its own high-score table, initials on a letter wheel, a continue,
- * two players taking turns, and a demo in the attract mode.
+ * (C, a pad's △ or the DualSense's touchpad click, or Settings: Arcade, Look), each with its own high-score table,
+ * initials on a letter wheel, a continue, two players taking turns, and a demo in the attract mode.
  *   MAZE (#arcade/maze): eat every glow-seed in a hedge maze while four wisps hunt you, each its own way (one chases, one
  *     heads you off, one flanks with the first, one is shy up close), in waves of scatter and chase; a lantern seed turns
  *     them blue and edible for a while; the side tunnel wraps round. Each maze is new (E.gen's braided maze, mirrored);
@@ -178,17 +183,24 @@ scenes.over = {
  *     of their own, turning as they fly (r.sprite's rot); two shots on screen at a time; a stage card between waves.
  *   ROCKS (#arcade/rocks): turn, thrust and drift through a field of rocks that split when shot; the screen's edges meet
  *     (E.wrap); a saucer hunts you; hyperspace when cornered. Glowing vector lines.
- * The cabinet (#arcade) is the title: left and right pick a game, up and down one or two players. Left alone it plays a
- * demo of each game in turn (its own bot), then shows that game's table. The sides of a wide screen show cabinet art
- * drawn by code. Keys: arrows / WASD, Space / Z / J fire (rocks: up thrusts, X / K hyperspace), Enter start, C classic.
- * TOUCH: the stick, FIRE (rocks: THRUST and WARP too); a tap picks a cabinet, and the letter wheel takes taps.
+ * The cabinet (#arcade) is the title: left and right pick a game (or the mouse over one), up and down one or two players,
+ * cancel goes back. Left alone it plays a demo of each game in turn (its own bot), then shows that game's table. The
+ * sides of a wide screen show cabinet art drawn by code. KEYS: arrows / WASD, Space / Z / J fire (rocks: up thrusts,
+ * X / K / Shift hyperspace), Enter start, C classic. A PAD: the stick or d-pad, ✕ or R2 fire (rocks: □ or R1 thrust,
+ * ○ or L2 hyperspace), △ classic; it rumbles at a death, a wisp eaten, a rock split and the saucer. A DUALSENSE (the
+ * dualsense module): the light bar in the game's colour (the maze: blue while the wisps are, red at a death), R2 a gun's
+ * break at each shot. TOUCH: the maze turns at a flick (or the stick; a turn asked early is kept); formation's ship
+ * follows a thumb dragged anywhere, FIRE; rocks' stick points the ship, THRUST and WARP; with Touch assists on the
+ * formation and rocks fire by themselves when a shot would hit. A tap picks a cabinet; the letter wheel takes taps and
+ * flicks; the continue and the tables go at a tap or a flick (the stick off while they hold play).
  * HOW IT WORKS: E.Arcade (the arcade module) keeps the scores, lives, turns, tables, initials, cards, the continue and the
  * attract mode; the maze is an E.Grid with E.GridMovers (a turn asked early is kept), each game a { begin, step, draw }.
  * ===================================================================================== */
 const ARCADE = (() => {
-  const KEYS = Object.assign({}, E.Input.SHMUP, { thrust: ['Pad2', 'Pad5'], warp: ['KeyX', 'KeyK', 'ShiftLeft', 'Mouse2', 'Pad1', 'Pad6'], classic: ['KeyC', 'Pad3'] });
+  const KEYS = Object.assign({}, E.Input.SHMUP, { thrust: ['Pad2', 'Pad5'], warp: ['KeyX', 'KeyK', 'ShiftLeft', 'Mouse2', 'Pad1', 'Pad6'], classic: ['KeyC', 'Pad3', 'Pad17'] });   // (Pad17: a DualSense's touchpad click, beside △)
   delete KEYS.bomb;
-  game.settings.define({ key: 'arcadeLook', group: E.t('arcade.setting.group'), label: E.t('arcade.setting.look'), options: [['remaster', E.t('arcade.setting.look.remaster')], ['classic', E.t('arcade.setting.look.classic')]], value: 'remaster', help: E.t('arcade.setting.look.help') });
+  // (its help names the classic key as a tag the settings screen fills for the device in use: C, △)
+  game.settings.define({ key: 'arcadeLook', group: E.t('arcade.setting.group'), label: E.t('arcade.setting.look'), options: [['remaster', E.t('arcade.setting.look.remaster')], ['classic', E.t('arcade.setting.look.classic')]], value: 'remaster', help: E.t('arcade.setting.look.help', { button: '{key:classic}' }) });
   const classic = () => game.settings.arcadeLook === 'classic';
   // the cabinet's own tune (the step sequencer's format): A minor, a bouncing bass
   const SONG = { bpm: 132, steps: 4, tracks: [
@@ -298,8 +310,10 @@ const ARCADE = (() => {
       if (deathT > 0) { hero.dying = deathT; if ((deathT -= dt) <= 0) lost(); return; }
       if (fright > 0) { if ((fright -= dt) <= 0) for (const w of wisps) w.blue = false; }
       else if ((modeT += dt) > PHASES[phase]) { modeT = 0; phase = Math.min(PHASES.length - 1, phase + 1); mode = phase % 2 ? 'chase' : 'scatter'; }
-      // you: the stick's way, kept until it can be taken (a turn asked early), going on until a wall
-      h.update(dt, grid, demo ? botDir() : dirOf(I.move()), { keep: true });
+      // you: the stick's way (or a flick's, on a touch screen), kept until it can be taken (a turn asked early), going on
+      // until a wall
+      const sw = !demo && I.swipe(true), flick = sw && { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[sw.dir];
+      h.update(dt, grid, demo ? botDir() : dirOf(I.move()) || flick || null, { keep: true });
       if (h.moving) hero.dir = h.dir;
       wrapTunnel(h); hero.chomp = Math.max(0, hero.chomp - dt);
       const k = key(h.cx, h.cy);
@@ -315,8 +329,8 @@ const ARCADE = (() => {
         wrapTunnel(m);
         if (!m.moving && m.cx === DOOR[0] && m.cy === DOOR[1]) { w.leaving = false; if (w.eyes) { w.eyes = false; w.blue = false; } }
         if (!w.eyes && Math.abs(m.x - h.x) + Math.abs(m.y - h.y) < .8) {
-          if (w.blue) { w.eyes = true; w.blue = false; eaten++; cab.add(200 * 2 ** (eaten - 1), pos(m)); A.sfx('kick'); game.freeze(.3); P.sparks(pos(m).x, pos(m).y, 2, 8); }
-          else { deathT = 1.5; A.sfx('die'); return; }
+          if (w.blue) { w.eyes = true; w.blue = false; eaten++; cab.add(200 * 2 ** (eaten - 1), pos(m)); A.sfx('kick'); game.freeze(.3); P.sparks(pos(m).x, pos(m).y, 2, 8); if (!demo) game.input.rumble(.3, .1); }
+          else { deathT = 1.5; A.sfx('die'); if (!demo) game.input.rumble(.7, .4); return; }
         }
       }
       if (!seeds.size && !power.size) { level++; cab.card(E.t('arcade.maze.card', { level }), 2); A.sfx('oneup'); if (level === 2 && !demo) intermission(); build(); reset(); readyT = 2.2; }
@@ -423,6 +437,7 @@ const ARCADE = (() => {
     }
     return {
       id: 'maze', label: E.t('arcade.maze'), res: [232, 270], about: E.t('arcade.maze.about'), hue: ['#ffe040', '#4ae8ff', '#ff4a8a'], touch: [], extra: [10000], light: .5,
+      bar: () => deathT > 0 ? '#ff2020' : fright > 0 ? (fright < 2 && Math.floor(game.time * 6) % 2 ? '#f0f0ff' : '#2a3aff') : '#ffe040',   // (a DualSense's light bar: blue while the wisps are)
       begin(c, isDemo) { cab = c; demo = !!isDemo; over = false; level = 1; inter = null; wisps = wisps || null; build(); reset(); },
       revive() { over = false; reset(); },   // after a continue: the same maze, everyone back in place
       force() { over = true; },
@@ -469,8 +484,9 @@ const ARCADE = (() => {
       if (dead > 0 && (dead -= dt) <= 0) { const was = cab.p, r = cab.die(); if (r === 'over') { over = true; return; } if (r === 'next') { was.save = { wave, foes }; const s = cab.p.save; if (s) { wave = s.wave; foes = s.foes; for (const f of foes) if (f.state !== 'form') { f.state = 'back'; f.y = -20; } } else { wave = 0; newWave(); } } ship.x = FW / 2; bombs.length = 0; readyT = 1.4; }
       const live = dead <= 0 && readyT <= 0;
       if (live) {   // the ship: left and right; two shots on screen at most
-        const mv = demo ? botMove() : I.move()[0]; ship.x = clamp(ship.x + mv * 115 * dt, 10, FW - 10); ship.cool -= dt;
-        if ((demo ? botFire() : I.down('fire')) && ship.cool <= 0 && shots.length < 2) { shots.push({ x: ship.x, y: ship.y - 8 }); ship.cool = .2; A.sfx('shoot', { vol: .35 }); }
+        const d = !demo && I.drag(), mv = demo ? botMove() : I.move()[0]; ship.x = clamp(ship.x + (d ? d[0] : mv * 115 * dt), 10, FW - 10); ship.cool -= dt;   // (a thumb on a touch screen drags it one to one)
+        // (with Touch assists on it fires by itself under a moth: input.assist, never on keys or a pad)
+        if ((demo ? botFire() : I.down('fire') || (I.assist && botFire())) && ship.cool <= 0 && shots.length < 2) { shots.push({ x: ship.x, y: ship.y - 8 }); ship.cool = .2; A.sfx('shoot', { vol: .35 }); }
       }
       for (const s of shots) s.y -= 270 * dt; shots = shots.filter(s => s.y > -10);
       const sx = Math.sin(sway * 1.2) * 12;
@@ -488,7 +504,7 @@ const ARCADE = (() => {
       for (const b of bombs) { b.x += b.vx * dt; b.y += b.vy * dt; } bombs = bombs.filter(b => b.y < FH + 10);
       for (const s of shots) for (const f of foes) if (!s.hit && f.hp > 0 && f.d >= 0 && Math.abs(s.x - f.x) < 7 && Math.abs(s.y - f.y) < 6) { s.hit = true; if (--f.hp > 0) { A.sfx('bump'); P.sparks(X0 + f.x, Y0 + f.y, 4, 4); } else kill(f); }
       shots = shots.filter(s => !s.hit); foes = foes.filter(f => f.hp > 0);
-      if (live) for (const o of [...bombs, ...foes]) if (Math.abs(o.x - ship.x) < 6 && Math.abs(o.y - ship.y) < 6) { dead = 1.8; P.explosion(X0 + ship.x, Y0 + ship.y, 4, .9, { sound: true, flash: false, shake: 2, freeze: false }); if (o.hp) kill(o); break; }
+      if (live) for (const o of [...bombs, ...foes]) if (Math.abs(o.x - ship.x) < 6 && Math.abs(o.y - ship.y) < 6) { dead = 1.8; if (!demo) game.input.rumble(.8, .35); P.explosion(X0 + ship.x, Y0 + ship.y, 4, .9, { sound: true, flash: false, shake: 2, freeze: false }); if (o.hp) kill(o); break; }
       if (!foes.length && dead <= 0) newWave();
     }
     // the demo's pilot: of a step left, none and a step right, the first where no bomb or diving moth will be in the next
@@ -527,7 +543,8 @@ const ARCADE = (() => {
       if (dead <= 0 && !over && (readyT <= 0 || Math.floor(readyT * 8) % 2)) r.sprite(x0 + ship.x, y0 + ship.y, 0, SHIP, { anchor: 'center', glow: cl ? 0 : .4 });
     }
     return {
-      id: 'formation', label: E.t('arcade.formation'), res: [232, 270], about: E.t('arcade.formation.about'), hue: ['#4a8aff', '#ff4a4a', '#ffe040'], touch: ['fire'], extra: [20000, 70000], light: 0, fills: true,
+      id: 'formation', label: E.t('arcade.formation'), res: [232, 270], about: E.t('arcade.formation.about'), hue: ['#4a8aff', '#ff4a4a', '#ffe040'], touch: ['fire'], extra: [20000, 70000], light: 0, fills: true, drag: true, gun: true,
+      bar: () => dead > 0 ? '#ff2020' : '#4a8aff',
       begin, revive() { over = false; ship.x = FW / 2; bombs.length = 0; readyT = 1.4; }, force() { over = true; }, step, draw,
       box: () => [X0, Y0, FW, FH], edges: () => [X0 - 2, X0 + FW + 2],
       get over() { return over; }, get level() { return wave; },
@@ -546,18 +563,23 @@ const ARCADE = (() => {
     function begin(c, isDemo) { cab = c; demo = !!isDemo; wave = 0; over = false; shots = []; saucer = null; sparks = []; deadT = 0; readyT = 1.2; ship = { cool: 0, thrust: false }; layout(); home(); newWave(); }
     const wd = (a, b, s) => E.wrapDiff(a, b, s), far = (a, b) => Math.hypot(wd(a.x, b.x, RW), wd(a.y, b.y, RH));
     const burst = (x, y, n, sp, life, c) => { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = sp * (.4 + Math.random() * .6); sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: life * (.5 + Math.random() * .5), c }); } };
-    function kill() { deadT = 1.8; A.sfx('boom'); burst(ship.x, ship.y, 24, 80, .9, '#ffe0a0'); game.shake(3); }
+    function kill() { deadT = 1.8; A.sfx('boom'); burst(ship.x, ship.y, 24, 80, .9, '#ffe0a0'); game.shake(3); if (!demo) game.input.rumble(.8, .4); }
     function step(dt, I) {
       layout(); if (readyT > 0 && (readyT > .3 || !rocks.some(k => far(k, { x: RW / 2, y: RH / 2 }) < k.R + 40))) readyT -= dt;   // (it comes back once the middle is clear)
       if (deadT > 0 && (deadT -= dt) <= 0) { const was = cab.p, r = cab.die(); if (r === 'over') { over = true; return; } if (r === 'next') { was.save = { wave, rocks }; const s = cab.p.save; if (s) ({ wave, rocks } = s); else { wave = 0; newWave(); } } home(); readyT = 1.4; shots = shots.filter(s => !s.foe); }
       const live = deadT <= 0 && readyT <= 0;
       if (live) {   // turn, thrust (and drift: a little drag), fire, hyperspace (a one-in-ten chance it goes wrong)
-        const turn = demo ? botTurn() : I.move()[0], thr = demo ? botThrust() : I.down('up') || I.down('thrust') || I.move()[1] < -.6;
+        // (a touch stick points the ship: it turns to face where the thumb pushes, and THRUST thrusts; keys and pads turn
+        // and thrust as the cabinet did)
+        const aim = !demo && I.lastDevice === 'touch' && I.stickOn && Math.hypot(I.stick[0], I.stick[1]) > .5;
+        const turn = demo ? botTurn() : aim ? clamp(E.angDiff(ship.a, Math.atan2(I.stick[1], I.stick[0])) * 4, -1, 1) : I.move()[0];
+        const thr = demo ? botThrust() : I.down('thrust') || (I.lastDevice !== 'touch' && (I.down('up') || I.move()[1] < -.6));
         ship.a += turn * 4.4 * dt; ship.thrust = thr;
         if (thr) { ship.vx += Math.cos(ship.a) * 170 * dt; ship.vy += Math.sin(ship.a) * 170 * dt; if (Math.random() < .6) sparks.push({ x: ship.x - Math.cos(ship.a) * 6, y: ship.y - Math.sin(ship.a) * 6, vx: -Math.cos(ship.a) * 50 + (Math.random() - .5) * 24, vy: -Math.sin(ship.a) * 50 + (Math.random() - .5) * 24, t: .3, c: '#ffb84a' }); }
         const sp = Math.hypot(ship.vx, ship.vy); if (sp > 220) { ship.vx *= 220 / sp; ship.vy *= 220 / sp; }
         ship.vx *= Math.exp(-.4 * dt); ship.vy *= Math.exp(-.4 * dt); ship.cool -= dt;
-        if ((demo ? botFire() : I.pressed('fire')) && ship.cool <= 0 && shots.filter(s => !s.foe).length < 5) { shots.push({ x: ship.x + Math.cos(ship.a) * 7, y: ship.y + Math.sin(ship.a) * 7, vx: Math.cos(ship.a) * 290 + ship.vx, vy: Math.sin(ship.a) * 290 + ship.vy, t: .85 }); ship.cool = .12; A.sfx('laser', { vol: .3 }); }
+        // (with Touch assists on it fires by itself when facing a rock: input.assist, never on keys or a pad)
+        if ((demo ? botFire() : I.pressed('fire') || (I.assist && botFire())) && ship.cool <= 0 && shots.filter(s => !s.foe).length < 5) { shots.push({ x: ship.x + Math.cos(ship.a) * 7, y: ship.y + Math.sin(ship.a) * 7, vx: Math.cos(ship.a) * 290 + ship.vx, vy: Math.sin(ship.a) * 290 + ship.vy, t: .85 }); ship.cool = .12; A.sfx('laser', { vol: .3 }); }
         if (demo ? botWarp() : I.pressed('warp')) { burst(ship.x, ship.y, 10, 40, .4, '#8ab8ff'); ship.x = Math.random() * RW; ship.y = Math.random() * RH; ship.vx = ship.vy = 0; A.sfx('warp'); if (Math.random() < .1) kill(); }
       }
       if (deadT <= 0) { ship.x = E.wrap(ship.x + ship.vx * dt, 0, RW); ship.y = E.wrap(ship.y + ship.vy * dt, 0, RH); }
@@ -574,8 +596,8 @@ const ARCADE = (() => {
       // hits: your shots split rocks (big 20, middle 50, small 100) and down the saucer (500); rocks, its shots and it on you
       for (const s of shots) {
         if (s.t <= 0 || s.foe) continue;
-        for (const k of rocks) if (!k.dead && far(s, k) < k.R) { k.dead = true; s.t = 0; cab.add([0, 100, 50, 20][k.size], { x: X0 + k.x, y: Y0 + k.y }); A.sfx(k.size > 2 ? 'boom' : 'explode', { vol: .4 }); burst(k.x, k.y, 6 + k.size * 3, 60, .6, '#c8d8ff'); if (k.size > 1) for (let i = 0; i < 2; i++) rocks.push(rock(k.x, k.y, k.size - 1)); break; }
-        if (s.t > 0 && saucer && far(s, saucer) < 8) { cab.add(500, { x: X0 + saucer.x, y: Y0 + saucer.y }); s.t = 0; burst(saucer.x, saucer.y, 16, 70, .7, '#ff8aa8'); saucer = null; A.sfx('boom'); }
+        for (const k of rocks) if (!k.dead && far(s, k) < k.R) { k.dead = true; s.t = 0; cab.add([0, 100, 50, 20][k.size], { x: X0 + k.x, y: Y0 + k.y }); A.sfx(k.size > 2 ? 'boom' : 'explode', { vol: .4 }); if (!demo) game.input.rumble(.15 * k.size, .08); burst(k.x, k.y, 6 + k.size * 3, 60, .6, '#c8d8ff'); if (k.size > 1) for (let i = 0; i < 2; i++) rocks.push(rock(k.x, k.y, k.size - 1)); break; }
+        if (s.t > 0 && saucer && far(s, saucer) < 8) { cab.add(500, { x: X0 + saucer.x, y: Y0 + saucer.y }); s.t = 0; burst(saucer.x, saucer.y, 16, 70, .7, '#ff8aa8'); saucer = null; A.sfx('boom'); if (!demo) game.input.rumble(.4, .15); }
       }
       rocks = rocks.filter(k => !k.dead); shots = shots.filter(s => s.t > 0);
       if (live && (rocks.some(k => far(ship, k) < k.R + 4) || shots.some(s => s.foe && far(s, ship) < 5) || (saucer && far(saucer, ship) < 10))) kill();
@@ -629,7 +651,8 @@ const ARCADE = (() => {
       });
     }
     return {
-      id: 'rocks', label: E.t('arcade.rocks'), res: [320, 240], about: E.t('arcade.rocks.about'), hue: ['#c8d8ff', '#8ab8ff', '#ff8a4a'], touch: ['fire', 'thrust', 'warp'], every: 10000, light: 0, fills: true,
+      id: 'rocks', label: E.t('arcade.rocks'), res: [320, 240], about: E.t('arcade.rocks.about'), hue: ['#c8d8ff', '#8ab8ff', '#ff8a4a'], touch: ['fire', 'thrust', 'warp'], every: 10000, light: 0, fills: true, gun: true,
+      bar: () => deadT > 0 ? '#ff2020' : '#c8d8ff',
       begin, revive() { over = false; home(); readyT = 1.4; }, force() { over = true; }, step, draw,
       box: () => [X0, Y0, RW, RH], edges: () => [X0 - 2, X0 + RW + 2],
       get over() { return over; }, get level() { return wave; },
@@ -641,7 +664,14 @@ const ARCADE = (() => {
   const GAMES = [MAZE, FORM, ROCKS];
   const cabs = {}; for (const G of GAMES) cabs[G.id] = new E.Arcade(game, { id: G.id, lives: 3, extra: G.extra || [], every: G.every });
   const front = new E.Arcade(game, { id: 'arcade', idle: 20, demo: 1e9, scores: 6 });   // the title's attract clock (a demo ends itself: endDemo)
-  let pick = 0, players = 1, demoNext = 0, cabsAt = [];
+  let pick = 0, players = 1, demoNext = 0, cabsAt = [], mt = null;   // (mt: the mouse's last move the title saw: its hover)
+  // a DualSense's extras (the dualsense module; nothing without one): the light bar in the game's colour (G.bar), R2 a
+  // gun's break at each shot where the game has a gun; sent when they change
+  let ds = null, dsKey = '', te = null;
+  const pad5 = (light, gun) => { const k = light + gun; if (!ds || k === dsKey) return; dsKey = k; ds.light(light || '#3050ff'); ds.trigger('right', gun ? { weapon: [.2, .45, .5] } : null); };
+  // while the frame holds play (the continue, the initials, the table) the touch stick is off, so a flick anywhere is a
+  // swipe (the continue lets go, the wheel turns, the table leaves); back on after
+  const held = on => { const I = game.input; if (on && te === null) { te = I.touchEnabled; I.touchEnabled = false; } else if (!on && te !== null) { I.touchEnabled = te; te = null; } };
   function playScene(G) {
     const cab = cabs[G.id];
     let demo = false, demoT = 0, stage = 'play', tableT = 0;
@@ -656,18 +686,21 @@ const ARCADE = (() => {
         demo = !!(d && d.demo); demoT = 0; stage = 'play'; tableT = 0;
         game.follow(null); game.cam.bounds = null; game.focus(game.W / 2, game.H / 2, 0); game.cam.snap = true;
         L.enabled = !classic() && G.light > 0; L.ambient = G.light; L.dark = [4, 2, 14]; L.refresh();
-        if (G.id === 'rocks') { game.input.touchSet('thrust', E.lang.upper(E.t('action.thrust'))); game.input.touchSet('warp', E.lang.upper(E.t('action.warp'))); }
+        if (G.drag) game.input.steer = 'drag';   // (formation: a thumb anywhere drags the ship)
+        ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true }) : null; dsKey = '';
         cab.start(demo ? 1 : players, { demo }); G.begin(cab, demo); A.music(null);
       },
-      exit() { L.enabled = false; },
+      exit() { L.enabled = false; game.input.steer = 'stick'; held(false); if (ds) ds.clear(); dsKey = ''; },
       back() { game.go('arcade'); return true; },
       update(dt) {
         const I = game.input; game.focus(game.W / 2, game.H / 2, 0);
         if (I.pressed('classic')) { game.settings.set('arcadeLook', classic() ? 'remaster' : 'classic'); L.enabled = !classic() && G.light > 0; game.note(E.t(classic() ? 'arcade.note.classic' : 'arcade.note.remaster')); }
         cab.update(dt);
-        if (demo) { demoT += dt; if (I.anyPressed() || I.clicked() || demoT > 30 || G.over) { front.endDemo(); game.go('arcade', { scores: G.id }, { fade: 'black' }); return; } G.step(dt, I); return; }
+        const hold = !!(cab.entry || cab.continuing || stage === 'table'); held(hold); for (const a of G.touch) I.touchSet(a, null, !hold);   // (the game's buttons go while the frame holds play)
+        pad5(demo || hold ? null : G.bar(), !demo && !hold && !!G.gun);
+        if (demo) { demoT += dt; if (I.anyPressed() || I.clicked() || I.swipe(true) || demoT > 30 || G.over) { front.endDemo(); game.go('arcade', { scores: G.id }, { fade: 'black' }); return; } G.step(dt, I); return; }
         if (cab.entry || cab.continuing) return;
-        if (stage === 'table') { tableT += dt; if (tableT > 8 || (tableT > 1 && (I.pressed('confirm') || I.pressed('start') || I.clicked()))) game.go('arcade', null, { fade: 'black' }); return; }
+        if (stage === 'table') { tableT += dt; if (tableT > 8 || (tableT > 1 && (I.pressed('confirm') || I.pressed('start') || I.clicked() || I.swipe(true)))) game.go('arcade', null, { fade: 'black' }); return; }
         if (G.over && stage === 'play') { stage = 'cont'; cab.continue(9, yes => { if (yes) { stage = 'play'; G.revive(); } else ending(); }); return; }
         G.step(dt, I);
       },
@@ -691,7 +724,7 @@ const ARCADE = (() => {
   const title = {
     view: 'side', views: ['side'], input: KEYS, res: 'ps1', expand: true, pausable: false, touch: [], camera: { zoom: false },
     enter(d) {
-      game.follow(null); game.cam.bounds = null; game.focus(0, 0, 0); game.cam.snap = true; A.music(SONG); L.enabled = false; game.input.consumeAll();
+      game.follow(null); game.cam.bounds = null; game.focus(0, 0, 0); game.cam.snap = true; A.music(SONG); L.enabled = false; game.input.consumeAll(); mt = game.input.mouse.t;
       showTable = d && d.scores || null;
       if (d && d.part && scenes['arcade-' + d.part]) game.go('arcade-' + d.part, null, { fade: 0 });   // #arcade/maze
     },
@@ -699,6 +732,11 @@ const ARCADE = (() => {
       const I = game.input, ph = front.attract(dt);
       if (ph === 'demo') { const G = GAMES[demoNext++ % GAMES.length]; game.go('arcade-' + G.id, { demo: true }, { fade: 'black' }); return; }
       if (ph !== 'scores') showTable = null; else if (!showTable) showTable = GAMES[(demoNext + GAMES.length - 1) % GAMES.length].id;
+      if (I.pressed('cancel')) { game.go('title'); return; }   // (cancel, ○: back to the starter's title)
+      if (I.mouse.t !== mt) {   // the mouse moved over a cabinet: it is the one picked (as a menu's hover)
+        mt = I.mouse.t; const q = I.pointer(), i = q ? cabsAt.findIndex(([x, y, w, h]) => q[0] >= x && q[0] < x + w && q[1] >= y && q[1] < y + h) : -1;
+        if (i >= 0 && i < GAMES.length && i !== pick) { pick = i; A.sfx('select'); }
+      }
       if (I.pressed('left')) { pick = (pick + GAMES.length - 1) % GAMES.length; A.sfx('select'); }
       if (I.pressed('right')) { pick = (pick + 1) % GAMES.length; A.sfx('select'); }
       if (I.pressed('up') || I.pressed('down')) { players = 3 - players; A.sfx('select'); }
@@ -738,7 +776,10 @@ const ARCADE = (() => {
         const by = y + hgt + 6, bw = 96, bh = touch() ? 34 : 16; cabsAt.push([Math.round(r.W / 2 - bw / 2), by, bw, bh]);   // (a thumb's size on a touch screen)
         px.rect(g, r.W / 2 - bw / 2, by, bw, bh, '#2a1a3e'); E.font.text(g, E.t('arcade.players', { count: players }), r.W / 2, by + bh / 2 - 3, '#ffe7a8', { align: 'center', outline: false });
         E.font.text(g, GAMES[pick].about, r.W / 2, r.H - 22, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
-        E.font.text(g, touch() ? E.t('arcade.how.touch') : game.input.lastDevice === 'gamepad' ? E.t('arcade.how.pad') : E.lang.upper(E.t('arcade.how.keys')), r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+        // the help: a tap's on a touch screen, a click's for a mouse, else the player's own keys or buttons ({key:move}); in
+        // the normal font where it fits (a TV, a phone), else the tiny one
+        const how = E.lang.upper(E.t(touch() ? 'arcade.how.touch' : game.input.lastDevice === 'mouse' ? 'arcade.how.mouse' : 'arcade.how')), font = E.font.width(how) <= r.W - 8 ? 'normal' : 'tiny';
+        E.font.text(g, how, r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font });
       });
       if (showTable) { r.overlay(g => { g.fillStyle = 'rgba(4,2,12,.88)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cabs[showTable].drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), E.t('arcade.table', { game: GAMES.find(G => G.id === showTable).label })); }
     },

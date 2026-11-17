@@ -1,5 +1,5 @@
 /* =====================================================================================
- * SLICE 4  RPG  (Dragon Quest, Final Fantasy VI / IX, Chrono Trigger: a JRPG's journey and its battles). @modules story rpg
+ * SLICE 4  RPG  (Dragon Quest, Final Fantasy VI / IX, Chrono Trigger: a JRPG's journey and its battles). @modules story rpg dualsense
  * Two parts in this file: the BATTLE (side-view ATB, below), as it always was at #rpg/battle and the journey's every
  * fight; then THE JOURNEY round it (a town, a world map, a cave, the boss, the menus and the saves: its own header).
  * THE BATTLE (side-view: Final Fantasy VI / IX, Chrono Trigger, Legend of Mana)
@@ -14,7 +14,13 @@
  * battle in the space above it (layout()). A phone held upright comes in to 1.5x (camera.tall) and the two sides close up (TALL), so the
  * fighters are as big as a wide screen shows them. TOUCH, after mobile RPGs: the band is big buttons a thumb hits (pads(): the
  * commands and AUTO, the party fighting by itself; then the targets with their HP, and BACK), the party's cards above them on
- * a phone held upright, beside them on its side; a tap on a fighter targets it too. Keys and a pad: the FF command list.
+ * a phone held upright, beside them on its side; a tap on a fighter targets it too; a sideways swipe stops aiming. With
+ * Touch assists on (Settings), a command with one target takes it at once. KEYS AND A PAD: the FF command list: ↑ ↓ (and
+ * aiming ← →) move the cursor, Enter / Space / E or ✕ pick, Esc / Backspace / a right click or ○ go back from aiming
+ * (Esc pauses otherwise: the scene's escape: 'back'), R / L or □ / R1 AUTO; the keys and AUTO are named over the band. THE
+ * MOUSE: over a command it moves the cursor, over a fighter while aiming it moves the glove; a click picks. DUALSENSE:
+ * the light bar is the hero choosing (Rowan blue, Lyra violet, Sera red), amber while a hero is low, red as the party
+ * falls; any pad rumbles on the blows (game.hitFx) and on a level gained.
  * WORDS: every name, command and line is a line (src/starter/40-rpg.lines.json, rpg.* ids, shown with E.t); the heroes and
  * monsters keep an id beside the name shown, so a journey's matching and saves never lean on a language.
  * ===================================================================================== */
@@ -255,6 +261,20 @@ const RPG = (() => {
   };
   const PAUSE = { wind: .2, active: .05, recover: .35 }, GO = .35, BACK = .4, FLY = .3, DIE = .9, WAVE = 400;   // seconds: out, back, a bolt's flight, a monster's death; a wave's speed
   const COMMANDS = h => [h.attack, h.skill, 'defend', 'potion', 'run'];
+  // THE KEYS: the moves, the menus' keys (E confirms too, as in the field; a right click goes back) and AUTO on R or L, □
+  // or R1 (not a right click: that backs out of aiming)
+  const DK = E.Input.DEFAULT, KEYS = { up: DK.up, down: DK.down, left: DK.left, right: DK.right, start: DK.start, pause: DK.pause, confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyE', 'KeyJ', 'KeyZ', 'Pad0'],
+    cancel: ['Escape', 'Backspace', 'KeyX', 'KeyK', 'Mouse2', 'Pad1'], auto: ['KeyR', 'KeyL', 'Pad2', 'Pad5'] };
+  // the DUALSENSE's light bar (the dualsense module): the hero choosing, amber while a hero is low, red as the party
+  // falls, gold for a victory; sent as it changes. buzz: a rumble on any pad, while a pad is what the player plays with
+  const LIGHT = { rowan: '#2c5cc0', lyra: '#6a3ab8', sera: '#c83a4a' };
+  let ds = null, padLight = null, mt = -1;
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  function padExtras() {
+    if (!ds) return;
+    const c = mode === 'lose' ? '#ff2a2a' : mode === 'win' || mode === 'won' ? '#ffe08a' : alive(party).some(h => h.hp < h.max / 4) ? '#ffb030' : actor && isHero(actor) && LIGHT[actor.id] || padLight;
+    if (c && c !== padLight) ds.light(padLight = c);
+  }
   let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, band, frame = 0, auto = false;   // band: the HUD on screen (taps); auto: the party fights by itself
   // D: the journey's battle ({ troop: [ids], party: its E.RPG party, stats: its monsters, cave, boss, done(result) }), or
   // null: the battle as it always was (#rpg/battle); won: its spoils; drank: the potions used
@@ -277,7 +297,7 @@ const RPG = (() => {
     D = data && data.troop ? data : null; won = null; drank = 0;
     party = D ? D.party.members.map(fighter) : PARTY.map(d => unit(d, true)); foes = D ? D.troop.map(monster) : TROOP.map(d => unit(d, false)); all = [...party, ...foes]; place();
     for (const c of all) { c.x = c.px = c.hx + (isHero(c) ? 70 : 0); c.y = c.py = c.hy; }   // intro: the party runs in, the monsters fade in
-    log = new E.Dialog(game, { place: 'top', lines: 2, speed: 70, bg: WIN }); menu = new E.Menu(game, [], { onPick: pick });   // E.Menu reads the keys; hud() draws it
+    log = new E.Dialog(game, { place: 'top', lines: 2, speed: 70, bg: WIN }); menu = new E.Menu(game, [], { onPick: pick, pointer: false });   // E.Menu reads the keys; hud() draws it (and takes the clicks and the mouse: pointer false)
     act = null; fx = []; potions = D ? D.party.inv.count('potion') : 3; note = ''; t = 0; dim = 0; cam = [rest().x, 72, 0]; mode = 'intro'; game.cam.bounds = null; L.enabled = false;
     A.music(D && !D.boss ? D.music || 'boss' : 'boss'); game.flash('#ffffff', .25); game.after(.9, () => { mode = 'wait'; });
   }
@@ -308,6 +328,7 @@ const RPG = (() => {
     const key = COMMANDS(actor)[i], m = MOVES[key];
     if (m.all || !(m.power || m.heal)) return order(key, null);   // Cleave, Defend and Run need no target
     pending = key; list = alive(m.ally ? party : foes); mode = 'target'; cursor = m.ally ? list.indexOf(list.slice().sort((a, b) => a.hp / a.max - b.hp / b.max)[0]) : 0;   // heals start on the weakest ally
+    if (game.input.assist && list.length === 1) order(key, list[0]);   // TOUCH ASSIST: one foe (or ally) left, no aiming
   }
   function order(key, target) {
     const m = MOVES[key]; if (m.mp) actor.mp -= m.mp; if (key === 'potion') { potions--; drank++; }
@@ -317,7 +338,7 @@ const RPG = (() => {
     act = null; actor = null; note = '';
     if (!alive(foes).length) {   // the last death plays out, then victory and a line with a live portrait
       mode = 'won'; game.after(DIE, () => { mode = 'win'; A.music('victory'); game.flash('#fff4d0', .3, .6); });
-      if (D) { keep(); won = D.party.reward(D.troop); }   // the journey's: the spoils, shared exp and its level-ups
+      if (D) { keep(); won = D.party.reward(D.troop); if (won.levels.length) game.after(DIE + 1.6, () => buzz(.4, .2)); }   // the journey's: the spoils, shared exp and its level-ups (a pad feels a level gained)
       const lead = D && party.find(h => !h.dead) || party[0], lines = D ? spoken() : [E.t('rpg.won.defeated'), E.t('rpg.won.grow')];
       game.after(DIE + 1.6, () => log.say(lines, { name: lead.name, portrait: lead.rig, portraitSize: 32, onDone: () => D ? end({ won: true, spoils: won }) : game.go('title') }));
     } else if (!alive(party).length) { mode = 'lose'; note = E.t('rpg.battle.fallen'); game.after(2, () => D ? (keep(), end({ won: false })) : game.go('over', { from: 'rpg' })); }
@@ -469,17 +490,29 @@ const RPG = (() => {
       if (E.chance(dt * 5)) P.add({ kind: 'bit', x: E.rand(0, 200), y: E.rand(10, 140), z: E.rand(50, 90), vx: E.rand(10, 22), vz: -4, g: 5, drag: .2, max: 6, size: E.chance(.4) ? 2 : 1, color: E.pick(['#ffc0d0', '#ffe0e8', '#ffd890']) });
       if (E.chance(dt * 6)) P.add({ kind: 'ember', x: E.pick([100, 132]) + E.rand(-3, 3), y: 8, z: 20, vz: E.rand(18, 30), vx: E.rand(-4, 4), max: 1, color: '#ff8a2a' });
     }
+    padExtras();
     if (tapped()) return;
-    const ap = game.input.pressed('skill') && padsNow().find(p => p && p.auto); if (ap) ap.go();   // the keys' AUTO (L, E, a pad's X): the party fights by itself, or not
+    hover();
+    const ap = game.input.pressed('auto') && padsNow().find(p => p && p.auto); if (ap) ap.go();   // the keys' AUTO (R, L, a pad's □ or R1): the party fights by itself, or not
     if (mode === 'wait') tick(dt);
     else if (mode === 'act') play(act, dt);
     else if (mode === 'command') menu.update();
-    else if (mode === 'target') {   // aiming the glove
-      const inp = game.input, n = list.length, d = inp.repeat('up') || inp.repeat('left') ? -1 : inp.repeat('down') || inp.repeat('right') ? 1 : 0;
+    else if (mode === 'target') {   // aiming the glove (a sideways swipe on a touch screen goes back too)
+      const inp = game.input, n = list.length, d = inp.repeat('up') || inp.repeat('left') ? -1 : inp.repeat('down') || inp.repeat('right') ? 1 : 0, sw = inp.swipe(), away = sw && (sw.dir === 'left' || sw.dir === 'right') && inp.swipe(true);
       if (d) { cursor = (cursor + n + d) % n; A.sfx('select'); }
-      if (inp.pressed('confirm')) { inp.consumeAll(); A.sfx('confirm'); order(pending, list[cursor]); } else if (inp.pressed('cancel')) { inp.consumeAll(); A.sfx('cancel'); mode = 'command'; }
+      if (inp.pressed('confirm')) { inp.consumeAll(); A.sfx('confirm'); order(pending, list[cursor]); } else if (inp.pressed('cancel') || away) { inp.consumeAll(); A.sfx('cancel'); mode = 'command'; }
     }
   }
+  // THE MOUSE over the keys' band (touch has its pads): a command row moves the cursor there, and aiming, the fighter
+  // under the pointer takes the glove; only as the mouse moves (E.Menu's rule), so the keys keep their cursor
+  function hover() {
+    const inp = game.input; if (inp.mouse.t === mt) return; mt = inp.mouse.t;
+    const p = inp.pointer(); if (!p || !band || band.pads || !game.r) return;
+    if (mode === 'command') { const k = Math.floor((p[1] - band.Y - 3) / 10), it = menu.items[k]; if (p[0] >= band.X + 4 && p[0] < band.X + 96 && it && !it.disabled && k !== menu.i) { menu.i = k; A.sfx('select'); } }
+    else if (mode === 'target') { const i = hitFighter(p[0], p[1]); if (i >= 0 && i !== cursor) { cursor = i; A.sfx('select'); } }
+  }
+  // the fighter of the list being aimed at under a screen point (the whole fighter, at any zoom), or -1
+  const hitFighter = (x, y) => { const z = game.view.scale / E.VIEWS.brawler.scale; return list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < (14 + u.h * .25) * z && Math.abs(y - sy) < (u.h * .6 + 8) * z; }); };
 
   // TAPS (a click works too). Touch: the pads, as drawn; a mouse: the command list (a click there while aiming goes back).
   // Aiming, a tap on a fighter targets it
@@ -492,8 +525,8 @@ const RPG = (() => {
       if (mode === 'command' && onCmds && it && !it.disabled) return use(() => { menu.i = k; A.sfx('confirm'); pick(k); });
       if (mode === 'target' && onCmds) return use(() => { A.sfx('cancel'); mode = 'command'; });
     }
-    if (mode !== 'target') return false;
-    const z = game.view.scale / E.VIEWS.brawler.scale, i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < (14 + u.h * .25) * z && Math.abs(y - sy) < (u.h * .6 + 8) * z; });   // the whole fighter, at any zoom
+    if (mode !== 'target' || !game.r) return false;
+    const i = hitFighter(x, y);
     return i >= 0 && use(() => { cursor = i; A.sfx('confirm'); order(pending, list[i]); });
   }
   // what the pads say and do now: the commands and AUTO on a hero's turn; aiming, the targets (with their HP) and BACK; else
@@ -608,7 +641,6 @@ const RPG = (() => {
       if (choosing) {
         menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
         px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
-        E.font.text(g, E.t('rpg.battle.keys'), X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
       } else if (mode === 'win') spoils().forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
       else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
     }
@@ -623,14 +655,21 @@ const RPG = (() => {
       tiny(g, E.t('rpg.stat.hp'), x + 6, Y + 36, '#9ad0ff'); txt(g, h.hp + '/' + h.max, x + 64, Y + 34, col, 'right'); gauge(g, x + 6, Y + 44, 58, h.hp / h.max, low ? '#e8a030' : '#58d068');
       gauge(g, x + 6, Y + 54, 58, h.atb, h.atb >= 1 || on ? '#ffe060' : '#dce0f8');
     });
+    // keys and a pad: their own keys over the band's right end, in the normal font: OK and BACK while choosing, and AUTO
+    // (on or off) always (touch has its pads)
+    if (!P && mode !== 'win' && mode !== 'won') {
+      const s = (choosing ? E.t('rpg.battle.keys') + '   ' : '') + E.t('rpg.battle.auto_key', { state: E.t(auto ? 'rpg.battle.on' : 'rpg.battle.off') }), w = E.font.width(s) + 12, x = X + 316 - w;
+      E.ui.box(g, x, Y - 18, w, 15, { bg: WIN }); txt(g, s, x + 6, Y - 14, '#e8ecff');
+    }
     if (mode === 'win') E.font.title(g, E.t('rpg.battle.victory'), Math.round(r.W / 2) - 36, layout(r.W, r.H).fy - 60, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
   }
   // propSize: props sized to the heroes; a strong warm rim light
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in past rest(), it eases to the fight (or the hero on turn) at chest height
-  return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: [], propSize: 1.3, camera: { zoom: [.75, 2], tall: TALL.zoom, rotate: true },   // touch: taps, no buttons
-    back() { if (mode !== 'target') return false; mode = 'command'; A.sfx('cancel'); return true; },   // a phone's back: aiming goes back to the commands
-    enter(data) { start(data); if (game.r) game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
-    exit() { if (game.r) game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
+  return { view: 'brawler', views: ['brawler'], input: KEYS, res: 'ps1', pausable: true, escape: 'back', touch: [], propSize: 1.3, camera: { zoom: [.75, 2], tall: TALL.zoom, rotate: true },   // touch: taps, no buttons
+    back() { if (mode !== 'target') return false; mode = 'command'; game.input.consumeAll(); A.sfx('cancel'); return true; },   // a phone's back, and Esc: aiming goes back to the commands
+    enter(data) { start(data); if (game.r) game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw;
+      ds = E.DualSense ? E.DualSense.attach(game, { light: true }) : null; padLight = null; },
+    exit() { if (game.r) game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; if (ds) ds.clear(); },
     update(dt) {
       if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? E.t('starter.note.turn', { angle: yaw }) : E.t('starter.note.camera_reset'));   // (the shell's notices: the kit's has a degree sign the pixel font lacks)
       if (placed !== game.upright) place();   // a phone turned: the camera comes in or out (camera.tall), and the sides close up or open out
@@ -652,14 +691,33 @@ scenes['rpg-battle'] = RPG;
  * an island of 256 x 256 cells (its floor bakes in squares near the camera), meadows, woods, mountains and the road north.
  * Random encounters by zone (E.RPG's) swirl into the ATB battle above, in the cave under its rock. THE CAVE: tunnels, a
  * chest, a crystal that heals and saves, the Dread Knight with a scene before the fight. The party (E.RPG members) gains
- * levels, gold and spoils from every victory. THE MENU (MENU: L or E, a pad's X, the touch button): Items, Equip,
- * Status, Quests and, at a crystal, Save: three slots and the autosave (game.saves; the inn autosaves). The title's
- * CONTINUE and LOAD bring a journey back; BATTLE is the battle alone (#rpg/battle). TOUCH: the stick walks, TALK and
- * MENU; a tap picks in every window, as the battle's pads do. WORDS: lines, as the battle's (rpg.*: the townsfolk's talk,
+ * levels, gold and spoils from every victory. THE MENU (Tab, I or L; a pad's △, or □, or the DualSense's touchpad
+ * click; a right click; the touch MENU): Items, Equip, Status (a member at a time, on a big card), Quests and, at a
+ * crystal, Save: three slots and the autosave (game.saves; the inn autosaves). The title's CONTINUE and LOAD bring a
+ * journey back; BATTLE is the battle alone (#rpg/battle). KEYS: WASD or the arrows walk and move the cursor, Enter /
+ * Space / E talk and pick, Esc / Backspace go back (Esc closes the open window first, then pauses: escape: 'back'); the
+ * key to talk or look shows over whoever is in reach, the menu's beside the gold. THE MOUSE: over a window's row it
+ * moves the cursor, a click picks; a click on the ground walks there (straight: the walls stop him), on someone or
+ * something walks there and talks or looks; a right click opens the menu, or goes back in one. PAD: the stick or d-pad,
+ * ✕ talk and pick, ○ back, △ the menu, Options pauses. DUALSENSE: the light bar is the place (the town's green, the
+ * world's sea, the cave's torch); any pad rumbles as a battle swirls in. TOUCH: the stick walks, TALK (LOOK, NEXT),
+ * MENU and BACK pop up where they act; a tap picks in every window, as the battle's pads do; a sideways swipe closes a
+ * window, and a swipe takes the place's name and a notice away. With Touch assists on (Settings): a tap on the ground or
+ * on someone walks there (and talks), and people answer from a step further. WORDS: lines, as the battle's (rpg.*: the townsfolk's talk,
  * items, windows); a save keeps ids and numbers, and its place's name for the engine's slot screen (in its language then).
  * ===================================================================================== */
 const JOURNEY = (() => {
   const T = 16, inp = game.input, WIN = ['#6c8cff', '#0a0a48'], HOT = ['#90aaff', '#1c2a90'], GOLD = '#ffe08a';
+  // THE KEYS (a JRPG on a PC): the moves; Enter, Space or E talk and pick (J, Z too); Esc or Backspace back (X, K and a
+  // right click too); the party's menu on Tab, I or L, a pad's △ (□ too) or the DualSense's touchpad, and a right click
+  // (it opens the menu, and goes back in one: the window reads cancel first). Not 'menu': that is the touch START's
+  const D = E.Input.DEFAULT, KEYS = { up: D.up, down: D.down, left: D.left, right: D.right, start: D.start, pause: D.pause, confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyE', 'KeyJ', 'KeyZ', 'Pad0'],
+    cancel: ['Escape', 'Backspace', 'KeyX', 'KeyK', 'Mouse2', 'Pad1'], party: ['Tab', 'KeyI', 'KeyL', 'Mouse2', 'Pad3', 'Pad2', 'Pad17'] };
+  // the DUALSENSE (the dualsense module): the light bar is the place; the controller's speaker plays the small sounds of
+  // the place (a coin paid, a chest, the inn's night) where the player has it on. buzz: a rumble on any pad in use
+  const PLACE_LIGHT = { town: '#3a8a3a', world: '#2f68b8', cave: '#ffb868' };
+  let ds = null;
+  const buzz = (s, t) => inp.lastDevice === 'gamepad' && inp.rumble(s, t), sound = n => ds ? ds.speaker(n) : A.sfx(n);
   const txt = (g, s, x, y, c = '#ffffff', align) => E.font.text(g, String(s), x, y, c, { shadow: '#0a0820', outline: false, align });
 
   /* ---- THE RULES (E.RPG): what items do and cost, the monsters' numbers and spoils, where they wait. An item's name and
@@ -914,15 +972,17 @@ const JOURNEY = (() => {
     story.people.rowan.at = hero;
     game.follow(hero, { z: 14 }); game.cam.bounds = v => map.bounds(v); game.cam.snap = true;
     A.music(M.song); L.enabled = id === 'cave'; if (L.enabled) { L.ambient = .32; L.dark = [6, 4, 14]; L.refresh && L.refresh(); }
-    banner = { text: place(id), t: 2.4 }; ENC.left = null;
+    banner = { text: place(id), t: 2.4 }; ENC.left = null; goal = null;
+    if (ds) ds.light(PLACE_LIGHT[id]);
   }
   const near = (a, d) => Math.hypot(a.x - hero.x, a.y - hero.y) < d;
-  const talkable = () => people.find(p => near(p, p.boss ? 30 : 21)) || things.find(o => (o.kind === 'chest' && !story.get(o.key)) || o.kind === 'crystal' || o.kind === 'sign' ? near(o, 21) : false);
+  // who or what is in reach to talk to or look at (TOUCH ASSIST: a step further with Touch assists on)
+  const talkable = () => { const k = inp.assist ? 1.33 : 1; return people.find(p => near(p, (p.boss ? 30 : 21) * k)) || things.find(o => (o.kind === 'chest' && !story.get(o.key)) || o.kind === 'crystal' || o.kind === 'sign' ? near(o, 21 * k) : false); };
 
   /* ---- EVENTS: the story's calls into the game ---- */
   const EVENTS = {
     key() { party.inv.add('key'); party.gold += 100; A.sfx('key'); const g = people.find(p => p.id === 'guard'); if (g) { g.x = g.home[0] + T; g.y = g.home[1] - T; } },
-    inn() { party.gold -= 10; A.sfx('pause'); night(() => { party.rest(); game.saves.autosave(); story.resume(); }); },
+    inn() { party.gold -= 10; sound('pause'); night(() => { party.rest(); game.saves.autosave(); story.resume(); }); },
     shop() { open(shopWin(() => story.resume())); },
     heal() { party.rest(); A.sfx('heal'); P.glints(hero.x, hero.y, 20, 14, '#8affc0', 18); },
     save() { open(saveWin('save', () => story.resume())); },
@@ -933,19 +993,19 @@ const JOURNEY = (() => {
   const night = f => { dark = 1.6; onDark = f; };   // the screen goes dark, f runs at the darkest, it comes back
   // a random encounter (or the boss): the swirl into the battle scene, the party and its bag with it; back here after
   function battle(troop, o = {}) {
-    mode = 'battle'; boss = !!o.boss; fought.push([at, troop.join('+'), Math.round(game.time)]); A.sfx('warp');
+    mode = 'battle'; boss = !!o.boss; fought.push([at, troop.join('+'), Math.round(game.time)]); A.sfx('warp'); buzz(.6, .35); goal = null;
     game.go('rpg-battle', { troop, party, stats: MONSTERS, cave: at === 'cave', boss: !!o.boss, music: BATTLE_SONG, done: r => game.go('rpg', { back: r }, { fade: .3 }) },
       { fade: 'swirl', seconds: .5, at: { x: hero.x, y: hero.y, z: 12 } });
   }
   function back(r) {   // home from a battle: won (the boss: the scene after), fled, or fallen (the game over)
-    mode = 'walk'; game.follow(hero, { z: 14 }); game.cam.bounds = v => map.bounds(v); game.cam.snap = true; A.music(build(at).song); L.enabled = at === 'cave';
+    mode = 'walk'; game.follow(hero, { z: 14 }); game.cam.bounds = v => map.bounds(v); game.cam.snap = true; A.music(build(at).song); L.enabled = at === 'cave'; if (ds) ds.light(PLACE_LIGHT[at]);
     if (!r.won && !r.fled) return void game.after(.01, () => game.go('over', { from: 'rpg' }));
     if (r.won && boss) { people = people.filter(p => !p.boss); story.set('knightDown'); story.vars.gold = party.gold; story.run('victory'); }
   }
 
   /* ---- WINDOWS: a stack of lists (rpg.list) the keys, the pad and taps move through; each { title, rows(), pick(i, row),
    * back(), x, y, w, show, i, top, foot() (a line under it), side(g, box) (a window beside it) } ---- */
-  const open = w => { w.i = w.i || 0; w.top = 0; wins.push(w); inp.consumeAll(); A.sfx('select'); return w; };
+  const open = w => { w.i = w.i || 0; w.top = 0; w.mt = inp.mouse.t; wins.push(w); inp.consumeAll(); A.sfx('select'); return w; };   // (mt: the mouse moves its cursor once it moves)
   const close = () => { const w = wins.pop(); inp.consumeAll(); A.sfx('cancel'); if (w && w.done) w.done(); };
   const say = s => { saveNote = s; noteT = 2.2; };
   const fit = (r, w) => Math.min(w, r.W - 16);
@@ -975,7 +1035,7 @@ const JOURNEY = (() => {
       rows: () => [...list().map(e => ({ label: e.item.name, note: delta(e.id) || '=', icon: R.icon(e.id) })), { label: E.t('rpg.gear.remove'), off: !m.equipped[slot] }],
       pick: i => { const e = list()[i]; if (e) { m.equip(e.id, party.inv); A.sfx('powerup'); say(E.t('rpg.say.equips', { name: m.name, item: e.item.name })); } else if (m.equipped[slot]) { m.unequip(slot, party.inv); say(E.t('rpg.say.removed')); } close(); } };
   }
-  function statusWin() { return { title: E.t('rpg.status.title'), w: 120, rows: () => party.members.map(m => ({ label: m.name, note: E.t('rpg.lv', { level: m.level }) })), pick: () => {}, side: true, status: true, foot: w => { const m = party.members[w.i]; return E.t('rpg.status.exp', { exp: NUM(m.exp), next: NUM(m.next) }); } }; }
+  function statusWin() { return { title: E.t('rpg.status.title'), w: 120, rows: () => party.members.map(m => ({ label: m.name, note: E.t('rpg.lv', { level: m.level }) })), pick: () => {}, status: true, foot: w => { const m = party.members[w.i]; return E.t('rpg.status.exp', { exp: NUM(m.exp), next: NUM(m.next) }); } }; }   // (one member at a time: the list picks, a big card shows them)
   function questsWin() {   // a quest's title and text by its id (a save keeps the words of the language it was made in)
     const q = () => story.quests;
     return { title: E.t('rpg.quests.title'), w: 200, rows: () => q().length ? q().map(x => ({ label: E.t('rpg.quest.' + x.id, null, x.title), note: x.done ? E.t('rpg.quests.done') : '...' })) : [{ label: E.t('rpg.quests.none'), off: true }], pick: () => {},
@@ -992,8 +1052,8 @@ const JOURNEY = (() => {
     const stock = () => SHOP.items.filter(id => id !== 'iron' && id !== 'chain' && id !== 'ring' || story.test('quest:cave'));
     return { title: E.t('rpg.shop.title'), w: 120, done, rows: () => [{ label: E.t('rpg.shop.buy') }, { label: E.t('rpg.shop.sell') }, { label: E.t('rpg.shop.leave') }],
       pick: i => i === 2 ? close() : open(i === 0 ? { title: caps('rpg.shop.buy'), w: 210, rows: () => stock().map(id => ({ label: R.item(id).name, note: E.t('rpg.gold', { gold: NUM(SHOP.price(id)) }), icon: R.icon(id), off: party.gold < SHOP.price(id) })), foot: w => { const id = stock()[w.i]; return id ? E.t('rpg.shop.have', { info: R.item(id).info, count: party.inv.count(id) }) : ''; },
-        pick: k => { const id = stock()[k]; if (SHOP.buy(party, id)) { A.sfx('coin'); say(E.t('rpg.item.' + id + '.bought')); } else { A.sfx('bump'); say(E.t('rpg.say.no_gold')); } } }
-        : { title: caps('rpg.shop.sell'), w: 210, rows: () => party.inv.list().map(e => ({ label: e.item.name, note: e.item.kind === 'key' ? '-' : E.t('rpg.gold', { gold: NUM(SHOP.worth(e.id)) }), icon: R.icon(e.id), off: e.item.kind === 'key' })), pick: k => { const e = party.inv.list()[k]; if (e && SHOP.sell(party, e.id)) { A.sfx('coin'); say(E.t('rpg.say.sold')); } } }), side: 'gold' };
+        pick: k => { const id = stock()[k]; if (SHOP.buy(party, id)) { sound('coin'); say(E.t('rpg.item.' + id + '.bought')); } else { A.sfx('bump'); say(E.t('rpg.say.no_gold')); } } }
+        : { title: caps('rpg.shop.sell'), w: 210, rows: () => party.inv.list().map(e => ({ label: e.item.name, note: e.item.kind === 'key' ? '-' : E.t('rpg.gold', { gold: NUM(SHOP.worth(e.id)) }), icon: R.icon(e.id), off: e.item.kind === 'key' })), pick: k => { const e = party.inv.list()[k]; if (e && SHOP.sell(party, e.id)) { sound('coin'); say(E.t('rpg.say.sold')); } } }), side: 'gold' };
   }
   function titleWin() {   // the journey's title: a new one, the last one, any saved one, or the battle alone
     const latest = game.saves.latest();
@@ -1002,8 +1062,10 @@ const JOURNEY = (() => {
   }
   function menuUpdate() {
     const w = wins[wins.length - 1], rows = w.rows(), n = rows.length;
+    const sw = inp.swipe(); if (sw && (sw.dir === 'left' || sw.dir === 'right') && !w.title0) { inp.swipe(true); noteT = 0; close(); return; }   // a sideways swipe closes it (and the notice)
     const d = inp.repeat('up') ? -1 : inp.repeat('down') ? 1 : 0;
     if (d && n) { w.i = (w.i + n + d) % n; A.sfx('select'); }
+    if (inp.mouse.t !== w.mt) { w.mt = inp.mouse.t; const p = inp.pointer(), hb = p && boxes.find(x => x.w === w), hk = hb ? hb.box.row(p[0], p[1]) : -1; if (hk >= 0 && hk < n && hk !== w.i) { w.i = hk; A.sfx('select'); } }   // the mouse over a row moves the cursor (as it moves: E.Menu's rule)
     const c = inp.clicked(), b = c && boxes.find(x => x.w === w), k = b ? b.box.row(c[0], c[1]) : -1;
     if (k >= 0) { w.i = k; inp.consumeAll(); }
     if ((inp.pressed('confirm') || k >= 0) && n && !rows[w.i].off) { inp.consumeAll(); A.sfx('confirm'); w.pick(w.i, rows[w.i]); }
@@ -1020,19 +1082,41 @@ const JOURNEY = (() => {
   }
 
   /* ---- UPDATE ---- */
+  // THE MOUSE (and a tap, with Touch assists on): a click on the ground walks the hero there in a straight line (a wall
+  // stops him: no pathing), a click on someone, a chest, the crystal or a sign walks there and talks or looks once in
+  // reach. The keys and the stick take over at once. goal: { x, y, o (who or what), best (the nearest yet), t (s since) }
+  let goal = null;
+  function clickWalk() {
+    const c = inp.clicked(); if (!c || !game.r || (inp.lastDevice === 'touch' && !inp.assist)) return;
+    const on = o => { const q = game.r.w(o.x, o.y, 12); return Math.abs(q[0] - c[0]) < 10 && Math.abs(q[1] - c[1]) < 16; };
+    const o = people.find(on) || things.find(t => (t.kind === 'chest' || t.kind === 'crystal' || t.kind === 'sign') && on(t)), p = o ? [o.x, o.y] : game.view.toGround(c[0] + game.r.ix, c[1] + game.r.iy);
+    if (p) goal = { x: p[0], y: p[1], o, best: 1e9, t: 0 };
+  }
   function walkUpdate(dt) {
     const h = hero, ui = wins.length > 0, near0 = !ui && !story.running && talkable();
     inp.touchSet('confirm', story.running ? E.t('rpg.touch.next') : ui ? E.t('rpg.touch.ok') : near0 ? E.t(near0.kind ? 'rpg.touch.look' : 'rpg.touch.talk') : null, story.running || ui || !!near0);
-    inp.touchSet('skill', E.t('rpg.touch.menu'), !ui && !story.running && mode === 'walk'); inp.touchSet('cancel', E.t('rpg.back'), ui && !(wins[wins.length - 1] || {}).title0);
+    inp.touchSet('party', E.t('rpg.touch.menu'), !ui && !story.running && mode === 'walk'); inp.touchSet('cancel', E.t('rpg.back'), ui && !(wins[wins.length - 1] || {}).title0);
     if (dark > 0) { const was = dark; dark -= dt; if (was > .8 && dark <= .8 && onDark) { const f = onDark; onDark = null; f(); } return; }
+    if (noteT > 0 && !ui && inp.swipe(true)) noteT = 0;   // a swipe takes a notice away (with a window open: the window's, below)
     if (ui) return menuUpdate();
     story.vars.gold = party.gold;
-    if (story.update(dt)) return;
+    if (story.update(dt)) { goal = null; return; }
     if (end) { if (inp.pressed('confirm') && end > 1.5) { end = 0; mode = 'walk'; A.music(build(at).song); } return; }
-    if (inp.pressed('skill')) return void open(menuWin());
-    if (near0 && inp.pressed('confirm')) return void interact(near0);
-    // walking: the stick or keys to a ground direction (the camera's turn applied), a little run-up and slow-down
-    const mv = inp.move(), md = game.view.screenDirToGround(mv[0], mv[1]), sp = 76, ox = h.x, oy = h.y;
+    if (banner && banner.t > 0 && inp.swipe(true)) banner.t = 0;   // a swipe takes the place's name away
+    if (inp.pressed('party')) { goal = null; return void open(menuWin()); }
+    if (near0 && inp.pressed('confirm')) { goal = null; return void interact(near0); }
+    clickWalk();
+    if (goal && goal.o && near0 === goal.o) { goal = null; return void interact(near0); }   // walked there: talk or look
+    // walking: the stick or keys to a ground direction (the camera's turn applied), a little run-up and slow-down; or to
+    // the goal clicked, until there (or 4 px off) or .3 s without getting nearer (a wall, someone in the way)
+    const mv = inp.move(), sp = 76, ox = h.x, oy = h.y;
+    if (Math.hypot(mv[0], mv[1]) > .1) goal = null;
+    let md = game.view.screenDirToGround(mv[0], mv[1]);
+    if (goal) {
+      const dx = goal.x - h.x, dy = goal.y - h.y, d = Math.hypot(dx, dy);
+      if (d < goal.best - .5) { goal.best = d; goal.t = 0; } else goal.t += dt;
+      if (d < 4 || goal.t > .3) goal = null; else md = [dx / d, dy / d];
+    }
     if (Math.hypot(md[0], md[1]) > .1) h.facing = Math.atan2(md[1], md[0]);
     h.vx = approach(h.vx, md[0] * sp, 700 * dt); h.vy = approach(h.vy, md[1] * sp, 700 * dt);
     h.update(dt, map); for (const p of people) { const dx = h.x - p.x, dy = h.y - p.y, d = Math.hypot(dx, dy), r = p.boss ? 14 : 8; if (d < r && d > 0) { h.x = p.x + dx / d * r; h.y = p.y + dy / d * r; } }   // townsfolk stand their ground
@@ -1051,7 +1135,7 @@ const JOURNEY = (() => {
     if (o.kind === 'sign') return void story.run('sign');
     if (o.kind === 'crystal') return void story.run('crystal');
     if (o.kind === 'chest') {   // a chest opens once (its key in the story's vars, so a save keeps it)
-      const item = at === 'cave' ? 'ether' : 'hipotion'; story.set(o.key); party.inv.add(item); story.vars.found = R.item(item).name; A.sfx('secret'); P.glints(o.x, o.y, 14, 10); story.run('found');
+      const item = at === 'cave' ? 'ether' : 'hipotion'; story.set(o.key); party.inv.add(item); story.vars.found = R.item(item).name; sound('secret'); P.glints(o.x, o.y, 14, 10); story.run('found');
     }
   }
   function people_(dt) {   // the townsfolk idle, glance about, face whoever speaks to them; the crew follows the leader's steps
@@ -1073,7 +1157,7 @@ const JOURNEY = (() => {
   function update(dt) {
     t += dt; noteT -= dt; if (banner) banner.t -= dt; if (end) end += dt;
     if (mode === 'battle') return;   // (the swirl into a battle: the field holds still)
-    if (mode === 'title') { inp.touchSet('confirm', E.t('rpg.touch.ok'), true); inp.touchSet('skill', null, false); inp.touchSet('cancel', E.t('rpg.back'), wins.length > 1); if (!wins.length) open(titleWin()); menuUpdate(); people_(dt); return; }
+    if (mode === 'title') { inp.touchSet('confirm', E.t('rpg.touch.ok'), true); inp.touchSet('party', null, false); inp.touchSet('cancel', E.t('rpg.back'), wins.length > 1); if (!wins.length) open(titleWin()); menuUpdate(); people_(dt); return; }
     people_(dt); walkUpdate(dt);
   }
 
@@ -1110,7 +1194,13 @@ const JOURNEY = (() => {
       txt(g, E.t('rpg.logo.sub'), r.W / 2, Math.round(r.H * .2) + 30, '#c8d0ff', 'center');
     }
     if (banner && banner.t > 0 && mode !== 'title') { const w = E.font.width(banner.text) + 26; px.blend(g, Math.min(1, banner.t), 'normal', () => { E.ui.box(g, r.W / 2 - w / 2, 10, w, 18, { bg: WIN }); txt(g, banner.text, r.W / 2, 15, '#ffffff', 'center'); }); }
-    if (mode === 'walk' && !wins.length && !story.running) { const s = E.t('rpg.gold', { gold: NUM(party.gold) }); txt(g, s, r.W - 8, r.H - 14, GOLD, 'right'); }
+    if (mode === 'walk' && !wins.length && !story.running) {   // the gold; keys and a pad: the menu's key beside it, and over whoever is in reach the key to talk or look
+      const s = E.t('rpg.gold', { gold: NUM(party.gold) }); txt(g, s, r.W - 8, r.H - 14, GOLD, 'right');
+      if (inp.lastDevice !== 'touch' && !end && dark <= 0) {
+        txt(g, prompt('party', E.t('rpg.touch.menu')), r.W - 20 - E.font.width(s), r.H - 14, '#c8d0ff', 'right');
+        const o = talkable(); if (o) { const s2 = prompt('confirm', E.t(o.kind ? 'rpg.touch.look' : 'rpg.touch.talk')), [sx, sy] = r.w(o.x, o.y, o.id ? 36 : 22), w = E.font.width(s2) + 10; E.ui.box(g, Math.round(sx - w / 2), Math.round(sy) - 16, w, 14, { bg: WIN }); txt(g, s2, Math.round(sx), Math.round(sy) - 13, '#ffffff', 'center'); }
+      }
+    }
     // the windows, each a little right of and below the one under it; cards or the gold beside the top one
     // on a touch screen a row is a thumb's height (46 CSS px), and a window shows what fits, scrolling the rest
     const S = game.screen, rh = inp.lastDevice === 'touch' ? Math.max(11, Math.ceil(46 / (S.S / S.dpr))) : 11;
@@ -1121,15 +1211,20 @@ const JOURNEY = (() => {
       const box = R.list(g, wx, wy, ww, w.rows(), { cursor: k === wins.length - 1 ? w.i : -1, title: w.title, top: w.top, show: w.show, rowH: rh, bg: k === wins.length - 1 ? WIN : ['#4a5ab8', '#0a0a38'] });
       boxes.push({ w, box }); x = wx + 14; y = wy + 14;
       if (k === wins.length - 1) {
-        const foot = w.foot && w.foot(w); if (foot) { const fw = Math.min(r.W - 16, 300); E.ui.box(g, Math.round(r.W / 2 - fw / 2), r.H - 34, fw, 26, { bg: WIN }); E.font.text(g, foot, Math.round(r.W / 2 - fw / 2) + 7, r.H - 29, '#e8ecff', { outline: false, shadow: '#0a0820', wrap: fw - 14 }); }
-        if (w.side === true || w.status) {   // the party's cards beside it (a phone held upright: under it)
+        // the line under it (an item's words, a quest's): above the touch buttons where they would cover it (a phone upright)
+        const foot = w.foot && w.foot(w); if (foot) { const fw = Math.min(r.W - 16, 300), fx = Math.round(r.W / 2 - fw / 2), ta = inp.touchArea(), fy = ta && ta.x0 < fx + fw && ta.y0 < r.H - 8 ? Math.min(r.H - 34, Math.floor(ta.y0) - 30) : r.H - 34; E.ui.box(g, fx, fy, fw, 26, { bg: WIN }); E.font.text(g, foot, fx + 7, fy + 5, '#e8ecff', { outline: false, shadow: '#0a0820', wrap: fw - 14 }); }
+        if (w.side === true) {   // the party's cards beside it (a phone held upright: under it)
           const cx = wx + ww + 6 + 150 <= r.W - 4 ? wx + ww + 6 : 8, cy = cx === 8 ? wy + box.h + 4 : wy;
-          party.members.forEach((m, j) => R.card(g, cx, cy + j * 64, m, { portrait: looksRig(m), w: Math.min(150, r.W - cx - 6), bg: w.status && j === w.i ? HOT : WIN }));
+          party.members.forEach((m, j) => R.card(g, cx, cy + j * 64, m, { portrait: looksRig(m), w: Math.min(150, r.W - cx - 6) }));
+        }
+        if (w.status) {   // STATUS: the member under the cursor on a big card (its stats in the normal font), beside the list or under it
+          const cw = Math.min(176, r.W - 12), cx = wx + ww + 6 + cw <= r.W - 4 ? wx + ww + 6 : Math.max(4, wx), cy = cx === wx + ww + 6 ? wy : wy + box.h + 4, m = party.members[w.i];
+          if (m) R.card(g, cx, cy, m, { portrait: looksRig(m), w: cw, big: true, bg: HOT });
         }
         if (w.side) { const beside = w.side === 'gold' && wx + ww + 98 <= r.W, gx = beside ? wx + ww + 6 : wx, gy = beside ? wy : wy + box.h + 4 + (w.side === true && wx + ww + 156 > r.W ? 3 * 64 : 0); E.ui.box(g, gx, gy, 92, 18, { bg: WIN }); txt(g, E.t('rpg.gold', { gold: NUM(party.gold) }), gx + 85, gy + 5, GOLD, 'right'); }   // the gold: beside the shop, under the menu (and the cards, upright)
       }
     });
-    if (noteT > 0 && saveNote) { const w = E.font.width(saveNote) + 20; E.ui.box(g, r.W / 2 - w / 2, r.H / 2 - 9, w, 18, { bg: HOT }); txt(g, saveNote, r.W / 2, r.H / 2 - 4, '#ffffff', 'center'); }
+    if (noteT > 0 && saveNote) { const w = Math.min(E.font.width(saveNote) + 20, r.W - 8), ls = E.font.wrap(saveNote, w - 12), h = ls.length * E.font.lineHeight() + 8; E.ui.box(g, r.W / 2 - w / 2, r.H / 2 - h / 2, w, h, { bg: HOT }); E.font.text(g, saveNote, r.W / 2, r.H / 2 - h / 2 + 5, '#ffffff', { outline: false, shadow: '#0a0820', align: 'center', wrap: w - 12 }); }
     if (dark > 0) px.blend(g, clamp(1 - Math.abs(dark - .8) / .8, 0, 1), 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#000000'));
     if (end) { px.blend(g, Math.min(.7, end * .5), 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#0a0820')); E.font.title(g, E.t('rpg.the_end'), r.W / 2, r.H / 2 - 20, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 }); if (end > 1.5) txt(g, E.t('rpg.walk_on'), r.W / 2, r.H / 2 + 24, '#c8d0ff', 'center'); }
   }
@@ -1146,7 +1241,7 @@ const JOURNEY = (() => {
     // what plays by itself: a battle (AUTO on, its lines read), a scene change, the dark of a night, a line (read, the
     // first choice taken), the end card. The windows are the bot's to drive
     const busy = () => {
-      if (game.sceneName === 'rpg-battle') { const s = scenes['rpg-battle'].state(); if (!s.auto && s.mode !== 'intro') tap('skill'); else tap('confirm'); return true; }
+      if (game.sceneName === 'rpg-battle') { const s = scenes['rpg-battle'].state(); if (!s.auto && s.mode !== 'intro') tap('auto'); else tap('confirm'); return true; }
       if (game.sceneName !== 'rpg') { step(); return true; }
       if (wins.length) return false;
       if (mode === 'battle' || dark > 0) { step(); return true; }
@@ -1173,8 +1268,8 @@ const JOURNEY = (() => {
     visit(person('shop')); settle();
     if (wins.length) { pick(line('rpg.shop.buy')); for (const id of ['bronze', 'leather', 'potion', 'potion', 'potion']) pick(R.item(id).name); tap('cancel', 2); settle(); }
     rep.bought = party.inv.has('bronze') && party.inv.has('leather') && party.inv.has('potion', 5);
-    tap('skill'); pick(line('rpg.menu.equip')); pick(line('rpg.name.rowan')); pick(line('rpg.slot.weapon')); pick(R.item('bronze').name); tap('cancel', 3);   // the menu: a sword on Rowan, the vest on Sera
-    tap('skill'); pick(line('rpg.menu.equip')); pick(line('rpg.name.sera')); pick(line('rpg.slot.armor')); pick(R.item('leather').name); tap('cancel', 3);
+    tap('party'); pick(line('rpg.menu.equip')); pick(line('rpg.name.rowan')); pick(line('rpg.slot.weapon')); pick(R.item('bronze').name); tap('cancel', 3);   // the menu: a sword on Rowan, the vest on Sera
+    tap('party'); pick(line('rpg.menu.equip')); pick(line('rpg.name.sera')); pick(line('rpg.slot.armor')); pick(R.item('leather').name); tap('cancel', 3);
     rep.equipped = lead().equipped.weapon === 'bronze' && party.members[2].equipped.armor === 'leather';
     visit(thing('chest')); settle(); rep.chest = party.inv.has('hipotion');
     visit(thing('crystal')); for (let i = 0; i < 200 && !wins.length; i++) if (!busy()) step();
@@ -1196,16 +1291,17 @@ const JOURNEY = (() => {
     return rep;
   }
 
-  return { view: 'threequarter', views: ['threequarter', 'topdown'], input: 'DEFAULT', res: 'ps1', pausable: true, propSize: 1.2, touch: ['confirm', 'cancel', 'skill'], camera: { zoom: [.75, 2] },
+  return { view: 'threequarter', views: ['threequarter', 'topdown'], input: KEYS, res: 'ps1', pausable: true, escape: 'back', propSize: 1.2, touch: ['confirm', 'cancel', 'party'], camera: { zoom: [.75, 2] },
     parts: { battle: 'rpg-battle' },   // #rpg/battle: the battle alone, as it always was
     enter(data) {
       if (game.r) game.r.rimAlpha = .28; game.cam.offset = null;   // (headless, there is no renderer)
+      ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null;
       if (data && data.back && party) return back(data.back);   // home from a battle
       maps = {}; crew = null; hero = null; fresh(); mode = 'title'; wins = []; end = 0; dark = 0;
       game.follow(null); game.focus(15 * T, 10 * T, 0); game.cam.snap = true;
     },
-    exit() { L.enabled = false; inp.touchSet('confirm', null); inp.touchSet('skill', null); inp.touchSet('cancel', null); },
-    back() { if (wins.length && !wins[wins.length - 1].title0) { close(); return true; } return false; },   // a phone's back: a window closes
+    exit() { L.enabled = false; inp.touchSet('confirm', null); inp.touchSet('party', null); inp.touchSet('cancel', null); if (ds) ds.clear(); },
+    back() { if (wins.length && !wins[wins.length - 1].title0) { close(); return true; } return false; },   // a phone's back, and Esc: a window closes (with none, Esc pauses)
     update, draw, bot,
     state: () => ({ mode, at, x: hero && Math.round(hero.x), y: hero && Math.round(hero.y), wins: wins.map(w => w.title), gold: party && party.gold, levels: party && party.members.map(m => m.level), quests: story && story.quests.map(q => q.id + (q.done ? '+' : '')), node: story && story.node, near: hero && (talkable() || {}).id || (talkable() || {}).kind || null,
       rows: boxes.length ? (b => b.w.rows().slice(b.box.top, b.box.top + b.box.show).map((row, k) => ({ label: row.label, at: b.box.at(b.box.top + k), h: b.box.rowH })))(boxes[boxes.length - 1]) : [] }),   // the top window's rows on screen (taps, in tests)

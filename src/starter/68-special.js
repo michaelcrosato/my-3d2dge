@@ -1,27 +1,42 @@
 /* =====================================================================================
  * SLICE 27  SPECIAL  (Sonic 3's Blue Sphere, Sonic 2's half-pipe, Super Mario Kart's battle, Contra III's top-down
- * stages and Super Castlevania IV's turning room). @modules mode7 drive
+ * stages and Super Castlevania IV's turning room). @modules mode7 drive dualsense
  * The Mode 7 era's bonus stages and arenas, a few minutes each. PLANET: a checkered world so small it curves away on
  * every side; run over every blue sphere (it turns red behind you), never touch a red one (jump it), turn a quarter at a
  * crossing. TUBE: a half-pipe that twists and climbs into space; run up its walls for the rings, past the bombs, enough
  * of them by each of its three gates. ARENA: four karts, three balloons each, shells that bounce off the walls; the last
- * with a balloon wins (two to four players in a split screen, joined in the menu: 2 on the keys, Start on a pad; a stage
- * of one sends them off). TURN: a fort seen from straight above that turns as you do (Contra III); clear its three nests.
+ * with a balloon wins (two to four players in a split screen, joined in the menu: 2 on the keys, Options on a pad; a
+ * stage of one sends them off). TURN: a fort seen from straight above that turns as you do (Contra III); clear its three nests.
  * ROOM: a room seen side on that turns a quarter at a time (Super Castlevania IV's), gravity always down the screen, so
  * a floor becomes a wall; take its three gems, then out by its door before the time runs out.
  * Deep links: #special/planet, #special/tube, #special/arena, #special/turn, #special/room.
- * KEYS: left / right turn or steer (TURN: up / down walk), up / Z gas (ARENA), Space / X jump or fire (the ARENA for
- * two on one keyboard: W / up gas, S / down brake, F / . fire). A pad: the stick, A gas, B jump or fire. TOUCH: the
- * stick; JUMP or FIRE (ARENA: it drives by itself, the stick pulled down backs it up).
+ * KEYS: left / right turn or steer (TURN: up / down walk), up / W / Z gas and down / S brake (ARENA), Space / X / C jump
+ * or fire (the ARENA for two on one keyboard: W / up gas, S / down brake, F / . fire). A pad (PlayStation names): the
+ * stick; ✕ jumps (PLANET, TUBE, ROOM); □, R1 or L1 fires (ARENA, TURN: there ✕ fires too); the ARENA's R2 gas and L2
+ * brake (as far as they are pulled), ✕ gas too; ○ jumps or fires as before, and goes back in the menus. Any pad rumbles
+ * on a hit, a red sphere, a bomb, a nest down; a DualSense's light bar shows the stage's state (your kart, the gate's
+ * quota met, your lives, the time running out), its triggers push back in the ARENA, and with gyro aim on (Settings,
+ * Controller) turning it fine-tunes the soldier's aim in the TURN. TOUCH: the stick; JUMP where the stage jumps, FIRE where
+ * it shoots; the touch assists (Settings, on at first) drive the ARENA's kart (the stick steers, pulled down it backs up)
+ * and fire at a rival or a crawler or nest dead ahead; with them off, the ARENA's GAS button. A swipe goes back from the
+ * menus.
  * HOW IT WORKS: E.Mode7 (the mode7 module): the planet a floor with curve (a globe) and wrap; the tube m7.quad strips
  * along an E.Path, the camera rolled with the runner so the pipe's floor stays down; the arena a floor of cells and its
  * walls as quads, the karts E.Car (the drive module); the fort the camera at pitch 90 (straight down), turned with you;
  * the room the same camera over a side view, turned by itself, the hero's fall turned with it.
  * ===================================================================================== */
 const SPECIAL = (() => {
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0', 'Pad7'], brake: ['ArrowDown', 'KeyS', 'Pad2', 'Pad6'], fire: ['Space', 'KeyX', 'KeyC', 'Pad1', 'Pad5'] });
-  for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
-  KEYS.halves = { left: { gas: ['KeyW'], brake: ['KeyS'] }, right: { gas: ['ArrowUp'], brake: ['ArrowDown'] } };   // (the ARENA on one keyboard: W and up the gas, S and down the brake, as alone; FIRE each half's first button, F and .)
+  // ✕ jumps, □ (the attack button), R1 or L1 (the item's) fires; the ARENA's analog pair R2 and L2 first (the drive module
+  // reads how far each is pulled); ○ both, as it was; the keys as they were (Space, X, C jump and fire)
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { jump: ['Space', 'KeyX', 'KeyC', 'Pad0', 'Pad1'], gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad7', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'Pad6', 'Act:down'], fire: ['Space', 'KeyX', 'KeyC', 'Pad2', 'Pad5', 'Pad4', 'Pad1'] });
+  for (const k of ['attack', 'dash', 'skill']) delete KEYS[k];
+  KEYS.halves = { left: { gas: ['KeyW'], brake: ['KeyS', 'Act:down'], fire: ['KeyF'] }, right: { gas: ['ArrowUp'], brake: ['ArrowDown'], fire: ['Period', 'Numpad1'] } };   // (the ARENA on one keyboard: W and up the gas, S and down the brake, as alone, F and . FIRE; the touch stick's down brakes)
+  // a DualSense's extras (the dualsense module: player 1's pad, the one it addresses): the light bar, the triggers and
+  // gyro aim, told only when they change; nothing at all without one
+  const ds = E.DualSense.attach(game, { light: true, triggers: true, gyro: true });
+  let dsWas = '';
+  const dsSet = (light, right, left) => { const k = light + JSON.stringify([right, left]); if (k === dsWas) return; dsWas = k; ds.light(light); ds.trigger('right', right); ds.trigger('left', left); };
+  const dsOff = () => { if (dsWas !== 'off') { dsWas = 'off'; ds.clear(); } };
   const HERO = new E.Humanoid({ size: 1.1, hair: 'spiky', colors: { cloth: '#3a6ae8', pants: '#e8e8f0', hair: '#ffd040' } });
   const SONG = { bpm: 150, steps: 4, tracks: [
     { wave: 'square', vol: .05, notes: 'E5 . G5 . A5 . G5 E5 | D5 . E5 . G5 . . . | E5 . G5 . A5 . C6 A5 | G5 . E5 . D5 . . . | C5 . E5 . G5 . E5 C5 | D5 . G5 . B5 . . . | A5 . G5 . E5 . D5 . | E5 . . . . . . .' },
@@ -29,8 +44,8 @@ const SPECIAL = (() => {
     { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s h h .' }] };
   const PARTS = ['planet', 'tube', 'arena', 'turn', 'room'];
   let mode = 'menu', part = null, S = null, t = 0, auto = false, result = null;
-  const menu = new E.Menu(game, [...PARTS.map(p => E.t('special.menu.' + p)), E.t('special.menu.back')], { onPick: i => i === PARTS.length ? game.go('title') : start(PARTS[i]) });
-  const after = new E.Menu(game, [E.t('special.again'), E.t('special.menu.menu')], { onPick: i => i === 0 ? start(part) : toMenu() });
+  const menu = new E.Menu(game, [...PARTS.map(p => E.t('special.menu.' + p)), E.t('special.menu.back')], { onPick: i => i === PARTS.length ? game.go('title') : start(PARTS[i]), onCancel: () => game.go('title') });   // (○, Backspace or a sideways swipe: back)
+  const after = new E.Menu(game, [E.t('special.again'), E.t('special.menu.menu')], { onPick: i => i === 0 ? start(part) : toMenu(), onCancel: () => toMenu() });
   // players join in the menu only (2 on the keyboard, Start on a pad); a stage of one sends the others off, so player 1
   // has the whole keyboard again (the arrows, Space), and no one joining mid-stage takes half of it
   function toMenu() { mode = 'menu'; part = null; S = null; auto = false; game.splitScreen(0); game.allowJoin({ max: 4 }); A.music('title'); }
@@ -38,9 +53,10 @@ const SPECIAL = (() => {
     game.allowJoin(false); if (p !== 'arena') while (game.players.length > 1) game.removePlayer(game.players.length);
     part = p; mode = 'play'; result = null; t = 0; S = STAGE[p].start(); A.music(SONG); game.input.consumeAll();
   }
-  function end(won, line) { if (mode !== 'play') return; mode = 'over'; result = { won, line }; after.i = 0; A.sfx(won ? 'secret' : 'hurt'); }
+  function end(won, line) { if (mode !== 'play') return; mode = 'over'; result = { won, line, t: 0 }; after.i = 0; A.sfx(won ? 'secret' : 'hurt'); }
   const shade = (g, x, y, r, c, hi) => { px.disc(g, x, y, r, c); if (r > 2) px.disc(g, x - r * .35, y - r * .35, Math.max(1, r * .35), hi); };   // (a ball lit from the top left)
   const steerOf = I => { const m = I.move()[0]; return Math.abs(m) > .2 ? m : 0; };
+  const buzz = (s, t, I = game.input) => { if (!auto && I) I.rumble(s, t); };   // (a pad shaken: player 1's, or the kart's own player's in the ARENA)
 
   /* ---- PLANET: Blue Sphere. A grid on a globe; the runner goes on by itself, a quarter turn at a crossing ---- */
   const N = 32, CELL = 48, WW = N * CELL, DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
@@ -69,7 +85,7 @@ const SPECIAL = (() => {
       const m = steerOf(I), key = I.pressed('left') ? -1 : I.pressed('right') ? 1 : 0, edge = m && Math.sign(m) !== S.was ? Math.sign(m) : 0; S.was = Math.sign(m);
       if (key || edge) S.turn = key || edge;
       if (auto && !S.plan) S.plan = this.pilot(S);
-      if ((I.pressed('fire') || auto && S.plan && S.plan.jump) && S.z <= 0) { S.vz = 170; A.sfx('jump', { vol: .5 }); if (S.plan) S.plan.jump = false; }
+      if ((I.pressed('jump') || auto && S.plan && S.plan.jump) && S.z <= 0) { S.vz = 170; A.sfx('jump', { vol: .5 }); if (S.plan) S.plan.jump = false; }
       if (S.z > 0 || S.vz > 0) { S.vz -= 520 * dt; S.z = Math.max(0, S.z + S.vz * dt); if (S.z === 0) S.vz = 0; }
       S.speed = Math.min(200, S.speed + 4 * dt);
       let dist = S.speed * dt;
@@ -78,7 +94,7 @@ const SPECIAL = (() => {
         if (dist < dn) { S[ax] += sg * dist; break; }
         S[ax] = (nu + .5) * CELL; dist -= dn; S.cells++;
         const c = this.cell(S, S.x, S.y);
-        if (S.z <= 0) { if (S.g[c] === 2) { end(false, E.t('special.planet.red')); return; } if (S.g[c] === 1) { S.g[c] = 2; S.blues--; A.sfx('coin', { vol: .4 }); if (!S.blues) { end(true, E.t('special.planet.perfect')); return; } } }
+        if (S.z <= 0) { if (S.g[c] === 2) { buzz(.8, .4); end(false, E.t('special.planet.red')); return; } if (S.g[c] === 1) { S.g[c] = 2; S.blues--; A.sfx('coin', { vol: .4 }); buzz(.08, .03); if (!S.blues) { end(true, E.t('special.planet.perfect')); return; } } }
         if (auto) { S.plan = this.pilot(S); S.turn = S.plan.turn; }
         if (S.turn && S.z <= 0) { S.dir = (S.dir + S.turn + 4) % 4; S.turn = 0; }
       }
@@ -87,7 +103,7 @@ const SPECIAL = (() => {
       HERO.update(dt, { x: 0, y: 0, z: S.z, vx: Math.cos(S.head) * S.speed, vy: Math.sin(S.head) * S.speed, facing: S.head, air: S.z > 2 });
     },
     draw(S, r) {
-      const V = planet, cam = { x: S.x - Math.cos(S.head) * 64, y: S.y - Math.sin(S.head) * 64, h: 34, angle: S.head, pitch: 20, fov: 72 };
+      const tall = r.H > r.W, back = tall ? 96 : 64, V = planet, cam = { x: S.x - Math.cos(S.head) * back, y: S.y - Math.sin(S.head) * back, h: tall ? 48 : 34, angle: S.head, pitch: tall ? 24 : 20, fov: tall ? 84 : 72 };   // (a phone held upright: further back, higher and wider, so the spheres ahead show past the runner)
       for (let dj = -11; dj <= 11; dj++) for (let di = -11; di <= 11; di++) {
         const i = Math.floor(S.x / CELL) + di, j = Math.floor(S.y / CELL) + dj, v = S.g[((j % N + N) % N) * N + ((i % N + N) % N)]; if (!v) continue;
         const x = (i + .5) * CELL, y = (j + .5) * CELL; if ((x - S.x) * Math.cos(S.head) + (y - S.y) * Math.sin(S.head) < -6) continue;   // (none behind the runner: the camera is close behind)
@@ -118,7 +134,7 @@ const SPECIAL = (() => {
       return { s: 0, th: 0, l: 0, vl: 0, speed: 210, rings: 0, gate: 0, things, flash: 0 };
     },
     update(S, dt, I) {
-      let steer = steerOf(I) || (I.down('left') ? -1 : I.down('right') ? 1 : 0), jump = I.pressed('fire');
+      let steer = steerOf(I) || (I.down('left') ? -1 : I.down('right') ? 1 : 0), jump = I.pressed('jump');
       if (auto) {   // steer for the nearest ring ahead, off a bomb's line; jump a bomb that can't be missed
         const ahead = S.things.filter(o => !o.got && o.s > S.s + 8 && o.s < S.s + 220).sort((a, b) => a.s - b.s), ring = ahead.find(o => o.ring), bomb = ahead.find(o => !o.ring && Math.abs(o.th - S.th) < .3 && o.s < S.s + 70);
         steer = clamp(((ring ? ring.th : 0) - S.th) * 3, -1, 1); if (bomb) { steer = bomb.th > S.th ? -1 : 1; jump = Math.abs(bomb.th - S.th) < .15 && bomb.s < S.s + 40; }
@@ -129,7 +145,7 @@ const SPECIAL = (() => {
       S.speed = Math.min(330, S.speed + 5 * dt); S.s += S.speed * dt; S.flash = Math.max(0, S.flash - dt);
       for (const o of S.things) if (!o.got && Math.abs(o.s - S.s) < 10 && Math.abs(o.th - S.th) < .24 && S.l < 12) {
         o.got = true;
-        if (o.ring) { S.rings++; A.sfx('coin', { vol: .3 }); } else { S.rings = Math.max(0, S.rings - 8); S.flash = .6; A.sfx('hurt', { vol: .5 }); }
+        if (o.ring) { S.rings++; A.sfx('coin', { vol: .3 }); } else { S.rings = Math.max(0, S.rings - 8); S.flash = .6; A.sfx('hurt', { vol: .5 }); buzz(.6, .3); }
       }
       if (S.s >= GATES[S.gate]) {
         if (S.rings < QUOTA[S.gate]) { end(false, E.t('special.tube.short', { n: QUOTA[S.gate] })); return; }
@@ -140,7 +156,7 @@ const SPECIAL = (() => {
     draw(S, r) {
       // the camera behind the runner on the same line out from the pipe's middle, banked so that line is straight down: a
       // runner up the right wall (+) has it banked left (- roll), the wall under its feet
-      const V = space, c = onPipe(S.s - 90, S.th, PR * .62), p0 = TUBE_PATH.at(S.s - 90), cam = { x: c[0], y: c[1], h: c[2], angle: p0.angle, pitch: 3, fov: 74, roll: -S.th * 180 / Math.PI }, aim = onPipe(S.s, S.th, PR * .62);
+      const V = space, c = onPipe(S.s - 90, S.th, PR * .62), p0 = TUBE_PATH.at(S.s - 90), cam = { x: c[0], y: c[1], h: c[2], angle: p0.angle, pitch: 3, fov: r.H > r.W ? 90 : 74, roll: -S.th * 180 / Math.PI }, aim = onPipe(S.s, S.th, PR * .62);   // (wider on a phone held upright: the pipe's walls show)
       cam.angle += E.angDiff(cam.angle, Math.atan2(aim[1] - c[1], aim[0] - c[0]));   // (looking along the pipe to the point over the runner)
       const k0 = Math.floor((S.s - 90) / SEG);
       for (let k = k0; k < k0 + 46; k++) {   // the pipe a strip at a time, a checker of two blues that runs past
@@ -186,6 +202,8 @@ const SPECIAL = (() => {
       game.splitScreen(n > 1 && !auto ? n : 0, { layout: n === 2 ? 'rows' : 'grid' });
       return { karts, shells: [], time: 120, cams: karts.map(K => ({ x: K.car.x, y: K.car.y, h: 22, angle: K.car.angle, pitch: 10, fov: 70 })), humans: auto ? 0 : n };
     },
+    /** a rival with balloons dead ahead of kart K and in a shell's reach (the CPU's own test: the touch assists fire at it) */
+    aimed(S, K) { const c = K.car, f = E.assist.nearest(c.x, c.y, S.karts.filter(o => o !== K && o.balloons > 0).map(o => o.car), 280); return !!f && Math.abs(E.angDiff(c.angle, Math.atan2(f.y - c.y, f.x - c.x))) < .25; },
     // a CPU kart: the nearest rival with balloons, steered for, fired at when it is ahead; off the walls
     drive(S, K, dt) {
       const c = K.car, foes = S.karts.filter(o => o !== K && o.balloons > 0).sort((a, b) => Math.hypot(a.car.x - c.x, a.car.y - c.y) - Math.hypot(b.car.x - c.x, b.car.y - c.y)), f = foes[0];
@@ -198,8 +216,8 @@ const SPECIAL = (() => {
       for (const K of S.karts) {
         K.cool -= dt; K.hit = Math.max(0, K.hit - dt); K.rev -= dt;
         if (K.balloons <= 0) { K.car.update(dt, ARENA_MAP, { gas: 0, brake: 1, hold: true }); continue; }
-        const tm = K.input && K.input.lastDevice === 'touch' && K.input.move();   // (on touch it drives by itself: the stick steers, and pulled down it brakes and backs up)
-        const ctl = tm ? { steer: tm[0], gas: tm[1] > .5 ? 0 : 1, brake: tm[1] > .5 ? 1 : 0 } : K.input || this.drive(S, K, dt), fire = K.input ? K.input.pressed('fire') : ctl.fire;
+        const tm = K.input && K.input.assist && K.input.move();   // (the touch assists: it drives by itself, the stick steers, and pulled down it brakes and backs up)
+        const ctl = tm ? { steer: tm[0], gas: tm[1] > .5 ? 0 : 1, brake: tm[1] > .5 ? 1 : 0 } : K.input || this.drive(S, K, dt), fire = K.input ? K.input.pressed('fire') || K.input.assist && this.aimed(S, K) : ctl.fire;   // (and fire at a rival dead ahead)
         K.car.update(dt, ARENA_MAP, ctl);
         if (fire && K.cool <= 0 && S.shells.filter(o => o.by === K).length < 2) {   // (two shells out at most)
           K.cool = K.input ? .8 : 2.6 + K.k * .3;   // (the CPU fires less often than you can)
@@ -209,13 +227,14 @@ const SPECIAL = (() => {
       for (const s of S.shells) {   // a shell runs straight, bounces off a wall's face (its side by which cell it crossed into), three times at most
         s.t += dt; const nx = s.x + s.vx * dt, ny = s.y + s.vy * dt;
         if (solid(nx, ny)) { if (solid(nx, s.y)) s.vx = -s.vx; if (solid(s.x, ny)) s.vy = -s.vy; if (!solid(nx, s.y) && !solid(s.x, ny)) { s.vx = -s.vx; s.vy = -s.vy; } if (++s.bounces > 3) s.t = 99; } else { s.x = nx; s.y = ny; }
-        for (const K of S.karts) if (K.balloons > 0 && K.hit <= 0 && (K !== s.by || s.t > .4) && Math.hypot(K.car.x - s.x, K.car.y - s.y) < 10) { K.balloons--; K.hit = 1.2; K.car.spinOut(1); s.t = 99; A.sfx('hit', { vol: .5 }); }
+        for (const K of S.karts) if (K.balloons > 0 && K.hit <= 0 && (K !== s.by || s.t > .4) && Math.hypot(K.car.x - s.x, K.car.y - s.y) < 10) { K.balloons--; K.hit = 1.2; K.car.spinOut(1); s.t = 99; A.sfx('hit', { vol: .5 }); if (K.input) buzz(.6, .3, K.input); }
       }
       S.shells = S.shells.filter(s => s.t < 6);
       const left = S.karts.filter(K => K.balloons > 0); S.time -= dt;
       // the end: one kart left with balloons, two minutes up, or every player out; the most balloons left wins (a tie: a draw)
       if (S.time <= 0 || left.length <= 1 || S.humans && S.karts.slice(0, S.humans).every(K => K.balloons <= 0)) { const most = Math.max(0, ...left.map(K => K.balloons)), top = left.filter(K => K.balloons === most), w = top.length === 1 ? top[0] : null; end(!!w && (!!w.input || !S.humans && w.k === 0), w ? E.t('special.arena.won', { n: w.k + 1 }) : E.t('special.arena.draw')); return; }
-      S.karts.forEach((K, i) => { const c = S.cams[i], k = 1 - Math.exp(-dt * 6); c.angle += E.angDiff(c.angle, K.car.angle) * k; arena.chase({ x: K.car.x, y: K.car.y, angle: c.angle }, { back: 48, h: 26 }); Object.assign(c, arena.cam, { pitch: 12, fov: 70 }); });
+      const v = game.viewports.length, tall = v === 2 ? game.H / 2 > game.W : game.H > game.W;   // (each screen held upright, a split one's too: further back and wider)
+      S.karts.forEach((K, i) => { const c = S.cams[i], k = 1 - Math.exp(-dt * 6); c.angle += E.angDiff(c.angle, K.car.angle) * k; arena.chase({ x: K.car.x, y: K.car.y, angle: c.angle }, { back: tall ? 70 : 48, h: tall ? 36 : 26 }); Object.assign(c, arena.cam, { pitch: 12, fov: tall ? 84 : 70 }); });
     },
     // a kart: a box of five quads round its heading, its driver's head, its balloons over it (not on your own, own: they'd
     // sit on the horizon in front of you, over a rival ahead; the HUD shows them)
@@ -255,20 +274,21 @@ const SPECIAL = (() => {
     // move a body by (dx, dy) unless a wall is in the way (each axis on its own, so it slides along walls)
     slide(o, dx, dy, r) { if (!fsolid(o.x + dx + Math.sign(dx) * r, o.y)) o.x += dx; if (!fsolid(o.x, o.y + dy + Math.sign(dy) * r)) o.y += dy; },
     update(S, dt, I) {
-      let [mx, my] = I.move(), turn = mx, walk = -my, fire = I.down('fire');
+      let [mx, my] = I.move(), turn = mx, walk = -my, fire = I.down('fire') || I.down('jump');   // (✕ fires too: the fort has no jump)
+      if (!auto && I.assist && !fire) fire = [...S.foes, ...S.nests].some(o => o.hp > 0 && Math.hypot(o.x - S.x, o.y - S.y) < 130 && Math.abs(E.angDiff(S.a, Math.atan2(o.y - S.y, o.x - S.x))) < .2 && sight(S, o));   // (the touch assists: fire at a crawler or a nest dead ahead in sight, the autopilot's own test)
       if (auto) {   // a crawler in sight and near: turn and fire; else the nearest nest: in sight and near, fire at it, else walk the flow field to it
         const nest = S.nests.filter(n => n.hp > 0).sort((a, b) => Math.hypot(a.x - S.x, a.y - S.y) - Math.hypot(b.x - S.x, b.y - S.y))[0], foe = S.foes.find(f => Math.hypot(f.x - S.x, f.y - S.y) < 110 && sight(S, f));
         if (nest && nest !== S.goal) { S.goal = nest; S.G = flow(nest.x, nest.y); }
         const shoot = foe || nest && Math.hypot(nest.x - S.x, nest.y - S.y) < 130 && sight(S, nest) && nest, step = !shoot && nest && downhill(S.G, S.x, S.y), aim = shoot || (step ? { x: step[0], y: step[1] } : null);
         if (aim) { const off = E.angDiff(S.a, Math.atan2(aim.y - S.y, aim.x - S.x)); turn = clamp(off * 3, -1, 1); walk = !shoot && Math.abs(off) < .6 ? 1 : 0; fire = !!shoot && Math.abs(off) < .2; }
       }
-      S.a += turn * 2.6 * dt; const sp = walk * 90 * dt; this.slide(S, Math.cos(S.a) * sp, Math.sin(S.a) * sp, 6);
+      S.a += turn * 2.6 * dt + ds.gyroAim(dt)[0] * .004; const sp = walk * 90 * dt; this.slide(S, Math.cos(S.a) * sp, Math.sin(S.a) * sp, 6);   // (a DualSense turned, with gyro aim on: the aim fine-tuned on top of the stick)
       S.cool -= dt; S.hurt = Math.max(0, S.hurt - dt);
       if (fire && S.cool <= 0) { S.cool = .16; S.shots.push({ x: S.x + Math.cos(S.a) * 10, y: S.y + Math.sin(S.a) * 10, vx: Math.cos(S.a) * 330, vy: Math.sin(S.a) * 330, t: 0 }); A.sfx('shoot', { vol: .25 }); }
       for (const s of S.shots) {
         s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt; if (fsolid(s.x, s.y)) { s.t = 9; continue; }
         for (const f of S.foes) if (f.hp > 0 && Math.hypot(f.x - s.x, f.y - s.y) < 8) { f.hp = 0; s.t = 9; S.kills++; A.sfx('hit', { vol: .3 }); }
-        for (const n of S.nests) if (n.hp > 0 && Math.hypot(n.x - s.x, n.y - s.y) < 14) { s.t = 9; if (--n.hp === 0) A.sfx('explode'); }
+        for (const n of S.nests) if (n.hp > 0 && Math.hypot(n.x - s.x, n.y - s.y) < 14) { s.t = 9; if (--n.hp === 0) { A.sfx('explode'); buzz(.5, .25); } }
       }
       S.shots = S.shots.filter(s => s.t < 1.2);
       for (const n of S.nests) if (n.hp > 0 && (n.t -= dt) <= 0 && S.foes.filter(f => f.hp > 0).length < 8) { n.t = 2.6; S.foes.push({ x: n.x, y: n.y, hp: 1, wob: n.x }); }
@@ -276,7 +296,7 @@ const SPECIAL = (() => {
       for (const f of S.foes) if (f.hp > 0) {
         const d = Math.hypot(S.x - f.x, S.y - f.y) || 1, nx = d < 24 ? null : downhill(S.F, f.x, f.y), tx = nx ? nx[0] : S.x, ty = nx ? nx[1] : S.y, e = Math.hypot(tx - f.x, ty - f.y) || 1; f.wob += dt;
         this.slide(f, (tx - f.x) / e * 38 * dt + Math.cos(f.wob * 3) * 8 * dt, (ty - f.y) / e * 38 * dt + Math.sin(f.wob * 3) * 8 * dt, 4);
-        if (d < 10 && S.hurt <= 0) { S.hurt = 1.5; f.hp = 0; A.sfx('hurt'); if (--S.lives <= 0) { end(false, E.t('special.turn.down')); return; } }
+        if (d < 10 && S.hurt <= 0) { S.hurt = 1.5; f.hp = 0; A.sfx('hurt'); buzz(.6, .3); if (--S.lives <= 0) { end(false, E.t('special.turn.down')); return; } }
       }
       S.foes = S.foes.filter(f => f.hp > 0);
       if (S.nests.every(n => n.hp <= 0)) end(true, E.t('special.turn.clear'));
@@ -310,7 +330,7 @@ const SPECIAL = (() => {
     axes(S) { const a = -Math.PI / 2 + S.rot; return { a, down: [-Math.cos(a), -Math.sin(a)], right: [-Math.sin(a), Math.cos(a)] }; },
     update(S, dt, I) {
       S.t += dt; S.time -= dt; const ph = S.t % 6.5; S.rot = (Math.floor(S.t / 6.5) + E.ease.inOutQuad(clamp((ph - 4) / 2.5, 0, 1))) * Math.PI / 2;
-      const { down, right } = this.axes(S); let [mx] = I.move(), jump = I.pressed('fire');
+      const { down, right } = this.axes(S); let [mx] = I.move(), jump = I.pressed('jump');
       if (auto) {   // to the nearest gem (the door once all three are in): across toward it, a jump when it's above or when stuck
         const g = S.gems.length ? S.gems.slice().sort((a, b) => Math.hypot(a.x - S.x, a.y - S.y) - Math.hypot(b.x - S.x, b.y - S.y))[0] : S.door, dx = g.x - S.x, dy = g.y - S.y, dr = dx * right[0] + dy * right[1], du = -(dx * down[0] + dy * down[1]);
         mx = Math.abs(dr) > 6 ? clamp(dr / 20, -1, 1) : 0; jump = S.ground && (du > 18 && Math.abs(dr) < 90 || S.stuck > .4);
@@ -325,7 +345,7 @@ const SPECIAL = (() => {
       }
       S.ground = hit(S.x + down[0] * 1.5, S.y + down[1] * 1.5); S.stuck = Math.abs(mx) > .5 && Math.hypot(S.x - was[0], S.y - was[1]) < 20 * dt ? S.stuck + dt : 0;   // (on the ground: a wall just under him, down the screen)
       const fx = S.x + down[0] * 7, fy = S.y + down[1] * 7, touch = (q, r) => { const u = clamp(-((q.x - fx) * down[0] + (q.y - fy) * down[1]) / 38, 0, 1); return Math.hypot(q.x - (fx - down[0] * 38 * u), q.y - (fy - down[1] * 38 * u)) < r; };   // (his body as drawn: from his feet up 38)
-      for (const g of S.gems) if (touch(g, 12)) { g.got = true; S.got++; A.sfx('coin'); }
+      for (const g of S.gems) if (touch(g, 12)) { g.got = true; S.got++; A.sfx('coin'); buzz(.2, .06); }
       S.gems = S.gems.filter(g => !g.got);
       HERO.update(dt, { x: 0, y: 0, z: 0, vx: S.ground ? Math.abs(vr) : 0, vy: 0, facing: S.dir > 0 ? 0 : Math.PI, air: !S.ground });
       if (!S.gems.length && touch(S.door, 14)) end(true, E.t('special.room.out'));
@@ -345,16 +365,31 @@ const SPECIAL = (() => {
 
   function update(dt) {
     const I = game.input; t += dt;
-    I.touchSet('fire', mode === 'play' ? E.t(part === 'planet' || part === 'tube' || part === 'room' ? 'special.jump' : 'special.fire') : null, mode === 'play');
+    // touch's buttons, each where it acts: JUMP where the stage jumps, FIRE where it shoots, the ARENA's GAS with the
+    // touch assists off (with them on it drives by itself)
+    const play = mode === 'play'; I.touchSet('jump', null, play && (part === 'planet' || part === 'tube' || part === 'room')); I.touchSet('fire', null, play && (part === 'arena' || part === 'turn')); I.touchSet('gas', null, play && part === 'arena' && !I.assist);
+    sense();
     if (mode === 'menu') { menu.update(dt); pickOnStart(menu); return; }
-    if (mode === 'over') { after.update(dt); pickOnStart(after); return; }
+    if (mode === 'over') { result.t += dt; if (result.t < .6) { game.input.consumeAll(); return; } after.update(dt); pickOnStart(after); return; }   // (the jump or the shot mashed as the stage ends is no answer: the menu reads after .6 s)
     STAGE[part].update(S, dt, I);
+  }
+  /** player 1's DualSense: the light bar the stage's state (the ARENA your kart, white as a balloon goes; the TUBE gold
+   *  once the gate's quota is met; the TURN your lives; the ROOM red as time runs out), the ARENA's triggers a throttle
+   *  and a brake; free in the menus */
+  function sense() {
+    if (mode !== 'play' || !S || auto) { dsOff(); return; }
+    const K = part === 'arena' && S.humans ? S.karts[0] : null, R = K ? { resist: [.1, .25] } : null, L = K ? { resist: [.2, .5] } : null;
+    const light = part === 'arena' ? (K && K.hit > 1 ? '#ffffff' : KCOL[0]) : part === 'tube' ? (S.rings >= QUOTA[Math.min(2, S.gate)] ? '#ffd040' : '#4a6ae8') : part === 'turn' ? ['#e84030', '#e84030', '#e0a030', '#40c060'][Math.max(0, Math.min(3, S.lives))] : part === 'room' ? (S.time < 15 ? '#ff6a4a' : '#ff60d0') : '#2a6aff';
+    dsSet(light, K && K.balloons > 0 ? R : null, K && K.balloons > 0 ? L : null);
   }
   function draw(r) {
     const W = r.W, H = r.H;
     if (mode === 'menu') {
       const a = t * .25, cam = { x: 800 + Math.cos(a) * 600, y: 800 + Math.sin(a) * 600, h: 120, angle: a + Math.PI / 2, pitch: 24, fov: 70 }; planet.draw(r, cam);
-      r.overlay(g => E.font.title(g, E.t('special.title'), W / 2, 20, { scale: 4, align: 'center', colors: ['#ffffff', '#ffe080', '#ff8a3a', '#c83ae8'], depth: 3 }));
+      r.overlay(g => {
+        E.font.title(g, E.t('special.title'), W / 2, 20, { scale: 4, align: 'center', colors: ['#ffffff', '#ffe080', '#ff8a3a', '#c83ae8'], depth: 3 });
+        if (PARTS[menu.i] === 'arena' && game.players.length < 4) E.font.text(g, E.t('special.join', { n: game.players.length, how: E.lang.upper(game.joinPrompt()) }), W / 2, H - 36, '#ffe890', { align: 'center', shadow: '#000', outline: false, wrap: W - 16 });   // (the ARENA's players join here: how, in the player's own symbols)
+      });
       menu.y = Math.round(H / 2) - 18; menu.draw(r); return;
     }
     STAGE[part].draw(S, r);
@@ -392,12 +427,12 @@ const SPECIAL = (() => {
     } finally { Math.random = was; auto = false; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['fire'], camera: { zoom: false },
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['jump', 'fire', 'gas'], camera: { zoom: false },
     enter(d) {
       menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; toMenu();
       if (d && d.part && STAGE[d.part]) start(d.part);
     },
-    exit() { game.splitScreen(0); game.allowJoin(false); },
+    exit() { game.splitScreen(0); game.allowJoin(false); dsOff(); },   // (the DualSense clean for the next scene)
     back() { if (mode === 'menu') { game.go('title'); return true; } toMenu(); return true; },
     update, draw, hud, bot,
     /** a stage played by its autopilot (a demo; the bot's): 'planet', 'tube', 'arena', 'turn' or 'room' */
@@ -407,7 +442,7 @@ const SPECIAL = (() => {
     run: (n = 600) => proof('special', n, (i, k) => {
       if (i === 2) start('planet');
       if (i === 200) k.tap('right');
-      if (i === 300) k.tap('fire');
+      if (i === 300) k.tap('jump');
       if (i === 420) start('turn');
       if (i === 430) { k.hold('right'); k.hold('fire'); }
     }, () => S && STAGE[part].state(S), () => { game.input.lastDevice = 'keyboard'; }) };

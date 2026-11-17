@@ -1,5 +1,5 @@
 // The BLASTER kit's game (shooters into the screen, six stages: a jet-pack hero over a checkered plain, a jet that rolls the horizon and locks on, a first-person ride with a cursor, a craft along a winding neon course, a speeder free over the dunes that hunts crawlers by radar, an attack helicopter up a city's avenue, seen first from overhead; four bosses; Space Harrier, After Burner, Yoshi's Safari, HyperZone, Super Star Wars, Thunder Blade), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/31-blaster.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/31-blaster.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. blaster.html plays it; node kits/test.mjs blaster runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,7 +171,7 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 24  BLASTER  (Space Harrier, After Burner, Thunder Blade, Yoshi's Safari, HyperZone, Super Star Wars). @modules mode7 mesh
+ * SLICE 24  BLASTER  (Space Harrier, After Burner, Thunder Blade, Yoshi's Safari, HyperZone, Super Star Wars). @modules mode7 mesh dualsense
  * Shooters into the screen, six stages in a row (or one picked on the menu). HARRIER: a hero with a jet pack over a
  * checkered plain, anywhere on the screen, firing into it at saucers and jets; columns to dodge; a serpent at the end.
  * BURNER: a jet over the sea (seen first from overhead, as Thunder Blade opens), the horizon tilting as it banks: its cannon, missiles at what the reticle has locked, a
@@ -180,17 +185,24 @@ scenes.over = {
  * swings down behind it and it flies low between the buildings, or up over them: round a wing or under a skybridge in
  * its way (a building hit hurts), helicopters head on, a gauge of its height and the roof ahead; a gunship at the end.
  * Three lives, a score and a best. Deep links: #blaster/harrier, #blaster/burner, #blaster/safari, #blaster/zone,
- * #blaster/speeder, #blaster/blade. KEYS: the arrows (the hero, the jet, the helicopter: up climbs, overhead up flies
- * ahead; the cursor; the speeder: up faster), J / Z / Space or a click fire, K / X the missiles, L / C / Shift the
- * barrel roll. A pad: the stick, A fire, X missiles, B the roll. TOUCH: the stick, and it fires by itself; MISSILE and
- * ROLL in the jet; in the safari a tap shoots where it lands.
+ * #blaster/speeder, #blaster/blade. KEYS: WASD or the arrows (the hero, the jet, the helicopter: up climbs, overhead
+ * up flies ahead; the cursor; the speeder: up faster), Space / J / Z or a left click fire, K / X or a right click the
+ * missiles, Shift / L / C the barrel roll; in the safari the mouse moves the cursor. A PAD: the stick, ✕ or R2 fire, □ or
+ * R1 missiles, ○ or L1 the roll; ○ goes back on the menus; it rumbles at a hit, a missile's launch and each stage's end.
+ * A DUALSENSE (the dualsense module): the light bar the lives left (blue, amber, red; white at a hit), R2 a cannon's buzz
+ * (the safari: a gun's break each shot), the safari's cursor fine-tuned by the gyro (Settings), the lock-on's tone from
+ * the controller's speaker. Each stage's card names its controls (the player's own keys or buttons). TOUCH: the stick;
+ * with Touch assists on it fires by itself, the jet's missiles go by themselves at three locked and a tap in the safari
+ * snaps to the foe nearest it; with them off a FIRE button shows; MISSILE (with the locks it would fire at) and ROLL in
+ * the jet; in the safari a tap shoots where it lands. A flick sends a stage's card or banner away, and goes back on the
+ * menus.
  * HOW IT WORKS: E.Mode7 (the mode7 module): the plain, the sea, the valley and the city's streets, the camera rolled
  * with the jet, m7.pick under the cursor; E.Mesh (the mesh module) the saucers, jets, missiles, columns, rocks, the
  * bomber, the walker, the helicopters (their rotors laid out in the body's frame), tanks, jeeps and the city's buildings;
  * E.Humanoid the hero, E.Blob the slimes and bats, E.Path the rails; this file the stages, their waves and the score.
  * ===================================================================================== */
 const BLASTER = (() => {
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { fire: ['KeyJ', 'KeyZ', 'Space', 'Mouse0', 'Pad0', 'Pad7'], missile: ['KeyK', 'KeyX', 'Pad2', 'Pad5'], roll: ['KeyL', 'KeyC', 'ShiftLeft', 'ShiftRight', 'Pad1', 'Pad4'] });
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { fire: ['Space', 'KeyJ', 'KeyZ', 'Mouse0', 'Pad0', 'Pad7'], missile: ['KeyK', 'KeyX', 'Mouse2', 'Pad2', 'Pad5'], roll: ['ShiftLeft', 'ShiftRight', 'KeyL', 'KeyC', 'Pad1', 'Pad4'] });   // (Space and Shift first: the keys a prompt names)
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
   const STAGES = ['harrier', 'burner', 'safari', 'zone', 'speeder', 'blade'], hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
   /* ---- THE MODELS (x forward, y right, z up) ---- */
@@ -321,8 +333,19 @@ const BLASTER = (() => {
 
   /* ---- THE RUN: the score, the lives, what flies; a stage at a time ---- */
   let mode = 'menu', R = null, t = 0, auto = false;
-  const menu = new E.Menu(game, [E.t('blaster.menu.start'), E.t('blaster.stage.harrier'), E.t('blaster.stage.burner'), E.t('blaster.stage.safari'), E.t('blaster.stage.zone'), E.t('blaster.stage.speeder'), E.t('blaster.stage.blade'), E.t('blaster.menu.back')], { onPick: i => i === 7 ? game.go('title') : begin(i ? i - 1 : 0, i > 0) });
-  const after = new E.Menu(game, [E.t('blaster.menu.again'), E.t('blaster.menu.menu')], { onPick: i => i === 0 ? begin(R.first, R.one) : toMenu() });
+  const menu = new E.Menu(game, [E.t('blaster.menu.start'), E.t('blaster.stage.harrier'), E.t('blaster.stage.burner'), E.t('blaster.stage.safari'), E.t('blaster.stage.zone'), E.t('blaster.stage.speeder'), E.t('blaster.stage.blade'), E.t('blaster.menu.back')], { onPick: i => i === 7 ? game.go('title') : begin(i ? i - 1 : 0, i > 0), onCancel: () => game.go('title') });   // (cancel, ○ or a sideways flick: BACK)
+  const after = new E.Menu(game, [E.t('blaster.menu.again'), E.t('blaster.menu.menu')], { onPick: i => i === 0 ? begin(R.first, R.one) : toMenu(), onCancel: () => toMenu() });
+  // a DualSense's extras (the dualsense module; nothing without one): the light bar the lives left (white for a moment at a
+  // hit), R2 a cannon's buzz (the safari's gun: a break each shot), gyro aim on the safari's cursor, the lock-on's tone
+  // from the controller's speaker; sent when they change
+  let ds = null, dsKey = '', flashT = 0;
+  const dsStep = dt => {
+    flashT -= dt; if (!ds) return;
+    const play = mode === 'play' && !auto, light = !play ? '#3050ff' : flashT > 0 ? '#ffffff' : ['#ff3030', '#ff3030', '#ffb040', '#40c0ff'][clamp(R.lives, 0, 3)], gun = !play ? '' : R.name === 'safari' ? 'break' : 'buzz';
+    if (light + gun === dsKey) return; dsKey = light + gun;
+    ds.light(light); ds.trigger('right', gun === 'break' ? { weapon: [.2, .5, .6] } : gun ? { pulse: [.1, 30, .4] } : null);
+  };
+  const sfx = (name, o) => ds ? ds.speaker(name, o) : A.sfx(name, o);   // (from the controller's speaker where the player has it on)
   function toMenu() { mode = 'menu'; R = null; A.music('title'); }
   /** a run from a stage (one: that stage alone); a game of one: players who joined elsewhere (a split screen) leave, and
    *  player 1 has the whole keyboard again */
@@ -335,14 +358,15 @@ const BLASTER = (() => {
   const score = n => { R.score += n; };
   function hurt() {
     if (R.hurt > 0 || R.phase === 'clear' || R.phase === 'intro') return;   // (the stage card is a grace: the zone's first pods are on you before it ends)
-    R.hits++; R.hurt = 2; game.shake(5); game.flash('#ff4040', .15, .5); A.sfx('hurt');
+    R.hits++; R.hurt = 2; game.shake(5); game.flash('#ff4040', .15, .5); A.sfx('hurt'); if (!auto) { game.input.rumble(.7, .3); flashT = .15; }
     if (!auto && --R.lives <= 0) { R.phase = 'over'; R.phaseT = 2.5; }
   }
-  function clear() { if (R.phase === 'clear') return; R.phase = 'clear'; R.phaseT = 3; A.music('victory'); score(5000); }
+  function clear() { if (R.phase === 'clear') return; R.phase = 'clear'; R.phaseT = 3; A.music('victory'); score(5000); if (!auto) game.input.rumble(.6, .4); }   // (a boss's fall, the zone's gate)
   // the player's controls, or the autopilot's (the bot): { x, y, fire, missile, roll, tap: [sx, sy] where a touch tapped }
   // (a mouse's click is fire, through Mouse0, at the cursor that follows it, even pressed and let go between two steps:
-  // a tap of its own would shoot it twice)
-  const pad = () => { const I = game.input, [x, y] = I.move(); return { x, y, fire: I.down('fire') || I.pressed('fire') || I.lastDevice === 'touch', missile: I.pressed('missile'), roll: I.pressed('roll'), tap: I.lastDevice === 'touch' && I.clicked && I.clicked() }; };
+  // a tap of its own would shoot it twice); on a touch screen with Touch assists on it fires by itself (input.assist:
+  // never on a pad or keys; the safari's taps shoot instead)
+  const pad = () => { const I = game.input, [x, y] = I.move(); return { x, y, fire: I.down('fire') || I.pressed('fire') || I.assist, missile: I.pressed('missile'), roll: I.pressed('roll'), tap: I.lastDevice === 'touch' && I.clicked && I.clicked() }; };
 
   /* ---- THE STAGES ---- */
   const STAGE = {
@@ -457,9 +481,9 @@ const BLASTER = (() => {
         if (k.fire && R.cool <= 0) { const n = JET.at(16, 0, 4, { x: j.x, y: j.y, z: j.z, yaw: j.yaw }); R.shots.push({ x: n[0], y: n[1], z: n[2], vx: Math.cos(j.yaw) * 2600, vy: Math.sin(j.yaw) * 2600, vz: j.pitch * 1200, t: 0 }); R.cool = .07; R.fired++; A.sfx('shoot', { vol: .2 }); }
         // the lock-on: what stays near the reticle (ahead of the jet, on the screen) a moment is locked, four at most, while a missile is left
         VP.sea.begin({ W: game.W, H: game.H }, this.cam());
-        for (const f of R.foes) if (f.hp > 0 && (f.p = VP.sea.project(f.x, f.y, f.z + 6))) { const near = Math.hypot(f.p[0] - game.W / 2, f.p[1] - game.H * .38) < 60 && f.p[2] > .05; f.lockT = near ? (f.lockT || 0) + dt : 0; if (f.lockT > .25 && !R.locks.includes(f) && R.locks.length < 4 && j.missiles > 0) { R.locks.push(f); A.sfx('blip'); } }
+        for (const f of R.foes) if (f.hp > 0 && (f.p = VP.sea.project(f.x, f.y, f.z + 6))) { const near = Math.hypot(f.p[0] - game.W / 2, f.p[1] - game.H * .38) < 60 && f.p[2] > .05; f.lockT = near ? (f.lockT || 0) + dt : 0; if (f.lockT > .25 && !R.locks.includes(f) && R.locks.length < 4 && j.missiles > 0) { R.locks.push(f); sfx('blip'); } }
         R.locks = R.locks.filter(f => f.hp > 0);
-        if (k.missile && R.locks.length && j.missiles > 0) { for (const f of R.locks.splice(0)) if (j.missiles > 0 && j.missiles--) R.shots.push({ x: j.x, y: j.y, z: j.z - 6, vx: Math.cos(j.yaw) * 700, vy: Math.sin(j.yaw) * 700, vz: 0, t: 0, homing: f, sp: 1100 }); A.sfx('laser'); }
+        if (k.missile && R.locks.length && j.missiles > 0) { for (const f of R.locks.splice(0)) if (j.missiles > 0 && j.missiles--) R.shots.push({ x: j.x, y: j.y, z: j.z - 6, vx: Math.cos(j.yaw) * 700, vy: Math.sin(j.yaw) * 700, vz: 0, t: 0, homing: f, sp: 1100 }); A.sfx('laser'); if (!auto) game.input.rumble(.25, .1); }
         // the bandits: from ahead (head on, firing) and from behind (overtaking); then the bomber
         const fw = [Math.cos(j.yaw), Math.sin(j.yaw)], rt = [-fw[1], fw[0]], T = R.t;
         if (T > 2 && T < 34 && Math.floor(T / 2.6) !== Math.floor((T - dt) / 2.6)) {
@@ -653,8 +677,10 @@ const BLASTER = (() => {
       update(dt, k) {
         const I = game.input, ptr = I.pointer && I.pointer(), drawn = this.cam();   // (the camera the last frame was drawn with: a tap or a click is on what it showed, so the shot is picked through it, not one already turned to the cursor's new place)
         if (ptr && (!R.ptr || ptr[0] !== R.ptr[0] || ptr[1] !== R.ptr[1])) R.cur = ptr.slice(); R.ptr = ptr;
-        R.cur = [clamp(R.cur[0] + k.x * 230 * dt, 6, game.W - 6), clamp(R.cur[1] + k.y * 230 * dt, 6, game.H - 6)];
-        const shoot = k.tap || (k.fire && R.cool <= 0 && !(I.lastDevice === 'touch' && !auto)); if (k.tap) R.cur = k.tap.slice();
+        const [gx, gy] = ds && !auto ? ds.gyroAim(dt) : [0, 0];   // (a DualSense's gyro fine-tunes the stick's aim)
+        R.cur = [clamp(R.cur[0] + k.x * 230 * dt + gx, 6, game.W - 6), clamp(R.cur[1] + k.y * 230 * dt + gy, 6, game.H - 6)];
+        const shoot = k.tap || (k.fire && R.cool <= 0 && !(I.lastDevice === 'touch' && !auto));
+        if (k.tap) { R.cur = k.tap.slice(); const s = I.assist && E.assist.nearest(R.cur[0], R.cur[1], sightsFor(drawn), 24); if (s) R.cur = [s.x, s.y]; }   // (Touch assists: a tap within a fingertip of a foe is on it)
         if (shoot) { R.cool = .22; R.fired++; A.sfx('shoot', { vol: .4 }); R.flash = .06; VP.vale.begin({ W: game.W, H: game.H }, drawn); const h = VP.vale.pick(R.cur[0], R.cur[1], targets()), f = h && h.target;
           if (f && f.hp > 0) { f.hp--; if (f.hp <= 0) { boom(f.x, f.y, f.z + 12, f.weak ? 1.6 : 1); score(f.weak ? 3000 : f.kind === 'shell' ? 200 : 500); } else A.sfx('hit', { vol: .4 }); } }
         if (R.flash > 0) R.flash -= dt;
@@ -706,20 +732,33 @@ const BLASTER = (() => {
     if (R.boss && !R.boss.dead) out.push({ x: R.boss.x, y: R.boss.y, z: 0, w: 60, h: 56 });
     return out;
   }
+  // the safari's foes on the screen as camera cam shows them, each where a tap would hit it (no rock or nearer box over
+  // it), nearest first: [{ i, kind, x, y (its box's middle), w, d }] (the scene's sights(); the tap's aim assist)
+  function sightsFor(cam) {
+    const V = VP.vale.begin({ W: game.W, H: game.H }, cam), all = targets();
+    return all.filter(q => q.target && q.target.hp > 0).map(q => { const p = V.project(q.x, q.y, q.z); return p && { i: R.foes.indexOf(q.target), kind: q.target.kind, x: p[0], y: p[1] - q.h * p[2] / 2, w: q.w * p[2], d: Math.hypot(q.x - cam.x, q.y - cam.y) }; })
+      .filter(o => o && o.x > 0 && o.x < game.W && o.y > 0 && o.y < game.H && (V.pick(o.x, o.y, all) || {}).target === R.foes[o.i]).sort((a, b) => a.d - b.d);
+  }
   function fireAt(f, sp) { const m = STAGE[R.name].me() || { x: 0, y: R.F, z: 60 }, dx = m.x - f.x, dy = m.y - f.y, dz = m.z - f.z, d = Math.hypot(dx, dy, dz) || 1; R.hot.push({ x: f.x, y: f.y, z: f.z, vx: dx / d * sp, vy: dy / d * sp, vz: dz / d * sp, t: 0 }); }
   // a shell from (f.x, f.y, z) at the helicopter, aimed where it will be (it flies on up the avenue), off: that far beside
   function lob(f, sp, z, off = 0) { const m = STAGE.blade.me(), ty = m.y - 480 * Math.hypot(m.x - f.x, m.y - f.y, m.z - z) / sp * .85, dx = m.x + off - f.x, dy = ty - f.y, dz = m.z - z, d = Math.hypot(dx, dy, dz) || 1; R.hot.push({ x: f.x, y: f.y, z, vx: dx / d * sp, vy: dy / d * sp, vz: dz / d * sp, t: 0 }); }
 
   /* ---- each step ---- */
   function update(dt) {
-    const I = game.input, st = R && STAGE[R.name];
-    I.touchSet('missile', null, mode === 'play' && R.name === 'burner'); I.touchSet('roll', null, mode === 'play' && R.name === 'burner'); I.touchSet('fire', null, false);
+    const I = game.input, st = R && STAGE[R.name], jet = mode === 'play' && R.name === 'burner';
+    // the touch buttons where they act: FIRE with Touch assists off (with them on it fires by itself; the safari's taps
+    // shoot), MISSILE in the jet while it has missiles (it says how many are locked), ROLL in the jet
+    I.touchSet('fire', null, mode === 'play' && R.name !== 'safari' && I.lastDevice === 'touch' && !I.assist);
+    I.touchSet('missile', jet && R.locks.length ? E.t('blaster.touch.missile', { n: R.locks.length }) : null, jet && R.j.missiles > 0); I.touchSet('roll', null, jet);
+    dsStep(dt);
     t += dt;
     if (mode === 'menu') { menu.update(dt); return; }
     if (mode === 'results') { after.update(dt); return; }
     R.t += dt; R.cool -= dt; if (R.hurt > 0) R.hurt -= dt;
+    if (R.phase !== 'play' && I.swipe(true)) R.phaseT = 0;   // a flick sends the stage's card or banner away
     if (R.phase === 'intro') { R.phaseT -= dt; if (R.phaseT <= 0) R.phase = 'play'; }
     const k = auto ? pilot() : pad();
+    if (!auto && I.assist && R.name === 'burner' && R.locks.length >= 3) k.missile = true;   // (Touch assists: three locked, the missiles go by themselves)
     if (R.phase === 'over') { R.phaseT -= dt; if (R.phaseT <= 0) end(); return; }
     st.update(dt, R.phase === 'clear' ? { x: 0, y: 0 } : k);
     for (const s of R.shots) {   // the player's shots (a homing missile turns after its target)
@@ -818,18 +857,25 @@ const BLASTER = (() => {
         px.rect(g, x, y0, 3, y1 - y0, '#100818'); px.rect(g, x + 1, Y(roof), 1, y1 - Y(roof), '#6a3a4a'); if (roof) px.rect(g, x - 3, Y(roof), 9, 2, '#ff4a4a'); px.rect(g, x - 4, Y(m.z) - 1, 11, 3, '#ffe890');
       }
       if (R.name === 'safari') {   // the cursor: a ring and a cross
-        const [cx, cy] = R.cur, c = R.flash > 0 ? '#ffffff' : '#ff3a3a';
-        px.rect(g, cx - 9, cy, 6, 1, c); px.rect(g, cx + 4, cy, 6, 1, c); px.rect(g, cx, cy - 9, 1, 6, c); px.rect(g, cx, cy + 4, 1, 6, c);
-        for (let a = 0; a < 16; a++) px.rect(g, Math.round(cx + Math.cos(a / 16 * TAU) * 6), Math.round(cy + Math.sin(a / 16 * TAU) * 6), 1, 1, c);
+        const [cx, cy] = R.cur, c = R.flash > 0 ? '#ffffff' : '#ff3a3a', q = W >= 400 ? 2 : 1, o = 1 - q;   // (twice the size on a big screen: it reads at ten feet)
+        px.rect(g, cx - 9 * q, cy + o, 5 * q + 1, q, c); px.rect(g, cx + 4 * q, cy + o, 5 * q + 1, q, c); px.rect(g, cx + o, cy - 9 * q, q, 5 * q + 1, c); px.rect(g, cx + o, cy + 4 * q, q, 5 * q + 1, c);
+        for (let a = 0; a < 16 * q; a++) px.rect(g, Math.round(cx + Math.cos(a / 16 / q * TAU) * 6 * q) + o, Math.round(cy + Math.sin(a / 16 / q * TAU) * 6 * q) + o, q, q, c);
       }
       const B = R.boss, hp = B && (R.name === 'safari' ? (B.parts ? B.parts.reduce((a, p) => a + Math.max(0, p.hp), 0) / 22 : 0) : Math.max(0, B.hp) / B.max);
       if (B && hp > 0) { const w = Math.min(160, W - 80), x = Math.round((W - w) / 2), y = H - 14; px.rect(g, x - 1, y - 1, w + 2, 6, '#100818'); px.rect(g, x, y, Math.round(w * hp), 4, '#ff4a4a'); txt(E.t('blaster.boss'), W / 2, y - lh - 2, '#ffd0d0', { align: 'center' }); }
-      if (R.phase === 'intro') txt(E.t('blaster.stage.' + R.name), W / 2, Math.round(H * .3), '#ffffff', { align: 'center', scale: 2 });
+      if (R.phase === 'intro') { txt(E.t('blaster.stage.' + R.name), W / 2, Math.round(H * .3), '#ffffff', { align: 'center', scale: 2 }); txt(E.t(how()), W / 2, Math.round(H * .3) + lh * 2 + 6, '#c8d0f0', { align: 'center' }); }
       if (R.phase === 'clear' && mode === 'play') txt(E.t('blaster.clear'), W / 2, Math.round(H * .3), '#ffe890', { align: 'center', scale: 2 });
       if (R.phase === 'over' || mode === 'results') txt(E.t(R.won ? 'blaster.won' : 'blaster.over'), W / 2, Math.round(H * .26), R.won ? '#ffe890' : '#ff8080', { align: 'center', scale: 2 });
       if (mode === 'results') { txt(E.t('blaster.final', { n: R.score }), W / 2, Math.round(H * .26) + lh * 2 + 4, '#ffffff', { align: 'center' }); txt(E.t('blaster.best', { n: R.best }), W / 2, Math.round(H * .26) + lh * 3 + 6, '#c8b8f0', { align: 'center' }); }
     });
     if (mode === 'results') { after.y = Math.round(H / 2) + 30; after.draw(r); }
+  }
+  // the stage card's help: the player's own keys or buttons for what the stage has; on a touch screen what is by itself
+  // (Touch assists) or the FIRE button, the safari's tap
+  function how() {
+    const I = game.input, safari = R.name === 'safari';
+    if (I.lastDevice === 'touch') return safari ? 'blaster.how.tap' : I.assist ? 'blaster.how.auto' : 'blaster.how.button';
+    return safari ? (I.lastDevice === 'mouse' ? 'blaster.how.safari_mouse' : 'blaster.how.safari') : R.name === 'burner' ? 'blaster.how.burner' : 'blaster.how.fly';
   }
   const HERO_ICON = (g, x, y) => { px.rect(g, x + 2, y, 4, 4, '#ffd040'); px.rect(g, x + 1, y + 4, 6, 5, '#e83a30'); px.rect(g, x + 1, y + 9, 2, 3, '#2a3a8a'); px.rect(g, x + 5, y + 9, 2, 3, '#2a3a8a'); };
 
@@ -846,8 +892,9 @@ const BLASTER = (() => {
     } finally { Math.random = was; auto = false; }
   }
 
-  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['missile', 'roll'], camera: { zoom: false },
-    enter(d) { mode = 'menu'; R = null; menu.i = 0; auto = false; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); if (d && d.part) begin(Math.max(0, STAGES.indexOf(d.part)), true); },
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['missile', 'fire', 'roll'], camera: { zoom: false },
+    enter(d) { mode = 'menu'; R = null; menu.i = 0; auto = false; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; A.music('title'); ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, gyro: true, speaker: true }) : null; dsKey = ''; if (d && d.part) begin(Math.max(0, STAGES.indexOf(d.part)), true); },
+    exit() { if (ds) ds.clear(); dsKey = ''; },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'results') { toMenu(); return true; } return false; },
     update, draw, bot,
     /** a stage played by the autopilot (a demo; the bot's) */
@@ -855,12 +902,7 @@ const BLASTER = (() => {
     /** the safari's foes on the screen as the last frame drew them, each where a tap would hit it (no rock or nearer box
      *  over it), nearest first: [{ i (its place in the stage's foes), kind, x, y (its box's middle), w (its width), all in
      *  game pixels, d (how far it is from the camera) }] (the phone test taps one) */
-    sights() {
-      if (!R || R.name !== 'safari') return [];
-      const cam = STAGE.safari.cam(), V = VP.vale.begin({ W: game.W, H: game.H }, cam), all = targets();
-      return all.filter(q => q.target && q.target.hp > 0).map(q => { const p = V.project(q.x, q.y, q.z); return p && { i: R.foes.indexOf(q.target), kind: q.target.kind, x: p[0], y: p[1] - q.h * p[2] / 2, w: q.w * p[2], d: Math.hypot(q.x - cam.x, q.y - cam.y) }; })
-        .filter(o => o && o.x > 0 && o.x < game.W && o.y > 0 && o.y < game.H && (V.pick(o.x, o.y, all) || {}).target === R.foes[o.i]).sort((a, b) => a.d - b.d);
-    },
+    sights() { return R && R.name === 'safari' ? sightsFor(STAGE.safari.cam()) : []; },
     state: () => R && { mode, stage: R.name, phase: R.phase, t: +R.t.toFixed(2), score: R.score, lives: R.lives, hits: R.hits, foes: R.foes.length, shots: R.shots.length, fired: R.fired,
       hero: R.name === 'harrier' ? [Math.round(R.hx), Math.round(R.hz)] : R.name === 'burner' ? [Math.round(R.j.x), Math.round(R.j.y), Math.round(R.j.z), +R.j.roll.toFixed(3)] : R.name === 'zone' ? [Math.round(R.s), Math.round(R.u), Math.round(R.zh)] : R.name === 'speeder' ? [Math.round(R.v.x), Math.round(R.v.y), +R.v.yaw.toFixed(3)] : R.name === 'blade' ? [Math.round(R.hx), Math.round(R.F + R.dy), Math.round(R.hz)] : [Math.round(R.s), Math.round(R.cur[0]), Math.round(R.cur[1])], boss: R.boss ? (R.boss.hp !== undefined ? R.boss.hp : R.boss.parts.map(p => p.hp)) : null },
     /** the proof: the harrier stage, flying up and right, firing, then down and left */

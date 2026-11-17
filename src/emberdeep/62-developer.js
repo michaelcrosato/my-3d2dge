@@ -651,7 +651,7 @@ function devToolsPage(el) {
 		formButton(go, "Watch the attract demo", () => {
 			UI.closeAll();
 			startDemo();
-		}).title = "The autopilot plays a random depth, as the title does when left alone; any key comes back";
+		}).title = "The autopilot plays a random depth, as the title does when left alone; any key or button comes back";
 	formElement("h4", "Autopilot run", el);
 	formElement("p", "The autopilot plays depth after depth at 3× speed and logs each one: a soak or balance run (__ed.botRun). It revives and goes on after a death, up to 10.", el, { class: "ed-about" });
 	formField(el, "From depth", "number", DEV.runFrom, (v) => Number.isFinite(v) && (DEV.runFrom = clamp(Math.round(v), 1, 500)), { min: 1, max: 500, step: 1 });

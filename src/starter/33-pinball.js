@@ -1,14 +1,20 @@
 /* =====================================================================================
- * SLICE 19  PINBALL  (Pinball Fantasies, Devil's Crush, Space Cadet). @modules physics arcade
+ * SLICE 19  PINBALL  (Pinball Fantasies, Devil's Crush, Space Cadet). @modules physics arcade dualsense
  * NEBULA RUN: one table in a steep view that scrolls as the ball climbs (a phone held upright shows it whole). Two
  * flippers, three bumpers, two slingshots, a ramp that rises over the table, a bank of three drop targets, a spinner in
  * the left orbit, three top lanes, a kickback in the left outlane, a saucer, a plunger lane with its one-way gate.
  * The mission: knock down the targets (the ramp lights), shoot the ramp three times (the jackpot lights), sink the
  * saucer: JACKPOT, and STAR STORM multiball. A ball saver after each launch, nudging and TILT, a dot-matrix display
  * drawn by code, the bonus counted at each drain, three balls, the arcade module's high-score table and initials.
- * Keys: Left Shift / Z / left arrow the left flipper, Right Shift / slash / right arrow the right; hold Space or down to
- * pull the plunger, let go to fire; N or up nudges; Enter starts. TOUCH: each half of the screen flips its side; a
- * swipe up (or a hold) fires the plunger. HOW IT WORKS: E.Physics (the physics module) is the table: chains for the
+ * KEYS: Left Shift / Z / left arrow (or a left click) the left flipper, Right Shift / slash / right arrow (or a right
+ * click) the right; hold Space or down to pull the plunger, let go to fire; N or up nudges; Enter starts, Esc goes back.
+ * A PAD: L1 / L2 / d-pad left and R1 / R2 / d-pad right flip, ✕ or d-pad down the plunger (or the right stick pulled
+ * down: as far as it is pulled), △ or d-pad up nudges, ✕ starts; it rumbles at bumpers, slingshots, flips, a nudge, the
+ * tilt, the jackpot and a drain. A DUALSENSE (the dualsense module): L2 and R2 click like flipper buttons (dead at a
+ * tilt), the light bar purple, gold with the jackpot lit, flashing in the multiball, red at a tilt; a flick on its
+ * touchpad nudges. The display's attract loop names the flippers and the nudge for the device in use. TOUCH: each half of
+ * the screen flips its side, a flick up nudges; a swipe up (or a hold) fires the plunger, and with Touch assists on a
+ * quick tap fires it full. The game over and the table go at a tap or a flick. HOW IT WORKS: E.Physics (the physics module) is the table: chains for the
  * walls, flippers, bumpers, slingshots and kickers its helpers, the ramp a layer of its own the ball switches to at its
  * mouth; the ball a swept bullet, so it never passes through. E.Arcade keeps the score, the balls and the table. bot()
  * plays a ball by the flipper keys (tools/kits-test.mjs). Deep link: #pinball.
@@ -23,7 +29,10 @@ const PINBALL = (() => {
     { wave: 'triangle', vol: .3, notes: 'E2 E3 E2 E3 E2 E3 E2 E3 | G2 G3 G2 G3 D2 D3 D2 D3 | C2 C3 C2 C3 C2 C3 C2 C3 | B1 B2 B1 B2 E2 E3 E2 E3' },
     { wave: 'drums', vol: .11, notes: 'k . h . s . h k k . h . s . h h' }] };
   const KEYS = Object.assign({}, E.Input.DEFAULT, { flipL: ['ShiftLeft', 'KeyZ', 'ArrowLeft', 'KeyA', 'Pad4', 'Pad6', 'Pad14'], flipR: ['ShiftRight', 'Slash', 'ArrowRight', 'KeyD', 'Pad5', 'Pad7', 'Pad15'],
-    plunge: ['Space', 'ArrowDown', 'KeyS', 'Pad0', 'Pad13'], nudge: ['KeyN', 'KeyX', 'ArrowUp', 'KeyW', 'Pad3', 'Pad12'] });
+    plunge: ['Space', 'ArrowDown', 'KeyS', 'Pad0', 'Pad13', 'PadRAxisDown'], nudge: ['KeyN', 'KeyX', 'ArrowUp', 'KeyW', 'Pad3', 'Pad12'] });
+  KEYS.flipL.push('Mouse0'); KEYS.flipR.push('Mouse2');   // (a mouse's buttons flip too, as PC tables let them)
+  KEYS.confirm = ['Enter', 'NumpadEnter', 'Space', 'Pad0']; KEYS.cancel = ['Escape', 'Backspace', 'Pad1'];   // (no flipper or nudge key starts a game or leaves the game over: Z and X are the table's)
+  for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];   // (DEFAULT's, unused here: they'd list on the table's keys)
 
   /* ---- 1. THE TABLE: its bodies in the physics world, in table units (x across, y down the table toward the flippers) ---- */
   const RAMP = [[176, 300], [178, 190], [162, 122], [111, 94], [60, 122], [44, 190], [40, 300]];   // the ramp's middle line
@@ -66,6 +75,16 @@ const PINBALL = (() => {
   let cab, mode = 'title', modeT = 0, st, dmd = { msg: null }, bot = null, demo = false, plungeT = 0, swipe = 0, camY = 0;
   const fresh = () => ({ ball: 1, rampLit: false, ramps: 0, jackLit: false, jackpots: 0, mult: 1, kickLit: true, saveT: 0, tilt: 0, tilted: false, spins: 0, hits: 0, targets: 0, laneHits: 0, bonus: 0, flips: 0, inLane: true, gameT: 0, multi: false });
   const add = (n, b) => { if (!st.tilted && cab) cab.add(n, b ? { x: b.x, y: b.y, z: 14 } : null); };
+  const buzz = (k, t) => { if (!bot && !demo) game.input.rumble(k, t); };   // (the player's pad: not the bot's or a demo's)
+  // a DualSense's extras (the dualsense module; nothing without one): L2 and R2 click like flipper buttons in play (dead
+  // at a tilt), the light bar the table's state; sent when they change
+  let ds = null, dsKey = '';
+  function pad5() {
+    if (!ds) return;
+    const on = mode === 'play' && !demo && !bot, light = !on ? '#8a3aff' : st.tilted ? '#ff2020' : st.multi ? (Math.floor(game.time * 8) % 2 ? '#40e0ff' : '#ff60c0') : st.jackLit ? '#ffd040' : '#8a3aff', flip = on && !st.tilted;
+    if (light + flip === dsKey) return; dsKey = light + flip;
+    ds.light(light); for (const side of ['left', 'right']) ds.trigger(side, flip ? { weapon: [.15, .4, .55] } : null);
+  }
   const say = (s, t = 2, big) => { dmd.msg = { s, t, big }; };
   function newBall(lane = true) {
     const b = world.circle(223, 488, BR, { bullet: true, bounce: .35, friction: .25, maxSpeed: 1600 }); b.z = 0; b.onRamp = false; balls.push(b);
@@ -74,11 +93,11 @@ const PINBALL = (() => {
   }
   function hit(a, b, info) {
     const o = a.shape === 'circle' && a.type === 'dynamic' ? b : a;
-    if (F.bumpers.includes(o)) { o.lit = .15; add(100, o); st.hits++; A.sfx('kick', { vol: .5, pitch: 1 + (F.bumpers.indexOf(o)) * .12 }); P.sparks(o.x, o.y, 10, 6); return; }
-    if (o === F.slingL || o === F.slingR) { o.lit = .12; add(10); A.sfx('punch', { vol: .35 }); return; }
+    if (F.bumpers.includes(o)) { o.lit = .15; add(100, o); st.hits++; A.sfx('kick', { vol: .5, pitch: 1 + (F.bumpers.indexOf(o)) * .12 }); P.sparks(o.x, o.y, 10, 6); buzz(.25, .06); return; }
+    if (o === F.slingL || o === F.slingR) { o.lit = .12; add(10); A.sfx('punch', { vol: .35 }); buzz(.15, .05); return; }
     if (o === F.L || o === F.R) return;
     const d = drops.find(t => t.b === o); if (d && !d.down) { d.down = true; d.b.off = true; add(500, d.b); st.targets++; A.sfx('bump'); if (drops.every(t => t.down)) { st.rampLit = true; add(5000); say(E.t('pinball.dmd.ramp_lit'), 2); A.sfx('powerup'); modeT = 0; dropsUp = 2.5; } return; }
-    if (info && info.speed > 160) A.sfx('land', { vol: Math.min(.4, info.speed / 1500) });
+    if (info && info.speed > 160) { A.sfx('land', { vol: Math.min(.4, info.speed / 1500) }); buzz(Math.min(.4, info.speed / 1500), .05); }
   }
   let dropsUp = 0;
   function enter(s, b) {
@@ -97,7 +116,7 @@ const PINBALL = (() => {
     if (k === F.kick) { st.kickLit = false; k.catch.armed = false; say(E.t('pinball.dmd.kickback'), 1.5); A.sfx('whoosh'); return; }
     if (k === F.saucer) {
       add(2500, b); A.sfx('secret');
-      if (st.jackLit) { st.jackLit = false; st.jackpots++; add(50000, b); say(E.t('pinball.dmd.jackpot'), 3, true); A.sfx('oneup'); game.flash('#ffffff', .25); P.glints(k.x, k.y, 30, 30, '#ffe080', 20);
+      if (st.jackLit) { st.jackLit = false; st.jackpots++; add(50000, b); say(E.t('pinball.dmd.jackpot'), 3, true); A.sfx('oneup'); buzz(.8, .4); game.flash('#ffffff', .25); P.glints(k.x, k.y, 30, 30, '#ffe080', 20);
         if (!st.multi) { st.multi = true; say(E.t('pinball.dmd.star_storm'), 3, true); for (let i = 0; i < 2; i++) { const nb = newBall(false); nb.x = 111 + (i ? 10 : -10); nb.y = 140; nb.vy = 200; nb.vx = i ? 120 : -120; } st.saveT = 10; } }
     }
   }
@@ -105,7 +124,7 @@ const PINBALL = (() => {
     world.remove(b); balls.splice(balls.indexOf(b), 1);
     if (balls.length) { if (balls.length === 1) st.multi = false; return; }
     if (st.saveT > 0 && !st.tilted) { say(E.t('pinball.dmd.ball_saved'), 2); A.sfx('heal'); newBall(); return; }
-    A.sfx('die'); st.multi = false;
+    A.sfx('die'); buzz(.6, .3); st.multi = false;
     const bonus = (st.spins * 20 + st.hits * 50 + st.targets * 300 + st.laneHits * 400) * st.mult;
     mode = 'bonus'; modeT = 0; st.bonus = st.tilted ? 0 : bonus;
   }
@@ -127,36 +146,42 @@ const PINBALL = (() => {
     cab = cab || new E.Arcade(game, { id: 'pinball', lives: 3, extra: [500000], hud: false, colors: ['#ff9a40', '#ffe0a0', '#ffd040'] });
     cab.mode = 'title'; cab.phase = 'title';
     game.input.touchEnabled = false; game.input.zones = null; L.enabled = false; game.follow(null); A.music(null);
+    ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true }) : null; dsKey = '';
   }
   function begin(asDemo) {
     table(); balls = []; st = fresh(); demo = !!asDemo; cab.start(1, { demo }); mode = 'play'; modeT = 0; newBall(); say(E.t('pinball.dmd.ball', { ball: 1 }), 1.5); if (!demo) A.music(SONG);
   }
   function update(dt) {
     const I = game.input; modeT += dt; if (dmd.msg && (dmd.msg.t -= dt) <= 0) dmd.msg = null;
-    cab.update(dt);
+    cab.update(dt); pad5();
     if (mode === 'title') {
       game.input.zones = null;
       const ph = cab.attract(dt);
-      if (I.pressed('start') || I.pressed('plunge') || I.clicked()) { I.consumeAll(); begin(false); return; }
+      if (I.pressed('cancel')) { game.go('title'); return; }   // (cancel, ○: back to the starter's title)
+      if (I.pressed('start') || I.pressed('confirm') || I.pressed('plunge') || I.clicked()) { I.consumeAll(); begin(false); return; }
       if (ph === 'demo' && !demo) { begin(true); bot = { t: 0 }; }
       world.step(dt); return;
     }
     if (mode === 'entry') return;
-    if (mode === 'table' || mode === 'over') { if (modeT > (mode === 'table' ? 6 : 3) || (modeT > 1 && (I.pressed('start') || I.clicked()))) { mode = 'title'; modeT = 0; cab.mode = 'title'; cab.phase = 'title'; demo = false; } world.step(dt); return; }
+    if (mode === 'table' || mode === 'over') { if (modeT > (mode === 'table' ? 6 : 3) || (modeT > 1 && (I.pressed('start') || I.pressed('confirm') || I.clicked() || I.swipe(true)))) { mode = 'title'; modeT = 0; cab.mode = 'title'; cab.phase = 'title'; demo = false; } world.step(dt); return; }
     if (mode === 'bonus') { if (modeT > 2.4) nextBall(); return; }
-    if (demo && (I.pressed('start') || I.clicked())) { I.consumeAll(); begin(false); return; }
+    if (demo && (I.pressed('start') || I.pressed('confirm') || I.clicked() || I.swipe(true))) { I.consumeAll(); begin(false); return; }   // (the demo: any of these plays)
     st.gameT += dt; if (st.saveT > 0 && !st.inLane) st.saveT -= dt; st.tilt = Math.max(0, st.tilt - dt * .6);
-    // the controls: the flipper keys (or the screen's halves), the plunger, the nudge
-    const ctl = bot ? botControls(dt) : { l: I.down('flipL'), r: I.down('flipR'), p: I.down('plunge'), pDone: I.released ? I.released('plunge') : false, n: I.pressed('nudge') };
-    if (!st.tilted) { if (ctl.l !== F.L._on) { F.L.flip(ctl.l); F.L._on = ctl.l; if (ctl.l) { st.flips++; A.sfx('swing', { vol: .3 }); } } if (ctl.r !== F.R._on) { F.R.flip(ctl.r); F.R._on = ctl.r; if (ctl.r) { st.flips++; A.sfx('swing', { vol: .3, pitch: 1.1 }); } } }
+    // the controls: the flipper keys (or the screen's halves), the plunger (a key, or the right stick: as far as it is
+    // pulled), the nudge (a key, a flick up on a touch screen but the one that launches, a flick on a DualSense's touchpad)
+    const lane = lanePlunge(), flick = !bot && I.swipe(true), pull = !bot && I.padAim && I.padAim[1] > .15 ? Math.min(1, I.padAim[1]) : 0;
+    const ctl = bot ? botControls(dt) : { l: I.down('flipL'), r: I.down('flipR'), p: I.down('plunge') || pull > 0, pDone: I.released ? I.released('plunge') : false, n: I.pressed('nudge') || (!lane && !!flick && flick.dir === 'up') || !!(ds && ds.swipe()) };
+    if (!st.tilted) { if (ctl.l !== F.L._on) { F.L.flip(ctl.l); F.L._on = ctl.l; if (ctl.l) { st.flips++; A.sfx('swing', { vol: .3 }); buzz(.12, .04); } } if (ctl.r !== F.R._on) { F.R.flip(ctl.r); F.R._on = ctl.r; if (ctl.r) { st.flips++; A.sfx('swing', { vol: .3, pitch: 1.1 }); buzz(.12, .04); } } }
     else { F.L.flip(false); F.R.flip(false); F.L._on = F.R._on = false; }
     game.input.zones = !bot && game.input.lastDevice === 'touch' ? (lanePlunge() ? [{ x0: 0, y0: 0, x1: 1, y1: 1, act: 'plunge' }] : [{ x0: 0, y0: 0, x1: .5, y1: 1, act: 'flipL' }, { x0: .5, y0: 0, x1: 1, y1: 1, act: 'flipR' }]) : null;
     if (lanePlunge()) {
       const pan = I.pan(); if (pan && ctl.p) swipe = Math.max(swipe, swipe - pan[1]);
-      if (ctl.p) plungeT = Math.min(1, plungeT + dt * 1.2);
-      else if (plungeT > 0 || swipe > 0) { const k = Math.max(plungeT, Math.min(1, swipe / 70)), b = lanePlunge(); b.vy = -(380 + 560 * k); plungeT = 0; swipe = 0; A.sfx('whoosh'); }
+      if (ctl.p) plungeT = pull ? Math.max(plungeT, pull) : Math.min(1, plungeT + dt * 1.2);
+      else if (plungeT > 0 || swipe > 0 || (I.assist && I.pressed('plunge'))) {   // let go: fired (Touch assists: a quick tap, even one inside a step, is a full pull, as a tap can't pull)
+        const tap = I.assist && plungeT < .15 && swipe < 10, k = tap ? 1 : Math.max(plungeT, Math.min(1, swipe / 70)), b = lanePlunge(); b.vy = -(380 + 560 * k); plungeT = 0; swipe = 0; A.sfx('whoosh');
+      }
     } else { plungeT = 0; swipe = 0; }
-    if (ctl.n && balls.length) { for (const b of balls) { b.vx += (b.x < 111 ? 1 : -1) * 40; b.vy -= 60; } st.tilt += 1.2; game.shake(.15, 3); A.sfx('bump', { vol: .4 }); if (st.tilt > 3.5 && !st.tilted) { st.tilted = true; say(E.t('pinball.dmd.tilt'), 4, true); A.sfx('cancel'); } else if (st.tilt > 2.2) say(E.t('pinball.dmd.danger'), 1); }
+    if (ctl.n && balls.length) { for (const b of balls) { b.vx += (b.x < 111 ? 1 : -1) * 40; b.vy -= 60; } st.tilt += 1.2; game.shake(.15, 3); A.sfx('bump', { vol: .4 }); buzz(.5, .12); if (st.tilt > 3.5 && !st.tilted) { st.tilted = true; say(E.t('pinball.dmd.tilt'), 4, true); A.sfx('cancel'); buzz(1, .5); } else if (st.tilt > 2.2) say(E.t('pinball.dmd.danger'), 1); }
     // the world, then what left it
     world.step(dt);
     for (const b of balls.slice()) { if (b.y > 515) drain(b); }
@@ -314,10 +339,15 @@ const PINBALL = (() => {
 
   /* ---- 5. THE DISPLAY: a 128 x 32 dot matrix drawn by code (the score, the ball, the mission's words, the attract
    * loop), its dots orange on black; above the table, or down a wide screen's side ---- */
-  function dmdBox(W, H) { const k = W >= 300 && H >= 420 ? 2 : 1, w = 128 * k + 6, h = 32 * k + 6, side = (W - TW) / 2 >= w + 8; return { k, w, h: side ? 0 : h, x: side ? 6 : Math.round((W - w) / 2), y: side ? Math.round(H / 2 - h / 2) : 2, ww: w, hh: h }; }
+  function dmdBox(W, H) { const k = W >= 300 && H >= 420 ? 2 : 1, w = 128 * k + 6, h = 32 * k + 6, m = (W - TW) / 2, side = m >= w + 4; return { k, w, h: side ? 0 : h, x: side ? Math.max(2, Math.floor((m - w) / 2)) : Math.round((W - w) / 2), y: side ? Math.round(H / 2 - h / 2) : 2, ww: w, hh: h }; }   // (beside the table where its margin holds it: a phone on its side plays the whole height)
   function dmdText() {
     const s = cab && cab.p ? cab.p.score : 0, sc = E.lang.num(s);   // (scores in the player's language: 12,500 or 12.500)
-    if (mode === 'title') { const ph = Math.floor(modeT / 3) % 3; return ph === 0 ? [E.t('pinball.name'), E.t('pinball.dmd.press_start')] : ph === 1 ? [E.t('pinball.dmd.high_score'), E.lang.num((cab.table('')[0] || { score: 0 }).score)] : [E.t('pinball.dmd.balls', { count: 3 }), E.t('pinball.dmd.last', { score: cab.p ? cab.p.score : 0 })]; }
+    if (mode === 'title') {   // the attract loop: the name and how to start, the best, the last game, how to play (the device's own keys or buttons)
+      const ph = Math.floor(modeT / 3) % 4, I = game.input, tc = I.lastDevice === 'touch', sh = a => I.label(a, undefined, { short: true });
+      return ph === 0 ? [E.t('pinball.name'), tc ? E.t('pinball.how.play.touch') : E.lang.upper(E.t('pinball.dmd.press_start'))] : ph === 1 ? [E.t('pinball.dmd.high_score'), E.lang.num((cab.table('')[0] || { score: 0 }).score)]
+        : ph === 2 ? [E.t('pinball.dmd.balls', { count: 3 }), E.t('pinball.dmd.last', { score: cab.p ? cab.p.score : 0 })]
+        : tc ? [E.t('pinball.dmd.flip_touch'), E.t('pinball.dmd.nudge_touch')] : [E.lang.upper(E.t('pinball.dmd.flip', { left: sh('flipL'), right: sh('flipR') })), E.lang.upper(E.t('pinball.dmd.nudge'))];
+    }
     if (mode === 'bonus') return [E.t('pinball.dmd.bonus', { mult: st.mult }), E.lang.num(st.bonus)];
     if (mode === 'over' || mode === 'entry' || mode === 'table') return [E.t('pinball.dmd.game_over'), sc];
     if (dmd.msg) return dmd.msg.big ? [dmd.msg.s, sc, 1] : [dmd.msg.s, sc];
@@ -334,10 +364,11 @@ const PINBALL = (() => {
       c.fillStyle = '#100604'; c.fillRect(0, 0, 128 * k, 32 * k);
       for (let y = 0; y < 32; y++) for (let x = 0; x < 128; x++) { const on = d && d[(y * 128 + x) * 4 + 3] > 80; c.fillStyle = on ? '#ff9a30' : '#2a1206'; c.fillRect(x * k, y * k, k > 1 ? k - (on ? 0 : 1) : 1, k > 1 ? k - (on ? 0 : 1) : 1); }
     }
+    const foot = Math.round(r.w(0, TL, 0)[1]), py = H - foot > 60 ? foot + 12 : H - 14;   // (the prompts: on the lockdown bar where a tall screen shows it, clear of the coin door)
     r.overlay(g => {
       E.ui.box(g, B.x, B.y, B.ww, B.hh, { bg: '#080404', border: '#5a3a2a', gradient: false }); g.drawImage(dmdCv, B.x + 3, B.y + 3);
-      if (mode === 'play' && lanePlunge() && !bot) { const tc = game.input.lastDevice === 'touch'; E.font.text(g, tc ? E.t('pinball.how.launch.touch') : E.lang.upper(E.t('pinball.how.launch.keys')), W / 2, H - 14, '#ffd8a0', { align: 'center', shadow: '#000', outline: false }); if (plungeT) E.ui.bar(g, W / 2 - 30, H - 22, 60, 4, plungeT, '#ff9a30'); }
-      if (mode === 'title' && !demo) E.font.text(g, game.input.lastDevice === 'touch' ? E.t('pinball.how.play.touch') : E.lang.upper(E.t('pinball.how.play.keys')), W / 2, H - 14, '#ffd8a0', { align: 'center', shadow: '#000', outline: false });
+      if (mode === 'play' && lanePlunge() && !bot) { const tc = game.input.lastDevice === 'touch'; E.font.text(g, tc ? E.t('pinball.how.launch.touch') : E.lang.upper(E.t('pinball.how.launch.keys')), W / 2, py, '#ffd8a0', { align: 'center', shadow: '#000', outline: false }); if (plungeT) E.ui.bar(g, W / 2 - 30, py - 8, 60, 4, plungeT, '#ff9a30'); }
+      if (mode === 'title' && !demo) E.font.text(g, game.input.lastDevice === 'touch' ? E.t('pinball.how.play.touch') : E.lang.upper(E.t('pinball.how.play.keys')), W / 2, py, '#ffd8a0', { align: 'center', shadow: '#000', outline: false });
     });
     if (mode === 'table') { r.overlay(g => { g.fillStyle = 'rgba(0,0,0,.78)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cab.drawTable(r, '', Math.max(B.h + 8, Math.round(H / 2 - 82)), E.t('pinball.table')); }
     else cab.draw(r);
@@ -359,10 +390,10 @@ const PINBALL = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'pinball', views: ['pinball'], res: 'ps1', pausable: true, touch: [], camera: { zoom: false }, input: KEYS,
+  return { view: 'pinball', views: ['pinball'], res: 'ps1', pausable: true, escape: 'back', touch: [], camera: { zoom: false }, input: KEYS,
     enter: start, update, draw, bot: botRun,
-    exit() { game.input.touchEnabled = true; game.input.zones = null; game.cam.offset = [0, 0]; A.music(null); },
-    back() { if (mode === 'play' && !demo) return false; game.go('title'); return true; },
+    exit() { game.input.touchEnabled = true; game.input.zones = null; game.cam.offset = [0, 0]; A.music(null); if (ds) ds.clear(); dsKey = ''; },
+    back() { if (!demo && (mode === 'play' || mode === 'bonus' || mode === 'entry')) return false; game.go('title'); return true; },   // (a game going on: Esc pauses; from the title, the game over and the demo it steps back)
     /** for tests: the table's world, its parts, the balls, the state of play, the arcade frame, where a table point is */
     state: () => ({ world, F, balls, drops, lanes, st, mode, cab, demo, at: (x, y, z = 0) => { const q = game.view.p(x, y, z); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; }, plunge: lanePlunge }),
     /** the proof: a game started, the ball fired, the flippers on a fixed beat; the world's hash, the score, the ball */

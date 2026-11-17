@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ARCADE v0.106.2: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.107.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -9,14 +9,16 @@ What every coin-op had around its game: for arcade games, shooters, puzzles, pin
   taking turns; false without the credits); cab.p is the player up ({ n, score, lives, save }), cab.players all.
 - cab.add(points, at): the score (at: a world point { x, y, z }: the points float up there), an extra life at each
   threshold. cab.die() takes a life: 'again', 'next' (the other player's turn: "PLAYER 2, READY!"; keep each one's
-  stage in p.save) or 'over'; then cab.continue(10, done) counts down (done(true): lives back, the score kept).
+  stage in p.save) or 'over'; then cab.continue(10, done) counts down (done(true): lives back, the score kept),
+  its prompt the player's own confirm key or button; cancel or a flick declines it (done(false) now).
 - Tables, saved per game and mode: cab.table(mode) (the top ten { name, score }), cab.qualifies(score, mode),
   cab.enter(score, mode, done): initials on a letter wheel (up and down turn it, left and right move, confirm takes a
-  letter; taps on its arrows and OK do each); cab.entry is it while open. cab.drawTable(r, mode, y, title).
+  letter, cancel steps back; taps on its arrows and OK do each, a flick up or down turns the letter and one sideways
+  moves, the mouse over a letter picks it); cab.entry is it while open. cab.drawTable(r, mode, y, title).
 - cab.card('STAGE 2', 2) shows a card (cab.carding while one is up), cab.say('READY!') a word under it.
 - The attract mode, on the title: cab.attract(dt) -> 'title', then 'demo' once o.idle seconds (20) pass without any player's input
   (play the game's own bot, start(1, { demo: true }): DEMO shows, no table), 'scores' for o.scores seconds (6) once
-  cab.endDemo() is called or o.demo seconds (30) pass, then 'title'; any input goes back to 'title'.
+  cab.endDemo() is called or o.demo seconds (30) pass, then 'title'; any input (a tap or a flick too) goes back to 'title'.
 - cab.update(dt) every step (cards, the entry, the continue); cab.draw(r, [x, y, w, h]) after your drawing: the HUD
   (in the playfield's box: the screen when none), cards, DEMO, the continue and the entry.
 
@@ -46,7 +48,9 @@ const KEPT = {};   // the tables this visit, beside E.store (they still show whe
 E.lang.engine({
   'engine.arcade.player': 'PLAYER {player}', 'engine.arcade.ready': 'PLAYER {player}, READY!', 'engine.arcade.extra_life': 'EXTRA LIFE!', 'engine.arcade.up': '{player}UP',
   'engine.arcade.hi': 'HI', 'engine.arcade.demo': 'DEMO', 'engine.arcade.continue': 'CONTINUE?', 'engine.arcade.new_high': 'NEW HIGH SCORE!', 'engine.arcade.ok': 'OK',
-  'engine.arcade.initials': 'ENTER YOUR INITIALS', 'engine.arcade.high_scores': 'HIGH SCORES', 'engine.arcade.rank': '{rank}.'
+  'engine.arcade.initials': 'ENTER YOUR INITIALS', 'engine.arcade.high_scores': 'HIGH SCORES', 'engine.arcade.rank': '{rank}.',
+  'engine.arcade.continue_how': '{key:confirm} CONTINUE', 'engine.arcade.continue_touch': 'TAP TO CONTINUE',
+  'engine.arcade.initials_how': '{key:move} LETTER   {key:confirm} OK', 'engine.arcade.initials_touch': 'TAP OR FLICK THE LETTERS'
 });
 class Arcade {
   /** new E.Arcade(game, { id, lives: 3, extra: [] (the scores that give a life) or every (a life each that many points),
@@ -101,8 +105,9 @@ class Arcade {
   /** add a coin (credits on); returns the credits */
   coin() { if (this.credits === null) return null; this.credits++; this.game.audio.sfx('coin'); return this.credits; }
   /** a continue: CONTINUE? counts down seconds; start, confirm or a tap continues (with the credits it takes): every
-   *  player's lives back, the scores kept, done(true); at zero, done(false) */
-  continue(seconds = 10, done) { this._cont = { t: seconds, done }; this.game.input.consumeAll(); }
+   *  player's lives back, the scores kept, done(true); at zero, or cancel or a flick once it has been up half a second
+   *  (a bomb button mashed as the last life went is not a no), done(false) */
+  continue(seconds = 10, done) { this._cont = { t: seconds, up: 0, done }; this.game.input.consumeAll(); }
   /** is the continue counting down? */
   get continuing() { return !!this._cont; }
   /** the top ten of a mode: [{ name, score }] */
@@ -110,7 +115,7 @@ class Arcade {
   /** would score make the top ten (never in a demo)? */
   qualifies(score, mode = '') { const t = this.table(mode); return !this.demo && score > 0 && (t.length < 10 || score > t[t.length - 1].score); }
   /** open the initials entry for score; done(name) once it is taken and saved */
-  enter(score, mode = '', done) { this.entry = { score, mode, name: [0, 0, 0], i: 0, done, t: 0 }; this.game.input.consumeAll(); }
+  enter(score, mode = '', done) { const I = this.game.input; this.entry = { score, mode, name: [0, 0, 0], i: 0, done, t: 0 }; this._mt = I.mouse && I.mouse.t; I.consumeAll(); }
   /** a card in the middle of the screen for seconds ('STAGE 2', 'PLAYER 2, READY!') */
   card(text, seconds = 2) { this._cards.push({ text, t: seconds, big: true }); }
   /** a short word under the cards for seconds ('READY!', 'EXTRA LIFE!') */
@@ -123,7 +128,7 @@ class Arcade {
    *  until endDemo()), 'scores' (o.scores seconds), then 'title' again; any input goes back to 'title' */
   attract(dt) {
     const I = this.game.input, o = this.o, P = this.game.players || [I], n = P.length, joined = n !== (this._n || 1); this._n = n;
-    if (P.some(q => q.anyPressed()) || joined || clicked(I)) { this._idle = 0; this.phase = 'title'; return 'title'; }   // (any player's input, or one joining)
+    if (P.some(q => q.anyPressed()) || joined || clicked(I) || (I.swipe && I.swipe())) { this._idle = 0; this.phase = 'title'; return 'title'; }   // (any player's input, a tap or a flick, or one joining)
     this._idle += dt;
     const next = this.phase === 'title' ? (this._idle >= o.idle ? 'demo' : null) : this.phase === 'demo' ? (this._idle >= o.demo ? 'scores' : null) : this._idle >= o.scores ? 'title' : null;
     if (next) { this.phase = next; this._idle = 0; }
@@ -144,9 +149,15 @@ class Arcade {
       const turn = d => { e.name[e.i] = (e.name[e.i] + d + LETTERS.length) % LETTERS.length; this.game.audio.sfx('blip'); };
       if (I.repeat('up', .3, .09)) turn(1);
       if (I.repeat('down', .3, .09)) turn(-1);
-      if (I.pressed('left') && e.i > 0) e.i--;
+      if ((I.pressed('left') || I.pressed('cancel')) && e.i > 0) e.i--;
       let ok = I.pressed('confirm') || I.pressed('right') || I.pressed('start');
       const b = this.wheel, in4 = (q, r) => q[0] >= r[0] && q[0] < r[0] + r[2] && q[1] >= r[1] && q[1] < r[1] + r[3];
+      if (b && I.pointer && I.mouse && I.mouse.t !== this._mt) {   // the mouse moved over a letter's column: that letter (as a menu's hover)
+        this._mt = I.mouse.t; const q = I.pointer(), col = q ? Math.floor((q[0] - b.x) / b.cw) : -1;
+        if (col >= 0 && col < 3 && q[1] >= b.up[0] && q[1] < b.down[1]) e.i = col;
+      }
+      const sw = I.swipe && I.swipe(true);   // a flick: up or down turns the letter, sideways moves along
+      if (sw) { if (sw.dir === 'up') turn(1); else if (sw.dir === 'down') turn(-1); else if (sw.dir === 'left') e.i = Math.max(0, e.i - 1); else e.i = Math.min(2, e.i + 1); }
       if (tap && b) {   // a tap: OK takes the letter; in a letter's column, above it turns it up, below down, on it picks it
         const col = Math.floor((tap[0] - b.x) / b.cw), y = tap[1];
         if (in4(tap, b.ok)) ok = true;
@@ -164,13 +175,14 @@ class Arcade {
     }
     const c = this._cont;
     if (c && !e) {
-      c.t -= dt;
+      c.t -= dt; c.up += dt;
       const yes = I.pressed('start') || I.pressed('confirm') || !!tap, paid = this.credits === null || this.credits >= this.o.credits;
+      const no = c.up > .5 && (I.pressed('cancel') || !!(I.swipe && I.swipe(true)));
       if (yes && paid) {
         if (this.credits !== null) this.credits -= this.o.credits;
         this._cont = null; for (const p of this.players) p.lives = this.o.lives;
         this.mode = 'play'; I.consumeAll(); this.game.audio.sfx('confirm'); if (c.done) c.done(true);
-      } else if (c.t <= 0) { this._cont = null; if (c.done) c.done(false); }
+      } else if (no || c.t <= 0) { this._cont = null; if (no) { I.consumeAll(); this.game.audio.sfx('cancel'); } if (c.done) c.done(false); }
     }
   }
   /** the frame over the game, after its drawing: the HUD (o.hud: 1UP, HI, 2UP in a row) along the top of box [x, y, w, h] (the playfield; the
@@ -188,7 +200,11 @@ class Arcade {
       let y = Math.round(Y + H / 2) - 14;
       for (const c of this._cards) { if (c.big) { tx(c.text, cx, y, col[2], { align: 'center', scale: 2 }); y += 20; } else { tx(c.text, cx, y, col[1], { align: 'center' }); y += 11; } }
       if (this.demo && Math.floor(this._t * 2) % 2 === 0) tx(E.t('engine.arcade.demo'), cx, Y + H - 30, col[2], { align: 'center', scale: 2 });
-      if (this._cont && !this.entry) { tx(E.t('engine.arcade.continue'), cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 }); }
+      const tc = this.game.input.lastDevice === 'touch';   // (the prompts: a tap's on a touch screen, else the player's own key or button)
+      if (this._cont && !this.entry) {
+        tx(E.t('engine.arcade.continue'), cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 });
+        tx(E.t(tc ? 'engine.arcade.continue_touch' : 'engine.arcade.continue_how'), cx, Y + H / 2 + 30, '#c8c0e0', { align: 'center' });
+      }
       const e = this.entry;
       if (e) {
         g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
@@ -205,6 +221,7 @@ class Arcade {
         }
         E.px.rect(g, ok[0], ok[1], ok[2], ok[3], '#2a1a3e'); E.px.rect(g, ok[0], ok[1], ok[2], 1, col[2]); tx(E.t('engine.arcade.ok'), cx, ok[1] + ok[3] / 2 - 3, col[2], { align: 'center' });
         tx(E.t('engine.arcade.initials'), cx, ok[1] + ok[3] + 4, '#c8c0e0', { align: 'center', font: 'tiny' });
+        tx(E.t(tc ? 'engine.arcade.initials_touch' : 'engine.arcade.initials_how'), cx, ok[1] + ok[3] + 13, '#c8c0e0', { align: 'center' });
       }
     });
   }

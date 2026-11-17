@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module REWIND v0.106.2: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.107.0: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

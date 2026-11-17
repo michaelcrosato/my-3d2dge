@@ -14,8 +14,12 @@
 // Copy it and make it your game. Test it headless: node game/test.mjs. Check it in a browser: node tools/check.mjs game/index.html
 (() => {
 const E = My3D2dge;
-const game = new E.Game({ canvas: 'screen', res: 'snes', expand: true, view: 'iso', views: ['iso', 'threequarter'],   // expand: full screen at any shape (the HUD anchors to r.W, r.H)
-  menu: { controls: { jump: E.t('rooftop.controls.jump'), attack: false, dash: false, skill: false } },   // (this game uses moves and jump only)
+// the controls standard (docs/CONTROLS.md in the repository): the keys a PC player expects (WASD or the arrows, Space to
+// jump), a pad's ✕, and on a touch screen a JUMP button; the moves and the menu's keys come from E.Input.MENU, so the
+// Controls screen lists only what this game reads
+const KEYS = { ...E.Input.MENU, jump: ['Space', 'KeyZ', 'Pad0'] };
+const game = new E.Game({ canvas: 'screen', res: 'snes', expand: true, view: 'iso', views: ['iso', 'threequarter'], input: KEYS,   // expand: full screen at any shape (the HUD anchors to r.W, r.H)
+  menu: { controls: { jump: E.t('rooftop.controls.jump') } },
   draw: true });   // (headless too: game/test.mjs draws every advance on a stand-in, so a draw error shows in game.errors)
 const ui = new E.Shell(game);   // the HTML HUD (it keeps the standard pause menu); headless, it draws nothing
 const ROOF = 32;
@@ -50,19 +54,22 @@ function reset() {
   alert = 0; got = false; won = false;
 }
 
+// a title and an end start play with Enter, ✕ (confirm), a click or a tap; their line names the player's own button
+const go = () => { const I = game.input; if (I.pressed('start') || I.pressed('confirm') || I.clicked()) { I.consumeAll(); reset(); game.go('play'); } };
+const press = again => E.lang.upper(E.t(game.input.lastDevice === 'touch' ? (again ? 'rooftop.end.tap' : 'rooftop.title.tap') : again ? 'rooftop.end.again' : 'rooftop.title.press'));
 const title = {
-  update() { if (game.input.pressed('start')) { reset(); game.go('play'); } },
+  update: go,
   draw(r) {
     r.sky(['#141030', '#3a2a60']);
     const m = Math.round(r.H / 2);   // centred on any screen
     r.overlay(g => E.font.title(g, E.t('rooftop.title'), r.W / 2, m - 52, { scale: 3, align: 'center' }));
     r.text(E.lang.upper(E.t('rooftop.title.how')), r.W / 2, m + 8, '#e8e0ff', { align: 'center' });   // ({key:jump}: the player's own key or button)
-    r.text(E.lang.upper(E.t('rooftop.title.press')), r.W / 2, m + 38, '#ffffff', { align: 'center', shadow: '#000' });
+    r.text(press(false), r.W / 2, m + 38, '#ffffff', { align: 'center', shadow: '#000' });
   }
 };
 
 const play = {
-  pausable: true,
+  pausable: true, touch: ['jump'],   // (on a touch screen: the stick moves, JUMP climbs and leaps)
   enter() { game.follow(hero, { z: 16 }); game.cam.bounds = v => map.bounds(v); game.lights.enabled = true; game.lights.ambient = .5; },
   exit() { game.lights.enabled = false; ui.hud({}); },
   update(dt) {
@@ -85,7 +92,7 @@ const play = {
     // the HUD, from this step's state (E.Shell redraws only what changed; the keys hide on a touch screen)
     ui.hud({ objective: got ? { title: E.t('rooftop.goal.down'), text: E.t('rooftop.goal.down.text') } : { title: E.t('rooftop.goal.gem'), text: E.t(hero.wall ? 'rooftop.goal.climbing' : 'rooftop.goal.gem.text'), at: { x: gem.x, y: gem.y, z: ROOF }, from: hero },
       bars: [{ label: E.t('rooftop.hud.seen'), value: Math.min(alert, 1.2), max: 1.2, color: '#ff6040' }, { label: E.t('rooftop.hud.stamina'), value: hero.stamina, max: hero.staminaMax, color: hero.exhausted ? '#ff6040' : '#7ad06a' }],
-      keys: [[['up', 'left', 'down', 'right'].map(a => I.label(a)).join(''), E.t('rooftop.keys.move')], [I.label('jump'), E.t('rooftop.keys.jump')]] });
+      keys: [[I.moveLabel(), E.t('rooftop.keys.move')], [{ act: 'jump' }, E.t('rooftop.keys.jump')]] });   // ({ act }: the player's own key or button, as a chip)
   },
   draw(r) {
     map.drawFloor(r); map.queueWalls(r);   // (the floor runs on past the map to the screen's edges: map.outside)
@@ -108,12 +115,12 @@ const play = {
 };
 
 const end = {
-  update() { if (game.input.pressed('start')) { reset(); game.go('play'); } },
+  update: go,
   draw(r) {
     r.sky(won ? ['#103020', '#2a6a48'] : ['#301010', '#6a2a2a']);
     const m = Math.round(r.H / 2);
     r.overlay(g => E.font.title(g, E.t(won ? 'rooftop.end.won' : 'rooftop.end.lost'), r.W / 2, m - 42, { scale: 3, align: 'center' }));
-    r.text(E.lang.upper(E.t('rooftop.end.again')), r.W / 2, m + 28, '#ffffff', { align: 'center', shadow: '#000' });
+    r.text(press(true), r.W / 2, m + 28, '#ffffff', { align: 'center', shadow: '#000' });
   }
 };
 

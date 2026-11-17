@@ -1,5 +1,5 @@
 // The SPORTS kit's game (two against two in a walled cage, up to four players: a ball that bounces and curls, passes, lobs, shots on a meter, formations, a match clock; Sensible Soccer and NBA Jam), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/68-sports.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/68-sports.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. sports.html plays it; node kits/test.mjs sports runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,14 +171,17 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 22  SPORTS  (Sensible Soccer, NBA Jam, Tecmo Bowl).
+ * SLICE 22  SPORTS  (Sensible Soccer, NBA Jam, Tecmo Bowl). @modules dualsense
  * Two against two in a walled cage, for up to four players: the GULLS against the RUST, two halves on the clock, a
  * golden goal if it ends level. The ball is a Body: it rolls, bounces off the ground and the boards, and curls.
- * KEYS: the stick runs; J passes (to the teammate the stick points at, led to where it is going), L lobs one over a
- * defender (its arc solved by E.arc to land at the teammate's feet), K held fills the shot meter and shoots on letting go
- * (the stick across the goal aims it; pushed sideways just after, it curls: aftertouch). Without the ball: J slides in
- * to tackle, K switches to the teammate nearer the ball. TOUCH: the stick, PASS, SHOOT (hold), LOB.
- * PLAYERS: MATCH is you against the CPU; VERSUS lets players 2 to 4 in (2 on the keyboard, or Start on a pad): player 2
+ * KEYS: the stick runs; J passes (to the teammate, led to where it is going), L lobs one over a defender (its arc solved
+ * by E.arc to land at the teammate's feet), K held fills the shot meter and shoots on letting go (the stick across the
+ * goal aims it; pushed sideways just after, it curls: aftertouch). Without the ball: J slides in to tackle, K (let go)
+ * or Q switches to the teammate nearer the ball. A pad, as FIFA's: ✕ pass and tackle, □ shoot, ○ or △ lob, L1 switch.
+ * Each player's own pad shakes with a shot, a tackle and a goal; a DualSense's light bar wears player 1's team colour.
+ * TOUCH: the stick, and PASS (the biggest, in the corner), SHOOT (hold) and LOB round it, shown in play only: without the
+ * ball PASS reads TACKLE, SHOOT reads SWITCH (alone against the CPU) and LOB hides. A sideways swipe backs out of a menu.
+ * PLAYERS: MATCH is you against the CPU; VERSUS lets players 2 to 4 in (2 on the keyboard, or Options on a pad): player 2
  * takes the RUST, 3 and 4 the second of each side. The rest are run by formation: with the ball, the other one runs
  * ahead on the far side; without it, the nearer presses and the other covers the goal. Commentary on Dialog's radio.
  * Deep links: #sports/match (a match against the CPU), #sports/vs (VERSUS: players 2 to 4 join).
@@ -251,14 +259,21 @@ const SPORTS = (() => {
   /* ---- THE STATE ---- */
   let mode = 'menu', vs = false, team = [], all = [], ball = null, owner = null, last = null, clock = 0, half = 1, score = [0, 0], kickT = 0, t = 0, scripted = false;
   let stats = null, curlT = 0, golden = false, restartBy = 0, over = false, kickHold = 0;   // kickHold: the kickoff's rule (the other side out of the circle) until the ball is played
-  const menu = new E.Menu(game, [E.t('sports.menu.match'), E.t('sports.menu.versus'), E.t('sports.menu.back')], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
-  const after = new E.Menu(game, [E.t('sports.menu.rematch'), E.t('sports.menu.menu')], { y: 150, onPick: i => i === 0 ? start(vs) : toMenu() });
+  // the menus: ○ (or Esc) and a sideways swipe go back, as the scene's back() does; the join screen is one too (a tap, a
+  // click, the mouse over it)
+  const menu = new E.Menu(game, [E.t('sports.menu.match'), E.t('sports.menu.versus'), E.t('sports.menu.back')], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false), onCancel: () => game.go('title') });
+  const after = new E.Menu(game, [E.t('sports.menu.rematch'), E.t('sports.menu.menu')], { y: 150, onPick: i => i === 0 ? start(vs) : toMenu(), onCancel: () => toMenu() });
+  const joinMenu = new E.Menu(game, [E.t('sports.join.play'), E.t('sports.join.back')], { y: 166, onPick: i => i ? toMenu() : start(true), onCancel: () => toMenu() });
+  let fullT = 0, ds = null, lit = null;   // fullT: how long the final whistle has been (the results take input after a moment)
+  const TACKLE = E.t('sports.touch.tackle'), SWITCH = E.t('sports.touch.switch');
+  // a footballer's player's own pad shakes (a gamepad only): s 0..1 for t seconds
+  const buzz = (p, s, t) => { const I = p && p.input; if (I && I.lastDevice === 'gamepad') I.rumble(s, t); };
   const talk = new E.Dialog(game, { lines: 2, place: 'bottom', border: '#e8c070' });   // (at the bottom: clear of the score and of the touch buttons)
   const VOICE = new E.Humanoid({ weapon: null, hat: 'band', colors: { cloth: '#3a3a4a', hair: '#5a3a2a', skin: '#e0b090', hat: '#2a2a30' } });
   const say = text => { if (!scripted) talk.say(text, { name: E.t('sports.radio'), auto: 2.2, modal: false, alpha: .8, portrait: VOICE, portraitOpts: { zoom: 3, turn: .4 } }); };
 
   function toMenu() { mode = 'menu'; game.splitScreen(0); game.allowJoin(false); A.music('title'); menu.i = 0; }
-  function versus() { vs = true; mode = 'join'; game.allowJoin({ max: 4 }); A.sfx('select'); }
+  function versus() { vs = true; mode = 'join'; joinMenu.i = 0; game.allowJoin({ max: 4 }); A.sfx('select'); }
   /** a match: the four on the pitch, the ball at the centre, the clock at 0; players: who holds which (the inputs) */
   function start(versus) {
     vs = versus; map = map || makeMap(); score = [0, 0]; clock = 0; half = 1; golden = false; over = false; owner = null; last = null;
@@ -330,7 +345,7 @@ const SPORTS = (() => {
   }
   function goal(s) {
     score[s]++; stats.goals.push([s, last ? last.shown : '?', Math.round(clock)]); owner = null; mode = 'goal'; kickT = 2.4; restartBy = 1 - s;
-    for (const p of team[s]) p.cheer = 2.4; game.shake(3); A.sfx('crowd'); A.sfx('whistle');
+    for (const p of team[s]) { p.cheer = 2.4; buzz(p, .6, .5); } game.shake(3); A.sfx('crowd'); A.sfx('whistle');   // (the scorers' pads: a long shake)
     P.sparks(ball.x, ball.y, 16, 16, null, { color: '#ffe08a' }); P.ring(ball.x, ball.y, 4, 34, '#fff6c0', .5);
     const side = TEAMS[s].name, player = last ? last.shown : '';
     say(golden ? E.t('sports.radio.golden_goal', { player, team: side }) : E.t(last ? 'sports.radio.goal' : 'sports.radio.goal_team', { player, team: side, score1: score[0], score2: score[1] }));
@@ -353,7 +368,7 @@ const SPORTS = (() => {
   /** a shot: power from the meter (0..1), aimed across the goal mouth by the stick's up and down */
   function shoot(p, power, aimY) {
     const gx = goalX(p.side), gy = CY + clamp(aimY, -1, 1) * (GH - 6), b = p.body, a = Math.atan2(gy - b.y, gx - b.x), sp = 170 + power * 230;
-    release(p, Math.cos(a) * sp, Math.sin(a) * sp, 30 + power * 95); stats.shots++; curlT = .4; ball.to = null; A.sfx('kick');
+    release(p, Math.cos(a) * sp, Math.sin(a) * sp, 30 + power * 95); stats.shots++; curlT = .4; ball.to = null; A.sfx('kick'); buzz(p, .25 + power * .5, .08 + power * .1);   // (as hard as the shot)
   }
   function release(p, vx, vy, vz) {
     owner = null; last = p; kickHold = 0; ball.vx = vx; ball.vy = vy; ball.vz = vz; ball.onGround = vz <= 0; ball.spin = 0; p.cool = KICK_CD; p.kick = new E.Attack('kick'); p.kick.start(); A.sfx('kick');
@@ -378,20 +393,20 @@ const SPORTS = (() => {
     // the loose ball: whoever reaches it first takes it (not just after kicking it, nor a ball high in the air, and a fast one only
     // right at its feet)
     if (!owner && mode === 'play' && p.cool <= 0 && p.stun <= 0 && ball.z < 9 && Math.hypot(ball.x - b.x, ball.y - b.y) < (Math.hypot(ball.vx, ball.vy) > 210 ? 4.5 : 9)) {   // (a hard shot is hard to trap)
-      owner = p; ball.spin = 0; if (ball.to === p && last && last.side === p.side) stats.done++; ball.to = null;
+      owner = p; ball.spin = 0; if (ball.to === p && last && last.side === p.side) stats.done++; ball.to = null; buzz(p, .12, .04);   // (a tick: the ball at the feet)
       if (p.slide > 0) p.slide = 0;
     }
     // a slide that meets the ball's holder knocks it loose
     if (p.slide > 0 && owner && owner.side !== p.side && Math.hypot(owner.body.x - b.x, owner.body.y - b.y) < 12) {
-      const o = owner; owner = null; o.stun = .5; last = p; ball.vx = Math.cos(p.facing) * 120; ball.vy = Math.sin(p.facing) * 120; ball.vz = 40; ball.onGround = false; p.cool = .2; A.sfx('thump');
+      const o = owner; owner = null; o.stun = .5; last = p; ball.vx = Math.cos(p.facing) * 120; ball.vy = Math.sin(p.facing) * 120; ball.vz = 40; ball.onGround = false; p.cool = .2; A.sfx('thump'); buzz(o, .55, .15); buzz(p, .2, .06);   // (a knock for the one tackled)
     }
     if (p.kick) { p.kick.update(dt); if (!p.kick.busy) p.kick = null; }
     p.rig.update(dt, { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, facing: p.facing, attack: p.kick && p.kick.state, hurt: p.stun > 0, pose: p.cheer > 0 ? 'cheer' : null, expr: p.cheer > 0 ? 'shout' : null });
   }
-  /** what a human's input asks: the stick; pass, lob, the shot's meter (held), a tackle or a switch */
+  /** what a human's input asks: the stick; pass, lob, the shot's meter (held), a tackle or a switch (switch: Q, L1) */
   function human(p, dt) {
-    const I = p.input, mv = I.move(), c = { move: mv, pass: I.pressed('pass'), lob: I.pressed('lob'), shootHeld: I.down('shoot'), shootUp: I.released('shoot'), aim: mv[1] * (p.side ? -1 : 1) };
-    if (c.pass) I.consume('pass'); if (c.lob) I.consume('lob');
+    const I = p.input, mv = I.move(), c = { move: mv, pass: I.pressed('pass'), lob: I.pressed('lob'), shootHeld: I.down('shoot'), shootUp: I.released('shoot'), aim: mv[1] * (p.side ? -1 : 1), switch: !!I.map.switch && I.pressed('switch') };
+    if (c.pass) I.consume('pass'); if (c.lob) I.consume('lob'); if (c.switch) I.consume('switch');
     // aftertouch: just after a shot, the stick across its path curls the ball
     if (curlT > 0 && last === p && !owner) { const sp = Math.hypot(ball.vx, ball.vy) || 1, across = (mv[0] * -ball.vy + mv[1] * ball.vx) / sp; if (Math.abs(across) > .3) { ball.spin = clamp(ball.spin + across * 3.2 * dt, -1.6, 1.6); stats.curled++; } }
     return c;
@@ -428,9 +443,9 @@ const SPORTS = (() => {
     }
     p.charging = false; p.meter = 0;
     if (c.pass && p.cool <= 0 && p.slide <= 0 && !(kickHold > 0 && p.side !== restartBy)) tackle(p);
-    else if (c.shootUp && p.input && !vs) swap(p);
+    else if ((c.shootUp || c.switch) && p.input && !vs) swap(p);
   }
-  /** player 1 alone holds whichever GULL is nearer the ball when the other side has it (or K switches) */
+  /** player 1 alone holds whichever GULL is nearer the ball when the other side has it (or K, Q or L1 switches) */
   function swap(p) { const m = mateOf(p); if (m.input) return; m.input = p.input; p.input = null; }
   function autoSwitch() {
     if (vs) return;
@@ -441,14 +456,13 @@ const SPORTS = (() => {
 
   /* ---- A STEP OF THE MATCH: the clock, the halves, golden goal, the whistle ---- */
   function update(dt) {
-    t += dt;
+    t += dt; touchStep(); lightStep();
     if (mode === 'menu') { if (!menu.update(dt)) pickOnStart(menu); return; }
-    if (mode === 'join') {
-      if (game.input.pressed('start') || game.input.pressed('confirm')) { game.input.consumeAll(); start(true); }
-      else if (game.input.pressed('cancel')) toMenu();
+    if (mode === 'join') {   // PLAY or BACK (Start plays, whichever is chosen)
+      if (!joinMenu.update(dt) && game.input.pressed('start')) { game.input.consumeAll(); start(true); }
       return;
     }
-    if (mode === 'full') { after.update(dt); for (const p of all) playerStep(p, dt); return; }
+    if (mode === 'full') { if ((fullT += dt) > .8) after.update(dt); for (const p of all) playerStep(p, dt); return; }   // (a moment first: a pass pressed at the whistle is no REMATCH)
     talk.update(dt);
     if (mode === 'kickoff' || mode === 'goal' || mode === 'half') {
       for (const p of all) playerStep(p, dt);
@@ -468,8 +482,20 @@ const SPORTS = (() => {
       else fullTime();
     } else if (golden && clock >= HALF * 2 + GOLDEN) fullTime();
   }
+  /** player 1's touch buttons by the moment: in play only (the menus are tapped); with the ball PASS, SHOOT and LOB, without
+   *  it PASS reads TACKLE, SHOOT reads SWITCH (alone against the CPU: in versus it does nothing) and LOB hides */
+  function touchStep() {
+    const live = mode === 'play' || mode === 'kickoff', me = all.find(p => p.input === game.input), has = mode === 'kickoff' || (!!me && owner === me), I = game.input;
+    I.touchSet('pass', has ? null : TACKLE, live); I.touchSet('shoot', has ? null : SWITCH, live && (has || !vs)); I.touchSet('lob', null, live && has);
+  }
+  /** a DualSense's light bar: player 1's team colour (the GULLS' blue), white while their goal is cheered */
+  function lightStep() {
+    const me = all.find(p => p.input === game.input), side = me ? me.side : 0, g = stats && stats.goals[stats.goals.length - 1];
+    const bar = mode === 'goal' && g && g[0] === side ? '#ffffff' : side ? '#c8502a' : '#2a5ab8';
+    if (bar !== lit) { lit = bar; ds.light(bar); }
+  }
   function fullTime() {
-    mode = 'full'; over = true; owner = null; A.sfx('whistle'); after.i = 0;
+    mode = 'full'; over = true; owner = null; A.sfx('whistle'); after.i = 0; fullT = 0;
     const w = score[0] > score[1] ? 0 : score[1] > score[0] ? 1 : -1; for (const p of all) p.cheer = p.side === w ? 99 : 0;
     say(w < 0 ? E.t('sports.radio.draw') : E.t('sports.radio.full', { team: TEAMS[w].name, high: Math.max(...score), low: Math.min(...score) }));
     if (!scripted) A.music(w === 0 || vs ? 'victory' : null);
@@ -502,17 +528,21 @@ const SPORTS = (() => {
   function hud(g, r) {
     // the score bug: the sides' chips and scores, the clock (counting down each half; golden goal says so)
     const left = E.t(golden ? 'sports.hud.golden' : half === 1 ? 'sports.hud.half1' : 'sports.hud.half2', { clock: mmss(Math.max(0, HALF * half - clock)) });
-    E.ui.box(g, 4, 4, 132, 16, { bg: '#141826', border: '#6a7090', alpha: .85 });
-    px.rect(g, 8, 9, 6, 6, TEAMS[0].chip); px.rect(g, 70, 9, 6, 6, TEAMS[1].chip);
-    E.font.text(g, E.t('sports.hud.score1', { team: TEAMS[0].name, score: score[0] }), 17, 8, '#f0ecdc', { font: 'tiny', outline: false });
-    E.font.text(g, E.t('sports.hud.score2', { team: TEAMS[1].name, score: score[1] }), 79, 8, '#f0ecdc', { font: 'tiny', outline: false });
-    E.font.text(g, left, 4, 24, golden ? '#ffd36a' : '#c8d0e8', { font: 'tiny', outline: '#000' });
+    // (in the 5x7 font, the box as wide as its words: the most read thing on the screen, from across a room)
+    const s1 = E.t('sports.hud.score1', { team: TEAMS[0].name, score: score[0] }), s2 = E.t('sports.hud.score2', { team: TEAMS[1].name, score: score[1] }), half2 = Math.max(E.font.width(s1), E.font.width(s2)) + 18;
+    E.ui.box(g, 4, 4, half2 * 2 + 4, 18, { bg: '#141826', border: '#6a7090', alpha: .85 });
+    px.rect(g, 9, 10, 6, 6, TEAMS[0].chip); px.rect(g, 9 + half2, 10, 6, 6, TEAMS[1].chip);
+    E.font.text(g, s1, 18, 9, '#f0ecdc', { outline: false }); E.font.text(g, s2, 18 + half2, 9, '#f0ecdc', { outline: false });
+    E.font.text(g, left, 5, 26, golden ? '#ffd36a' : '#c8d0e8', { outline: '#000' });
     // the radar: the cage small, the players as their colors, the ball white
     const s = 2.4 / T, w = Math.round((X1 - X0) * s), h = Math.round((Y1 - Y0) * s), x0 = r.W - w - 6, ca = game.cornerArea(), y0 = ca && ca.x0 < x0 + w ? Math.ceil(ca.y1) + 4 : 26;   // (top right, under the corner's buttons or a kit's API button: the radio and the touch buttons have the bottom)
     E.ui.box(g, x0 - 2, y0 - 2, w + 4, h + 4, { bg: '#183a1e', border: '#6a9070', alpha: .75 });
-    for (const p of all) px.rect(g, Math.round(x0 + (p.body.x - X0) * s) - 1, Math.round(y0 + (p.body.y - Y0) * s) - 1, 2, 2, TEAMS[p.side].chip);
-    px.rect(g, Math.round(x0 + (ball.x - X0) * s), Math.round(y0 + (ball.y - Y0) * s), 1, 1, '#ffffff');
-    if (mode === 'kickoff') E.font.text(g, E.t('sports.kickoff'), r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
+    for (const p of all) px.rect(g, Math.round(x0 + (p.body.x - X0) * s) - 1, Math.round(y0 + (p.body.y - Y0) * s) - 1, 3, 3, TEAMS[p.side].chip);   // (dots and a ball big enough to see on a TV)
+    px.rect(g, Math.round(x0 + (ball.x - X0) * s), Math.round(y0 + (ball.y - Y0) * s), 2, 2, '#ffffff');
+    if (mode === 'kickoff') {   // KICK OFF, and under it the pass and the shot on the player's own keys or buttons (a touch screen's buttons say theirs)
+      E.font.text(g, E.t('sports.kickoff'), r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
+      if (game.input.lastDevice !== 'touch') E.font.text(g, ['pass', 'shoot', 'lob'].map(a => prompt(a, E.lang.upper(E.t('action.' + a)))).join('   '), r.W / 2, r.H * .3 + 20, '#c8d0e8', { align: 'center', shadow: '#000', outline: false });
+    }
     if (mode === 'goal') E.font.title(g, E.t('sports.goal'), r.W / 2, r.H * .28, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
     if (mode === 'half') E.font.text(g, E.t('sports.half'), r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
   }
@@ -521,7 +551,7 @@ const SPORTS = (() => {
     E.ui.box(g, r.W / 2 - 110, 52, 220, 128, { bg: '#141826', border: '#e8c070', alpha: .92 });
     E.font.title(g, w < 0 ? E.t('sports.results.draw') : E.t('sports.results.win', { team: TEAMS[w].name }), r.W / 2, 60, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
     E.font.text(g, E.t('sports.results.score', { team1: TEAMS[0].name, team2: TEAMS[1].name, score1: score[0], score2: score[1] }), r.W / 2, 86, '#f0ecdc', { align: 'center', outline: false });
-    stats.goals.slice(-5).forEach(([s, name, at], i) => E.font.text(g, E.t('sports.results.goal', { time: mmss(at), player: name, team: TEAMS[s].name }), r.W / 2, 100 + i * 9, '#c8d0e8', { align: 'center', font: 'tiny', outline: false }));
+    stats.goals.slice(-3).forEach(([s, name, at], i) => E.font.text(g, E.t('sports.results.goal', { time: mmss(at), player: name, team: TEAMS[s].name }), r.W / 2, 100 + i * 11, '#c8d0e8', { align: 'center', outline: false }));   // (the last three, in the 5x7 font)
   }
   function drawMenu(r) {
     r.sky(['#0e1630', '#1e3050', '#2e5a3a']);
@@ -530,16 +560,17 @@ const SPORTS = (() => {
       E.font.text(g, E.t('sports.about'), r.W / 2, 70, '#c8d0e8', { align: 'center', outline: false });
       if (mode === 'join') {
         const P = game.players;
-        E.font.text(g, E.t('sports.join'), r.W / 2, 96, '#ffe7a8', { align: 'center', font: 'tiny', outline: false });
-        [0, 1, 0, 1].forEach((s, i) => E.font.text(g, E.t(P[i] ? 'sports.join.ready' : 'sports.join.waiting', { player: i + 1, team: TEAMS[s].name }), r.W / 2 - 40, 112 + i * 12, P[i] ? E.PLAYER_COLORS[i] : '#6a7090', { outline: false }));
-        E.font.text(g, prompt('confirm', E.t('sports.join.play')) + '   ' + prompt('cancel', E.t('sports.join.back')), r.W / 2, 172, '#c8d0e8', { align: 'center', font: 'tiny', outline: false });
+        E.font.wrap(E.t('sports.join', { key: game.input.codeLabel('Digit2'), pad: E.lang.upper(game.input.codeLabel('Pad9')) }), r.W - 16).forEach((l, i) => E.font.text(g, l, r.W / 2, 86 + i * 10, '#ffe7a8', { align: 'center', outline: false }));   // (how to join: the keyboard's key, a pad's button)
+        [0, 1, 0, 1].forEach((s, i) => E.font.text(g, E.t(P[i] ? 'sports.join.ready' : 'sports.join.waiting', { player: i + 1, team: TEAMS[s].name }), r.W / 2 - 40, 110 + i * 12, P[i] ? E.PLAYER_COLORS[i] : '#6a7090', { outline: false }));
       }
     });
     if (mode === 'menu') menu.draw(r);
+    if (mode === 'join') joinMenu.draw(r);
   }
 
-  /* ---- THE CONTROLS: the default preset's stick with three buttons of its own ---- */
-  const KEYS = Object.assign({}, E.Input.DEFAULT, { pass: ['KeyJ', 'KeyX', 'Pad0'], shoot: ['KeyK', 'KeyZ', 'Pad2'], lob: ['KeyL', 'KeyC', 'Pad3'] });
+  /* ---- THE CONTROLS: the default preset's stick with buttons of its own: FIFA's ✕ pass, □ shoot, ○ lob (△ too), L1 switch;
+   * Q switches on a keyboard (a half each in versus: switch on R and L, though only a lone player switches) ---- */
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { pass: ['KeyJ', 'KeyX', 'Pad0'], shoot: ['KeyK', 'KeyZ', 'Pad2'], lob: ['KeyL', 'KeyC', 'Pad1', 'Pad3'], switch: ['KeyQ', 'Pad4'] });
   for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
 
   /** the proof: a match from the kickoff, player 1 running at goal, passing, lobbing, shooting; a hash of the match */
@@ -579,8 +610,11 @@ const SPORTS = (() => {
     } finally { for (const a of [...held]) hold(a, false); Math.random = was; scripted = false; }
   }
 
-  return { view: 'threequarter', views: ['threequarter', 'topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['lob', 'shoot', 'pass'], camera: { zoom: [.7, 1.6] },
-    enter(d) { game.cam.bounds = null; t = 0; if (d && d.part === 'match') start(false); else if (d && d.part === 'vs') versus(); else toMenu(); },
+  // the touch buttons in an arc: PASS (the most used) big in the corner, SHOOT and LOB round it; a phone held upright starts
+  // zoomed out (camera.tall), the pitch running across it
+  return { view: 'threequarter', views: ['threequarter', 'topdown'], input: KEYS, res: 'ps1', pausable: true, touch: { buttons: ['pass', 'shoot', 'lob'], layout: 'arc' }, camera: { zoom: [.6, 1.6], tall: .7 },
+    enter(d) { game.cam.bounds = null; t = 0; ds = E.DualSense.attach(game, { light: true }); lit = null; if (d && d.part === 'match') start(false); else if (d && d.part === 'vs') versus(); else toMenu(); },
+    exit() { if (ds) ds.clear(); },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'full') { toMenu(); return true; } return false; },
     update, draw, bot, run,
     state: () => { const you = all.find(p => p.input === game.input);   // (for tests)

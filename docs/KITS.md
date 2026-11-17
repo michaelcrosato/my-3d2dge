@@ -55,6 +55,7 @@ in the core.
 | walkable areas, hotspots, verbs | module `click` | point-and-click, visual novels |
 | 2D rigid bodies; destructible terrain | modules `physics`, `terrain` | pinball, Breakout, artillery, Lemmings, Asteroids |
 | a music clock, layers; a songbook; charts and judgments; scored songs (my-game-audio) | core audio, modules `songs`, `rhythm`, `mga` | rhythm, stealth and chases, every genre's music |
+| the controls standard: prompts by device, swipes, touch layouts and assists, the pad's cursor; a DualSense's light bar, adaptive triggers, gyro, touchpad, speaker and mic | core input and Shell, module `dualsense` | every genre (`docs/CONTROLS.md`) |
 | lock-on, camera zones, tank controls; vehicles, tracks, flight | the 3D engine | 3D action, horror, racing, flight, rails, first-person dungeons |
 
 ## Modules
@@ -103,6 +104,10 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   the HUD anchored to `r.W` and `r.H`. A game of one fixed screen fills the sides with cabinet art drawn by code.
 - **A phone:** touch controls that fit the genre, tap targets of at least 44 CSS pixels, and a case in
   `tools/phone-test.mjs` (a 3D kit: `tools/kit3d-test.mjs`'s phone section).
+- **The controls standard** (`docs/CONTROLS.md`): a DualSense on a TV first, the genre's keys and the mouse where the
+  genre uses it, every prompt from `input.label`, readable at ten feet, the DualSense's extras where they mean something
+  (`@modules dualsense`), and touch upright and on its side with swipes, context buttons and simple assists gated on
+  `input.assist`.
 - **The look target** (PS1 / N64 era 2D): backdrops, materials, lighting, dressed HD rigs, effects, the title font, and
   `check.mjs` with no look notes. A kit of 1980 games plays as a remaster, with the classic look one key away.
 - **Sound:** an effect for every action, and at least one original song of its own in the step sequencer's format.

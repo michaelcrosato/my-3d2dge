@@ -1,5 +1,5 @@
 // The BRAWLER kit's game (a beat-'em-up: a city block at dusk, combos, grabs and kicks, waves that lock the screen, a second player who drops in; Final Fight, Streets of Rage), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 168 (src/starter/50-brawler.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 173 (src/starter/50-brawler.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. brawler.html plays it; node kits/test.mjs brawler runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -26,7 +26,7 @@ const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
-// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, '□ Sword' on a pad (X with Xbox's), 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it.
 // word is a line (E.t), and the two are a line too (starter.prompt), so a language can put them the other way round
 const prompt = (a, word) => E.t('starter.prompt', { key: game.input.label(a), word }), touch = () => game.input.lastDevice === 'touch';
@@ -65,8 +65,9 @@ const SLICES = [
    top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
    [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
+const bound = code => Object.values(game.input.map).some(cs => cs.includes(code));   // (a key the scene's own controls use is theirs: the shell's stands aside)
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || bound(e.code)) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(E.lang.upper(E.t('starter.note.view', { view: game.view.label }))); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note(E.t('starter.note.camera_reset')); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note(E.t('starter.note.turn', { angle: game.yaw })); }
@@ -90,8 +91,9 @@ const HEROES = [   // six heroes, each dressed with the HD rig options
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
-// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
-const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
+// from the first frame, before any touch: cornerArea's pinned), else the edge
+const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -112,14 +114,17 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does: any player's
-const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
+// a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
 let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
-  view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
+  view: 'side', views: ['side', 'brawler'], input: MENU_IN, res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
@@ -155,7 +160,7 @@ const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
-  view: 'side', input: 'DEFAULT', res: 'ps1',
+  view: 'side', input: MENU_IN, res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
@@ -166,11 +171,17 @@ scenes.over = {
 };
 
 /* =====================================================================================
- * SLICE 5  BRAWLER  (Final Fight, Streets of Rage 2). A city block at dusk. Every attack is a named E.MOVES move:
+ * SLICE 5  BRAWLER  (Final Fight, Streets of Rage 2). @modules dualsense
+ * A city block at dusk. Every attack is a named E.MOVES move:
  * J jab, cross, hook, uppercut (an E.Combo; the uppercut launches), J on a foe in your face: collar grab, knee, knee, elbow;
- * K kick, roundhouse; L sweep; Z jumps (J or K in the air: a flying kick). Each foe type has its own telegraphed
- * strings. Heavy blows knock fighters down; they get up on one knee. Waves lock the screen. Crates hide food.
- * TOUCH: the stick, ATTACK, KICK, SWEEP, JUMP. PLAYER 2 drops in: 2 (the keyboard's right half) or Start on a pad.
+ * K kick, roundhouse; L sweep; Z or Space jumps (J or K in the air: a flying kick). A pad, as Streets of Rage 4's: □ punch
+ * (R2 too), △ kick, ○ sweep, ✕ jump. Each foe type has its own telegraphed strings. Heavy blows knock fighters down;
+ * they get up on one knee. Waves lock the screen. Crates hide food. A DualSense's light bar shows player 1's life; each
+ * player's own pad shakes with the blows they land and take.
+ * TOUCH: the stick, and PUNCH (GRAB on a foe in your face), KICK, SWEEP, JUMP set as a pad's face; they hide while the boss
+ * talks and once the street is clear. Touch assists (Settings, Touch): with the stick let go the hero turns to the
+ * nearest foe on his lane, and the punch string throws itself at a foe or crate in reach. A swipe ends the round card and
+ * the results. PLAYER 2 drops in: 2 (the keyboard's right half) or Options on a pad (the line under player 1's panel).
  * THE LOOK: Final Fight sized fighters (90-105 of 240 lines) in a guard stance with big gloves, lit by the nearest
  * light; building fronts drawn once over TileMap walls; solid parked cars; PS1 translucency (hard shapes, one alpha)
  * ANY SCREEN: a wider screen shows more street (waves walk in from past its edges); a taller one (a phone held upright)
@@ -403,8 +414,12 @@ const BRAWL = (() => {
   const INTRO = 1.9, TAUNT = E.t('brawler.taunt');
   const pose = (a, k = .25) => a + (Math.cos(a) > 0 ? k : -k);    // turn a bit toward the camera
   const talk = new E.Dialog(game, { bg: ['#4a1436', '#12040c'], border: '#f0b0c8', nameColor: '#f0c850' });
-  const puffs = [], sparks = [];
-  let map, SPR, hero, foes, npcs, boxes, foods, wave, lockX, go, intro, score, won, target, tgtT, lag, chain, chainT, hero2 = null, heroes = [];
+  const puffs = [], sparks = [], GRAB_WORD = E.t('brawler.touch.grab');
+  let map, SPR, hero, foes, npcs, boxes, foods, wave, lockX, go, intro, score, won, target, tgtT, lag, chain, chainT, hero2 = null, heroes = [], ds = null, lit = null;
+  // a fighter's own pad (player 1's is game.input; player 2's its own) shakes, a gamepad only: s 0..1 for t seconds
+  const buzz = (c, s, t) => { const I = c.input || game.input; if (I.lastDevice === 'gamepad') I.rumble(s, t); };
+  // a foe in fighter h's face (the clinch's range): an attack there grabs
+  const hugs = h => foes.some(f => !f.knocked && Math.abs(f.y - h.y) < 8 && E.inArc(h, h.facing, f, 20, .9));
   // the walkable street's right end: the wave's lock, never short of the screen's right edge where the street starts (a wide
   // screen shows more of it); the camera stops there too, so the hero can reach every bit of street on the screen
   const lockEnd = v => Math.min(LEN - 10, Math.max(lockX, (map.bounds(v).x0 + 8 + game.W) / v.ax - 10));
@@ -484,12 +499,13 @@ const BRAWL = (() => {
     // the hero's move set (E.MOVES, some tuned): a 4-hit punch string, a clinch (grab, knees, elbow), a kick string, a flying kick, a sweep
     hero = body(54, 58, 7, { hp: 60, max: 60, lives: 3, grip: 0, rig: fighterRig(HERO), moves: heroMoves() });
     game.follow(hero, { z: 34, lead: 24 });   // aimed at the chest: framing when zoomed in
-    hero2 = null; heroes = [hero]; game.allowJoin({ max: 2, onJoin: dropIn });   // player 2 drops in: Start on a pad, or 2 on the keyboard
+    hero2 = null; heroes = [hero]; game.allowJoin({ max: 2, onJoin: dropIn });   // player 2 drops in: Options on a pad, or 2 on the keyboard
     npcs = NPCS.map(n => body(n.x, n.y, 5, { n, facing: n.face, rig: fighterRig(n.rig) }));
     boxes = BOXES.map(([cx, y, kind]) => ({ x: cx * T, y, kind, hp: 2, flash: 0, box: true }));
     foes = []; foods = []; wave = 0; lockX = WAVES[0].x * T; go = 0; intro = INTRO; score = 0; won = 0; target = null; tgtT = 0; lag = 1; chain = chainT = 0;
     puffs.length = sparks.length = 0; talk.open = false;
     game.timeScale = 1; A.music('boss'); L.enabled = false;   // no game.lights: pools are baked, fighters rim-lit
+    ds = E.DualSense.attach(game, { light: true }); lit = null;   // (a DualSense's light bar: player 1's life)
   }
   const heroMoves = () => ({ punch: new E.Combo(['jab', 'cross', move('hook'), 'uppercut'], { window: .35 }), clinch: new E.Combo([GRAB, 'knee', 'knee', 'elbow'], { window: .35 }),
     kick: new E.Combo([move('kick'), move('roundhouse')], { window: .35 }), fly: new E.Attack('flyingkick'), sweep: move('sweep') });
@@ -526,7 +542,7 @@ const BRAWL = (() => {
     if (!t.box) { chain = chainT > 0 ? chain + 1 : 1; chainT = 1.4; }   // hits under 1.4 s apart chain up
     // the damage number: over the head, a slot higher for each hit of a string, so faces, fists and numbers stay clear
     game.hitFx(x, t.y + 1, z, { power: heavy ? 1.9 : 1.3, angle: dir > 0 ? 0 : Math.PI, color: '#ffd23a', sound: s.kick ? 'kick' : 'punch', damage: t.box ? undefined : b[0],
-      textZ: t.box ? 0 : t.rig.head()[2] + 12 - z + (chain - 1) % 3 * 12, textScale: 2, textColor: heavy ? '#ffd23a' : '#ffffff' });
+      textZ: t.box ? 0 : t.rig.head()[2] + 12 - z + (chain - 1) % 3 * 12, textScale: 2, textColor: heavy ? '#ffd23a' : '#ffffff', rumble: by.input || game.input });   // (the striker's own pad shakes)
     spark(x, t.y + 1, z, heavy); t.flash = game.real + .05;
     if (t.box) return smash(t);
     P.bits(t.x, t.y, z + 6, heavy ? 7 : 3, ['#ffffff', '#c8e8ff', '#8ac8f0']);   // sweat
@@ -552,7 +568,7 @@ const BRAWL = (() => {
   }
   function ko(f) {                               // KO: down for good, then blink and vanish. The boss: slow motion
     const boss = f.k === FOES.boss; f.dead = 2.6; score += boss ? 5000 : 300;
-    if (boss) { game.flash('#ffffff', .3, .5); game.timeScale = .3; game.after(.5, () => { game.timeScale = 1; }); A.sfx('boom'); }
+    if (boss) { game.flash('#ffffff', .3, .5); game.timeScale = .3; game.after(.5, () => { game.timeScale = 1; }); A.sfx('boom'); for (const c of heroes) buzz(c, .7, .6); }   // (a long shake in every player's hands)
   }
   function smash(b) {                            // crates and barrels: two hits, then splinters and food
     if (--b.hp > 0) return;
@@ -562,8 +578,9 @@ const BRAWL = (() => {
   // of the string connects. Out of life: knocked down, then up again (a life lost) or game over
   function hurtHero(f, a, h = hero) {
     const more = f.act.step < f.act.moves.length - 1, b = BLOW[a.spec.name], z = contact(f, a), x = h.x + Math.sign(f.x - h.x) * 6;
-    game.hitFx(x, h.y + 1, z, { power: b[2] ? 1.9 : 1.3, color: '#ff6a4a', sound: 'hurt', damage: b[0], textZ: h.rig.head()[2] + 12 - z + f.act.step * 12, textScale: 2, textColor: '#ff8a7a' });
+    game.hitFx(x, h.y + 1, z, { power: b[2] ? 1.9 : 1.3, color: '#ff6a4a', sound: 'hurt', damage: b[0], textZ: h.rig.head()[2] + 12 - z + f.act.step * 12, textScale: 2, textColor: '#ff8a7a', rumble: h.input || game.input });   // (the one hit: his own pad)
     spark(x, h.y + 1, z, b[2] > 0); knock(h, f, more ? [b[0], 8, 0] : b); h.flash = game.real + .05; h.inv = more ? 0 : .6; chainT = 0;
+    if (!more && b[2]) buzz(h, .6, .3);   // knocked off his feet: a longer shake
     if (h.hp > 0) return;
     h.hp = 0; h.lives--;
     if (h.lives > 0) game.after(1.6, () => { Object.assign(h, { hp: h.max, inv: 2.5 }); if (h === hero) lag = 1; else h.lag = 1; dust(h.x, h.y, 6); A.sfx('powerup'); });
@@ -576,14 +593,19 @@ const BRAWL = (() => {
     const mv = free ? inp.move() : [0, 0], md = game.view.screenDirToGround(mv[0], mv[1]);
     if (!h.knocked && h.stun <= 0) { const stop = busy && !air; h.vx = approach(h.vx, stop ? 0 : md[0] * 82, 900 * dt); h.vy = approach(h.vy, stop ? 0 : md[1] * 52, 900 * dt); }
     if (!busy && Math.abs(md[0]) > .2) h.facing = md[0] > 0 ? 0 : Math.PI;
+    // TOUCH ASSISTS (inp.assist: a finger on glass and Settings, Touch assists on; a pad or keys never): the stick let go,
+    // he turns to the nearest foe on his lane; the punch string throws itself at a foe or crate in reach (not while KICK or
+    // SWEEP is held), the right thumb free for the rest
+    else if (inp.assist && free && !busy && Math.hypot(mv[0], mv[1]) < .2) { const t = E.assist.nearest(h.x, h.y, foes.filter(f => !f.knocked && Math.abs(f.y - h.y) < 12), 48); if (t) h.facing = t.x > h.x ? 0 : Math.PI; }
+    const auto = inp.assist && !air && !['kick', 'sweep'].some(k => inp.down(k) || inp.buffered(k, .4)) && foes.concat(boxes).some(t => !t.dead && !t.knocked && Math.abs(t.y - h.y) < 12 && E.inArc(h, h.facing, t, 32, 1.1));
     // a press waits (buffered) until the move before has settled back to guard; a Combo then flows into its next hit
     const tap = key => inp.buffered(key, .4), use = (m, key) => { if (m.press ? m.press() : m.start()) { h.act = m; inp.consume(key); } };
     if (free && !busy) {
-      const hug = foes.some(f => !f.knocked && Math.abs(f.y - h.y) < 8 && E.inArc(h, h.facing, f, 20, .9)), key = tap('kick') ? 'kick' : 'attack';
+      const hug = hugs(h), key = tap('kick') ? 'kick' : 'attack';
       if (!air && inp.pressed('jump') && h.jump(250)) { h.act = null; A.sfx('jump'); dust(h.x, h.y, 3); }
       else if (air) { if (h.act !== h.moves.fly && tap(key)) use(h.moves.fly, key); }
       else if (tap('sweep')) use(h.moves.sweep, 'sweep');
-      else if (tap('attack')) use(hug ? h.moves.clinch : h.moves.punch, 'attack');
+      else if (tap('attack') || auto) use(hug ? h.moves.clinch : h.moves.punch, 'attack');
       else if (tap('kick')) use(h.moves.kick, 'kick');
     }
     if (h.act && h.act.update(dt) === 'active') A.sfx('whoosh', { pitch: h.act.state.spec.kick ? .8 : 1 });   // the swing sound on the strike
@@ -611,6 +633,15 @@ const BRAWL = (() => {
         pose: c.down ? 'down' : c.rise > .22 ? 'kneel' : c.rise > 0 || low ? 'crouch' : null, attack: st }, o));
     };
     for (const c of heroes) { c.inv -= dt; c.stun -= dt; } go -= dt; intro -= dt; tgtT -= dt; chainT -= dt; if (won) won += dt;
+    // what is temporary goes at a swipe: the round card slides away; the results (once read) go to the title, at a swipe, a
+    // click or confirm too (else on their own after 7 s)
+    if (intro > .2 && inp.swipe(true)) intro = .2;
+    if (won > 3 && (game.players.some(I => I.pressed('confirm')) || inp.clicked() || inp.swipe(true))) { game.players.forEach(I => I.consumeAll()); game.go('title'); return; }
+    // the touch buttons (player 1's): PUNCH reads GRAB on a foe in his face; none while the boss talks or once the street is clear
+    for (const a of ['attack', 'kick', 'sweep', 'jump']) inp.touchSet(a, a === 'attack' && hugs(h) ? GRAB_WORD : null, !talk.open && !won);
+    // a DualSense's light bar: player 1's life (green, amber below half, red below a quarter), red as a blow lands, dark while down and out
+    const life = h.hp / h.max, bar = h.hp <= 0 ? '#300a0a' : h.flash > game.real ? '#ff1a1a' : life > .5 ? '#2ad84a' : life > .25 ? '#ffb020' : '#ff3a20';
+    if (bar !== lit) { lit = bar; ds.light(bar); }
     for (const p of puffs) { p.t += dt; p.x += p.vx * dt; p.vx *= 1 - dt * 5; } E.prune(puffs, p => p.t > .5); E.prune(sparks, s => game.real - s.t > .24);
     if (Math.random() < dt * 8) { const [mx, my] = E.pick(HOLES); puffs.push({ x: mx + E.rand(-4, 4), y: my, vx: E.rand(-8, 8), t: 0, s: 3 }); }   // manhole steam: wisps, like the dust
     for (const [, x, y] of DRUMS) if (Math.random() < dt * 9) P.add({ kind: 'ember', x: x + E.rand(-6, 6), y, z: 40, vx: E.rand(-12, 12), vz: E.rand(25, 50), g: -10, drag: 1, max: E.rand(.6, 1.3), color: '#ff7a2a' });   // embers
@@ -717,21 +748,27 @@ const BRAWL = (() => {
     panel(g, 4, hero, E.t('brawler.name.max'), hero.hp / hero.max, lag, '#ffd23a'); if (hero2) panel(g, 4, hero2, E.t('brawler.name.jack'), hero2.hp / hero2.max, hero2.lag, '#4ac0ff', false, 48);
     // enemy panel: the last one hit (KO'd: briefly), else the nearest, else the boss
     const foe = tgtT > 0 && target && (!target.dead || tgtT > 2.4) ? target : foes.find(f => !f.dead && Math.abs(f.x - hero.x) < 56 && Math.abs(f.y - hero.y) < 16) || foes.find(f => f.k === FOES.boss && !f.dead);
-    const fx = Math.min(W, cornerX()) - 158;   // clear of the corner's menu button: beside it, or under it on a narrow screen
+    // clear of the corner's menu button where it stays in play (a touch screen): beside it, or under it on a narrow screen
+    const ca = game.cornerArea({ pinned: true }), fx = (ca && ca.y0 < 40 ? Math.min(W, Math.floor(ca.x0) - 4) : W) - 158;
     if (foe && !won) panel(g, fx < 162 ? W - 158 : fx, foe, foe.name, foe.hp / foe.k.hp, 0, '#e8463c', true, fx < 162 ? 48 : 4);
+    // player 2's place, before anyone takes it: how to drop in, the keyboard's key and a pad's button by name (not on a
+    // touch screen, nor over the round card)
+    const touch = game.input.lastDevice === 'touch', join = !hero2 && !won && intro <= 0 && !touch;
+    if (join) { const s = E.t('brawler.join', { key: game.input.codeLabel('Digit2'), pad: E.lang.upper(game.input.codeLabel('Pad9')) }); E.ui.box(g, 4, 46, E.font.width(s) + 10, 12, { bg: '#0e0a1c', border: '#5a4a8a', alpha: .85 }); E.font.text(g, s, 9, 48, '#c8c0f0', TXT); }
     if (chain > 1 && chainT > 0) {               // the HITS counter on a gradient plate
       const s = String(chain), w = E.font.width(s, 3);
-      const hy = hero2 ? 94 : 50; E.ui.box(g, 6, hy, w + 44, 28, { bg: ['#d8402a', '#4a0a1a'], border: '#ffd070' });
+      const hy = hero2 ? 94 : join ? 60 : 50; E.ui.box(g, 6, hy, w + 44, 28, { bg: ['#d8402a', '#4a0a1a'], border: '#ffd070' });
       E.font.title(g, s, 12, hy + 3, { scale: 3, colors: ['#ffffff', '#ffe070', '#ff9a2a'] }); E.font.title(g, E.t('brawler.hits'), 18 + w, hy + 13, { scale: 1, colors: ['#fff6d0', '#ffc860'] });
     }
     if (intro > 0) {                             // round card slides in and out
-      const say = I => E.t('brawler.card.keys', { attack: I.label('attack'), kick: I.label('kick'), sweep: I.label('sweep'), jump: I.label('jump') });   // a player's own keys
-      const keys = hero2 ? E.t('brawler.card.player', { player: 1, keys: say(game.input) }) : say(game.input), keys2 = hero2 && hero2.input.half ? E.t('brawler.card.player', { player: 2, keys: say(hero2.input) }) : '';
-      const cw = Math.max(180, E.font.width(keys) + 16, E.font.width(keys2) + 16);
+      // each player's own keys or buttons (a touch screen's buttons say theirs: no line)
+      const say = I => E.t('brawler.card.keys', { attack: I.label('attack'), kick: I.label('kick'), sweep: I.label('sweep'), jump: I.label('jump') });
+      const keys = touch ? '' : hero2 ? E.t('brawler.card.player', { player: 1, keys: say(game.input) }) : say(game.input), keys2 = hero2 ? E.t('brawler.card.player', { player: 2, keys: say(hero2.input) }) : '';
+      const cw = Math.max(180, E.font.width(keys) + 16, E.font.width(keys2) + 16), rows = [keys, keys2].filter(Boolean);
       const k = Math.min(1, (INTRO - intro) * 5, intro * 5), x = Math.round(W / 2 - cw / 2 + (1 - k) * (intro < 1 ? W : -W)), m = x + cw / 2, y = hero2 ? 92 : 52;   // (two players: under the second panel)
-      E.ui.box(g, x, y, cw, keys2 ? 68 : 56, WIN);
+      E.ui.box(g, x, y, cw, 40 + (rows.length ? 4 + 12 * rows.length : 0), WIN);
       E.font.title(g, E.t('brawler.card.round'), m, y + 5, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
-      E.font.text(g, E.t('brawler.card.stage'), m, y + 27, '#ffe8c8', TXC); E.font.text(g, keys, m, y + 40, '#b8b0e0', TXC); if (keys2) E.font.text(g, keys2, m, y + 52, '#9ad0ff', TXC);
+      E.font.text(g, E.t('brawler.card.stage'), m, y + 27, '#ffe8c8', TXC); rows.forEach((s, i) => E.font.text(g, s, m, y + 40 + 12 * i, s === keys2 ? '#9ad0ff' : '#b8b0e0', TXC));
     }
     if (go > 0 && Math.floor(game.real * 3) % 2 === 0) E.font.title(g, E.t('brawler.go'), W - 14, 96, { scale: 3, align: 'right', colors: ['#fff6c0', '#ffc040', '#e06a20'] });
     if (won > 1.5) {                             // results on the left, clear of the cheering hero
@@ -767,10 +804,12 @@ const BRAWL = (() => {
   // camera: the player zooms .75x to 1.5x (at 2x a 100 px fighter no longer fits under the HUD); a phone held upright
   // starts at 1.5x, so the street fills more of it. Turning stays off: tried, a turned street loses its fronts (painted for
   // this side only) and its screen-space bounds
-  return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: ['attack', 'kick', 'sweep', 'jump'], propSize: 2.4, camera: { zoom: [.75, 1.5], tall: 1.5 },   // props match 100 px fighters
-    // its actions in this order (no dash or skill), so half a keyboard each reads punch, kick, sweep, jump (Input.halfKeys)
-    input: (({ dash, skill, jump, ...keep }) => Object.assign(keep, { kick: ['KeyK', 'Mouse2', 'Pad2'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad3'] }))(E.Input.DEFAULT),
-    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw, bot,
+  // the touch buttons as a pad's face, in the order bottom, right, left, top: JUMP (✕), SWEEP (○), PUNCH (□), KICK (△)
+  return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: { buttons: ['jump', 'sweep', 'attack', 'kick'], layout: 'diamond', labels: { attack: E.t('brawler.touch.punch') } }, propSize: 2.4, camera: { zoom: [.75, 1.5], tall: 1.5 },   // props match 100 px fighters
+    // its actions in this order (no dash or skill), so half a keyboard each reads punch, kick, sweep, jump (Input.halfKeys);
+    // a pad as Streets of Rage 4's: □ punch (R2 too), △ kick, ○ sweep, ✕ jump (the menus' ✕ and ○ stay theirs)
+    input: (({ dash, skill, jump, ...keep }) => Object.assign(keep, { attack: ['KeyJ', 'KeyX', 'Mouse0', 'Pad2', 'Pad7'], kick: ['KeyK', 'Mouse2', 'Pad3'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad0'] }))(E.Input.DEFAULT),
+    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, exit() { if (ds) ds.clear(); }, update, draw, bot,
     state: () => ({ hero, hero2, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }),   // for tests (end: the walkable street's right end; hero2: player 2, once joined)
     /** the proof: up the street, jabbing, kicking and jumping into the first wave; a hash of the fight */
     run: (n = 600) => proof('brawler', n, (i, k) => { walk(i, k, ['right', 'right', 'up', 'right', 'down'], 60); if (i % 30 === 15) k.tap('attack'); if (i % 77 === 40) k.tap('kick'); if (i % 200 === 150) k.tap('jump'); },

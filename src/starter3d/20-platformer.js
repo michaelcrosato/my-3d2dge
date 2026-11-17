@@ -1,9 +1,17 @@
 /* =====================================================================================
- * SLICE 2  PLATFORMER  (Mario 64, Spyro, Banjo). A sunlit course of grass islands over the void, from the start in
- * the south to the flag in the north: plank platforms to hop, a terrace and a tower of stone steps, a platform that
- * rides across a gap, a spring up to a high deck. Space jumps (hold it for height), again in the air for a double jump;
- * Shift dashes (in the air too, once); land on a slime to stomp it (a bounce), touch one and you lose a heart. Coins,
- * three hidden stars, checkpoint flags; fall off and you start again at the last flag, a heart down.
+ * SLICE 2  PLATFORMER  (Mario 64, Spyro, Banjo). @modules dualsense
+ * A sunlit course of grass islands over the void, from the start in the south to the flag in the north: plank platforms
+ * to hop, a terrace and a tower of stone steps, a platform that rides across a gap, a spring up to a high deck. The jump
+ * (hold it for height), again in the air for a double jump; the dash (in the air too, once); land on a slime to stomp it
+ * (a bounce), touch one and you lose a heart. Coins, three hidden stars, checkpoint flags; fall off and you start again
+ * at the last flag, a heart down.
+ * KEYS (World3D.INPUT without its attack, skill and lock: nothing here uses them): WASD or arrows run, Space jumps, Shift
+ * or K dashes, C the camera (the chase camera, first person, the view); a click takes the mouse to look round. PAD
+ * (PlayStation names): the left stick runs, the right stick turns the camera, ✕ jump, R1 (or ○) dash, R3 the camera,
+ * Options pauses. DUALSENSE: the light bar is his hearts (green, amber, a red pulse; gold at a star, green at a flag),
+ * the coins chime from the controller's speaker; any pad rumbles on a stomp, a spring, a hurt, a fall and a hard
+ * landing. TOUCH: the stick, JUMP, DASH (while a dash is left), a finger on the other half turns the camera; no assists
+ * (the jumps are the game). A swipe takes the signpost's words and the controls away.
  * THE 3D: the hero is a character controller on the level's heights (stairs, ledges, floating and moving platforms
  * carry him); the slimes are Rapier bodies; the sun casts real shadows; the chase camera swings round behind him as he
  * runs (C cycles the view and first person, V picks the view). PLAT.run(n): a scripted run's hash (the proof)
@@ -80,9 +88,21 @@ const PLAT = (() => {
   };
   const SPEED = 110, JUMP = 190, JUMP2 = 170, SPRING = 320, DASH = 230, HEARTS = 3;
   const SKY = ['#3a78d0', '#bfe6ff'];
-  let world = null, hero = null, S = null, rnd = Math.random;
+  let world = null, hero = null, S = null, rnd = Math.random, hint = true;
   const secs = v => E.lang.num(+v.toFixed(1), { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });   // (the time in the player's language, rounded as toFixed rounds)
   const slimes = [];
+  // THE KEYS: World3D.INPUT without what this course doesn't read (attack, skill, lock: the Controls screen lists only
+  // what works, and a left click is the mouse's look alone), the dash's R1 first (the right thumb is on the camera's stick)
+  const KEYS = Object.assign((({ attack, skill, lock, ...k }) => k)(W3.INPUT), { dash: ['ShiftLeft', 'ShiftRight', 'KeyK', 'Pad5', 'Pad1', 'Pad6'] });
+  // the DUALSENSE (the dualsense module): the light bar is his hearts; buzz: a rumble on any pad, while it is what he plays with
+  let ds = null, padLight = null, flashT = 0, flashC = null, signOff = false;   // (signOff: the signpost's words swiped away until he leaves it)
+  const buzz = (s, t) => game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  const flashPad = (c, t) => { flashC = c; flashT = t; };
+  function padExtras(dt) {
+    if (!ds) return; flashT -= dt;
+    const c = flashT > 0 ? flashC : S.hearts >= 3 ? '#4ae070' : S.hearts === 2 ? '#e8a030' : Math.floor(game.real * 3) % 2 ? '#e8283a' : '#5a0a14';
+    if (c !== padLight) ds.light(padLight = c);
+  }
   BOOT.push([E.t('platformer3d.boot'), () => {
     world = new W3(game, { level: LEVEL, sky: SKY, fog: { color: SKY[1], near: 260, far: 1300 }, ambient: ['#d6ecff', '#5a7a3a', 1.7],
       sun: { color: '#fff1d6', intensity: 2.6, dir: [-.45, .55, -.75], area: 260 }, camera: { mode: 'chase', chase: { pitch: -.32, dist: 96, fov: 60, height: 20 } } });
@@ -132,20 +152,21 @@ const PLAT = (() => {
     }
     if (S.dashT > 0) { S.dashT -= dt; h.vx = Math.cos(S.dashDir) * DASH; h.vy = Math.sin(S.dashDir) * DASH; h.facing = S.dashDir; }
     else { const acc = (h.grounded ? 1100 : 520) * dt; h.vx = approach(h.vx, md[0] * SPEED, acc); h.vy = approach(h.vy, md[1] * SPEED, acc); if (ml > .1) h.facing = E.approachAng(h.facing, Math.atan2(md[1], md[0]), dt * 14); }
-    if (h.landed) { P.dust(h.x, h.y, h.z, 4, { speed: 25 }); h.rig.kick(-3); A.sfx('land'); }
+    if (h.landed) { P.dust(h.x, h.y, h.z, 4, { speed: 25 }); h.rig.kick(-3); A.sfx('land'); if (S.fallT > .6) buzz(.25, .08); }
+    S.fallT = h.grounded ? 0 : S.fallT + dt;   // (how long he has been in the air: a long drop lands hard)
     h.anim = { dash: S.dashT > 0, hurt: S.hurtT > 0, expr: S.hurtT > 0 ? 'wince' : null };
   }
   function hurtHero(from) {
     if (S.inv > 0 || S.won || S.lost) return;
     S.hearts--; S.inv = 1.3; S.hurtT = .3; hero.flash = .08; const a = Math.atan2(hero.y - from.y, hero.x - from.x);
-    hero.vx = Math.cos(a) * 160; hero.vy = Math.sin(a) * 160; hero.jump(110); game.shake(3); game.freeze(.05); A.sfx('hurt');
+    hero.vx = Math.cos(a) * 160; hero.vy = Math.sin(a) * 160; hero.jump(110); game.shake(3); game.freeze(.05); A.sfx('hurt'); buzz(.5, .2);
     P.sparks(hero.x, hero.y, hero.z + 14, 6, a);
     if (S.hearts <= 0) lose();
   }
   function lose() { S.lost = true; game.after(1.4, () => game.go('over', { from: 'platformer', world, lines: [E.t('platformer3d.over.lost', { coins: S.coins, stars: S.stars, of: 3 })] })); }
   /** back at the last flag, a heart down (a fall) */
   function respawn() {
-    S.hearts--; A.sfx('die'); game.flash('#000000', .3);
+    S.hearts--; A.sfx('die'); game.flash('#000000', .3); buzz(.6, .3);
     if (S.hearts <= 0) { lose(); return; }
     hero.place(S.check[0], S.check[1]); S.inv = 1; S.jumps = 0; S.dashT = 0; world.camera.smooth = null;
   }
@@ -172,7 +193,7 @@ const PLAT = (() => {
     if (Math.hypot(dx, dy) < e.r + hero.r + 2) {
       if (hero.vz < -20 && hero.z > e.z + 6 && hero.z < e.z + 18) {
         e.alive = false; e.squashT = 0; e.setSolid(false); hero.jump(170); S.jumps = 1; S.dashed = false;
-        P.ring(e.x, e.y, 3, 18, '#bff6b0', .3, e.z); P.bits(e.x, e.y, e.z + 4, 10, ['#5ac85a', '#a8f0a0', '#2a7a3a']); A.sfx('stomp'); game.freeze(.04);
+        P.ring(e.x, e.y, 3, 18, '#bff6b0', .3, e.z); P.bits(e.x, e.y, e.z + 4, 10, ['#5ac85a', '#a8f0a0', '#2a7a3a']); A.sfx('stomp'); game.freeze(.04); buzz(.3, .08);
       } else if (Math.abs(hero.z - e.z) < 12) hurtHero(e);
     }
   }
@@ -181,11 +202,11 @@ const PLAT = (() => {
     heroStep(dt, I);
     for (const e of slimes.slice()) slimeStep(e, dt);
     for (const t of world.touching(hero)) {
-      if (t.kind === 'coin') { world.remove(t); S.coins++; P.glints(t.x, t.y, t.z + 6, 5, '#ffe98a'); A.sfx('coin'); }
-      else if (t.kind === 'star') { world.remove(t); S.stars++; P.glints(t.x, t.y, t.z + 8, 16, '#fff6a0', 20); game.note(E.t('platformer3d.note.star', { star: S.stars, of: 3 }), 1.8); A.sfx('powerup'); game.flash('#fff8d0', .12, .4); }
-      else if (t.kind === 'spring' && hero.vz <= 0 && hero.z < t.z + 8) { hero.jump(SPRING); S.sprung = true; S.jumps = 1; S.dashed = false; t.squash = .7; A.sfx('powerup'); P.ring(t.x, t.y, 4, 16, '#ff9a8a', .3, t.z + 4); }
+      if (t.kind === 'coin') { world.remove(t); S.coins++; P.glints(t.x, t.y, t.z + 6, 5, '#ffe98a'); if (ds) ds.speaker('coin'); else A.sfx('coin'); }   // (the coins chime in the player's hands: the DualSense's speaker, where it is on)
+      else if (t.kind === 'star') { world.remove(t); S.stars++; P.glints(t.x, t.y, t.z + 8, 16, '#fff6a0', 20); game.note(E.t('platformer3d.note.star', { star: S.stars, of: 3 }), 1.8); A.sfx('powerup'); game.flash('#fff8d0', .12, .4); buzz(.3, .25); flashPad('#ffd34a', 1); }
+      else if (t.kind === 'spring' && hero.vz <= 0 && hero.z < t.z + 8) { hero.jump(SPRING); S.sprung = true; S.jumps = 1; S.dashed = false; t.squash = .7; A.sfx('powerup'); P.ring(t.x, t.y, 4, 16, '#ff9a8a', .3, t.z + 4); buzz(.4, .15); }
       else if (t.kind === 'flag' && t.goal && !S.won) { S.won = true; A.music('victory'); P.glints(t.x, t.y, t.z + 30, 24, '#ffe98a', 30); game.flash('#fff4d0', .4, .6); game.after(3, () => game.go('over', { from: 'platformer', world, won: true, title: E.t('platformer3d.over.won'), lines: [E.t('platformer3d.over.stars', { stars: S.stars, of: 3, coins: S.coins }), E.t('platformer3d.over.time', { time: secs(S.time) })] })); }
-      else if (t.kind === 'flag' && !t.goal && t.color !== '#4ae070') { t.color = '#4ae070'; S.check = [t.x + 10, t.y]; A.sfx('secret'); game.note(E.t('platformer3d.note.checkpoint'), 1.2); P.glints(t.x, t.y, t.z + 40, 8, '#bff6b0'); }
+      else if (t.kind === 'flag' && !t.goal && t.color !== '#4ae070') { t.color = '#4ae070'; S.check = [t.x + 10, t.y]; A.sfx('secret'); game.note(E.t('platformer3d.note.checkpoint'), 1.2); P.glints(t.x, t.y, t.z + 40, 8, '#bff6b0'); flashPad('#4ae070', .6); }
       else if (t.kind === 'sign') S.sign = 2;
     }
     for (const t of world.things) if (t.squash) t.squash = Math.max(0, t.squash - dt * 3);
@@ -198,9 +219,26 @@ const PLAT = (() => {
     E.ui.hearts(g, 6, 6, S.hearts, HEARTS);
     E.font.text(g, E.t('platformer3d.hud.coins', { coins: S.coins }), 6, 18, '#ffe98a', { outline: '#0b0814' });
     E.font.text(g, E.t('platformer3d.hud.stars', { stars: S.stars, of: 3 }), 6, 28, '#fff6a0', { outline: '#0b0814' });
-    E.font.text(g, secs(S.time), r.W - 6, r.H - 12, '#e8f4ff', { align: 'right', outline: '#0b0814' });
-    if (S.sign > 0) { const w = Math.min(r.W - 20, 250), x = Math.round(r.W / 2 - w / 2); E.ui.box(g, x, r.H - 46, w, 30, { bg: '#3a2614', border: '#e8c890' }); E.font.text(g, E.t('platformer3d.sign.1'), r.W / 2, r.H - 40, '#fff2d6', { align: 'center', outline: false }); E.font.text(g, E.t('platformer3d.sign.2'), r.W / 2, r.H - 29, '#fff2d6', { align: 'center', outline: false }); }
-    else if (S.time < 6 && !touch()) E.font.text(g, prompt('jump', E.t('platformer3d.hint.jump')) + '   ' + prompt('dash', E.t('platformer3d.hint.dash')) + '   ' + prompt('camera', E.t('platformer3d.hint.camera')), r.W / 2, r.H - 26, '#ffffff', { align: 'center', outline: '#0b0814', font: 'tiny' });
+    // (the bottom: above the touch buttons on a phone)
+    const ta = game.input.touchArea(), foot = ta && ta.y0 < r.H - 8 ? Math.round(ta.y0) - 4 : r.H - 4, lh = E.font.lineHeight();
+    E.font.text(g, secs(S.time), r.W - 6, foot - lh, '#e8f4ff', { align: 'right', outline: '#0b0814' });
+    if (S.sign > 0 && !signOff) {   // the signpost's words, wrapped to the box (a swipe puts them away until he leaves it)
+      const w = Math.min(r.W - 20, 250), x = Math.round(r.W / 2 - w / 2), L = [E.t('platformer3d.sign.1'), E.t('platformer3d.sign.2')].flatMap(t => E.font.wrap(t, w - 12)), h = L.length * lh + 8, y = foot - lh - 4 - h;
+      E.ui.box(g, x, y, w, h, { bg: '#3a2614', border: '#e8c890' }); L.forEach((t, i) => E.font.text(g, t, r.W / 2, y + 5 + i * lh, '#fff2d6', { align: 'center', outline: false }));
+    }
+    else if (S.time < 6 && hint && !touch()) {   // the controls at first, in the player's own keys or buttons (two rows of the normal font); with the mouse not yet taken, how to look
+      const dev = game.input.lastDevice, rows = [[prompt('jump', E.t('platformer3d.hint.jump')), prompt('dash', E.t('platformer3d.hint.dash')), prompt('camera', E.t('platformer3d.hint.camera'))]];
+      if ((dev === 'keyboard' || dev === 'mouse') && world.camera.mode !== 'view' && !world.camera.locked) rows.push([E.t('platformer3d.hint.mouse')]);
+      keyHint(g, r, rows, foot - lh - 6, clamp(6 - S.time, 0, 1));
+    }
+  }
+  /** a hint's rows (each a list of prompts, broken again where too wide for the screen) over a dark ribbon, ending at y */
+  function keyHint(g, r, rows, y, a = 1) {
+    const lh = E.font.lineHeight(), L = [];
+    for (const parts of rows) { let row = ''; for (const p of parts) { const t = row ? row + '   ' + p : p; if (row && E.font.width(t) > r.W - 12) { L.push(row); row = p; } else row = t; } if (row) L.push(row); }
+    const y0 = Math.round(y - L.length * lh);
+    g.save(); g.globalAlpha = .5 * a; g.fillStyle = '#05030c'; g.fillRect(0, y0 - 3, r.W, L.length * lh + 4); g.restore(); g._c = null;
+    L.forEach((t, i) => E.font.text(g, t, r.W / 2, y0 + i * lh, '#ffffff', { align: 'center', outline: '#0b0814' }));
   }
   const I = { move: [0, 0], pressed: (a, w) => game.input.buffered(a, w), use: a => game.input.consume(a), down: a => game.input.down(a) };
   /** the proof: a scripted run north from the start (steering, jumping, dashing on a timetable): n steps of 1/120 s.
@@ -212,9 +250,16 @@ const PLAT = (() => {
     return world.hash([S.coins, S.hearts, S.stars]);
   }
   return {
-    view: 'threequarter', views: ['threequarter', 'iso', 'brawler', 'topdown'], input: W3.INPUT, pausable: true, touch: ['jump', 'dash'], camera: { zoom: [.6, 2], tall: 1.6 },
-    enter() { reset(1); active = world; A.music('adventure'); world.camera.set('chase'); },
-    update(dt) { cameraKey(world); world.camera.ground(game.input.move(), I.move); step(dt, I); },
+    view: 'threequarter', views: ['threequarter', 'iso', 'brawler', 'topdown'], input: KEYS, pausable: true, touch: ['dash', 'jump'], camera: { zoom: [.6, 2], tall: 1.6 },
+    enter() { reset(1); active = world; A.music('adventure'); world.camera.set('chase'); hint = true; signOff = false; ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; flashT = 0; },
+    exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
+    update(dt) {
+      const inp = game.input; cameraKey(world); world.camera.ground(inp.move(), I.move); step(dt, I); padExtras(dt);
+      // a swipe takes away what is temporary: the signpost's words (until he leaves it), else the controls
+      if (S.sign <= 0) signOff = false;
+      if (inp.swipe()) { if (S.sign > 0 && !signOff) { inp.swipe(true); signOff = true; } else if (hint && S.time < 6) { inp.swipe(true); hint = false; } }
+      inp.touchSet('dash', null, hero.grounded || !S.dashed);   // (DASH while a dash is left: on the ground, or once in the air)
+    },
     draw(r) { world.draw(r); r.overlay(g => hud(g, r)); },
     get world() { return world; }, get hero() { return hero; }, get state() { return S; }, get slimes() { return slimes; }, reset, run
   };

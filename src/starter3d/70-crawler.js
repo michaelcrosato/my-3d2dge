@@ -1,10 +1,20 @@
 /* =====================================================================================
- * SLICE 7  CRAWLER  (Wizardry, Dungeon Master, Eye of the Beholder, King's Field). @modules grid
- * The Lantern Vaults in first person, a cell at a time: W and S (or up and down) step forward and back, A and D turn a
- * quarter turn, Q and E step aside, each one tweened. A party of four, their portraits under the view: two in front who
- * fight, two behind who cast. J (or a click on the view) uses what is in front (a lever, a locked gate) or has the next
- * one ready act: a blow at what stands in front, else the mage's bolt; K the mage's bolt down the corridor, H the
- * cleric's heal, 1 to 4 (or a click on a portrait) that one's own act; Tab the map (what the party has seen: E.Fog).
+ * SLICE 7  CRAWLER  (Wizardry, Dungeon Master, Eye of the Beholder, King's Field). @modules grid dualsense
+ * The Lantern Vaults in first person, a cell at a time: a step forward or back, a quarter turn, a step aside, each one
+ * tweened. A party of four, their portraits under the view: two in front who fight, two behind who cast. Act uses what is
+ * in front (a lever, a locked gate) or has the next one ready act: a blow at what stands in front, else the mage's bolt;
+ * the mage's bolt down the corridor, the cleric's heal, each one's own act; the map (what the party has seen: E.Fog).
+ * KEYS (Legend of Grimrock's): W and S (or up and down) step forward and back, A and D step aside, Q and E (or left and
+ * right) turn, J or Space act (or a click on the view), K the bolt, H the heal, 1 to 4 (or a click on a portrait: a
+ * mouse over one names what it does) that one's act, M or Tab the map (a click on the little map; Esc, a click or a
+ * swipe closes it). PAD (PlayStation names): the d-pad or the stick steps and turns, L1 and R1 step aside, ✕ acts, L2
+ * Bram, R2 Tesk, △ Maren's heal, □ Quill's bolt, Create or the touchpad the map, ○ closes it, Options pauses.
+ * DUALSENSE: the light bar is the lantern (warm; a red pulse while one of the party is low or down); the lever and the
+ * gates from its speaker; any pad rumbles on a hurt, the Warden's sweep, the darts, a gate grinding up, a bump into a
+ * wall and the Warden's fall. TOUCH: the stick steps and turns, a swipe on the view steps (up, down) and turns (left,
+ * right), a tap on the view or a portrait acts; MAP, HEAL, BOLT, ACT (PULL at a lever, UNLOCK at the locked gate,
+ * FIGHT with a foe in front); the touch assists (Settings, on at first) have the front rank strike by itself at a foe
+ * in front, in real time. A swipe also closes the map and takes a message away.
  * Gates that rise (one with an iron lock), a lever on a wall, plates in the floor (one raises a gate, one springs darts);
  * wisps, slimes, the dead of the vaults and the Warden at the bottom; the stair out behind it. Settings, Turns: REAL TIME
  * (each one's gauge fills on game time, E.Turns 'atb': Dungeon Master, Eye of the Beholder) or TURNS (the vaults wait:
@@ -113,7 +123,18 @@ const CRAWLER = (() => {
   /* ---- THE STATE ---- */
   let world = null, hero = null, lamp = null, grid = null, fog = null, turns = null, rnd = Math.random, mode = 'real', scripted = false;
   let party = null, S = null, foes = [], gates = {}, levers = [], plates = {}, items = [], stair = null, bolts = [], keys = null;
-  let total = 0, msg = null, showMap = false, song = null, ended = 0, slashT = 0, phase = 'party', took = 0, rounds = 0;
+  let total = 0, msg = null, showMap = false, song = null, ended = 0, slashT = 0, phase = 'party', took = 0, rounds = 0, hintT = 0, swipeQ = null;   // (swipeQ: a swipe waiting for a step to end)
+  // the DUALSENSE (the dualsense module): the light bar is the lantern (a red pulse while one of the party is low or
+  // down); the lever and the gates from its speaker (sfx). buzz: a rumble on any pad, while it is what the player plays
+  // with. ds.* only in update (a proof's steps never read them)
+  let ds = null, padLight = null;
+  const buzz = (s, t) => !scripted && game.input.lastDevice === 'gamepad' && game.input.rumble(s, t);
+  const sfx = (name, o) => ds ? ds.speaker(name, o) : A.sfx(name, o);
+  function padExtras() {
+    if (!ds) return;
+    const low = party.some(m => m.hp <= 0 || m.hp < m.max * .3), c = low ? (Math.floor(game.real * 2.5) % 2 ? '#e8283a' : '#5a1408') : '#ffb070';
+    if (c !== padLight) ds.light(padLight = c);
+  }
   BOOT.push([E.t('crawler3d.boot'), () => {
     for (const [k, v] of Object.entries(SOUNDS)) A.define(k, v);
     world = new W3(game, { level: LEVEL, torchLights: 4, torchShadows: 0, torchPower: 16, torchReach: 160, torchColor: '#ffb070', lights: 2,
@@ -196,7 +217,7 @@ const CRAWLER = (() => {
   /** try to step one cell along way d (relative to nothing: 0..3 on the map); true when the party moves */
   function stepTo(d) {
     const x = S.cx + DX[d], y = S.cy + DY[d];
-    if (!open(x, y) || foeAt(x, y)) { S.bump = .001; A.sfx('thud'); const g = gateAt(x, y); if (g && !g.up && !scripted) say(E.t(g.t.locked ? 'crawler3d.say.gate_locked' : 'crawler3d.say.gate_stuck')); return false; }
+    if (!open(x, y) || foeAt(x, y)) { S.bump = .001; A.sfx('thud'); buzz(.15, .05); const g = gateAt(x, y); if (g && !g.up && !scripted) say(E.t(g.t.locked ? 'crawler3d.say.gate_locked' : 'crawler3d.say.gate_stuck')); return false; }
     S.from = [S.x, S.y, S.yaw, 1]; S.cx = x; S.cy = y; S.t = 0; S.dur = STEP_T; A.sfx('step'); return true;
   }
   function turnBy(s) { S.from = [S.x, S.y, S.yaw, 0]; S.dir = (S.dir + s + 4) % 4; S.t = 0; S.dur = TURN_T; A.sfx('turn'); return true; }
@@ -205,7 +226,7 @@ const CRAWLER = (() => {
     look(); const k = S.cx + ',' + S.cy, pl = plates[k];
     if (pl && !pl.t.on) {
       pl.t.on = true; A.sfx('plate');
-      if (pl.trap) { A.sfx('dart'); say(E.t('crawler3d.say.darts')); for (const m of alive().filter(m => m.front)) hurtMember(m, 4 + ((rnd() * 4) | 0)); }
+      if (pl.trap) { A.sfx('dart'); buzz(.3, .15); say(E.t('crawler3d.say.darts')); for (const m of alive().filter(m => m.front)) hurtMember(m, 4 + ((rnd() * 4) | 0)); }
       else { raise(gates[pl.gate]); say(E.t('crawler3d.say.grinding'), 2.6); }
     }
     for (const it of items.slice()) if (it.cx === S.cx && it.cy === S.cy) {
@@ -214,12 +235,12 @@ const CRAWLER = (() => {
     }
     if (stair && S.cx === stair.cx && S.cy === stair.cy) { if (stair.t.on) win(); else if (!scripted) say(E.t('crawler3d.say.stair_sealed')); }
   }
-  function raise(g) { if (!g || g.up) return; g.up = true; g.t.locked = null; A.sfx('gate'); }
+  function raise(g) { if (!g || g.up) return; g.up = true; g.t.locked = null; sfx('gate'); buzz(.15, .9); }
   /** J at what is in front: a lever on this wall, a locked gate; true when it used something */
   function use() {
     const fx = S.cx + DX[S.dir], fy = S.cy + DY[S.dir];
     const lv = levers.find(l => l.cx === S.cx && l.cy === S.cy && l.dir === S.dir);
-    if (lv) { lv.t.on = !lv.t.on; A.sfx('lever'); if (lv.t.on) { raise(gates[lv.gate]); say(E.t('crawler3d.say.lever')); } return true; }
+    if (lv) { lv.t.on = !lv.t.on; sfx('lever'); if (lv.t.on) { raise(gates[lv.gate]); say(E.t('crawler3d.say.lever')); } return true; }
     const g = gateAt(fx, fy);
     if (g && !g.up && g.t.locked) {
       const r = world.unlock(g.t, { has: k => keys.has(k), remove: k => keys.delete(k) });
@@ -274,12 +295,12 @@ const CRAWLER = (() => {
     P.sparks(e.x, e.y, (e.z || 0) + 14, 6, Math.atan2(S.y - e.y, S.x - e.x)); P.text(e.x, e.y, (e.z || 0) + 30, dmg, '#fff2c4'); A.sfx('hit');
     if (e.hp <= 0) {
       e.alive = false; e.setSolid(false); turns.remove(e); A.sfx(e.type === 'warden' ? 'roar' : 'die');
-      if (e.type === 'warden') { stair.t.on = true; say(E.t('crawler3d.say.warden_falls'), 3.2); song = null; }
+      if (e.type === 'warden') { stair.t.on = true; say(E.t('crawler3d.say.warden_falls'), 3.2); song = null; buzz(.8, .5); }
     }
   }
   function hurtMember(m, dmg) {
     if (m.hp <= 0) return;
-    m.hp = Math.max(0, m.hp - dmg); m.hurtT = .5; game.shake(2); A.sfx('hurt');
+    m.hp = Math.max(0, m.hp - dmg); m.hurtT = .5; game.shake(2); A.sfx('hurt'); buzz(.3, .1);
     if (m.hp <= 0) { say(E.t('crawler3d.say.falls', { name: m.name }), 2); turns.remove(m); }
   }
   /** a monster's blow lands: the front rank takes what comes from ahead or the sides, the back rank what comes from behind */
@@ -288,7 +309,7 @@ const CRAWLER = (() => {
     let pool = alive().filter(m => m.front === (rel !== 2)); if (!pool.length) pool = alive(); if (!pool.length) return;
     const hits = e.type === 'warden' && e.blows % 3 === 2 ? pool : [pool[(rnd() * pool.length) | 0]];   // the Warden's sweep, every third blow
     for (const m of hits) hurtMember(m, roll(e.k.dmg));
-    if (hits.length > 1) { game.shake(5); say(E.t('crawler3d.say.sweep'), 1.6); }
+    if (hits.length > 1) { game.shake(5); say(E.t('crawler3d.say.sweep'), 1.6); buzz(.6, .3); }
     e.blows++;
   }
   /** a monster's turn: strike when beside the party, else close in by the grid's path (awake ones only) */
@@ -349,6 +370,9 @@ const CRAWLER = (() => {
     else {
       if (S.bump > 0) { S.bump += dt * 6; if (S.bump >= 1) S.bump = 0; }
       place(1);
+      // the touch assists (ctl.assist: a proof's and the bot's controls have none): in real time the front rank strikes by
+      // itself at a foe in front as each one's gauge fills, so the other thumb is free for the bolt and the heal
+      if (ctl.assist && mode === 'real' && !dead && !ended && ahead()) { if (!act(party[0])) act(party[1]); }
       if (!dead && !ended && (mode === 'real' || phase === 'party')) control(ctl);
     }
     boltStep(dt);
@@ -367,7 +391,7 @@ const CRAWLER = (() => {
     if (dead && !ended) { ended = 2; if (!scripted) game.after(1.5, () => game.go('over', { from: 'crawler', world, lines: E.t('crawler3d.over.lost').split('\n') })); }   // (one sentence, a row a line)
     world.step(dt);
   }
-  /** the controls when the party may act: the stick or keys to step and turn, Q and E aside, J, K, H, 1 to 4 */
+  /** the controls when the party may act: the stick or keys to step and turn (Q and E turn), A and D (L1, R1) aside, J, K, H, 1 to 4 (L2, R2 on a pad) */
   function control(c) {
     const mv = c.move, turnsMode = mode === 'turns';
     let did = false;
@@ -396,32 +420,52 @@ const CRAWLER = (() => {
     return [x0 + col * (cw + 2), top ? y0 + row * (ch + 2) : r.H - (four ? 1 : 2) * (ch + 2) - 2 + row * (ch + 2), cw, ch];
   };
   const below = r => touch() ? card(r, 3)[1] + 42 : 4;   // where the compass and the little map go: under the cards on a touch screen
+  const ROLE = ['fight', 'fight', 'heal', 'bolt'];   // (what each one's act is: crawler3d.card.<role>, over its card under the mouse)
+  /** the card under the mouse (or -1): it shows what a click there does */
+  const hoverCard = r => { const I = game.input, p = I.mouse.active && (I.lastDevice === 'mouse' || I.lastDevice === 'keyboard') && I.pointer(); return p ? I.hit([0, 1, 2, 3].map(k => card(r, k)), p) : -1; };
   function hud(g, r) {
+    const lh = E.font.lineHeight(), dev = game.input.lastDevice, hov = hoverCard(r);
     // a blow's streak across the view
     if (slashT > 0) { g.save(); g.globalAlpha = slashT / .16; g.strokeStyle = '#fff6e0'; g.lineWidth = 2; g.beginPath(); g.moveTo(r.W * .7, r.H * .28); g.lineTo(r.W * .3, r.H * .62); g.stroke(); g.restore(); }
+    // the cards (the normal font: read from a sofa): each one's key or button that makes them act (on a pad the shoulder or
+    // face button that is theirs; none on a touch screen, where a tap on the card acts), name, life, magic, gauge
     for (let i = 0; i < 4; i++) {
       const m = party[i], [x, y, w, h] = card(r, i), ko = m.hp <= 0, ready = mode === 'real' ? m._turn >= 100 : phase === 'party';
-      E.ui.box(g, x, y, w, h, { bg: m.hurtT > 0 ? '#5a1a1e' : m.flash > 0 ? '#1e4a2e' : '#1a1626', border: ready && !ko ? '#d8c890' : '#6a6080', alpha: .9 });
+      E.ui.box(g, x, y, w, h, { bg: m.hurtT > 0 ? '#5a1a1e' : m.flash > 0 ? '#1e4a2e' : '#1a1626', border: hov === i ? '#ffe08a' : ready && !ko ? '#d8c890' : '#6a6080', alpha: .9 });
       m.rig.drawPortrait(g, x + 3, y + 3, 26, { zoom: 2.4, turn: .4, bg: '#2a2438', tint: ko ? '#707070' : undefined });
-      E.font.text(g, E.t('crawler3d.card', { n: String(i + 1), name: m.name }), x + 32, y + 3, ko ? '#8a8090' : '#f0e8d8', { font: 'tiny', outline: false });
+      const key = dev === 'touch' ? '' : game.input.label(dev === 'gamepad' ? ['m1', 'm2', 'heal', 'spell'][i] : 'm' + (i + 1));
+      E.font.text(g, E.t('crawler3d.card', { n: key, name: m.name }).trim(), x + 32, y + 3, ko ? '#8a8090' : '#f0e8d8', { outline: false });
       E.ui.bar(g, x + 32, y + 12, w - 36, 5, m.hp / m.max, '#e0463c');
       if (m.mpMax) E.ui.bar(g, x + 32, y + 19, w - 36, 4, m.mp / m.mpMax, '#4a8aff');
-      if (mode === 'real' && !ko) E.ui.bar(g, x + 32, y + h - 9, w - 36, 3, Math.min(1, m._turn / 100), ready ? '#ffd36a' : '#8a7a4a');
-      E.font.text(g, ko ? E.t('crawler3d.down') : m.hp + '/' + m.max, x + 32, y + 26, ko ? '#c84a4a' : '#c8c0b0', { font: 'tiny', outline: false });
+      if (mode === 'real' && !ko) E.ui.bar(g, x + 32, y + h - 4, w - 36, 3, Math.min(1, m._turn / 100), ready ? '#ffd36a' : '#8a7a4a');
+      E.font.text(g, ko ? E.t('crawler3d.down') : m.hp + '/' + m.max, x + 32, y + 25, ko ? '#c84a4a' : '#c8c0b0', { outline: false });
+      if (hov === i && !ko) E.font.text(g, E.t('crawler3d.card.' + ROLE[i]), x + w / 2, y - lh - 1, '#ffe08a', { align: 'center', outline: '#000' });
     }
     // the compass, the mode, the message
-    const cx = Math.round(r.W / 2), ty = below(r);
-    E.ui.box(g, cx - 26, ty, 52, 14, { bg: '#1a1626', border: '#6a6080', alpha: .85 });
-    E.font.text(g, WAYS[(S.dir + 3) % 4] + '   ' + WAYS[S.dir] + '   ' + WAYS[(S.dir + 1) % 4], cx, ty + 4, '#d8c890', { align: 'center', font: 'tiny', outline: false });
-    E.font.text(g, E.t(mode === 'turns' ? (phase === 'party' ? 'crawler3d.turn.yours' : 'crawler3d.turn.theirs') : 'crawler3d.turn.real'), 4, ty + 4, mode === 'turns' && phase !== 'party' ? '#e8a060' : '#9a90b0', { font: 'tiny', outline: '#000' });
-    if (msg) E.font.text(g, msg.text, cx, touch() ? r.H * .62 : card(r, 0)[1] - 12, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+    const cx = Math.round(r.W / 2), ty = below(r), way = WAYS[(S.dir + 3) % 4] + '   ' + WAYS[S.dir] + '   ' + WAYS[(S.dir + 1) % 4], ww = E.font.width(way) + 14;
+    E.ui.box(g, Math.round(cx - ww / 2), ty, ww, lh + 6, { bg: '#1a1626', border: '#6a6080', alpha: .85 });
+    E.font.text(g, way, cx, ty + 4, '#d8c890', { align: 'center', outline: false });
+    E.font.text(g, E.t(mode === 'turns' ? (phase === 'party' ? 'crawler3d.turn.yours' : 'crawler3d.turn.theirs') : 'crawler3d.turn.real'), 4, ty + 4, mode === 'turns' && phase !== 'party' ? '#e8a060' : '#9a90b0', { outline: '#000' });
+    const my = touch() ? r.H * .62 : card(r, 0)[1] - 6 - lh;
+    if (msg) E.font.text(g, msg.text, cx, my, '#ffe7a8', { align: 'center', shadow: '#000', outline: false, wrap: r.W - 16 });
+    // the controls for the first seconds (and in the Warden's hall), in the player's own keys or buttons (on a touch
+    // screen its buttons and the swipes do it), over the cards; a swipe takes them away
+    if (hintT > 0 && !touch() && !showMap) {
+      const I = game.input, sl = a => I.label(a, dev, { short: true }), L = []; let row = '';
+      const parts = E.t('crawler3d.hint', { up: sl('up'), turn: sl('left') + ' ' + sl('right'), side: sl('strafeL') + ' ' + sl('strafeR'), act: sl('act'), map: sl('map') }).split(/\s{2,}/);
+      for (const p of parts) { const t = row ? row + '   ' + p : p; if (row && E.font.width(t) > r.W - 12) { L.push(row); row = p; } else row = t; } if (row) L.push(row);
+      const y0 = Math.round((msg ? my - 6 : card(r, 0)[1] - 6) - L.length * lh);
+      g.save(); g.globalAlpha = .5 * clamp(hintT, 0, 1); g.fillStyle = '#05030c'; g.fillRect(0, y0 - 3, r.W, L.length * lh + 4); g.restore(); g._c = null;
+      L.forEach((t, k) => E.font.text(g, t, cx, y0 + k * lh, '#f0e8d8', { align: 'center', outline: '#000' }));
+    }
     automap(g, r, showMap);
   }
   /** the map from the fog: what the party has seen (walls beside it), gates, plates, the stair, the party's arrow */
   function automap(g, r, big) {
     const s = big ? Math.max(4, Math.min(10, Math.floor(Math.min(r.W - 20, r.H - 60) / MW))) : 3, w = MW * s, h = MH * s;
     const x0 = big ? Math.round((r.W - w) / 2) : r.W - w - 4, y0 = big ? Math.round((r.H - h) / 2) : below(r);
-    E.ui.box(g, x0 - 2, y0 - 2, w + 4, h + 4, { bg: '#0c0a12', border: '#6a6080', alpha: big ? .95 : .75 });
+    const I = game.input, hov = !big && I.mouse.active && (I.lastDevice === 'mouse' || I.lastDevice === 'keyboard') && I.hit([[x0 - 2, y0 - 2, w + 4, h + 4]]) === 0;   // (the mouse over the little map: a click opens the big one)
+    E.ui.box(g, x0 - 2, y0 - 2, w + 4, h + 4, { bg: '#0c0a12', border: hov ? '#ffe08a' : '#6a6080', alpha: big ? .95 : .75 });
     const seenNear = (x, y) => [0, 1, 2, 3].some(d => fog.seen([x + DX[d], y + DY[d]]) && !wallCell(x + DX[d], y + DY[d]));
     for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
       const wall = wallCell(x, y); if (wall ? !seenNear(x, y) : !fog.seen([x, y])) continue;
@@ -433,26 +477,36 @@ const CRAWLER = (() => {
     // the party: a dot and the way it faces
     const px = x0 + S.cx * s + s / 2, py = y0 + S.cy * s + s / 2;
     g.fillStyle = '#ffe08a'; g.fillRect(Math.round(px - 1), Math.round(py - 1), 2, 2); g.fillRect(Math.round(px + DX[S.dir] * s * .45 - .5), Math.round(py + DY[S.dir] * s * .45 - .5), 1, 1);
-    if (big) E.font.text(g, E.t('crawler3d.map.title', { key: keys.has('iron') ? E.t('crawler3d.map.key') : '' }), r.W / 2, y0 - 12, '#d8c890', { align: 'center', font: 'tiny', outline: '#000' });
+    if (big) E.font.text(g, E.t('crawler3d.map.title', { key: keys.has('iron') ? E.t('crawler3d.map.key') : '' }), r.W / 2, y0 - 6 - E.font.lineHeight(), '#d8c890', { align: 'center', outline: '#000' });
   }
 
   /* ---- THE CONTROLS: keys, touch, and clicks on the cards and the map ---- */
-  const KEYS = { up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
-    strafeL: ['KeyQ', 'Pad4'], strafeR: ['KeyE', 'Pad5'], act: ['KeyJ', 'Space', 'Pad0'], spell: ['KeyK', 'Pad2'], heal: ['KeyH', 'Pad3'], map: ['Tab', 'Pad8'],
-    m1: ['Digit1'], m2: ['Digit2'], m3: ['Digit3'], m4: ['Digit4'],
+  // (Legend of Grimrock's keys, a modern PC crawler's: A and D step aside, Q and E turn, the arrows step and turn; M or
+  // Tab the map (the shell's M mute stands aside); on a pad L2 and R2 are Bram's and Tesk's, as △ and □ are Maren's and
+  // Quill's, and the touchpad opens the map as Create does)
+  const KEYS = { up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyQ', 'ArrowLeft', 'Pad14'], right: ['KeyE', 'ArrowRight', 'Pad15'],
+    strafeL: ['KeyA', 'Pad4'], strafeR: ['KeyD', 'Pad5'], act: ['KeyJ', 'Space', 'Pad0'], spell: ['KeyK', 'Pad2'], heal: ['KeyH', 'Pad3'], map: ['KeyM', 'Tab', 'Pad8', 'Pad17'],
+    m1: ['Digit1', 'Pad6'], m2: ['Digit2', 'Pad7'], m3: ['Digit3'], m4: ['Digit4'],
     start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
   const TOUCH = ['map', 'heal', 'spell', 'act'], TOUCH_LABELS = { map: E.lang.upper(E.t('engine.action.map')), heal: E.lang.upper(E.t('action.heal')), spell: E.t('crawler3d.touch.spell'), act: E.lang.upper(E.t('action.act')) };
   const SETTING = { key: 'crawlTurns', label: E.t('crawler3d.setting.turns'), group: 'Game', type: 'select', value: 'real', options: [['real', E.t('crawler3d.setting.turns.real')], ['turns', E.t('crawler3d.setting.turns.turns')]],
-    help: E.t('crawler3d.setting.turns.help') };
-  const ctl = { move: [0, 0], down: a => game.input.down(a), pressed: a => game.input.pressed(a), use: a => game.input.consume(a) };
+    help: E.t('crawler3d.setting.turns.help'), show: g => g.sceneName === 'crawler' };
+  // (assist: the touch assists, from the player's input: a proof's and the bot's own controls have none)
+  const ctl = { move: [0, 0], assist: false, down: a => game.input.down(a), pressed: a => game.input.pressed(a), use: a => game.input.consume(a) };
   function controls() {
-    const m = game.input.move(); ctl.move[0] = m[0]; ctl.move[1] = m[1];
-    const tap = game.input.clicked();
+    const I = game.input, m = I.move(), r = game.r || { W: game.W, H: game.H }, may = mode === 'real' || phase === 'party'; ctl.move[0] = m[0]; ctl.move[1] = m[1]; ctl.assist = I.assist;
+    // a touch screen's swipe on the view: up a step forward, down one back, left and right a quarter turn (and the message
+    // goes); one made while a step tweens waits for it (half a second at most)
+    const sw = touch() && !showMap ? I.swipe(true) : null; if (sw) { swipeQ = { dir: sw.dir, t: world.time }; msg = null; }
+    if (swipeQ && world.time - swipeQ.t > .5) swipeQ = null;
+    if (swipeQ && may && !busy() && S.bump === 0) { const d = swipeQ.dir; swipeQ = null; if (d === 'up' || d === 'down') ctl.move[1] = d === 'up' ? -1 : 1; else ctl.move[0] = d === 'left' ? -1 : 1; }
+    const tap = I.clicked();
+    if (tap && showMap) { showMap = false; return ctl; }   // (the big map open: a click or a tap anywhere closes it)
     if (tap) {   // a portrait acts; the little map opens the big one; the view uses what is in front, or fights
-      const r = game.r || { W: game.W, H: game.H }, i = [0, 1, 2, 3].find(k => { const [x, y, w, h] = card(r, k); return tap[0] >= x && tap[0] < x + w && tap[1] >= y && tap[1] < y + h; });
-      if (i !== undefined) { if ((mode === 'real' || phase === 'party') && act(party[i]) && mode === 'turns') phase = 'world'; }
+      const i = I.hit([0, 1, 2, 3].map(k => card(r, k)), tap);
+      if (i >= 0) { if (may && act(party[i]) && mode === 'turns') phase = 'world'; }
       else if (tap[0] > r.W - MW * 3 - 8 && tap[1] >= below(r) - 2 && tap[1] < below(r) + MH * 3 + 6) showMap = !showMap;
-      else if (!touch()) { const t = { pressed: a => a === 'act', use() {}, down: () => false, move: [0, 0] }; if (mode === 'real' || phase === 'party') control(t); }
+      else if (!touch() || (I.stickSide === 'left' ? tap[0] > r.W / 2 : tap[0] < r.W / 2)) { const t = { pressed: a => a === 'act', use() {}, down: () => false, move: [0, 0] }; if (may) control(t); }   // (on a touch screen, a tap on the half away from the stick)
     }
     return ctl;
   }
@@ -541,16 +595,30 @@ const CRAWLER = (() => {
 
   return {
     view: 'iso', input: KEYS, pausable: true, touch: TOUCH,
+    // (Esc, as a phone's back gesture: the big map closes, else the pause)
+    escape: 'back',
+    back() { if (!showMap) return false; showMap = false; game.input.consumeAll(); return true; },
     enter(d) {
+      ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hintT = 8; swipeQ = null;
       game.settings.define(SETTING); reset(1); active = world; game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
       if (d && d.part === 'warden') { for (const k of ['10,9', '17,7', '17,4']) { raise(gates[k]); gates[k].t.open = 1; world.setSolid(gates[k].t, false); } S.cx = 17; S.cy = 5; S.dir = 0; plates['17,5'].t.on = true; place(1); look(); }
       say(E.t(d && d.part === 'warden' ? 'crawler3d.say.warden_hall' : 'crawler3d.say.intro'), 3.5);
     },
+    exit() { if (ds) ds.clear(); },   // (the DualSense clean for the next scene)
     update(dt) {
-      if (game.input.pressed('map')) { game.input.consume('map'); showMap = !showMap; }
-      step(dt, controls());
+      const inp = game.input; hintT -= dt;
+      if (inp.pressed('map')) { inp.consume('map'); showMap = !showMap; }
+      else if (showMap && (inp.pressed('cancel') || inp.swipe(true))) { inp.consume('cancel'); showMap = false; }   // (○, Backspace or a swipe closes the big map)
+      if (hintT > 0 && !touch() && inp.swipe(true)) hintT = 0;
+      const wasY = S.cy, wasX = S.cx;
+      step(dt, controls()); padExtras();
+      if ((S.cx !== wasX || S.cy !== wasY) && S.cx === 17 && S.cy === 5 && hintT < 0) hintT = 6;   // (the controls again at the Warden's door)
       const want = foes.some(e => e.type === 'warden' && e.awake && e.hp > 0) ? FIGHT : VAULT;
       if (want !== song && !ended) { song = want; A.music(want); }
+      // ACT named for what it does in front (PULL, UNLOCK, FIGHT); MAP, HEAL and BOLT stay in their places (one that came
+      // and went would slide another under the thumb: a heal or the map in a fight)
+      const fx = S.cx + DX[S.dir], fy = S.cy + DY[S.dir], g = gateAt(fx, fy), what = levers.some(l => l.cx === S.cx && l.cy === S.cy && l.dir === S.dir) ? 'pull' : g && !g.up && g.t.locked ? 'unlock' : ahead() ? 'fight' : null;
+      inp.touchSet('act', what ? E.t('crawler3d.touch.' + what) : null, true);
     },
     draw(r) {
       world.draw(r);
