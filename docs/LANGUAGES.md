@@ -18,7 +18,8 @@ is how a game uses it. The engine's side is section 6b of `engine/my-3d2dge.js` 
    formatted in the player's language (12,500 / 12.500). `{count}` picks plural forms:
    `{ "zero": "No lives left", "one": "{count} life left", "other": "{count} lives left" }`. A key or button is a
    control tag, `{key:jump}` (the key, pad symbol or touch label that does it on the device in use): never write
-   "Press Z". A line that changes with the device gets one per device (`help.jump.keys`, `help.jump.touch`).
+   "Press Z". A line that changes with the device gets one per device (`help.jump.keys`, `help.jump.touch`). A dialog
+   line given to E.Dialog as a function (`() => E.t('elder.1')`) is filled again when the device changes while it shows.
 3. **Text as text.** `E.font.text`, `r.text`, `E.ui`, `E.Dialog` and `E.Shell` draw a letter their glyphs lack with the
    device's font (Chinese, Hindi, Arabic: a run at a time, so letters join). Words painted into art can't be translated:
    draw the ones players need over it.

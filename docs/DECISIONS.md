@@ -1924,3 +1924,23 @@ An entry:
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
 
+## D110 · 2026-11-17 · No Ctrl beside WASD: crouch is C alone; the RTS keeps Ctrl and a digit, and asks before the page goes
+
+- **Principle:** the controls standard (D100): the keys PC players expect for the genre, and docs/CONTROLS.md's own
+  "never Ctrl beside WASD": the browser closes the tab on Ctrl+W (⌘W on a Mac) before the page hears it, and no
+  `preventDefault` stops it outside a keyboard-locked full screen
+- **Call:**
+  - `E.Input.THIRDPERSON` crouches on C (and the pad's ○) only: Ctrl is gone from it, so the stealth kit's crouch is C.
+    Held out of habit and followed by W, it closed the tab and lost the run.
+  - The RTS keeps Ctrl and a digit for its groups (the genre's own key, StarCraft's and Warcraft's), and while the
+    player's match runs on a page of its own, leaving the page asks first (`beforeunload`): a stray Ctrl+W asks
+    "Leave site?" rather than closing it. Inside 52in1 it doesn't ask: the hub's frame shows no browser dialogs
+    (`lib/hub/catalogue.md`), so there Ctrl+W is the hub's to guard. Not on the title or after the match, nor for the
+    kit's own bot.
+  - Rule 1 of docs/CONTROLS.md now says it for every genre, not only racing; standard-test holds that no input preset
+    with WASD binds Ctrl or ⌘.
+- **Why:** a closed tab is a lost game with no warning. Moving the RTS's groups off Ctrl would break what every PC
+  RTS player's hands know, so the guard protects them instead; crouch has C, the genre's other key.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** the next version
+

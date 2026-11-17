@@ -72,9 +72,10 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
  *    E.Mover on a TileMap of roofs climbs, vaults and leaps; E.ACTIONS, and E.sees / E.Suspicion for guards (17b-17d).
  * 8. SOUND, TEXT, MENUS. game.audio.sfx('jump'), game.audio.music(song);
  *    E.font.text(...) (5x7 proportional font), E.font.title(...), E.ui.box/bar/hearts,
- *    new E.Dialog(game) (markup: {c=#hex}, {w=.5}, {s=12}, {shake}, {wave}, {$name}), new E.Menu(game, items). An HTML
- *    interface (title, pause, settings, help, results, map screens and a HUD with a minimap) from data: new E.Shell(game,
- *    {...}) (21d). Save slots: game.saves (10k).
+ *    new E.Dialog(game) (markup: {c=#hex}, {w=.5}, {s=12}, {shake}, {wave}, {$name}, {key:jump}; a line may be a function,
+ *    called again for a new device), new E.Menu(game, items) (by touch, their rows a thumb's size). An HTML interface
+ *    (title, pause, settings, help, results, map screens and a HUD with a minimap) from data: new E.Shell(game, {...})
+ *    (21d). Save slots: game.saves (10k).
  * 8c. LANGUAGES (AI Hub Languages v1; docs/LANGUAGES.md, 6b). Every word a player reads is a line: the page's
  *    <script type="application/json" id="game-lines"> block, shown with E.t('hud.lives', { count }) (whole sentences with
  *    {blanks}, plural forms by {count}, {key:jump} for the player's key). A translation step adds a game-translations
@@ -1544,11 +1545,11 @@ Input.PLATFORMER = {
   skill: ['KeyE', 'KeyV', 'Mouse2', 'Pad3'], ...MENU_KEYS
 };
 /** third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour,
- *  C crouch (a toggle), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact,
- *  LB block, RB dodge, LT use, RT or L3 sprint, Back map */
+ *  C crouch (a toggle; never Ctrl beside WASD, where Ctrl+W closes the tab: D110), E interact, J attack, K block, L dodge,
+ *  Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map */
 Input.THIRDPERSON = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
-  sprint: ['ShiftLeft', 'ShiftRight', 'Pad7', 'Pad10'], jump: ['Space', 'Pad0'], crouch: ['KeyC', 'ControlLeft', 'Pad1'], interact: ['KeyE', 'KeyF', 'Pad3'],
+  sprint: ['ShiftLeft', 'ShiftRight', 'Pad7', 'Pad10'], jump: ['Space', 'Pad0'], crouch: ['KeyC', 'Pad1'], interact: ['KeyE', 'KeyF', 'Pad3'],
   attack: ['KeyJ', 'Mouse0', 'Pad2'], block: ['KeyK', 'Mouse2', 'Pad4'], dodge: ['KeyL', 'Pad5'], use: ['KeyQ', 'Pad6'], map: ['KeyM', 'Tab', 'Pad8'], ...MENU_KEYS
 };
 /** shoot-'em-ups (1942, Gradius): Space / Z / J fire (hold for autofire), X / K bomb */
@@ -8403,7 +8404,8 @@ class ChipAudio {
       this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
       this._musBus = c.createGain(); this._musBus.connect(this._master);
       this._voiceBus = c.createGain(); this._voiceBus.connect(this._master);   // (bus('voice'): a game's babble or speech)
-      this.applyVolume();
+      this.applyVolume(); const hub = window.AIHubSettings;
+      if (hub && hub.addEventListener) hub.addEventListener('change', () => this.applyVolume(), { signal: this._signal });   // (inside 52in1: its Music and Sound effects, as the player changes them)
       const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this._rnd() * 2 - 1;
       this._noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
@@ -8414,8 +8416,13 @@ class ChipAudio {
   }
   /** true once the browser lets the game make sound */
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
-  /** apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it) */
-  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); this._voiceBus.gain.value = this.voiceVolume; }
+  /** apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it). Inside 52in1
+   *  (window.AIHubSettings) the music is also times its Music volume and every other sound its Sound effects volume, again
+   *  on its change event; the hub applies its master volume itself */
+  applyVolume() {
+    if (!this.ctx) return; const hub = typeof window !== 'undefined' && window.AIHubSettings, of = k => hub && Number.isFinite(hub[k]) ? clamp(hub[k], 0, 1) : 1, fx = of('effects');   // (52in1's Music and Sound effects, times the game's own: CONTROLS.md)
+    this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume * fx; this._musBus.gain.value = this.musicVolume * of('music') * (this._ducked || this.ducked ? .35 : 1); this._voiceBus.gain.value = this.voiceVolume * fx;
+  }
   /** a bus for a sound of the game's own (Web Audio nodes it makes on audio.ctx: a babble voice, a loop, an instrument)
    *  to connect to, so it follows the volume, the mute and the player's settings: 'sfx', 'music', 'voice' (its level is
    *  voiceVolume) or 'master'. Returns a GainNode, or null where there is no sound (headless, no Web Audio) */
@@ -9720,9 +9727,14 @@ E.ui = {
  * confirm (Enter, Space, J, Z, pad A), or a click or tap on the box, finishes the line, then turns the page.
  * Markup in the text: {c=#ffd36a}gold{/c} a color, {w=.5} a pause of half a second, {s=12}slowly{/s} letters a
  * second, {shake}..{/shake} and {wave}..{/wave} letters that tremble or bob, {$name} a value from say's vars or the
- * box's (talk.vars = { name: 'ROWAN' }). Text without markup types and draws as it always has.
+ * box's (talk.vars = { name: 'ROWAN' }). Text without markup types and draws as it always has. {key:action} is the
+ * player's key or button for it; a line may be a function (() => E.t('elder.1')), called again when the player picks up
+ * another device, so the key in it follows (a {key:} in the text itself does). By touch the choices are a thumb's size.
  */
 const MARKUP = /\{(\/?)(c|s|w|shake|wave)(?:=([^}]*))?\}/g;
+/* a thumb's size in screen pixels (44 CSS px) while the player plays by touch on a real screen, else 0: E.Menu's rows and
+   E.Dialog's choices grow to it, so a pad, keys and a mouse see them as they always were (CONTROLS.md rule 7) */
+const thumbPx = (game, I = game.input) => { const S = game.screen; return I && I.lastDevice === 'touch' && S && S.canvas ? Math.ceil(44 * S.dpr / S.S) : 0; };
 /* the markup in a dialog's text read: { text (the letters alone), fx: each letter's look ({ c, s, shake, wave }, shared
    along a run), wait: { letter's index: seconds before it } }, or null for text with none */
 function markup(s, vars) {
@@ -9767,9 +9779,15 @@ class Dialog {
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
   /** where choice i is on the screen while the choices show: [x, y] (its middle, for a test's tap), else null */
-  choiceAt(i) { if (!this.open || !this.choices || this.typing || this.i < this.pages.length - 1 || !this.choices[i]) return null; const d = this._dims(), b = this._cbox(d); return [Math.round(b.x + b.w / 2), Math.round(b.y + 3 + (i + .5) * d.lh)]; }
-  // the choices' box, over the box's right end
-  _cbox(d) { const w = Math.max(...this.choices.map(c => E.font.width(c))) + 20, h = this.choices.length * d.lh + 7; return { x: d.x + d.w - w - 2, y: d.y - h - 2, w, h }; }
+  choiceAt(i) { if (!this.open || !this.choices || this.typing || this.i < this.pages.length - 1 || !this.choices[i]) return null; const d = this._dims(), b = this._cbox(d); return [Math.round(b.x + b.w / 2), Math.round(b.y + 3 + (i + .5) * b.rh)]; }
+  // the choices' box, over the box's right end: rows (rh) a thumb's size by touch, as the box was last drawn (a tap after
+  // another device's lands on what was shown), the text in their middle (pad)
+  _cbox(d, th = this._dth !== undefined ? this._dth : thumbPx(this.game)) {
+    const rh = Math.max(d.lh, th), w = Math.max(Math.max(...this.choices.map(c => E.font.width(c))) + 20, th && th + 4), h = this.choices.length * rh + 7;
+    return { x: d.x + d.w - w - 2, y: th ? Math.max(2, d.y - h - 2) : d.y - h - 2, w, h, rh, pad: (rh - d.lh) >> 1 };
+  }
+  // the device a {key:action} shows a key for: its pages are built again when it changes
+  _devKey() { const I = this.game.input; return I.lastDevice + (I.lastDevice === 'gamepad' ? I.padStyle() : ''); }
   _dims() {
     const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, this.width || 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
     const pl = this._place || this.place; let x = Math.round((W - w) / 2), y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
@@ -9793,10 +9811,22 @@ class Dialog {
      *  in pixels; pOpts: its options ({ zoom, turn, bg }) */
     this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {}; this._voice = o.voice;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
-    const d = this._dims(), pages = [], fxs = [], rates = [];
-    for (const t of Array.isArray(text) ? text : [text]) {
-      const mk = markup(String(t), o.vars ? Object.assign({}, this.vars, o.vars) : this.vars), L = E.font.wrap(mk ? mk.text : String(t), d.w - d.tx - 5);
-      const src = E.lang.sourceLength(String(t)), rate = src ? clamp((mk ? mk.text : String(t)).length / src, .25, 4) : 1;   // (a translated line types over the original's time)
+    this._src = text; this._sv = o.vars; this._dth = undefined; this._build();   // (what it was given, kept: the pages are built again for a new device)
+    this.i = 0; this.shown = 0; this.open = true; this.choice = 0; this._syl = 0; this._rest = 0; this._hold = 0; this._held = -1;
+    /** name: the speaker's name shown on the box; onDone: called when the last page closes; choices: the answers
+     *  offered on the last page, or null; onChoice: called with the index picked */
+    this.name = o.name || null; this.onDone = o.onDone || null; this.choices = o.choices || null; this.onChoice = o.onChoice || null; this._blip = 0; this._mt = this.game.input.mouse.t;
+    this.auto = o.auto || 0; this.modal = o.modal !== false; this._wait = 0;   // auto: seconds each page stays after typing; modal: false lets play go on (radio chatter)
+    return this;
+  }
+  // the pages from what say() was given (a line that is a function called now), wrapped to the box: their keys ({key:}) are
+  // the device's in use, remembered (_dev) where a line has one or is a function, so update() builds them again for another
+  _build() {
+    let live = false; const d = this._dims(), pages = [], fxs = [], rates = [], lines = [], fn = v => typeof v === 'function' ? (live = true, v()) : v;
+    for (const t of [].concat(fn(this._src))) for (const s of [].concat(fn(t))) { lines.push(String(s)); if (/\{key:/.test(s)) live = true; }
+    for (const t of lines) {
+      const mk = markup(t, this._sv ? Object.assign({}, this.vars, this._sv) : this.vars), L = E.font.wrap(mk ? mk.text : t, d.w - d.tx - 5);
+      const src = E.lang.sourceLength(t), rate = src ? clamp((mk ? mk.text : t).length / src, .25, 4) : 1;   // (a translated line types over the original's time)
       let at = 0; const pos = mk && L.map(line => Array.from(line, ch => {   // each letter's place in the text (wrapping drops the spaces it breaks at: their pauses go to the next letter)
         let w = 0; while (at < mk.text.length && mk.text[at] !== ch) w += mk.wait[at++] || 0;
         const q = at++; return { f: mk.fx[q], w: w + (mk.wait[q] || 0) };
@@ -9807,15 +9837,10 @@ class Dialog {
         fxs.push(ps && { fx: ps.map(e => e.f), wait: ps.map(e => e.w) });
       }
     }
-    this.pages = pages.length ? pages : [['']]; this.i = 0; this.shown = 0; this.open = true; this.choice = 0;
+    this.pages = pages.length ? pages : [['']]; this._dev = live ? this._devKey() : null;
     this._rates = rates; this._stops = this.pages.map(pg => { let at = 0; const st = new Set([0]); for (const line of pg) for (const p of E.lang.pieces(line)) st.add(at += p.length); return st; });   // (where whole letters end: typing stops only there)
-    this._plain = this.pages.map(pg => E.font.covers(pg.join(' '))); this._syl = 0; this._rest = 0;   // (the device's letters chirp by syllable)
-    this._fx = fxs.some(Boolean) ? fxs : null; this._hold = 0; this._held = -1;   // (the markup's looks and pauses per page letter; the pause running)
-    /** name: the speaker's name shown on the box; onDone: called when the last page closes; choices: the answers
-     *  offered on the last page, or null; onChoice: called with the index picked */
-    this.name = o.name || null; this.onDone = o.onDone || null; this.choices = o.choices || null; this.onChoice = o.onChoice || null; this._blip = 0; this._mt = this.game.input.mouse.t;
-    this.auto = o.auto || 0; this.modal = o.modal !== false; this._wait = 0;   // auto: seconds each page stays after typing; modal: false lets play go on (radio chatter)
-    return this;
+    this._plain = this.pages.map(pg => E.font.covers(pg.join(' ')));   // (the device's letters chirp by syllable)
+    this._fx = fxs.some(Boolean) ? fxs : null;   // (the markup's looks and pauses per page letter)
   }
   /** close it now (and forget pending presses, so the same press doesn't also attack) */
   close() { this.open = false; this.game.input.consumeAll(); }
@@ -9831,6 +9856,9 @@ class Dialog {
    *  gameplay can wait: if (talk.update(dt)) return; */
   update(dt) {
     if (!this.open) return false;
+    if (this._dev && this._devKey() !== this._dev) {   // the player picked up another device: the pages again, with its keys (the page kept, typed as far)
+      const i = this.i, done = !this.typing, n = this.shown; this._build(); this.i = Math.min(i, this.pages.length - 1); this.shown = done ? this.pageLen : Math.min(n, this.pageLen);
+    }
     const inp = this.game.input, len = this.pageLen, prev = Math.floor(this.shown), mk = this._fx && this._fx[this.i];
     const rate = (this._rates && this._rates[this.i]) || 1;
     if (!mk) this.shown = Math.min(len, this.shown + this.speed * rate * dt);
@@ -9873,7 +9901,7 @@ class Dialog {
       if (inp.repeat('up') || inp.repeat('left')) { this.choice = (this.choice + this.choices.length - 1) % this.choices.length; this.game.audio.sfx('select'); }
       if (inp.repeat('down') || inp.repeat('right')) { this.choice = (this.choice + 1) % this.choices.length; this.game.audio.sfx('select'); }
       // a tap or click on a choice picks it; the mouse moved over one moves the cursor there
-      const b = this._cbox(d), row = q => q && q[0] >= b.x && q[0] < b.x + b.w && q[1] >= b.y && q[1] < b.y + b.h ? clamp(Math.floor((q[1] - b.y - 3) / d.lh), 0, this.choices.length - 1) : -1;
+      const b = this._cbox(d), row = q => q && q[0] >= b.x && q[0] < b.x + b.w && q[1] >= b.y && q[1] < b.y + b.h ? clamp(Math.floor((q[1] - b.y - 3) / b.rh), 0, this.choices.length - 1) : -1;
       const hv = moved ? row(inp.pointer()) : -1;   // (the mouse moved over a choice, or the pad's cursor: the cursor goes there)
       if (hv >= 0 && hv !== this.choice) { this.choice = hv; this.game.audio.sfx('select'); }
       const tc = row(c); if (tc >= 0) { this.choice = tc; chose = true; }
@@ -9919,9 +9947,9 @@ class Dialog {
       const blink = Math.floor(this.game.real * 3) % 2 === 0, last = this.i >= this.pages.length - 1;
       if (!this.typing && !(last && this.choices) && blink) px.poly(g, [[d.x + d.w - 10, d.y + d.h - 6], [d.x + d.w - 5, d.y + d.h - 6], [d.x + d.w - 7.5, d.y + d.h - 3]], this.color);
       if (last && this.choices && !this.typing) {
-        const { x: cx, y: cy, w: cw, h: ch } = this._cbox(d);
+        const { x: cx, y: cy, w: cw, h: ch, rh, pad } = this._cbox(d, this._dth = thumbPx(this.game));   // (the rows as drawn: a tap is read against them)
         ui.box(g, cx, cy, cw, ch, { bg: this.bg, border: this.border });
-        this.choices.forEach((c, k) => { E.font.text(g, c, cx + 13, cy + 4 + k * d.lh, k === this.choice ? this.nameColor : this.color, { outline: false, shadow: '#05040a' }); if (k === this.choice && blink) E.font.text(g, '▸', cx + 5, cy + 4 + k * d.lh, this.nameColor, false); });
+        this.choices.forEach((c, k) => { const y = cy + 4 + k * rh + pad; E.font.text(g, c, cx + 13, y, k === this.choice ? this.nameColor : this.color, { outline: false, shadow: '#05040a' }); if (k === this.choice && blink) E.font.text(g, '▸', cx + 5, y, this.nameColor, false); });
       }
     });
   }
@@ -9933,6 +9961,8 @@ E.Dialog = Dialog;
  *   const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} });
  *   update: menu.update(dt)      draw: menu.draw(r)
  * opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
+ * By touch its rows are a thumb's size (44 CSS px each way) and it stays on the screen, a list too long for it scrolling
+ * under a finger.
  */
 class Menu {
   constructor(game, items, o = {}) {
@@ -9954,14 +9984,18 @@ class Menu {
   _skip(dir) { for (let k = 0; k < this.items.length && this._off(this.items[this.i]); k++) this.i = (this.i + dir + this.items.length) % this.items.length; }
   /** the entry under the cursor */
   get selected() { return this.items[this.i]; }
-  // where it sits, from its items and the screen's size (update and draw both: a click picks an entry with no draw yet)
+  // where it sits, from its items and the screen's size (update and draw both: a click picks an entry with no draw yet).
+  // By touch (a menu that takes taps) each row is a thumb's height and width, its text in the middle; the box stays on the
+  // screen: the rows that fit below its place show (at least three: it rises for them) and the rest scroll under a finger
   _layout() {
     const S = this.game.screen, k = Math.max(1, Math.round(this.scale || 1)), fo = { scale: k }, labels = this.items.map(it => this._label(it)), n = labels.length;
-    const w = Math.max(E.font.width(this.title || '', fo), ...labels.map(l => E.font.width(l, fo))) + 22 * k, rowH = E.font.lineHeight(fo) + 2 * k, vis = this.rows > 0 ? Math.min(n, this.rows) : n;
+    const th = this.pointer !== false ? thumbPx(this.game, this.input || this.game.input) : 0, rh = E.font.lineHeight(fo) + 2 * k, rowH = Math.max(rh, th), pad = (rowH - rh) >> 1, head = this.title ? rh + 3 * k : 0;
+    let w = Math.max(Math.max(E.font.width(this.title || '', fo), ...labels.map(l => E.font.width(l, fo))) + 22 * k, th && th + 6 * k), vis = this.rows > 0 ? Math.min(n, this.rows) : n;
+    if (th) { const fit = y0 => Math.max(1, Math.floor((S.H - 2 - y0 - head - 8 * k) / rowH)); vis = Math.min(vis, fit(2), this.y === 'center' ? n : Math.max(Math.min(3, vis), fit(this.y))); if (vis < n) w += 8 * k; }   // (room for the scroll arrows)
     let first = clamp(this._first || 0, 0, Math.max(0, n - vis)); if (this.i < first) first = this.i; else if (this.i >= first + vis) first = this.i - vis + 1; this._first = first;   // (the cursor's row in view)
-    const h = vis * rowH + (this.title ? rowH + 3 * k : 0) + 8 * k, x = this.x === 'center' ? Math.round((S.W - w) / 2) : this.x, y = this.y === 'center' ? Math.round((S.H - h) / 2) : this.y;
-    const top = y + 5 * k + (this.title ? rowH + 3 * k : 0); this._box = { x: x + 3 * k, y: top - 2 * k, w: w - 6 * k, rowH, first, vis };   // (where the entries are, for a click or tap)
-    return { labels, w, h, x, y, top, rowH, k, fo, first, vis };
+    const h = vis * rowH + head + 8 * k, x = this.x === 'center' ? Math.round((S.W - w) / 2) : this.x, y = this.y === 'center' ? Math.round((S.H - h) / 2) : th ? Math.min(this.y, Math.max(2, S.H - h - 2)) : this.y;
+    const top = y + 5 * k + head; this._box = { x: x + 3 * k, y: top - 2 * k, w: w - 6 * k, rowH, first, vis, th };   // (where the entries are, for a click or tap)
+    return { labels, w, h, x, y, top, rowH, pad, k, fo, first, vis };
   }
   /** entry i's box on the screen, [x, y, w, h] in screen pixels: where a click or tap picks it (a test's feed('down') and
    *  feed('up') there); null while it is scrolled out of view */
@@ -9971,10 +10005,17 @@ class Menu {
   update() {
     if (!this.active || !this.items.length) return false;
     this._layout();
-    const P = this.input ? [this.input] : this.game._players || [this.game.input], inp = P[0], any = f => P.some(f), n = this.items.length, old = this.i, b = this._box;
+    const P = this.input ? [this.input] : this.game._players || [this.game.input], inp = P[0], any = f => P.some(f), n = this.items.length, old = this.i, sn = this._seen;
+    const b = sn && sn.th !== this._box.th ? sn : this._box;   // (the rows as drawn when the device changed since: a click lands on what it was aimed at)
     const row = p => { if (!b || !p || p[0] < b.x || p[0] >= b.x + b.w) return -1; const r = Math.floor((p[1] - b.y) / b.rowH), k = b.first + r; return r >= 0 && r < b.vis && k < n && !this._off(this.items[k]) ? k : -1; };
-    if (any(I => I.repeat('up'))) { this.i = (this.i + n - 1) % n; this._skip(-1); }
-    if (any(I => I.repeat('down'))) { this.i = (this.i + 1) % n; this._skip(1); }
+    const fg = this.pointer !== false && b.th && b.vis < n && (inp.pan() || inp.drag());   // a finger dragging a list too long for the screen scrolls it, the cursor kept in view
+    if (fg) {
+      this._dy = (this._dy || 0) + fg[1]; const s = Math.trunc(this._dy / b.rowH);
+      if (s) { const f = clamp(b.first - s, 0, n - b.vis), was = this.i; this._dy = f === b.first - s ? this._dy - s * b.rowH : 0; this._first = b.first = f; this.i = clamp(this.i, f, f + b.vis - 1); if (this.i !== was) this._skip(this.i > was ? 1 : -1); }
+    } else {
+      if (any(I => I.repeat('up'))) { this.i = (this.i + n - 1) % n; this._skip(-1); }
+      if (any(I => I.repeat('down'))) { this.i = (this.i + 1) % n; this._skip(1); }
+    }
     if (this.pointer !== false && inp.mouse.t !== this._mt) { this._mt = inp.mouse.t; const k = row(inp.pointer()); if (k >= 0) this.i = k; }   // the mouse moved over an entry
     const tap = this.pointer === false ? -1 : row(inp.clicked());   // a click or tap on an entry picks it (pointer: false, a menu the game draws elsewhere: neither)
     if (tap >= 0) this.i = tap;
@@ -9987,18 +10028,19 @@ class Menu {
   /** draw it to the overlay */
   draw(r) {
     r.overlay(g => {
-      const { labels, w, h, x, y, top: yy, rowH, k: K, first, vis } = this._layout(), T = { outline: false, shadow: '#05040a', scale: K };
+      const { labels, w, h, x, y, top: yy, rowH, pad, k: K, first, vis } = this._layout(), T = { outline: false, shadow: '#05040a', scale: K };
+      this._seen = this._box;   // (the rows the player sees: a click is read against them)
       if (this.box) E.ui.box(g, x, y, w, h, { bg: this.bg, border: this.border });
       if (this.title) E.font.text(g, this.title, x + w / 2, y + 5 * K, this.pick, { align: 'center', outline: false, shadow: '#05040a', scale: K });
       const blink = Math.floor(this.game.real * 3) % 2 === 0;
       labels.slice(first, first + vis).forEach((l, r) => {
-        const k = first + r, sel = k === this.i && this.active, off = this._off(this.items[k]);
+        const k = first + r, sel = k === this.i && this.active, off = this._off(this.items[k]), ty = yy + r * rowH + pad;
         if (sel) px.rect(g, x + 3 * K, yy + r * rowH - 2 * K, w - 6 * K, rowH, shade(Array.isArray(this.bg) ? this.bg[0] : this.bg, .22));
-        E.font.text(g, l, x + 14 * K, yy + r * rowH, off ? this.dim : sel ? this.pick : this.color, T);
-        if (sel && blink) E.font.text(g, '▸', x + 6 * K, yy + r * rowH, this.pick, { scale: K, outline: false });
+        E.font.text(g, l, x + 14 * K, ty, off ? this.dim : sel ? this.pick : this.color, T);
+        if (sel && blink) E.font.text(g, '▸', x + 6 * K, ty, this.pick, { scale: K, outline: false });
       });
-      if (first > 0) E.font.text(g, '▲', x + w - 9 * K, yy, this.dim, T);   // (more above and below)
-      if (first + vis < labels.length) E.font.text(g, '▼', x + w - 9 * K, yy + (vis - 1) * rowH, this.dim, T);
+      if (first > 0) E.font.text(g, '▲', x + w - 9 * K, yy + pad, this.dim, T);   // (more above and below)
+      if (first + vis < labels.length) E.font.text(g, '▼', x + w - 9 * K, yy + (vis - 1) * rowH + pad, this.dim, T);
     });
   }
 }
@@ -10086,6 +10128,7 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh kbd.esh-pb{display:inline-grid;place-items:center;min-width:1.9em;height:1.9em;padding:0 .45em;border-radius:1em;border:1px solid #ffffff55;border-bottom-width:1px;background:#12161f;color:#f1f1f1;font:700 12px var(--font);line-height:1}
 .esh kbd.esh-face{width:1.9em;padding:0;color:var(--c);border-color:var(--c);font-size:14px}.esh kbd.esh-ms{border-radius:10px}
 .esh-toast.on,.esh-tut{touch-action:none;cursor:default}.esh-fingers .esh-toast.on{pointer-events:auto}
+.esh.esh-fingers .esh-tabs button{min-height:44px!important}.esh.esh-fingers input[type=range]{height:44px}
 @keyframes esh-in{from{opacity:0}}`;
 const SHELL_THEME = { ink: '#f1e8d6', paper: 'rgba(14,18,22,.86)', accent: '#d9b77c', muted: '#a49d8c', danger: '#e8836a', line: 'rgba(217,183,124,.3)', font: 'system-ui, sans-serif', titleFont: 'Georgia, serif' };
 /** the settings screen's groups, in order (the standard ones; a game's own are 'Game' unless they name another) */
@@ -10567,7 +10610,7 @@ class Shell {
     if (this.root) {
       if (this._toastEnd && now > this._toastEnd) { this._els.toast.classList.remove('on'); this._toastEnd = 0; }
       if (this._tutEnd && now > this._tutEnd) this.tutorial(null);
-      this.root.classList.toggle('esh-still', !!g.reduceMotion); this.root.classList.toggle('esh-fingers', I.lastDevice === 'touch');   // (a toast takes a tap or a swipe on a touch screen; a mouse clicks through it)
+      this.root.classList.toggle('esh-still', !!g.reduceMotion); this.root.classList.toggle('esh-fingers', I.lastDevice === 'touch');   // (a toast takes a tap or a swipe on a touch screen, a mouse clicks through it; tabs and sliders a thumb's height)
     }
     const pb = I.padPrev || [], l1 = !!pb[4] && !this._l1, r1 = !!pb[5] && !this._r1; this._l1 = !!pb[4]; this._r1 = !!pb[5];   // (L1 and R1 this step: a screen's tabs)
     const mini = this._els && this._els.mini; if (mini && !this._stack.length) {   // the pad's cursor (drawn on the canvas, under the HTML) shows through the minimap, and ✕ on it is a click there

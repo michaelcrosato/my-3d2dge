@@ -101,7 +101,7 @@ menu. Gamepad buttons are named by position, with the Xbox symbol (`input.label`
 | dash | Space, Shift, K (DEFAULT); Shift, C, L (PLATFORMER) | B, LT (DEFAULT); B, RB (PLATFORMER) | a scene's button | DEFAULT, PLATFORMER |
 | skill | L, E, right click (DEFAULT); E, V, right click | X, RB (DEFAULT); Y | a scene's button | DEFAULT, PLATFORMER |
 | jump | Z (DEFAULT); Space, Z, K | Y (DEFAULT); A | a scene's button | DEFAULT, PLATFORMER, THIRDPERSON (Space) |
-| sprint, crouch, interact, block, dodge, use, map | Shift; C, Ctrl; E, F; K, right click; L; Q; M, Tab | RT, L3; B; Y; LB; RB; LT; View | a scene's buttons | THIRDPERSON |
+| sprint, crouch, interact, block, dodge, use, map | Shift; C; E, F; K, right click; L; Q; M, Tab | RT, L3; B; Y; LB; RB; LT; View | a scene's buttons | THIRDPERSON |
 | fire, bomb | Space, Z, J, click (hold); X, K, right click | A, RT; B, LT | a scene's buttons | SHMUP |
 | menu (the engine's) | the corner's button | | START, the corner's button | every game |
 | full screen (the engine's) | the corner's button, the menu (F11 is the browser's own) | the menu | a phone's first tap, the corner, the menu | every game |

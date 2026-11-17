@@ -9,18 +9,19 @@
  * right click orders (move, attack, mine; a building's rally point), the wheel zooms toward the pointer, the screen's
  * edge pans; hover lights the panel's buttons and rings the unit a click would take. KEYS (its own, KEYS): arrows / WASD
  * pan, Z X C the panel's commands, H the hall, R the army, . an idle worker, Space the last alert, Ctrl+1..9 keeps a
- * group and 1..9 calls it back, F then a click attack-moves, Backspace lets the selection go, Esc puts a plan or an
- * attack-move away (else pauses). PAD (the engine's cursor: cursor: true): the left stick moves the cursor (it eases onto
- * a button or a unit when let go), ✕ clicks (held and moved, a box; twice, every one of that kind), □ orders, ○ cancels a
- * plan or an attack-move or lets the selection go, △ attack-moves, L1 takes every one of the kind under the cursor, R1
- * the army, the d-pad's ← ↑ → the panel's commands and ↓ (or the touchpad's click) the last alert, L3 the hall, Create
- * an idle worker, L2 R2 zoom, the right stick pans and the cursor at an edge pushes. DUALSENSE: the light bar turns red
- * at an attack (gold at a victory), the horn sounds from the controller, gyro aim fine-tunes the cursor; any pad rumbles
- * at an attack out of sight and when a building of yours falls. TOUCH: a tap selects, a tap on ground or a foe orders, a
- * drag pans, a long press then a drag draws a box, two fingers zoom; the panel's buttons are a thumb's size, HALL, ARMY
- * and IDLE on the left (ALERT under them while an attack is fresh); BUILD shows the plan where you tap, PLACE puts it
- * there; a swipe takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan. With Touch
- * assists on (Settings) a worker left idle goes back to the nearest mine, and a tap near a small unit takes it.
+ * group and 1..9 calls it back (beside WASD: while a match runs the browser asks before a stray Ctrl+W closes the tab),
+ * F then a click attack-moves, Backspace lets the selection go, Esc puts a plan or an attack-move away (else pauses).
+ * PAD (the engine's cursor: cursor: true): the left stick moves the cursor (it eases onto a button or a unit when let
+ * go), ✕ clicks (held and moved, a box; twice, every one of that kind), □ orders, ○ cancels a plan or an attack-move or
+ * lets the selection go, △ attack-moves, L1 takes every one of the kind under the cursor, R1 the army, the d-pad's ← ↑
+ * → the panel's commands and ↓ (or the touchpad's click) the last alert, L3 the hall, Create an idle worker, L2 R2
+ * zoom, the right stick pans and the cursor at an edge pushes. DUALSENSE: the light bar turns red at an attack (gold at
+ * a victory), the horn sounds from the controller, gyro aim fine-tunes the cursor; any pad rumbles at an attack out of
+ * sight and when a building of yours falls. TOUCH: a tap selects, a tap on ground or a foe orders, a drag pans, a long
+ * press then a drag draws a box, two fingers zoom; the panel's buttons are a thumb's size, HALL, ARMY and IDLE on the
+ * left (ALERT under them while an attack is fresh); BUILD shows the plan where you tap, PLACE puts it there; a swipe
+ * takes the banner or the message away, a sideways one on PLACE and CANCEL cancels the plan. With Touch assists on
+ * (Settings) a worker left idle goes back to the nearest mine, and a tap near a small unit takes it.
  * HOW IT WORKS: the strategy module keeps the rules (E.Strategy: kinds as data, orders, flow fields, fog, the clan's AI
  * from its build order and waves); this slice draws (rigs, buildings as E.SHAPES, the fog), runs the HUD and its
  * commands, and the minimap (E.Shell). bot() gives the Vale an AI of its own that plays the match to its end, twice the
@@ -321,6 +322,9 @@ const RTS = (() => {
     if (rts.time >= CLAN.waves.first - 20 && wave === 0 && !auto) { wave = 1; say(E.t('rts.say.arming'), '#ffb070'); }
   }
   function end(won) { over = { won, t: 0 }; rts.selected = []; mode = 'play'; placing = null; if (!auto) A.sfx(won ? 'powerup' : 'die'); }
+  // Ctrl and a digit keep a group beside WASD's camera, and the browser closes the tab on Ctrl+W (⌘W) before the page hears
+  // it: while the player's match runs, the browser asks first (on a page of its own: 52in1's frame shows no browser dialogs; D110)
+  addEventListener('beforeunload', e => { if (game.sceneName === 'rts' && rts && !over && !auto && !window.AIHubSettings) { e.preventDefault(); e.returnValue = ''; } });
   const endMenu = new E.Menu(game, [E.t('rts.again'), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title') });
 
   /* ---- 5. DRAWING: the floor, the woods, the buildings (shapes, their side's colors; a site going up), the bodies, the
