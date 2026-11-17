@@ -7,10 +7,11 @@
 // The files are one classic script (tools/ed-build.mjs joins them), so every file's top-level declarations are seen by
 // every file (with --mine or the core alone, the files left out count too: only --all joins them, and a part may name
 // another's). Past those a name is declared by a scope around it: var and function hoisted to their function (a function
-// in a block to both, as a sloppy script does), let, const and class to their block, parameters (defaults, destructuring,
-// rest), a catch's, a named function or class expression's own name, a function's `arguments`; or it is a global
-// (GLOBALS). Property keys, members and labels are not names; `{ a }` reads a; `typeof x` is a guard, not a read; a name
-// assigned is reported too. Without acorn (npm install) only the syntax is checked.
+// in a block to its block alone in strict code, as the game is: 00-core.js's 'use strict', which the files left out of a
+// --mine build count under too; to both in sloppy code), let, const and class to their block, parameters (defaults,
+// destructuring, rest), a catch's, a named function or class expression's own name, a function's `arguments`; or it is
+// a global (GLOBALS). Property keys, members and labels are not names; `{ a }` reads a; `typeof x` is a guard, not a
+// read; a name assigned is reported too. Without acorn (npm install) only the syntax is checked.
 // Exit code 1 on a syntax error or an undeclared name (each one's file and line).
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -40,7 +41,8 @@ const GLOBALS = new Set(Object.getOwnPropertyNames(globalThis).filter(n => !['pr
 
 // a scope: the names it declares, and the scope around it (a name is looked up when it is met, so each scope is filled
 // first: a function's with its parameters and hoisted var and function, a block's with its let, const, class and function)
-const scope = up => ({ names: new Set(), up });
+const scope = up => ({ names: new Set(), up, strict: !!up && up.strict });   // (strict: in strict code, as everything inside it is)
+const strictIn = stmts => { for (const x of stmts) { if (x.type !== 'ExpressionStatement' || typeof x.directive !== 'string') return false; if (x.directive === 'use strict') return true; } return false; };   // a directive prologue's 'use strict'
 const bound = (p, out) => {   // the names a binding pattern declares
   if (p.type === 'Identifier') out.add(p.name);
   else if (p.type === 'AssignmentPattern') bound(p.left, out);
@@ -48,20 +50,23 @@ const bound = (p, out) => {   // the names a binding pattern declares
   else if (p.type === 'ArrayPattern') { for (const e of p.elements) if (e) bound(e, out); }
   else if (p.type === 'ObjectPattern') for (const q of p.properties) bound(q.type === 'RestElement' ? q.argument : q.value, out);
 };
-const hoist = (n, f) => {   // var and function declarations anywhere in a function's statements (not in nested functions) -> its scope
+// var and function declarations anywhere in a function's statements (not in nested functions) -> its scope; a function
+// declared in a block (deep) only in sloppy code: strict code keeps it to its block (lexical)
+const hoist = (n, f, deep = false) => {
   if (!n) return;
   switch (n.type) {
     case 'VariableDeclaration': if (n.kind === 'var') for (const d of n.declarations) bound(d.id, f.names); return;
-    case 'FunctionDeclaration': f.names.add(n.id.name); return;
-    case 'BlockStatement': case 'StaticBlock': for (const x of n.body) hoist(x, f); return;
-    case 'IfStatement': hoist(n.consequent, f); hoist(n.alternate, f); return;
-    case 'ForStatement': hoist(n.init, f); hoist(n.body, f); return;
-    case 'ForInStatement': case 'ForOfStatement': hoist(n.left, f); hoist(n.body, f); return;
-    case 'WhileStatement': case 'DoWhileStatement': case 'LabeledStatement': case 'WithStatement': hoist(n.body, f); return;
-    case 'TryStatement': hoist(n.block, f); if (n.handler) hoist(n.handler.body, f); hoist(n.finalizer, f); return;
-    case 'SwitchStatement': for (const c of n.cases) for (const x of c.consequent) hoist(x, f);
+    case 'FunctionDeclaration': if (!deep || !f.strict) f.names.add(n.id.name); return;
+    case 'BlockStatement': for (const x of n.body) hoist(x, f, true); return;
+    case 'IfStatement': hoist(n.consequent, f, true); hoist(n.alternate, f, true); return;
+    case 'ForStatement': hoist(n.init, f, true); hoist(n.body, f, true); return;
+    case 'ForInStatement': case 'ForOfStatement': hoist(n.left, f, true); hoist(n.body, f, true); return;
+    case 'WhileStatement': case 'DoWhileStatement': case 'LabeledStatement': case 'WithStatement': hoist(n.body, f, true); return;
+    case 'TryStatement': hoist(n.block, f, true); if (n.handler) hoist(n.handler.body, f, true); hoist(n.finalizer, f, true); return;
+    case 'SwitchStatement': for (const c of n.cases) for (const x of c.consequent) hoist(x, f, true);
   }
 };
+const hoistAll = (stmts, f) => { for (const x of stmts) hoist(x, f); };   // a function's (or a script's, a static block's) own statements
 const lexical = (body, s) => { for (const x of body) {   // let, const, class and function declared directly in a block -> its scope
   if (x.type === 'VariableDeclaration' && x.kind !== 'var') for (const d of x.declarations) bound(d.id, s.names);
   else if ((x.type === 'ClassDeclaration' || x.type === 'FunctionDeclaration') && x.id) s.names.add(x.id.name);
@@ -88,15 +93,15 @@ const fn = (n, s) => {
   const f = scope(o); if (n.type !== 'ArrowFunctionExpression') f.names.add('arguments');
   for (const p of n.params) bound(p, f.names);
   for (const p of n.params) binding(p, f);
-  if (n.body.type === 'BlockStatement') { hoist(n.body, f); body(n.body.body, f); } else visit(n.body, f);
+  if (n.body.type === 'BlockStatement') { if (strictIn(n.body.body)) f.strict = true; hoistAll(n.body.body, f); body(n.body.body, f); } else visit(n.body, f);
 };
 const visit = (n, s) => {
   switch (n.type) {
     case 'Identifier': ref(n, s); return;
     case 'BlockStatement': body(n.body, scope(s)); return;
-    case 'StaticBlock': { const f = scope(s); hoist(n, f); body(n.body, f); return; }
+    case 'StaticBlock': { const f = scope(s); hoistAll(n.body, f); body(n.body, f); return; }
     case 'FunctionDeclaration': case 'FunctionExpression': case 'ArrowFunctionExpression': fn(n, s); return;
-    case 'ClassDeclaration': case 'ClassExpression': { const c = scope(s); if (n.id) c.names.add(n.id.name); if (n.superClass) visit(n.superClass, c); for (const m of n.body.body) visit(m, c); return; }
+    case 'ClassDeclaration': case 'ClassExpression': { const c = scope(s); c.strict = true; if (n.id) c.names.add(n.id.name); if (n.superClass) visit(n.superClass, c); for (const m of n.body.body) visit(m, c); return; }
     case 'MethodDefinition': case 'PropertyDefinition': case 'Property': if (n.computed) visit(n.key, s); if (n.value) visit(n.value, s); return;   // (in an object or class; a pattern's go through binding or target)
     case 'MemberExpression': visit(n.object, s); if (n.computed) visit(n.property, s); return;
     case 'VariableDeclaration': for (const d of n.declarations) { binding(d.id, s); if (d.init) visit(d.init, s); } return;
@@ -117,12 +122,17 @@ const visit = (n, s) => {
   }
   for (const k in n) { const v = n[k]; if (!v || typeof v !== 'object') continue; if (Array.isArray(v)) { for (const x of v) if (x && typeof x.type === 'string') visit(x, s); } else if (typeof v.type === 'string') visit(v, s); }
 };
-const read = text => parse(text, { ecmaVersion: 'latest', sourceType: 'script' }), script = b => ({ type: 'BlockStatement', body: b });
-const top = scope(null), skipped = [];   // the script's scope: every file's top level
-for (const f of readdirSync(dir).filter(f => f.endsWith('.js') && !files.includes(f))) {   // the files left out of a --mine or core build still declare
-  try { const b = read(readFileSync(join(dir, f), 'utf8')).body; hoist(script(b), top); lexical(b, top); } catch (e) { skipped.push(f); }   // theirs (only --all joins them all)
+const read = text => parse(text, { ecmaVersion: 'latest', sourceType: 'script' });
+const top = scope(null), skipped = [], ast = read(src);   // the script's scope: every file's top level
+top.strict = strictIn(ast.body);
+// the files left out of a --mine or core build still declare theirs (only --all joins them all), as the body of 00-core.js's
+// function would hold them: strict code if it is ('use strict' first in it), so a function in a block there stays the block's
+const game = ast.body.find(x => x.type === 'ExpressionStatement' && x.expression.type === 'CallExpression' && x.expression.callee.body && x.expression.callee.body.type === 'BlockStatement');
+const outside = { names: top.names, up: null, strict: top.strict || !!game && strictIn(game.expression.callee.body.body) };
+for (const f of readdirSync(dir).filter(f => f.endsWith('.js') && !files.includes(f))) {
+  try { const b = read(readFileSync(join(dir, f), 'utf8')).body; hoistAll(b, outside); lexical(b, outside); } catch (e) { skipped.push(f); }
 }
-const ast = read(src); hoist(script(ast.body), top); body(ast.body, top);
+hoistAll(ast.body, top); body(ast.body, top);
 
 if (skipped.length) console.log(`(left out and not read: ${skipped.join(', ')} do not parse on their own; names they declare count as undeclared)`);
 if (!found.length) { console.log('syntax ok:', files.length, 'files; no undeclared names'); process.exit(0); }

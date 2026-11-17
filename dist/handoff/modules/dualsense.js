@@ -29,7 +29,8 @@ Permissions: the game never asks. Inside 52in1 (window.AIHubSettings) the hub ho
 it, and drives it through 52in1's own channel (hub.dualsense: light bar, triggers, motion, touchpad, speaker; the
 microphone by hub.openMicrophone), each only while 52in1's Settings allow it; the player lights are the hub's (the seat).
 On a page of its own, WebHID, the controller's speaker and the microphone work only where the player already allowed this
-page them, found without a prompt. Until then their rows are locked and say where to allow them.
+page them, found without a prompt. Until then their rows are locked and say where to allow them (52in1's microphone,
+allowed after the game was opened: to open it again).
 
 ```js dualsense
 const E = My3D2dge, game = new E.Game({ headless: true }), ds = E.DualSense.attach(game, { light: true, gyro: true });
@@ -53,6 +54,7 @@ const SONY = 0x054c, PIDS = [0x0ce6, 0x0df2];   // DualSense, DualSense Edge
 const isDS = d => !!d && d.vendorId === SONY && PIDS.includes(d.productId);
 const LEDS = [0x04, 0x0a, 0x15, 0x1b];   // the player lights for players 1 to 4, as the console lights them
 const GYRO = { off: 0, low: 2.5, medium: 5, high: 9 };   // gyro aim: screen pixels for a degree of turn
+const DRIFT = 3;   // degrees a second: more than a DualSense lying still reads, less than a hand's slowest aiming turn
 const ONCE = new WeakMap();
 E.lang.engine({
   'engine.setting.pad_light': 'Light bar', 'engine.setting.pad_light.help': 'The DualSense\'s light shows what the game says: your health, danger, your team',
@@ -61,7 +63,8 @@ E.lang.engine({
   'engine.setting.pad_speaker': 'Controller speaker', 'engine.setting.pad_speaker.help': 'Small sounds of the game play from the DualSense in your hands',
   'engine.setting.mic': 'Microphone', 'engine.setting.mic.help': 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent',
   'engine.dualsense.need_pad': 'Connect a DualSense and allow it in 52in1 Settings', 'engine.dualsense.need_allow': 'Allow it in 52in1 Settings first',
-  'engine.dualsense.need_page': 'Play this game in 52in1, with a DualSense connected in its Settings'
+  'engine.dualsense.need_page': 'Play this game in 52in1, with a DualSense connected in its Settings',
+  'engine.dualsense.reopen': 'Open the game again to use it'
 });
 // a permissions-policy feature this frame may use: one the browser doesn't know (Chrome's 'speaker-selection') it doesn't
 // gate, so the browser's own answer (setSinkId's) decides
@@ -97,8 +100,8 @@ class DualSense {
      *  allowed: what the player has allowed ({ hid, speaker, mic }); touches: the touchpad's fingers [{ x, y }] (0..1) */
     this.game = game; this._o = o; this.connected = false; this.allowed = { hid: false, speaker: false, mic: false }; this.touches = [];
     this._dev = null; this._wire = 'usb'; this._seq = 0; this._want = { light: null, player: null, left: null, right: null }; this._sent = ''; this._busy = false;
-    this._raw = [0, 0, 0]; this._bias = [0, 0, 0]; this._rate = [0, 0, 0]; this._still = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
-    this._hub = game.headless ? null : hubOf(); this._may = { light: true, triggers: true, gyro: true };   // (_may: what 52in1 lets a game do with the one it holds)
+    this._raw = [0, 0, 0]; this._bias = [0, 0, 0]; this._avg = [0, 0, 0]; this._rate = [0, 0, 0]; this._still = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
+    this._hub = game.headless ? null : hubOf(); this._may = { light: true, triggers: true, gyro: true }; this._later = false;   // (_may: what 52in1 lets a game do with the one it holds; _later: its microphone allowed after this game was opened)
     this.extras(o);
     game.hook('input', dt => this._tick(dt));
     if (typeof addEventListener === 'function') { addEventListener('pagehide', () => this.clear()); if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => this._push()); }   // (a page hidden or closed frees the triggers and gives the light back)
@@ -109,11 +112,14 @@ class DualSense {
   extras(o = {}) {
     for (const k in o) if (o[k] && k in this._o) this._o[k] = true;
     const game = this.game, S = game.settings, lockHid = k => () => !this.allowed.hid ? E.t(this._hub ? 'engine.dualsense.need_pad' : 'engine.dualsense.need_page') : this._may[k] ? null : E.t('engine.dualsense.need_allow');   // (on a page of its own nothing is asked: 52in1 is where a DualSense is allowed)
+    // the speaker and the microphone: 52in1's microphone, allowed after this game was opened (its micLater), reaches it
+    // once it is opened again, so the row says that rather than to allow what is allowed
+    const lockMic = k => () => this.allowed[k] ? null : E.t(!this._hub ? 'engine.dualsense.need_page' : this._later && (k === 'mic' || this.connected) ? 'engine.dualsense.reopen' : 'engine.dualsense.need_allow');
     if (o.light && !S.spec('padLight')) S.define({ key: 'padLight', group: 'Controller', label: 'Light bar', help: 'The DualSense\'s light shows what the game says: your health, danger, your team', type: 'toggle', value: true, locked: lockHid('light'), apply: () => this._push() });
     if (o.triggers && !S.spec('padTriggers')) S.define({ key: 'padTriggers', group: 'Controller', label: 'Adaptive triggers', help: 'The DualSense\'s triggers push back: a brake, a bowstring, a gun\'s break', type: 'toggle', value: true, locked: lockHid('triggers'), apply: () => this._push() });
     if (o.gyro && !S.spec('gyro')) S.define({ key: 'gyro', group: 'Controller', label: 'Gyro aim', help: 'Turn and tilt the DualSense to fine-tune your aim, on top of the stick', type: 'select', value: 'off', options: [['off', 'Off'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], locked: lockHid('gyro') });
-    if (o.speaker && !S.spec('padSpeaker')) S.define({ key: 'padSpeaker', group: 'Controller', label: 'Controller speaker', help: 'Small sounds of the game play from the DualSense in your hands', type: 'toggle', value: false, locked: () => this.allowed.speaker ? null : E.t(this._hub ? 'engine.dualsense.need_allow' : 'engine.dualsense.need_page'), apply: (g, v) => this._speakerOn(v) });
-    if (o.mic && !S.spec('mic')) S.define({ key: 'mic', group: 'Controller', label: 'Microphone', help: 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent', type: 'toggle', value: false, locked: () => this.allowed.mic ? null : E.t(this._hub ? 'engine.dualsense.need_allow' : 'engine.dualsense.need_page'), apply: (g, v) => this._micOn(v) });
+    if (o.speaker && !S.spec('padSpeaker')) S.define({ key: 'padSpeaker', group: 'Controller', label: 'Controller speaker', help: 'Small sounds of the game play from the DualSense in your hands', type: 'toggle', value: false, locked: lockMic('speaker'), apply: (g, v) => this._speakerOn(v) });
+    if (o.mic && !S.spec('mic')) S.define({ key: 'mic', group: 'Controller', label: 'Microphone', help: 'The game listens for how loud you are, where it asks you to: nothing is recorded or sent', type: 'toggle', value: false, locked: lockMic('mic'), apply: (g, v) => this._micOn(v) });
   }
   /** the triggers free and the light bar back to blue (in 52in1 to the hub's glow): a scene's exit, so the next starts clean */
   clear() { this._want.left = this._want.right = null; this._want.light = this._hub ? null : '#3050ff'; if (this._hub) try { this._hub.dualsense.light(null); } catch (e) { /* the hub's gone */ } this._push(); return this; }   // (in 52in1 the light goes back to the hub's glow, whatever its Settings say now)
@@ -155,7 +161,7 @@ class DualSense {
   // 52in1's word on what the game may do with the DualSense it holds: read again on every change of its Settings
   _hubSync() {
     const H = this._hub, P = H.dualsense, on = !!P.connected, mic = this.allowed.mic, spk = this.allowed.speaker, S = this.game.settings;
-    this.connected = on; this.allowed = { hid: on, speaker: on && !!P.speaker, mic: H.mic === true };
+    this.connected = on; this.allowed = { hid: on, speaker: on && !!P.speaker, mic: H.mic === true }; this._later = H.micLater === true;
     this._may = { light: on && !!P.lightbar, triggers: on && !!P.triggers, gyro: on && !!P.motion };
     if (!on) { this.touches = []; this._rate = [0, 0, 0]; this._flick = null; }
     if (spk !== this.allowed.speaker) this._speakerOn(!!S.padSpeaker);
@@ -186,17 +192,9 @@ class DualSense {
     if (this.game.paused !== this._paused) { this._paused = this.game.paused; this._push(); }   // (the triggers freed under a pause, back after it)
     if (this._hub && this.connected) {   // (52in1 sends the turn, in degrees a second, and the fingers; the gyro is read only while gyro aim is on, so the hub's own Motion aim keeps the stick until then)
       const P = this._hub.dualsense, gy = GYRO[this.game.settings.gyro] && this._o.gyro && this._may.gyro ? P.gyro : null;
-      if (gy) {   // (its drift learned while the controller lies still, as over WebHID: still under 5 degrees a second, a hair's noise under 1.5 none)
-        const v = [+gy.x || 0, +gy.y || 0, +gy.z || 0], calm = v.every((r, i) => Math.abs(r - this._bias[i]) < 5);
-        this._still = calm ? this._still + dt : 0; if (this._still > .8) for (let i = 0; i < 3; i++) this._bias[i] += (v[i] - this._bias[i]) * .05;
-        this._rate = v.map((r, i) => Math.abs(r - this._bias[i]) < 1.5 ? 0 : r - this._bias[i]);
-      } else this._rate = [0, 0, 0];
+      if (gy) this._turn([+gy.x || 0, +gy.y || 0, +gy.z || 0], dt); else this._rate = [0, 0, 0];
       this.touches = (P.touches || []).map(q => ({ x: +q.x || 0, y: +q.y || 0 }));
-    } else if (this.connected) {
-      const d = this._raw.map((r, i) => r - this._bias[i]), calm = d.every(x => Math.abs(x) < 80);   // (still: under about 5 degrees a second)
-      this._still = calm ? this._still + dt : 0; if (this._still > .8) for (let i = 0; i < 3; i++) this._bias[i] += (this._raw[i] - this._bias[i]) * .05;
-      this._rate = this._raw.map((r, i) => Math.abs(r - this._bias[i]) < 24 ? 0 : (r - this._bias[i]) / 16.384);   // (degrees a second; a hair's noise, under 1.5, is none)
-    }
+    } else if (this.connected) this._turn(this._raw.map(r => r / 16.384), dt);   // (WebHID's raw gyro: about 16.4 a degree a second)
     const SS = E.session;   // (a recorded session keeps what the controller said, and a replay hears it again: E.session.stream)
     if (SS && (SS.recording || SS.replaying) && SS.stream) { const v = SS.stream('dualsense', [this.connected ? 1 : 0, this._may.gyro ? 1 : 0, this._rate, this.touches]); if (SS.replaying) { this.connected = this.allowed.hid = !!v[0]; this._may.gyro = !!v[1]; this._rate = v[2]; this.touches = v[3]; } }
     if (this.connected) {
@@ -206,6 +204,16 @@ class DualSense {
       else if (!p && f) { const dx = f.x1 - f.x, dy = f.y1 - f.y; this._flick = null; if (f.t < .45 && Math.max(Math.abs(dx), Math.abs(dy) * 1.8) > .25) this._flicked = Math.abs(dx) > Math.abs(dy) * 1.8 ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'); }
     }
     if (this._an) { this._an.getFloatTimeDomainData(this._buf); let s = 0; for (const x of this._buf) s += x * x; const l = Math.min(1, Math.sqrt(s / this._buf.length) * 4); this._level += (l - this._level) * Math.min(1, dt * 12); }
+  }
+  // the turn v (degrees a second, each axis) less the gyro's drift, learned only while the controller lies still: every
+  // axis under DRIFT and steady (within a degree a second of its last quarter second) for a second, then followed slowly
+  // (two seconds' time constant). So a slow, steady turn of the hand stays aim, and the drift, never more than DRIFT, is
+  // learned again whenever the controller rests; a hair's noise (under 1.5 degrees a second) is none
+  _turn(v, dt) {
+    const m = this._avg, calm = v.every((r, i) => Math.abs(r) < DRIFT && Math.abs(r - m[i]) < 1);
+    for (let i = 0; i < 3; i++) m[i] += (v[i] - m[i]) * Math.min(1, dt * 4);
+    this._still = calm ? this._still + dt : 0; if (this._still > 1) for (let i = 0; i < 3; i++) this._bias[i] += (v[i] - this._bias[i]) * Math.min(1, dt / 2);
+    this._rate = v.map((r, i) => Math.abs(r - this._bias[i]) < 1.5 ? 0 : r - this._bias[i]);
   }
   // the output report for what is wanted now, sent when it changed (a light set each step sends once)
   _push() {
