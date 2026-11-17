@@ -909,24 +909,30 @@ function LOT_pip(g, x, y, it, a) {
 }
 /** a line's tier and its tier's range as short text: 'T6 43-47' ('' for a unique's fixed line) */
 function LOT_rangeText(it, a) { const inf = a.id === 'u' || it.rarity === 4 ? null : affixInfo(it, a); return !inf ? '' : inf.fixed ? 'FIXED' : 'T' + (inf.t + 1) + ' ' + fmtV(inf.lo) + '-' + fmtV(inf.hi); }
-/** the pip legend under a tooltip's lines: the five pip colors, what they mean, and how to see more */
+/** the pip legend under a tooltip's lines: the five pip colors, what they mean, and how to see more (tiny, but the
+ *  normal font on a TV, the pips and the star kept to the middle of its taller line) */
 function LOT_legend(g, x, y, w, great, adv) {
-  if (adv) { E.font.text(g, 'T# TIER, ITS NAME, ITS RANGE', x, y, '#8a80a8', { font: 'tiny', outline: false }); return; }
-  LOT_PIP.forEach((c, i) => { px.rect(g, x + i * 4, y + 1, 3, 3, c); px.dot(g, x + i * 4 + 1, y + 1, '#ffffff'); });
-  let tx = x + 22; const put = (t, c) => { E.font.text(g, t, tx, y, c, { font: 'tiny', outline: false }); tx += E.font.width(t, { font: 'tiny' }) + 6; };
+  const ft = UI_tf({ outline: false }), py = ft.font ? 1 : 2;
+  if (adv) { E.font.text(g, 'T# TIER, ITS NAME, ITS RANGE', x, y, '#8a80a8', ft); return; }
+  LOT_PIP.forEach((c, i) => { px.rect(g, x + i * 4, y + py, 3, 3, c); px.dot(g, x + i * 4 + 1, y + py, '#ffffff'); });
+  let tx = x + 22; const put = (t, c) => { E.font.text(g, t, tx, y, c, ft); tx += E.font.width(t, ft) + 6; };
   put(great ? 'QUALITY' : 'ROLL QUALITY', '#8a80a8');
-  if (great) { LOT_star(g, tx + 2, y + 2, LOT_GREAT); tx += 7; put('GREATER', '#c8b060'); }
+  if (great) { LOT_star(g, tx + 2, y + py + 1, LOT_GREAT); tx += 7; put('GREATER', '#c8b060'); }
   const at = ctlDevice() === 'mouse' ? game.input.codeLabel('AltLeft').toUpperCase() + ': TIERS' : '';   // (the advanced readout is the keyboard's: Alt or Shift held)
-  if (at && tx + E.font.width(at, { font: 'tiny' }) <= x + w) put(at, '#6a6488');
+  if (at && tx + E.font.width(at, ft) <= x + w) put(at, '#6a6488');
 }
 /**
  * LOT_drawTip(g, it, ax, ay, o): o { equipped: true, compare: true, hint: [{ t, c }], price: { t, c }, anchor: [x, y, w, h] (place beside it) }
  * Drawn wherever it is called (panels call it last, through game.r.overlay, so nothing covers it).
  */
 function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
-  const h = ED.hero, SW = game.W, SH = game.H, WT = WT0 || Math.min(176, SW - 8), rc = RARITY[it.rarity], base = REG.itemBases[it.base];
+  // on a TV (UI_tv) the box takes up to half the screen's width and its small lines (the base, the item level, the grade,
+  // the comparison's heading, the price, the legend, the hints) are in the normal font: ft is their font, and sm, fs and
+  // hs their line steps in the body, the footer and the header. Elsewhere they stay tiny, as they were
+  const tv = UI_tv(), ft = UI_tf(), sm = tv ? 9 : 7, fs = tv ? 9 : 8, hs = tv ? 9 : 7, h0 = tv ? 6 : 7, hd2 = tv ? 2 : 0;
+  const h = ED.hero, SW = game.W, SH = game.H, WT = WT0 || (tv ? Math.min(250, Math.floor((SW - 8) / 2)) : Math.min(176, SW - 8)), rc = RARITY[it.rarity], base = REG.itemBases[it.base];
   const lh = 9, body = [], wrapW = WT - 12, adv = LOT_adv(), G = gradeInfo(it.grade);
-  const push = (t, c, x = 0, pip = null, q = {}) => { for (const l of E.font.wrap(q.tiny ? t.toUpperCase() : t, wrapW - x, q.tiny ? { font: 'tiny' } : undefined)) { body.push({ t: l, c, x, pip, star: q.star, tiny: q.tiny }); pip = null; } };
+  const push = (t, c, x = 0, pip = null, q = {}) => { for (const l of E.font.wrap(q.tiny ? t.toUpperCase() : t, wrapW - x, q.tiny ? ft : undefined)) { body.push({ t: l, c, x, pip, star: q.star, tiny: q.tiny }); pip = null; } };
   if (it.dmg) push(dmgText(it), it.el && it.el !== 'phys' ? EL(it.el).light : '#ffffff');
   for (const a of it.implicit) push(statText(a.stat, a.v), '#c8c0d8');
   if (it.implicit.length || it.dmg) body.push({ sep: true });
@@ -959,18 +965,18 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
     if (!C.head.length && !C.lines.length) cmp.push({ t: 'No difference', c: '#9a90b0' });
   }
   for (let i = cmp.length - 1; i >= 0; i--) { const l = cmp[i]; if (l.head) continue; const ws = E.font.wrap(l.t, WT - 12); if (ws.length > 1) cmp.splice(i, 1, ...ws.map((t, k) => ({ t: (k ? '  ' : '') + t, c: l.c }))); }
-  const foot = [], addF = l => { for (const t of E.font.wrap(l.t, WT - 12, { font: 'tiny' })) foot.push({ t, c: l.c }); };
+  const foot = [], addF = l => { for (const t of E.font.wrap(l.t, WT - 12, ft)) foot.push({ t, c: l.c }); };
   addF(o.price || { t: 'Sells for ' + fmt(it.value) + ' gold', c: '#8a8070' });
   if (rolled) foot.push({ legend: true });
   for (const l of o.hint || []) addF(l);
   // measure: header (icon + name), body, compare, footer
-  const nameL = E.font.wrap(it.name, WT - 48), hdH = Math.max(44, nameL.length * 9 + 24 + (G ? 7 : 0)), bodyH = body.reduce((a, l) => a + (l.sep ? 5 : l.tiny ? 7 : lh), 0);
-  while (foot.length > 1 && hdH + bodyH + foot.length * 8 + 10 > SH - 4) foot.pop();   // a very long item on a short screen gives up its hint lines first
-  const cmpH = cmp.length ? cmp.length * lh + 6 : 0, footH = foot.length * 8 + 4;
+  const nameL = E.font.wrap(it.name, WT - 48), hdH = Math.max(44, nameL.length * 9 + h0 + hs * (G ? 3 : 2) + 3), bodyH = body.reduce((a, l) => a + (l.sep ? 5 : l.tiny ? sm : lh), 0);
+  while (foot.length > 1 && hdH + bodyH + foot.length * fs + 10 > SH - 4) foot.pop();   // a very long item on a short screen gives up its hint lines first
+  const cmpH = cmp.length ? cmp.length * lh + 6 + hd2 : 0, footH = foot.length * fs + 4;   // (hd2: a normal-font heading's two more rows)
   let HT = hdH + bodyH + footH + 6, side = false;
   if (HT + cmpH > SH - 4 && cmp.length) side = true; else HT += cmpH;
   if (side && WT * 2 + 4 > SW - 4 && !WT0) return LOT_drawTip(g, it, ax, ay, o, Math.floor((SW - 8) / 2));   // too narrow for two boxes: make both slimmer
-  const totalW = side ? WT * 2 + 4 : WT, ch = cmp.length * lh + 10;
+  const totalW = side ? WT * 2 + 4 : WT, ch = cmp.length * lh + 10 + hd2;
   let bx, by, cbx = 0, cby = 0;
   if (o.anchor) { const [rx, ry, rw] = o.anchor, right = rx + rw / 2 < SW * .45; bx = right ? rx + rw + 4 : rx - totalW - 4; if (bx < 2) bx = rx + rw + 4; if (bx + totalW > SW - 2) bx = rx - totalW - 4; by = ry - 6; }
   else { bx = ax + 12; if (bx + totalW > SW - 2) bx = ax - totalW - 8; by = ay - 8; }
@@ -997,21 +1003,22 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   drawItemIconEx(g, it, bx + 7, by + 6, 2);
   nameL.forEach((l, i) => E.font.text(g, l, bx + 45, by + 5 + i * 9, rc.color, { outline: false, shadow: '#05040a' }));
   const sub = (it.rarity === 4 ? 'Unique ' : rc.name + ' ') + (base ? base.name : '');
-  E.font.text(g, sub.length > 26 ? sub.slice(0, 25) + '.' : sub, bx + 45, by + 7 + nameL.length * 9, '#9a90b0', { font: 'tiny', outline: false });
+  const sf = Object.assign({ outline: false }, ft), hy = by + h0 + nameL.length * 9;   // (the small lines' font; the header's first small line)
+  E.font.text(g, sub.length > 26 ? sub.slice(0, 25) + '.' : sub, bx + 45, hy, '#9a90b0', sf);
   const ilv = 'ITEM LEVEL ' + fmt(it.ilvl) + (it.enchants ? '  •  ENCHANTED' : ''), room = WT - 50;
-  E.font.text(g, E.font.width(ilv, { font: 'tiny' }) <= room ? ilv : ilv.replace('ITEM LEVEL', 'ILVL').replace('ENCHANTED', 'ENCH.'), bx + 45, by + 14 + nameL.length * 9, '#6a6488', { font: 'tiny', outline: false });
-  if (G) { const gt = G.name.toUpperCase() + (it.dmg || it.armor ? '  +' + Math.round((G.k - 1) * 100) + '% BASE' : ''); E.font.text(g, E.font.width(gt, { font: 'tiny' }) <= room ? gt : G.name.toUpperCase(), bx + 45, by + 21 + nameL.length * 9, G.c, { font: 'tiny', outline: false }); }   // the grade: deeper bases hit harder
+  E.font.text(g, E.font.width(ilv, ft) <= room ? ilv : ilv.replace('ITEM LEVEL', 'ILVL').replace('ENCHANTED', 'ENCH.'), bx + 45, hy + hs, '#6a6488', sf);
+  if (G) { const gt = G.name.toUpperCase() + (it.dmg || it.armor ? '  +' + Math.round((G.k - 1) * 100) + '% BASE' : ''); E.font.text(g, E.font.width(gt, ft) <= room ? gt : G.name.toUpperCase(), bx + 45, hy + hs * 2, G.c, sf); }   // the grade: deeper bases hit harder
   let yy = by + hdH;
   for (const l of body) {
     if (l.sep) { px.rect(g, bx + 8, yy + 2, WT - 16, 1, '#2e2644'); yy += 5; continue; }
     if (l.pip) { if (l.star) LOT_star(g, bx + 8, yy + 4, l.pip); else { px.rect(g, bx + 7, yy + 3, 3, 3, l.pip); px.dot(g, bx + 8, yy + 3, '#ffffff'); } }
-    if (l.tiny) { E.font.text(g, l.t, bx + 6 + l.x, yy, l.c, { font: 'tiny', outline: false }); yy += 7; continue; }
+    if (l.tiny) { E.font.text(g, l.t, bx + 6 + l.x, yy, l.c, sf); yy += sm; continue; }
     E.font.text(g, l.t, bx + 6 + l.x, yy, l.c, { outline: false, shadow: '#05040a' }); yy += lh;
   }
-  const drawCmp = (cx, cy) => { for (const l of cmp) { if (l.head) { px.rect(g, cx + 6, cy + 1, WT - 12, 1, '#2e2644'); E.font.text(g, l.t, cx + 6, cy + 3, l.c, { font: 'tiny', outline: false }); cy += lh; continue; } E.font.text(g, l.t, cx + 6, cy, l.c, { outline: false, shadow: '#05040a' }); cy += lh; } };
+  const drawCmp = (cx, cy) => { for (const l of cmp) { if (l.head) { px.rect(g, cx + 6, cy + 1, WT - 12, 1, '#2e2644'); E.font.text(g, l.t, cx + 6, cy + 3, l.c, sf); cy += lh + hd2; continue; } E.font.text(g, l.t, cx + 6, cy, l.c, { outline: false, shadow: '#05040a' }); cy += lh; } };
   if (cmp.length && !side) { drawCmp(bx, yy + 2); yy += cmpH; }
   px.rect(g, bx + 8, yy + 2, WT - 16, 1, '#2e2644'); yy += 5;
-  for (const l of foot) { if (l.legend) LOT_legend(g, bx + 6, yy, WT - 12, great, adv); else E.font.text(g, l.t, bx + 6, yy, l.c, { font: 'tiny', outline: false }); yy += 8; }
+  for (const l of foot) { if (l.legend) LOT_legend(g, bx + 6, yy, WT - 12, great, adv); else E.font.text(g, l.t, bx + 6, yy, l.c, sf); yy += fs; }
   if (side) { E.ui.box(g, cbx, cby, WT, ch, { bg: ['#1a1428', '#0c0818'], border: '#6a5a88', shadow: '#000000' }); drawCmp(cbx, cby + 2); }
 }
 

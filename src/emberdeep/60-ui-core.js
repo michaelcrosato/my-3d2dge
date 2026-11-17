@@ -110,12 +110,13 @@ function slider(g, x, y, w, v, lo, hi, step, onChange, o = {}) {
   const kx = x + Math.round(u * w); px.rect(g, kx - 2, y - 1, 5, 7, over || o.focus ? '#fff6d8' : '#c8b8e8'); px.rect(g, kx - 1, y, 3, 5, o.color || GOLD);
   void m;
 }
-/** a tooltip box of lines [{ t, c, big, sep }] near (x, y), kept on screen */
+/** a tooltip box of lines [{ t, c, big, sep }] near (x, y), kept on screen. On a TV it may take half the screen's width
+ *  (a long line wraps less, so the box is shorter and reads from a sofa); everywhere it wraps, never cuts */
 function tipBox(g, lines, x, y, o = {}) {
   if (!lines || !lines.length) return;
   lines = lines.flatMap(l => { if (!l.t || l.t.indexOf('{') < 0) return [l]; const t = keyText(l.t); return t ? [Object.assign({}, l, { t })] : []; });   // ({key:action} for the device in use; a hint with none goes)
   if (!lines.length) return;
-  const W0 = o.w || Math.min(190, Math.max(...lines.map(l => E.font.width(l.t || '') + 10)));
+  const W0 = o.w || Math.min(UI_tv() ? Math.max(190, Math.floor(game.W / 2) - 4) : 190, Math.max(...lines.map(l => E.font.width(l.t || '') + 10)));
   const wrapped = []; for (const l of lines) { if (l.sep) { wrapped.push(l); continue; } for (const t of E.font.wrap(l.t || '', W0 - 10)) wrapped.push({ t, c: l.c, big: l.big }); }
   const H0 = wrapped.reduce((a, l) => a + (l.sep ? 5 : 9), 0) + 8, W = game.W, H = game.H;
   let bx = Math.round(x + 10), by = Math.round(y + 8); if (bx + W0 > W - 2) bx = Math.round(x - W0 - 6); if (by + H0 > H - 2) by = H - H0 - 2; if (by < 2) by = 2; if (bx < 2) bx = 2;
@@ -208,31 +209,45 @@ function HUD_under() { const F = UI.frame; return F.barB > 0 ? Math.max(0, Math.
 function drawHudInner(g, r, h) {
   {
     const W = r.W, H = r.H, cx = Math.round(W / 2), by = H - 24;
+    // on a TV the labels a player reads (the orbs' numbers, the potion key, LV, the gold, the points, the timer, the
+    // exit's distance, a cooldown) are in the normal font (UI_tf); ty lifts each by a pixel so it keeps its middle (the
+    // normal font is 7 rows to the tiny one's 5). Elsewhere they stay tiny, where they were
+    const tv = UI_tv(), ty = tv ? 1 : 0;
     // orbs
     const OR = 17;
     orb(g, 22, H - 22, OR, h.hp / h.maxHp, h.st.poison ? '#6ac03a' : '#d8303a', '#2a0c14');
     orb(g, W - 22, H - 22, OR, h.ember / h.maxEmber, '#ff8a2a', '#2a1408');
     if (hot(22 - OR, H - 22 - OR, OR * 2, OR * 2, { tip: [{ t: 'Life ' + fmt(Math.ceil(h.hp)) + ' / ' + fmt(h.maxHp), c: '#ff8a8a' }, { t: (h.stats.lifeRegen || 0).toFixed(1) + ' per second', c: '#c8c0d8' }] })) {}
     if (hot(W - 22 - OR, H - 22 - OR, OR * 2, OR * 2, { tip: [{ t: 'Ember ' + Math.floor(h.ember) + ' / ' + h.maxEmber, c: '#ffb070' }, { t: 'Skills spend it; Blade Dance and other basic skills make it.', c: '#c8c0d8' }] })) {}
-    E.font.text(g, fmt(Math.ceil(h.hp)), 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
-    E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
+    E.font.text(g, fmt(Math.ceil(h.hp)), 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
+    E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
     // potions beside the life orb, with their key or button (none on touch: the Potion button says it)
     const touch = ctlDevice() === 'touch';
     for (let i = 0; i < h.maxPotions; i++) { const x = 44 + i * 7, y = H - 12, full = i < h.potions; px.rect(g, x + 1, y - 7, 2, 2, full ? '#c8b890' : '#4a4050'); px.disc(g, x + 2, y - 2, 2.6, full ? '#e03a4a' : '#2a2030'); if (full) px.dot(g, x + 1, y - 3, '#ffc0c8'); }
-    if (!touch) E.font.text(g, keyLabel('potion', true), 44 + h.maxPotions * 7 + 2, H - 13, '#9a90b0', { font: 'tiny', outline: '#0c0818' });
+    if (!touch) E.font.text(g, keyLabel('potion', true), 44 + h.maxPotions * 7 + 2, H - 13 - ty, '#9a90b0', UI_tf({ outline: '#0c0818' }));
     // skill bar
     const SW = 18, gap = 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);
+    // the slots' key badges: the normal font on a TV when every badge fits a slot's corner (a pad's □ R1 R2, the keys 1-4),
+    // else all tiny (LMB is too wide), so one bar never mixes the two
+    const keys = touch ? [] : SLOT_ACTS.map((a, i) => slotKey(i)), bf = tv && keys.every(k => E.font.width(k) + 3 <= SW - 4) ? {} : { font: 'tiny' }, bh = bf.font ? 7 : 9;
     for (let i = 0; i < n; i++) {
       const x = bx + i * (SW + gap) + (i >= 2 ? 4 : 0), y = by, id = h.slots[i], S = id && REG.skills[id];
       E.ui.box(g, x - 1, y - 1, SW + 2, SW + 2, { bg: '#141020', border: h.cdWarn && h.cdWarn.slot === i && h.cdWarn.t > 0 ? '#ff5a5a' : h.act && h.act.slot === i ? GOLD : '#5a4a70', shadow: false, gradient: false });
       if (S) {
         drawSkillIcon(g, id, x + 1, y + 1, 1);
         const cd = h.cds[id], full = S.cd ? skillCd(h, S) : 0;
-        if (cd > 0 && full) { const k = Math.round(16 * cd / full); px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), x + 9, y + 6, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' }); }
+        if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 5), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
-      if (!touch) { const slotLabel = slotKey(i), kw = E.font.width(slotLabel, { font: 'tiny' }) + 3; px.rect(g, x + SW - kw, y + SW - 6, kw + 1, 7, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - 5, '#c8c0d8', { font: 'tiny', outline: false }); }   // (a touch button names its skill)
-      hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel ({key:skills}).', c: '#c8c0d8' }], click: () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
+      if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
+      hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel ({key:skills}).', c: '#c8c0d8' }], click: touch ? null : () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
+    }
+    // on touch the bar is ONE target a finger's height (44 CSS px), not six 18 px squares: a tap opens the Skills panel for
+    // the slot nearest it (a near miss arms the next slot, which the panel changes in a tap). The points chip, drawn
+    // after, keeps its own target where the two meet
+    if (touch) {
+      const F = Math.max(UI_finger(), SW + 2), t0 = Math.min(by - 1, H - F), ox = UI.hotO ? UI.hotO[0] : 0, mid = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2;
+      hot(bx - 2, t0, bw + 4, H - t0, { label: 'SKILL BAR', click: () => { if (!UI.panels.skills) return; const mx = UI.mouse.x - ox; let k = 0; for (let i = 1; i < n; i++) if (Math.abs(mid(i) - mx) < Math.abs(mid(k) - mx)) k = i; UI.open('skills', { slot: k }); } });
     }
     if (h.cdWarn) h.cdWarn.t -= 1 / 60;
     // dodge charges over the bar, xp bar under it
@@ -242,7 +257,7 @@ function drawHudInner(g, r, h) {
     if (xf > 0) { px.rect(g, bx + 1, H - 3, xf, 2, '#8a5ae0'); px.rect(g, bx + 1, H - 3, xf, 1, '#c8a8ff'); px.dot(g, bx + xf, H - 3, '#ffffff'); }
     for (let q = 1; q < 4; q++) px.dot(g, bx + 1 + Math.round((xw - 2) * q / 4), H - 2, '#0c0818');
     hot(bx, H - 5, xw, 5, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
-    E.font.text(g, 'LV ' + h.level, bx - 4, H - 8, '#c8b0ff', { align: 'right', font: 'tiny', outline: '#0c0818' });
+    E.font.text(g, 'LV ' + h.level, bx - 4, H - 8 - ty, '#c8b0ff', UI_tf({ align: 'right', outline: '#0c0818' }));
     // the reminder only names a pool that can still buy something (every skill at max rank, or the whole tree taken,
     // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
     const ck = h.pts.skill + ':' + h.pts.passive + ':' + h.level, cs = typeof PRG_canSpend !== 'function' ? null : UI.csKey === ck && game.real - UI.csT < 2 ? UI.cs : (UI.csKey = ck, UI.csT = game.real, UI.cs = PRG_canSpend(h));
@@ -251,12 +266,14 @@ function drawHudInner(g, r, h) {
       // them: the menu's button; on touch the line is a chip a tap opens the panel from
       const blink = Math.floor(game.real * 2) % 2, sk = skN, pa = paN, dev = ctlDevice(), K = keyLabel('skills', true), Pk = keyLabel('tree', true);
       const keys = touch ? '' : K || Pk ? (sk && pa ? ' (' + [K, Pk].filter(Boolean).join(' / ') + ')' : sk && K ? ' (' + K + ')' : pa && Pk ? ' (' + Pk + ')' : '') : dev === 'gamepad' ? ' (' + keyLabel('pause', true) + ')' : '';
-      const s = (sk ? sk + ' SKILL' : '') + (sk && pa ? ' + ' : '') + (pa ? pa + ' PASSIVE' : '') + ' POINT' + (sk + pa > 1 ? 'S' : '') + keys, sw0 = E.font.width(s, { font: 'tiny' });
-      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, by - 18, sw0 + 8, 10, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
-      E.font.text(g, s, cx, by - 15, blink ? GOLD : '#e0a040', { align: 'center', font: 'tiny', outline: '#0c0818' });
-      if (touch) hot(cx - sw0 / 2 - 4, by - 19, sw0 + 8, 12, { click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } });   // (a tap opens where the points go; a mouse's click there swings, as before)
+      const s = (sk ? sk + ' SKILL' : '') + (sk && pa ? ' + ' : '') + (pa ? pa + ' PASSIVE' : '') + ' POINT' + (sk + pa > 1 ? 'S' : '') + keys, sw0 = E.font.width(s, UI_tf());
+      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, by - 18 - ty * 2, sw0 + 8, 10 + ty * 2, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
+      E.font.text(g, s, cx, by - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
+      // a tap opens where the points go (a mouse's click there swings, as before). The chip is a short line, so its
+      // target is a finger's (44 CSS px) square or more, reaching up from just over the skill bar: never over a slot
+      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); hot(Math.round(cx - fw / 2), by - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
     }
-    E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9, GOLD, { align: 'right', font: 'tiny', outline: '#0c0818' });
+    E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9 - ty, GOLD, UI_tf({ align: 'right', outline: '#0c0818' }));
     // top left: where we are, the level's elements, buffs
     const L0 = ED.L; let leftW = 0;   // how far the place names reach (the boss bar keeps clear of them)
     if (L0) {
@@ -266,8 +283,8 @@ function drawHudInner(g, r, h) {
       leftW = Math.max(E.font.width(dl), E.font.width(nm));
       if (L0.kind === 'level') {   // the speedrunner's clock: this depth's time, and the best
         const tm = L0.t || 0, best = h.best && h.best[L0.depth], ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0'), cs = ft(tm) + (best ? '  best ' + ft(best) : '');
-        E.font.text(g, cs, E.font.width(dl) + 10, 4, best && tm > best ? '#9a90b0' : '#8fe3ff', { font: 'tiny', shadow: '#05040a', outline: false });
-        leftW = Math.max(leftW, E.font.width(dl) + 5 + E.font.width(cs, { font: 'tiny' }));
+        E.font.text(g, cs, E.font.width(dl) + 10, 4, best && tm > best ? '#9a90b0' : '#8fe3ff', UI_tf({ shadow: '#05040a', outline: false }));
+        leftW = Math.max(leftW, E.font.width(dl) + 5 + E.font.width(cs, UI_tf()));
       }
       let mx = 5;
       for (const id of L0.mechs || []) { const M = REG.mechanics[id]; if (!M) continue; E.ui.box(g, mx, 24, 14, 14, { bg: '#1a1428', border: M.color || '#8a7aa8', shadow: false, gradient: false }); if (M.icon) M.icon(g, mx + 1, 25, .75); hot(mx, 24, 14, 14, { tip: [{ t: M.name, c: M.color || GOLD }, { t: M.tip || '', c: '#c8c0d8' }] }); mx += 16; }
@@ -276,7 +293,7 @@ function drawHudInner(g, r, h) {
       for (const b of h.buffs) { drawTimedIcon(g, bxx, byy, b.color || '#8affc8', '#141020', b, b.n, () => buffPaint(g, b, bxx, byy)); hot(bxx, byy, 14, 14, { tip: () => [{ t: b.name, c: b.color }, { t: b.t > 999 ? 'while it lasts' : Math.ceil(b.t) + 's', c: '#c8c0d8' }].concat(Object.keys(b.stats || {}).map(k => ({ t: statText(k, b.stats[k]), c: '#8ab4ff' }))) }); bxx += 16; }
       for (const id in h.st) { const S = REG.statuses[id], s = h.st[id]; if (!S) continue; drawTimedIcon(g, bxx, byy, S.color, '#1a0c14', s, s.n, () => UI_glyph(g, UI_STATUS_GLYPH[id] || 'skull', bxx + 3, byy + 3, S.color)); hot(bxx, byy, 14, 14, { tip: () => [{ t: S.name, c: S.color }, { t: (s.t > 0 ? s.t.toFixed(1) + 's' : '') + (s.n > 1 ? '  •  ' + s.n + ' stacks' : ''), c: '#c8c0d8' }].concat(UI_STATUS_TIP[id] ? [{ t: UI_STATUS_TIP[id], c: '#ff9a9a' }] : []) }); bxx += 16; }
       // the pickup log under that row; the notice column keeps clear of all of it (and of the minimap)
-      const pw = NT_drawPicks(g, 6, byy + (bxx > 5 ? 19 : 2), 110);
+      const pw = NT_drawPicks(g, 6, byy + (bxx > 5 ? 19 : 2), tv ? 150 : 110);   // (a TV's normal-font names take a wider column)
       UI.feedL = Math.max(mx, bxx, pw ? pw + 10 : 0, 118);
       drawMinimap(g, r, L0, h);
     }
@@ -284,9 +301,12 @@ function drawHudInner(g, r, h) {
     if (L0 && L0.exit && L0.kind === 'level' && L0.seen[Math.floor(L0.exit.y / T16) * L0.w + Math.floor(L0.exit.x / T16)]) {
       const [ex, ey] = r.w(L0.exit.x, L0.exit.y, 10), m = 14;
       if (ex < m || ex > W - m || ey < m || ey > H - m) {
-        const dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - m) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
+        // (on a TV the arrow and its larger label keep clear of what always sits in the corners: above the HUD bar and the
+        // orbs, below the place names and the minimap)
+        const mb = tv ? 44 : m, mt = tv ? 62 + HUD_under() : m, dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - (dy > 0 ? mb : mt)) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
         px.poly(g, [[ax + Math.cos(a) * 6, ay + Math.sin(a) * 6], [ax + Math.cos(a + 2.4) * 5, ay + Math.sin(a + 2.4) * 5], [ax + Math.cos(a - 2.4) * 5, ay + Math.sin(a - 2.4) * 5]], c);
-        const dd = Math.round(Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) / T16); E.font.text(g, dd + 'm', ax - Math.cos(a) * 9, ay - Math.sin(a) * 9 - 2, c, { align: 'center', font: 'tiny', outline: '#0c0818' });
+        const dd = Math.round(Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) / T16), ad = tv ? 13 : 9;   // (the wider normal-font label sits further back from the arrow)
+        E.font.text(g, dd + 'm', ax - Math.cos(a) * ad, ay - Math.sin(a) * ad - 2 - ty, c, UI_tf({ align: 'center', outline: '#0c0818' }));
       }
     }
     // boss bar: in the gap between the place names (top left) and the minimap (top right), centered when it can be
@@ -464,20 +484,22 @@ function NT_swipe(sw) {
   return false;
 }
 /** the pickup log: the items he just picked up, under the buff row. They slide in from the left in their rarity's
- *  color and fade out; names are cut to the column */
+ *  color and fade out; names are cut to the column (tiny, but the normal font on a TV: UI_tf) */
 function NT_drawPicks(g, x, y, maxW) {
+  const f = UI_tf(), gy = f.font ? 0 : 1, step = f.font ? 8 : 9;   // (the gem keeps to the middle of the taller line)
   let yy = y, w = 0;
   for (const q of NT.picks.slice(-5)) {
     const a = NT_alpha(q); if (a <= 0) continue;
     const sx = x - Math.round((1 - E.ease.outCubic(Math.min(1, q.t / .22))) * 12), c = q.color || '#e8e0f8', dk = E.shade(c, -.55);
     let s = q.text.toUpperCase(); const tail = q.n > 1 ? ' x' + q.n : '';
-    while (s.length > 3 && E.font.width(s + tail, { font: 'tiny' }) > maxW - 8) s = s.slice(0, -1);
+    while (s.length > 3 && E.font.width(s + tail, f) > maxW - 8) s = s.slice(0, -1);
     if (s.length < q.text.length) s = s.replace(/\s+$/, '') + '.';
     px.blend(g, a, 'normal', () => {
-      px.rect(g, sx + 1, yy, 3, 5, '#0c0818'); px.rect(g, sx, yy + 1, 5, 3, '#0c0818'); px.rect(g, sx + 2, yy + 1, 1, 3, c); px.rect(g, sx + 1, yy + 2, 3, 1, c); px.dot(g, sx + 2, yy + 2, q.it && q.it.rarity >= 3 ? '#ffffff' : dk);   // a rarity gem
-      E.font.text(g, s + tail, sx + 7, yy, c, { font: 'tiny', outline: '#0c0818' });
+      const gt = yy + gy;
+      px.rect(g, sx + 1, gt, 3, 5, '#0c0818'); px.rect(g, sx, gt + 1, 5, 3, '#0c0818'); px.rect(g, sx + 2, gt + 1, 1, 3, c); px.rect(g, sx + 1, gt + 2, 3, 1, c); px.dot(g, sx + 2, gt + 2, q.it && q.it.rarity >= 3 ? '#ffffff' : dk);   // a rarity gem
+      E.font.text(g, s + tail, sx + 7, yy, c, Object.assign({ outline: '#0c0818' }, f));
     });
-    w = Math.max(w, 7 + E.font.width(s + tail, { font: 'tiny' })); yy += 8;
+    w = Math.max(w, 7 + E.font.width(s + tail, f)); yy += step;
   }
   return w;
 }
@@ -663,7 +685,16 @@ function RUN_leave(retry) {
   const h = ED.hero; UI.closeAll(); h.gold = Math.floor(h.gold * .9); reviveHero(h);
   if (!retry) goTown(); else if (ED.mode === 'proving') game.go('proving'); else descend(RUN_retryDepth(h));
 }
-UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, 290), h: (W, H) => Math.min(H - 8, 144 + UI_rowH()),
+/* the death screen reads from a sofa and on a phone: on a TV, on a touch screen and held upright its words are all in the
+   normal font (the tiny one only where a line cannot fit), the panel is wider, and its two choices are a finger's height
+   (44 CSS px) on a touch screen. Held upright it has a layout of its own: a bigger portrait, the killer's name and the
+   numbers at twice the size, and the choices one under the other across the panel. A laptop's stays as it was */
+const DTH_touch = () => !!TOUCH.el || ctlDevice() === 'touch';
+const DTH_big = () => UI_tv() || UI_tall() || DTH_touch();
+/** the choices' height: a finger's on a touch screen, else a menu row's */
+const DTH_rh = () => DTH_touch() ? Math.max(UI_finger(), 16) : UI_rowH() - 1;
+UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : DTH_big() ? 360 : 290),
+  h: (W, H) => Math.min(H - 8, UI_tall() ? 216 + 2 * DTH_rh() : DTH_big() ? 140 + DTH_rh() : 144 + UI_rowH()),
   open() { RUN.focus = 0; },
   update(dt) {
     const inp = game.input, K = RUN.killer, m = K && K.m;
@@ -674,36 +705,53 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, 290), h: (W, H) => 
   },
   draw(g, x, y, w, hh) {
     const h = ED.hero, K = RUN.killer || { name: 'The deep itself', el: 'phys', dmg: 0 }, e = EL(K.el), tiny = { font: 'tiny', outline: false }, m = K.m;
+    // big: every line in the normal font (f; step: a line's height); tall: the upright layout. A laptop draws as before
+    const tall = UI_tall(), big = tall || DTH_big(), f = big ? { outline: false } : tiny, step = big ? 9 : 8, fit = (s, mw) => E.font.width(s, f) <= mw ? f : tiny;
     // who: the portrait, the name (in its rank's color), a champion's or a rare's affixes, and the blow
-    const PS = 46, px0 = x + 10, tx = px0 + PS + 8, tw = x + w - 10 - tx;
-    RUN_portrait(g, px0, y + 20, PS, K);
-    E.font.text(g, 'SLAIN BY', tx, y + 21, '#9a7080', tiny);
+    const PS = tall ? 64 : 46, py0 = y + (tall ? 22 : 20), px0 = x + 10, tx = px0 + PS + 8, tw = x + w - 10 - tx;
+    RUN_portrait(g, px0, py0, PS, K);
+    E.font.text(g, 'SLAIN BY', tx, py0 + 1, '#9a7080', f);
     const nc = m ? (m.boss ? '#ff9a6a' : m.elite === 2 ? GOLD : m.elite ? '#9ab8ff' : '#f0e8f8') : e.light, nm = String(K.name);
-    E.font.text(g, nm, tx, y + 29, nc, { shadow: '#05040a', outline: false, font: E.font.width(nm) > tw ? 'tiny' : undefined });
+    let ly = py0 + (big ? 10 : 9);
+    if (tall && E.font.width(nm, { scale: 2 }) <= tw) { E.font.text(g, nm, tx, ly, nc, { shadow: '#05040a', outline: false, scale: 2 }); ly += 18; }   // (upright: the name at twice the size where it fits)
+    else if (tall) for (const l of E.font.wrap(nm, tw).slice(0, 2)) { E.font.text(g, l, tx, ly, nc, { shadow: '#05040a', outline: false }); ly += 9; }
+    else { E.font.text(g, nm, tx, ly, nc, { shadow: '#05040a', outline: false, font: E.font.width(nm) > tw ? 'tiny' : undefined }); ly = y + 40; }
+    if (tall) ly += 1;
     const aff = m && (m.affixes || []).map(id => REG.affixes[id] && REG.affixes[id].name).filter(Boolean);
-    let ly = y + 40; if (aff && aff.length) { E.font.text(g, aff.join('  •  ').toUpperCase(), tx, ly, '#c8a8d8', tiny); ly += 8; }
-    px.rect(g, tx, ly + 1, 5, 5, e.dark); px.rect(g, tx, ly + 1, 5, 1, e.light); px.rect(g, tx + 1, ly + 2, 3, 3, e.color);   // the element chip
+    if (aff && aff.length) { const s = aff.join('  •  ').toUpperCase(); E.font.text(g, s, tx, ly, '#c8a8d8', fit(s, tw)); ly += step; }
     const pct = h && h.maxHp ? Math.round(K.dmg / h.maxHp * 100) : 0;
-    E.font.text(g, K.dot ? 'WORN DOWN BY ' + String(K.name).toUpperCase() : 'A ' + fmt(Math.round(K.dmg)) + ' ' + e.name.toUpperCase() + ' BLOW' + (pct >= 100 ? '  (MORE THAN ALL YOUR LIFE)' : pct >= 40 ? '  (' + pct + '% OF YOUR LIFE)' : ''), tx + 8, ly + 1, e.light, tiny);
-    ly += 9;
+    const blow = K.dot ? 'WORN DOWN BY ' + String(K.name).toUpperCase() : 'A ' + fmt(Math.round(K.dmg)) + ' ' + e.name.toUpperCase() + ' BLOW' + (pct >= 100 ? '  (MORE THAN ALL YOUR LIFE)' : pct >= 40 ? '  (' + pct + '% OF YOUR LIFE)' : '');
+    // the blow: one line on a laptop (as before); in the normal font it wraps to two (at the double space: the share of
+    // his life on a line of its own) rather than shrink
+    const bl = !big ? [blow] : E.font.width(blow, f) <= tw - 8 ? [blow] : blow.indexOf('  (') > 0 ? blow.split(/ {2}(?=\()/) : E.font.wrap(blow, tw - 8).slice(0, 2);
+    px.rect(g, tx, ly + 1, 5, 5, e.dark); px.rect(g, tx, ly + 1, 5, 1, e.light); px.rect(g, tx + 1, ly + 2, 3, 3, e.color);   // the element chip
+    for (const l of bl) { E.font.text(g, l, tx + 8, ly + (big ? 0 : 1), e.light, fit(l, tw - 8)); ly += 9; }
     const prev = RUN.hits.slice(-3).reverse();
-    if (prev.length && ly < y + 66) { let hx = tx; E.font.text(g, 'BEFORE:', hx, ly, '#6a6488', tiny); hx += 30; for (const q of prev) { const s = fmt(Math.round(q.dmg)) + ' ' + EL(q.el).short, sw = E.font.width(s, { font: 'tiny' }); if (hx + sw > x + w - 8) break; E.font.text(g, s, hx, ly, EL(q.el).color, tiny); hx += sw + 7; } }
-    // the descent in numbers
-    const sy = y + 72; px.rect(g, x + 8, sy - 3, w - 16, 1, '#4a3a60');
+    if (prev.length && ly < py0 + PS - (big ? 6 : 0) + (tall ? 18 : 0)) {
+      let hx = tx; E.font.text(g, 'BEFORE:', hx, ly, '#6a6488', f); hx += big ? E.font.width('BEFORE:', f) + 5 : 30;
+      for (const q of prev) { const s = fmt(Math.round(q.dmg)) + ' ' + EL(q.el).short, sw = E.font.width(s, f); if (hx + sw > x + w - 8) break; E.font.text(g, s, hx, ly, EL(q.el).color, f); hx += sw + (big ? 9 : 7); }
+      ly += step;
+    }
+    // the descent in numbers: three across, the name over the number and what it means beside it (upright: under it)
+    const sy = tall ? Math.max(py0 + PS, ly) + 9 : y + 72; px.rect(g, x + 8, sy - 3, w - 16, 1, '#4a3a60');
     const ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0'), cw = Math.floor((w - 16) / 3);
     const cells = [['DEPTH', ED.mode === 'proving' ? 'PROVING' : String(ED.depth), h && h.maxDepth > ED.depth ? 'deepest ' + h.maxDepth : 'your deepest'], ['TIME', ft(RUN.t), RUN.depths > 1 ? RUN.depths + ' depths' : ''], ['KILLS', fmt(RUN.kills), ''],
       ['LOOT', fmt(RUN.items), RUN.legends ? RUN.legends + ' legendary' : ''], ['GOLD', '+' + fmt(RUN.gold), ''], ['LEVELS', '+' + RUN.levels, h ? 'now ' + h.level : '']];
     cells.forEach(([k, v, sub], i) => {
-      const cx0 = x + 10 + (i % 3) * cw, cy0 = sy + 2 + Math.floor(i / 3) * 21;
-      E.font.text(g, k, cx0, cy0, '#8a80a8', tiny); E.font.text(g, v, cx0, cy0 + 7, '#fff6d8', { shadow: '#05040a', outline: false });
-      if (sub) E.font.text(g, sub.toUpperCase(), cx0 + E.font.width(v) + 4, cy0 + 9, '#6a6488', tiny);
+      const cx0 = x + 10 + (i % 3) * cw, cy0 = sy + 2 + Math.floor(i / 3) * (tall ? 40 : big ? 22 : 21), vy = cy0 + (big ? 9 : 7);
+      E.font.text(g, k, cx0, cy0, '#8a80a8', f);
+      if (tall) { const vs = E.font.width(v, { scale: 2 }) <= cw - 6 ? 2 : 1; E.font.text(g, v, cx0, vy, '#fff6d8', { shadow: '#05040a', outline: false, scale: vs }); if (sub) E.font.text(g, sub.toUpperCase(), cx0, vy + 17, '#6a6488', fit(sub.toUpperCase(), cw - 6)); return; }
+      E.font.text(g, v, cx0, vy, '#fff6d8', { shadow: '#05040a', outline: false });
+      if (sub) { const S = sub.toUpperCase(), sx = cx0 + E.font.width(v) + 4, sf = big ? fit(S, cx0 + cw - 4 - sx) : tiny; E.font.text(g, S, sx, vy + (sf.font ? 2 : 0), '#6a6488', sf); }   // (tiny where it cannot fit: bottoms aligned)
     });
-    // the price, and the way back
-    const rh = UI_rowH() - 1, by = y + hh - 7 - rh;
-    E.font.text(g, 'THE WAYSTONE CARRIES YOU OUT. YOU DROP ' + fmt(Math.floor((h ? h.gold : 0) * .1)) + ' GOLD.', x + w / 2, by - 10, '#9a90b0', { align: 'center', font: 'tiny', outline: false });
-    const bw = Math.floor((w - 26) / 2), rd = h ? RUN_retryDepth(h) : 1;
+    // the price, and the way back (upright: the two choices one under the other, across the panel)
+    const rh = DTH_rh(), by = y + hh - 7 - (tall ? rh * 2 + 6 : rh), gold = fmt(Math.floor((h ? h.gold : 0) * .1));
+    let price = 'THE WAYSTONE CARRIES YOU OUT. YOU DROP ' + gold + ' GOLD.';
+    if (!big) E.font.text(g, price, x + w / 2, by - 10, '#9a90b0', { align: 'center', font: 'tiny', outline: false });
+    else { const L = E.font.wrap(price, w - 20); if (!tall && L.length > 1) price = 'YOU DROP ' + gold + ' GOLD.'; (tall ? L : [price]).forEach((l, i, a) => E.font.text(g, l, x + w / 2, by - 11 - (a.length - 1 - i) * 9, '#9a90b0', { align: 'center', outline: false })); }
+    const bw = tall ? w - 20 : Math.floor((w - 26) / 2), rd = h ? RUN_retryDepth(h) : 1;
     [['RETURN TO EMBERHOLD', false], [ED.mode === 'proving' ? 'TRY AGAIN' : 'WAYSTONE TO DEPTH ' + rd, true]].forEach(([label, retry], i) => {
-      const over = button(g, x + 10 + i * (bw + 6), by, bw, rh, label, () => RUN_leave(retry), { focus: RUN.focus === i, color: i ? '#3a2a4a' : undefined,
+      const over = button(g, x + 10 + (tall ? 0 : i * (bw + 6)), by + (tall ? i * (rh + 6) : 0), bw, rh, label, () => RUN_leave(retry), { focus: RUN.focus === i, color: i ? '#3a2a4a' : undefined,
         tip: i ? [{ t: ED.mode === 'proving' ? 'Try again' : 'Straight back down', c: GOLD }, { t: ED.mode === 'proving' ? 'The waves start over.' : 'Revive and walk into depth ' + rd + ' again (a fresh one), without the walk through town.', c: '#c8c0d8' }] : null });
       if (over && !UI.keyNav) RUN.focus = i;   // the mouse moves the one highlight, the keys move it back
     });
