@@ -11,7 +11,7 @@ Under a finger the engine's tap is its own finger's, as Emberdeep's has been sin
 
 - **Engine**: `input.clicked()`: a tap is its own finger's. Each pointer is followed by its own id from its press to its lift, under v0.108.0's rule: a finger's tap lifts never having strayed 12 CSS px from where it landed (past it, none though it comes back), a mouse's click lifts within 12 px of where it pressed. Where the engine kept one press for every pointer, the stick's thumb landing or lifting during a tap, another finger landing, or a finger on a touch button let go took the tap away (two-thumb play: the kits' taps that walk, shoot, turn a piece, pick a row); now none of them does. The stick's thumb, steering, is never a tap; a finger that lands on the stick's half and lifts unmoved still is (a menu's row there, a cell tapped there, the puzzle's turn). `input.layoutDevice` holds for the latest press that can still be a tap, each followed by its own pointer: another finger lifting no longer lets it go (D119).
 - **Tools**: `phone-test` 28 (`taps`): real touches on the platformer, held either way: a tap on the right half counts in every order the stick's thumb lands, steers and lifts around it and while a finger on JUMP lifts; the stick's thumb steered and brought back is no tap; a finger lifted unmoved on the stick's half is one. It fails on v0.108.0.
-- **Docs**: `API.md` and `docs/CONTROLS.md` say a tap is its own finger's.
+- **Docs**: `API.md`, `docs/CONTROLS.md` and `docs/CONTROLS-TOUCH.md` say the engine's tap is its own finger's (D119).
 
 ## 0.108.0 (2026-11-17)
 
@@ -61,7 +61,7 @@ The controls standard, its last gaps: Emberdeep held upright on any phone at a t
 - **Docs**: `docs/CONTROLS.md`, API.md and the agent edition's header: `input.layoutDevice` holds only for a press that can still be a tap, on the screen it landed on; a finger past a tap's reach is no tap even if it comes back; a mouse's press holds until it lifts; a box play goes on under keeps clear of the buttons.
 - **Tools**: `phone-test`'s bands: the toast, the prompt, the tip and the card against the touch buttons and one another, held either way, with stealth's map as the minimap, real fingers on the card's × and the minimap, everything up at once, a laptop's touch screen, a toast of two lines and a long one coming and going at 640 × 360, six lines upright at 320 × 568 and four on its side with the card and the minimap; `kit3d-test`: the 3D kits' bottom pieces against one another and the top HUD, and 3D ACTION upright with six lines.
 - **Tools**: `ed-controls-test`'s gyro: a slow turn on a table and a steady turn as the controller connects move the aim all the way and nothing runs back, a healthy controller's own drift is learned on a table and in a hand, a worn controller's 1.2 with pans against it and laid down after creeps no further, and a turn that eases in gives at least 0.7 of the turn; each fails with the gyro silent.
-- **Docs**: `docs/CONTROLS.md`'s "Touch: nothing over a button" row; D117 and D118 in `docs/DECISIONS.md`.
+- **Docs**: `docs/CONTROLS.md`'s "Touch: nothing over a button" row; D117 and D118 in `docs/DECISIONS.md`; `docs/HANDOFF-CONTROLS.md`: the owner's play test on a real DualSense, phone and TV, and the calls to read; `docs/CONTROLS-PLAYBOOK.md` with `CONTROLS-TOUCH.md`, `CONTROLS-PAD.md` and `CONTROLS-TV.md`: what the pass taught, for an agent bringing another game to the standard (the order of work, what it cost and how to spend less, the pitfalls by device, the checks and the tools to reuse).
 
 ## 0.107.1 (2026-11-18)
 
