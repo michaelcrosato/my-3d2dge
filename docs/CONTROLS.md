@@ -3,6 +3,9 @@
 Every game on my-3D2dge (the kits, Emberdeep, a builder's game) plays to this standard. It is the owner's (2026-11-16),
 quoted first; the rest of this page says how the engine meets each clause and what a game does for the rest. It is a
 standard for the controls and the interface only: a game's rules, levels and scoring stay as they are.
+What bringing the kits and Emberdeep to it taught, for an agent doing the same to another game:
+`docs/CONTROLS-PLAYBOOK.md` (the process, the cost and the tools), with `docs/CONTROLS-TOUCH.md`, `docs/CONTROLS-PAD.md`
+and `docs/CONTROLS-TV.md`.
 
 > **10-Foot Controller-First Philosophy.** Design the game around a PS5 DualSense (or any pad the browser reports in its
 > standard mapping) played on a TV at 10 feet. With keyboard and mouse, it's the same game on the same screens, not a

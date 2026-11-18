@@ -10,7 +10,7 @@ One version number covers the engine, its agent edition, the docs and the games 
 - **Engine**: a key, pad button or click pressed or let go during a hit-stop (`game.freeze`: input ticks, the scene's `update` waits) is no longer lost: `pressed()`, `released()` and `clicked()` report it once, on the first step after the hit-stop, for every player (both editions). The pause, the Shell and `'input'` hooks, which saw it in its own step, don't see it again; a scene change in between drops it (D119).
 - **Emberdeep**: in a fight, Esc or Options to pause and the bag, skills and tree keys take the first press, even one that falls in a hit-stop; its own latch for the pointer's click (UI.late, D115) is gone, the engine's covers it.
 - **Tools**: the contract test checks, on both editions, that a key pressed and let go during a 0.4 s hit-stop is pressed and released once on the first step after it (a click and player 2's press on the full engine), and that a scene change drops it.
-- **Docs**: API.md's `freeze(s)`, AI_GUIDE.md's loop and the decisions log (D119; D115's latch superseded) say so.
+- **Docs**: API.md's `freeze(s)`, AI_GUIDE.md's loop, `docs/CONTROLS-TOUCH.md` (a tap in a hit-stop: the engine keeps it) and the decisions log (D119; D115's latch superseded) say so.
 
 ## 0.108.0 (2026-11-17)
 
@@ -60,7 +60,7 @@ The controls standard, its last gaps: Emberdeep held upright on any phone at a t
 - **Docs**: `docs/CONTROLS.md`, API.md and the agent edition's header: `input.layoutDevice` holds only for a press that can still be a tap, on the screen it landed on; a finger past a tap's reach is no tap even if it comes back; a mouse's press holds until it lifts; a box play goes on under keeps clear of the buttons.
 - **Tools**: `phone-test`'s bands: the toast, the prompt, the tip and the card against the touch buttons and one another, held either way, with stealth's map as the minimap, real fingers on the card's × and the minimap, everything up at once, a laptop's touch screen, a toast of two lines and a long one coming and going at 640 × 360, six lines upright at 320 × 568 and four on its side with the card and the minimap; `kit3d-test`: the 3D kits' bottom pieces against one another and the top HUD, and 3D ACTION upright with six lines.
 - **Tools**: `ed-controls-test`'s gyro: a slow turn on a table and a steady turn as the controller connects move the aim all the way and nothing runs back, a healthy controller's own drift is learned on a table and in a hand, a worn controller's 1.2 with pans against it and laid down after creeps no further, and a turn that eases in gives at least 0.7 of the turn; each fails with the gyro silent.
-- **Docs**: `docs/CONTROLS.md`'s "Touch: nothing over a button" row; D117 and D118 in `docs/DECISIONS.md`.
+- **Docs**: `docs/CONTROLS.md`'s "Touch: nothing over a button" row; D117 and D118 in `docs/DECISIONS.md`; `docs/HANDOFF-CONTROLS.md`: the owner's play test on a real DualSense, phone and TV, and the calls to read; `docs/CONTROLS-PLAYBOOK.md` with `CONTROLS-TOUCH.md`, `CONTROLS-PAD.md` and `CONTROLS-TV.md`: what the pass taught, for an agent bringing another game to the standard (the order of work, what it cost and how to spend less, the pitfalls by device, the checks and the tools to reuse).
 
 ## 0.107.1 (2026-11-18)
 
