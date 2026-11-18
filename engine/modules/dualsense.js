@@ -21,8 +21,9 @@ a game plays the same without them (docs/CONTROLS.md).
 - ds.gyroAim(dt) -> [dx, dy]: screen pixels to add to an aim cursor or a camera this step, from the controller's turn and
   tilt ([0, 0] with gyro aim off or no DualSense), less the gyro's drift: learned from what gives no aim, and past that
   from a reading held longer than an aiming turn holds one speed (half a second on its first rest, 5 s where the
-  accelerometer says the controller lies still, 10 s in a hand), given back if the reading then holds on the drift
-  before: a slow turn stays aim. ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() -> 'left' | 'right' |
+  accelerometer says the controller lies still, 10 s in a hand), given back on the axes it turned if the reading then
+  holds on the drift before (and taken again if the reading soon comes back to it, where a rest found it lying still):
+  a slow turn stays aim. ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() -> 'left' | 'right' |
   'up' | 'down' in the step after a flick on the touchpad, else null.
 - ds.speaker(name, o): a sound effect (audio.sfx's name and options) from the controller's speaker while the player has
   it on, else from the game's as usual. ds.micLevel() -> 0..1, how loud the microphone hears (0 while it is off).
@@ -212,7 +213,7 @@ class DualSense {
     if (this._an) { this._an.getFloatTimeDomainData(this._buf); let s = 0; for (const x of this._buf) s += x * x; const l = Math.min(1, Math.sqrt(s / this._buf.length) * 4); this._level += (l - this._level) * Math.min(1, dt * 12); }
   }
   // a controller gone (or none yet): the next one's drift is its own, found afresh (on its first rest)
-  _forget() { this._rate = [0, 0, 0]; this._bias = [0, 0, 0]; this._rest = [0, 0, 0]; this._avg = [0, 0, 0]; this._m0 = [0, 0, 0]; this._h0 = [0, 0, 0]; this._pull = this._was = null; this._found = this._took = false; this._still = this._lie = this._hold = this._back = 0; }
+  _forget() { this._rate = [0, 0, 0]; this._bias = [0, 0, 0]; this._rest = [0, 0, 0]; this._avg = [0, 0, 0]; this._m0 = [0, 0, 0]; this._h0 = [0, 0, 0]; this._pull = this._was = null; this._found = this._took = false; this._fresh = true; this._still = this._lie = this._hold = this._back = 0; }   // (_fresh: nothing learned yet)
   // the turn v (degrees a second, each axis) less the gyro's drift; a: the accelerometer's pull (g; null, or none at all
   // from a stand-in that sends nothing). The gyro alone can't tell a slow, steady turn from a drift, but an aiming turn
   // doesn't hold one speed for long and a drift holds for good:
@@ -223,10 +224,17 @@ class DualSense {
   //   never rests still finds its drift). It is followed in half a second (a rest has found it within a tenth of a
   //   degree a second). A jolt is no sign of a rest: a pressed button or a flick of the aim jolts it too
   // - a drift so taken that gives aim against the one before may still have been a turn (a first rest that came
-  //   mid-turn, a hand as steady as a table, a long track), so the one before is kept until the reading has held on the
-  //   new one 10 s. Held on the one before again for a second (half a second lying still, only where a rest had found
-  //   it: lying still, a turn can read what no rest found), the turn has ended: it comes back and the aim runs back no
-  //   further. The new one is then kept the same way, so a turn that read the drift before is given back too
+  //   mid-turn, a hand as steady as a table, a long track), so the one before is kept, on the axes the take gave aim on,
+  //   until the reading has held on the new one there 10 s. Held on the one before again on some of them (within half a
+  //   degree a second; three quarters where nothing was learned yet: a controller just connected, its own small drift
+  //   unknown), giving no aim against the new one on the rest, for a second and a half (half a second lying still, only
+  //   where a rest had found it: lying still, a turn can read what no rest found), the turn has ended there: those axes
+  //   go back and the aim runs back no further. The others keep what the take learned (on an axis it gave no aim on,
+  //   the controller's own small drift)
+  // - a drift so undone that a rest had found lying still is kept 4 s: the reading back on it half a second in that time,
+  //   it was the drift (a slow pan against it read the one before), and it returns. The one before is then kept 10 s,
+  //   back only once the reading has held on it 4 s, longer than such a pan; after that the drift stays as it is. A turn
+  //   begun later at an undone speed is aim
   // - anywhere, a reading that gives no aim (the average within the dead zone, held a second) is followed in four
   //   seconds (a hand's tremor averaged out), kept within three quarters of a degree a second of the drift a rest found.
   //   So a drift that warms is followed, and a turn that speeds up slowly enough to hide in the dead zone is not taken
@@ -238,14 +246,22 @@ class DualSense {
     const W = this._was, near = w => m.every((r, i) => Math.abs(r - w[i]) < .5), held = near(this._m0), hold = near(this._h0), gives = m.some((r, i) => Math.abs(r - b[i]) >= 1.5), took = this._took;
     if (!held || !(this._still || this._lie)) this._m0 = m.slice(); if (!hold || !this._hold) this._h0 = m.slice();   // (where the average began to hold: at rest, and anywhere)
     this._still = held && !gives ? this._still + dt : 0; this._lie = lying && held ? this._lie + dt : 0; this._hold = hold && m.every(r => Math.abs(r) < DRIFT) ? this._hold + dt : 0; this._took = false;
-    if (W) { this._back = near(W.b) ? this._back + (W.found || this._lie < .5 ? dt : 0) : 0; if (near(b) && (W.t += dt) > 10) this._was = null; }   // (W: the drift before one taken that gave aim; t: how long the reading has held on the new one)
-    const rest = this._lie > (this._found ? 5 : .5);
-    if (W && (this._back > 1.5 || W.found && this._back > .5 && this._lie > .5)) { this._was = { b: b.slice(), found: false, t: 0 }; for (let i = 0; i < 3; i++) o[i] = b[i] = W.b[i]; this._found = W.found; this._back = 0; }
+    // W: the drift before one taken that gave aim (b), on the axes it gave aim on (ax); found: a rest had found it; lay: a
+    // rest has found the one in its place since; n: 0 (a take's), 1 (a drift undone), 2 (the one before it, after it came
+    // back); t: how long the reading has held on the new drift there (n 0), or how long since (1, 2). back: the axes where
+    // the reading is on W's drift again, while the rest give no aim against the new one
+    const was = i => Math.abs(m[i] - W.b[i]) < (W.fresh ? .75 : .5), back = W ? W.ax.filter(was) : [];
+    if (W) { this._back = back.length && W.ax.every(i => was(i) || Math.abs(m[i] - b[i]) < 1.5) ? this._back + (W.found || this._lie < .5 ? dt : 0) : 0; if ((W.n || W.ax.every(i => Math.abs(m[i] - b[i]) < .5)) && (W.t += dt) > (W.n === 1 ? 4 : 10)) this._was = null; }
+    const rest = this._lie > (this._found ? 5 : .5), U = this._was;
+    if (U && (U.n === 1 ? this._back > .5 : U.n ? this._back > 4 : this._back > 1.5 || U.found && this._back > .5 && this._lie > .5)) {
+      if (back.length < U.ax.length) U.ax = U.ax.filter(i => !was(i)); else { this._was = U.n === 1 || !U.n && U.lay ? { b: b.slice(), ax: U.ax, found: !U.n || !!U.lay, lay: U.found, n: U.n + 1, t: 0 } : null; this._found = U.found; }   // (some axes back: the others keep the drift taken, still undoable)
+      for (const i of back) o[i] = b[i] = U.b[i]; this._back = 0;
+    }
     else if (rest || this._hold > 10 && (gives || took)) {
-      if (gives && !took && (this._found || !W)) this._was = { b: b.slice(), found: this._found, t: 0 };
+      if (gives && !took && (this._found || !U)) { this._was = { b: b.slice(), ax: [0, 1, 2].filter(i => Math.abs(m[i] - b[i]) >= 1.5), found: this._found, fresh: this._fresh, n: 0, t: 0 }; this._back = 0; }
       for (let i = 0; i < 3; i++) o[i] = b[i] += (m[i] - b[i]) * Math.min(1, dt * 2);
-      if (rest) this._found = this._found || m.every((r, i) => Math.abs(r - b[i]) < .1); this._took = true;
-    } else if (this._still > 1) for (let i = 0; i < 3; i++) b[i] = Math.max(o[i] - .75, Math.min(o[i] + .75, b[i] + (m[i] - b[i]) * Math.min(1, dt / 4)));
+      if (rest && m.every((r, i) => Math.abs(r - b[i]) < .1)) { this._found = true; if (this._was) this._was.lay = true; } this._took = true; this._fresh = false;
+    } else if (this._still > 1) { this._fresh = false; for (let i = 0; i < 3; i++) b[i] = Math.max(o[i] - .75, Math.min(o[i] + .75, b[i] + (m[i] - b[i]) * Math.min(1, dt / 4))); }
     this._rate = v.map((r, i) => Math.abs(r - b[i]) < 1.5 ? 0 : r - b[i]);
   }
   // the output report for what is wanted now, sent when it changed (a light set each step sends once)
