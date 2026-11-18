@@ -37,7 +37,9 @@
 //      vendor/ is the repository's byte for byte; tools/check.mjs, run in the package, serves a 3D page and passes it
 //   4. on an emulated phone held upright (390 x 844 at 3x, touch): every kit starts, the 3D picture lies exactly under the
 //      game's, the touch buttons are there, four or more in two columns right of the middle (the move stick's half
-//      clear); a sideways flick on GAME OVER goes to the title (not one in its first moment)
+//      clear); a sideways flick on GAME OVER goes to the title (not one in its first moment); on four phones (320 to 430
+//      wide) held upright and on their side, every touch button shown, the Shell's toast, prompt, tip and tutorial card lie
+//      over none of them nor the corner's buttons, on the screen (the tip aside)
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -628,6 +630,22 @@ if (existsSync(join(root, 'dist/handoff/my-3d2dge-3d.js'))) {
 }
 
 /* 4. an upright phone */
+// (the Shell's bands over the touch buttons: every touch button shown, the toast with a line, the prompt, the tip and the
+// card up, a step for the shell to see them; what each lies over of the touch buttons and the corner's, and each but the
+// tip off the screen: over the prompt on a phone 320 high on its side, the tip reaches past the top, as it did before)
+const bands = () => {
+  const G = window.__game.game, I = G.input, sh = G.shell, R = e => { const q = e.getBoundingClientRect(); return q.width && q.height && getComputedStyle(e).display !== 'none' ? q : null; };
+  const btns = [...document.querySelectorAll('[data-sys=touch] [data-act]')]; if (!btns.length || !sh || !sh.root) return null;
+  for (const b of btns) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true);
+  sh.toast('Checkpoint', 'The ledger is yours', 3); sh.hud({ prompt: { key: 'E', label: 'Take the ledger' }, tip: { title: 'Hidden', text: 'Stay in the grass' } }); sh.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up'); sh._step();
+  const over = [], targets = btns.concat([...document.querySelectorAll('[data-sys=corner] button')]).filter(R);
+  for (const [k, e] of [['toast', sh._els.toast], ['prompt', sh._els.pr], ['tip', sh._els.tip], ['card', sh._els.tut]]) {
+    const q = !e.hidden && R(e); if (!q) { over.push(k + ' not shown'); continue; }
+    for (const b of targets) { const p = R(b), x = Math.min(q.right, p.right) - Math.max(q.left, p.left), y = Math.min(q.bottom, p.bottom) - Math.max(q.top, p.top); if (x > .5 && y > .5) over.push(`${k} over ${b.dataset.act || b.getAttribute('aria-label')} ${Math.round(x)} x ${Math.round(y)}`); }
+    if (k !== 'tip' && (q.left < -.5 || q.top < -.5 || q.right > innerWidth + .5 || q.bottom > innerHeight + .5)) over.push(`${k} off the screen at ${Math.round(q.left)},${Math.round(q.top)}..${Math.round(q.right)},${Math.round(q.bottom)}`);
+  }
+  sh.tutorial(null); sh.hud({}); return over;
+};
 for (const id of SLICES) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), errors = watch(page);
   await page.goto(SITE + '/kits/3d-' + id + '?backend=webgl#' + id);
@@ -646,6 +664,13 @@ for (const id of SLICES) {
     const b = await page.evaluate(() => { const I = __game.game.input, all = () => [...document.querySelectorAll('[data-sys=touch] [data-act]')].filter(b => b.dataset.act !== 'menu');
       for (const b of all()) I.touchSet(b.dataset.act, null, true); return all().map(b => { const q = b.getBoundingClientRect(); return [b.dataset.act, Math.round(q.left)]; }); });
     if (b.length >= 4 && (b.some(q => q[1] < 195) || new Set(b.map(q => q[1])).size !== 2)) fail(`phone ${id}: its ${b.length} touch buttons are not two columns right of the middle (195): ${b.map(q => q.join('@')).join(' ')}`);
+    // the Shell's bands clear of the touch buttons on four phones held either way (where they end: no slide)
+    await page.addStyleTag({ content: '.esh *{transition:none!important}' });
+    for (const [w, h] of [[320, 568], [360, 640], [390, 844], [430, 932]].flatMap(([w, h]) => [[w, h], [h, w]])) {
+      await page.setViewportSize({ width: w, height: h }); await page.waitForFunction(up => __game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
+      const over = await page.evaluate(bands); if (over && over.length) fail(`phone ${id} ${w}x${h}: the Shell's bands lie over its touch buttons or off the screen: ${over.join(', ')}`);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
     // the GAME OVER: a sideways flick goes to the title, not one in its first moment (a dodge mashed as the run ends); fed
     // on the game's own clock (input.feed('swipe')), so a busy machine's slow fingers can't land in or out of that moment
     if (id === 'action') {

@@ -10060,7 +10060,9 @@ E.Menu = Menu;
  *      ui.toast('Checkpoint', 'The ledger is yours'); ui.show('results', { title: 'The names are safe', stats, medals })
  *    With a pause screen, it opens while game.paused and Resume unpauses. Keys, d-pad, stick and touch move the focus
  *    (up / down / left / right turn a slider or a choice, confirm presses, cancel goes back, pause or Start closes the
- *    menu); while a screen is open the game's input is held back. It honors reduced motion and the safe-area insets, CSS
+ *    menu); while a screen is open the game's input is held back. Its pieces at the bottom (a narrow screen's toast, the
+ *    prompt, the tip, the card, the minimap) stand above the touch buttons, or beside them where a short screen on its
+ *    side has no room above. It honors reduced motion and the safe-area insets, CSS
  *    variables theme it (ink, paper, accent, muted, danger, line, font, titleFont), and a headless game keeps its screens'
  *    names and draws nothing.
  *    THE STANDARD MENU: every game gets one (new E.Game makes this shell for itself, and a game's own E.Shell takes over
@@ -10072,7 +10074,7 @@ E.Menu = Menu;
  *    false }, quit: 'title' } }) adjusts it; menu: false, or new E.Shell(game, { standard: false }), leaves it out.
  * ============================================================================= */
 const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;font:14px/1.45 var(--font);color:var(--ink);--sat:env(safe-area-inset-top,0px);
---pt:calc(14px + env(safe-area-inset-top,0px));--pr:calc(14px + env(safe-area-inset-right,0px));--pb:calc(14px + env(safe-area-inset-bottom,0px));--pl:calc(14px + env(safe-area-inset-left,0px))}
+--pt:calc(14px + env(safe-area-inset-top,0px));--pr:calc(14px + env(safe-area-inset-right,0px));--pb:calc(14px + env(safe-area-inset-bottom,0px));--pl:calc(14px + env(safe-area-inset-left,0px));--fb:0px;--fl:0px;--fr:0px;--fw:calc(100% - max(var(--pl),var(--fl)) - max(var(--pr),var(--fr)))}
 .esh *{box-sizing:border-box}.esh [hidden]{display:none!important}.esh p{margin:4px 0 0;white-space:pre-line}
 .esh h1,.esh h2{font-family:var(--title);font-weight:600;margin:2px 0 0;line-height:1.05}.esh h2{font-size:26px}
 .esh-pan{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:10px 13px;box-shadow:0 8px 28px #0009}
@@ -10085,16 +10087,16 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-bar{height:4px;background:#ffffff1c;border-radius:2px;overflow:hidden;margin-top:6px}.esh-bar i{display:block;height:100%;background:var(--c,var(--accent));transition:width .2s}
 .esh-cnt{margin-top:6px;font-size:12px;color:var(--muted)}.esh-cnt b{color:var(--ink);margin-left:5px}
 .esh-toast{position:absolute;left:50%;top:var(--pt);transform:translate(-50%,calc(-100% - 30px));transition:transform .35s;max-width:min(420px,80vw);text-align:center}.esh-toast.on{transform:translate(-50%,0)}
-.esh-tut{position:absolute;left:var(--pl);bottom:var(--pb);max-width:min(330px,62vw);pointer-events:auto;padding-right:30px}
+.esh-tut{position:absolute;left:max(var(--pl),var(--fl));bottom:max(var(--pb),var(--fb));max-width:min(330px,62vw,var(--fw));pointer-events:auto;padding-right:30px}
 .esh-x{position:absolute;right:6px;top:4px;background:none!important;border:0!important;color:var(--muted)!important;padding:2px 6px!important;font-size:16px!important}
-.esh-pr{position:absolute;left:50%;bottom:calc(var(--pb) + 44px);transform:translateX(-50%);display:flex;gap:10px;align-items:center;min-width:200px}
+.esh-pr{position:absolute;left:calc(50% + (var(--fl) - var(--fr)) / 2);bottom:max(calc(var(--pb) + 44px),var(--fb));transform:translateX(-50%);max-width:var(--fw);display:flex;gap:10px;align-items:center;min-width:200px}
 .esh kbd{font:700 12px var(--font);border:1px solid var(--accent);border-bottom-width:2px;border-radius:4px;padding:2px 7px;color:var(--accent)}
-.esh-tip{position:absolute;left:50%;bottom:calc(var(--pb) + 100px);transform:translateX(-50%);text-align:center;border-color:var(--danger)}
+.esh-tip{position:absolute;left:calc(50% + (var(--fl) - var(--fr)) / 2);bottom:max(calc(var(--pb) + 100px),calc(var(--fb) + 56px));transform:translateX(-50%);max-width:var(--fw);text-align:center;border-color:var(--danger)}
 .esh-col{position:absolute;right:var(--pr);top:var(--pt);display:flex;flex-direction:column;align-items:flex-end;gap:8px}.esh-place{text-align:right;font:italic 13px var(--title);color:var(--muted)}
-.esh-mini{position:absolute;right:var(--pr);bottom:var(--pb);width:min(176px,28vw);border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}.esh-mini.esh-under{opacity:.55}
-.esh-keys{position:absolute;left:50%;bottom:var(--pb);transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap;background:rgba(8,6,14,.62);padding:5px 12px;border-radius:8px}.esh-keys kbd{margin-right:4px}
-@media (pointer:coarse){.esh-keys{display:none}}@media (max-width:640px){.esh-obj{max-width:calc(100vw - 214px)}.esh-toast{left:var(--pl);right:var(--pr);top:auto;bottom:calc(var(--pb) + 124px);max-width:none;transform:translateY(calc(100% + 160px))}.esh-toast.on{transform:none}
-.esh-pr{bottom:calc(var(--pb) + 196px)}.esh-tip{bottom:calc(var(--pb) + 262px)}}
+.esh-mini{position:absolute;right:max(var(--pr),var(--fr));bottom:max(var(--pb),var(--fb));width:min(176px,28vw);border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}.esh-mini.esh-under{opacity:.55}
+.esh-keys{position:absolute;left:calc(50% + (var(--fl) - var(--fr)) / 2);bottom:max(var(--pb),var(--fb));transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap;background:rgba(8,6,14,.62);padding:5px 12px;border-radius:8px}.esh-keys kbd{margin-right:4px}
+@media (pointer:coarse){.esh-keys{display:none}}@media (max-width:640px){.esh-obj{max-width:calc(100vw - 214px)}.esh-toast{left:max(var(--pl),var(--fl));right:max(var(--pr),var(--fr));top:auto;bottom:max(calc(var(--pb) + 124px),var(--fb));max-width:none;transform:translateY(calc(100% + max(calc(var(--pb) + 124px),var(--fb)) + 22px))}.esh-toast.on{transform:none}
+.esh-pr{bottom:calc(max(calc(var(--pb) + 124px),var(--fb)) + 72px)}.esh-tip{bottom:calc(max(calc(var(--pb) + 124px),var(--fb)) + 138px)}}
 .esh-sh{position:absolute;inset:0;display:grid;place-items:center;background:#04060acc;pointer-events:auto;padding:calc(var(--pt) + 46px) var(--pr) var(--pb) var(--pl);animation:esh-in .25s;touch-action:pan-y}.esh-ttl{padding-top:var(--pt)}
 .esh-sh *{touch-action:pan-y}.esh-sh input{touch-action:auto}
 .esh .esh-nav{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));z-index:2;width:44px;height:44px;min-height:44px;display:grid;place-items:center;padding:0;border-radius:10px;background:rgba(8,8,18,.6);border-color:rgba(255,255,255,.3);pointer-events:auto}
@@ -10175,8 +10177,8 @@ class Shell {
     for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
     if (th.font && /\d|\b(bold|italic|normal|oblique)\b/.test(th.font)) warn('shell:font', 'E.Shell theme.font is a family ("Georgia, serif"), not a CSS shorthand ("' + th.font + '"): the size comes from theme.scale');
     const K = th.scale !== undefined ? th.scale : o.tv === false ? 1 : o.tv === true ? () => clamp(innerWidth * .016, 18, 30) / 14 : () => clamp(Math.min(innerWidth, innerHeight * 16 / 9) * .016, 14, 64) / 14;   // (for ten feet, by default: the whole interface larger in a larger window, a TV's 1,920 px about twice a laptop's; a phone's as it is)
-    if (K !== 1) { const fit = () => { const k = Math.max(.25, +(typeof K === 'function' ? K(window) : K) || 1); Object.assign(r.style, { transform: 'scale(' + k + ')', transformOrigin: '0 0', inset: 'auto', left: '0', top: '0', width: 100 / k + 'vw', height: 100 / k + 'vh' }); }; fit(); addEventListener('resize', fit, { signal }); }
-    const host = document.body; host.appendChild(r);
+    if (K !== 1) { const fit = () => { const k = this._k = Math.max(.25, +(typeof K === 'function' ? K(window) : K) || 1); Object.assign(r.style, { transform: 'scale(' + k + ')', transformOrigin: '0 0', inset: 'auto', left: '0', top: '0', width: 100 / k + 'vw', height: 100 / k + 'vh' }); }; fit(); addEventListener('resize', fit, { signal }); }
+    const host = document.body; host.appendChild(r); this._narrow = window.matchMedia ? matchMedia('(max-width:640px)') : null;   // (the CSS's narrow screen: the toast at the bottom)
     const E2 = (cls, parent = r, tag = 'div') => { const e = this._el(tag, cls); e.hidden = true; parent.appendChild(e); return e; };
     const col = this._el('div', 'esh-col'); r.appendChild(col);
     /** the HUD's elements, by piece (hb, obj, vit, toast, tut, pr, tip, place, mini, keys) and the screen layer (scr) */
@@ -10260,7 +10262,8 @@ class Shell {
     });
     for (const t of ['pointerup', 'pointercancel']) sh.addEventListener(t, end);
   }
-  /** a message that slides in at the top for a few seconds */
+  /** a message that slides in at the top for a few seconds (on a screen 640 px wide or less, up from the bottom: above the
+   *  touch buttons, as every piece at the bottom stands) */
   toast(title, text = '', seconds = 4) {
     if (!this.root) return this;
     const e = this._els.toast; e.replaceChildren(this._el('b', '', title)); if (text) e.appendChild(this._el('p', 'esh-m', text));
@@ -10610,6 +10613,18 @@ class Shell {
       if (this._toastEnd && now > this._toastEnd) { this._els.toast.classList.remove('on'); this._toastEnd = 0; }
       if (this._tutEnd && now > this._tutEnd) this.tutorial(null);
       this.root.classList.toggle('esh-still', !!g.reduceMotion); this.root.classList.toggle('esh-fingers', I.lastDevice === 'touch');   // (a toast takes a tap or a swipe on a touch screen, a mouse clicks through it; tabs and sliders a thumb's height)
+      // the bands at the bottom (the toast on a narrow screen, the prompt, the tip, the card, the minimap, the keys) keep off
+      // the touch buttons, all of them (a grid's that come and go too): above them (--fb: their top over the shell's bottom,
+      // and a gap) while their stack (the toast, the prompt and the tip over it) still fits there under the corner's row,
+      // else beside them (--fl or --fr: their width from that side, and a gap) where that leaves room: a short screen on its
+      // side (--fw, the width left beside them, is the card's, the prompt's and the tip's widest)
+      const te = I._touchEl, tq = te && te.isConnected && te.getBoundingClientRect(), R = tq && tq.height && this.root.getBoundingClientRect(), k = this._k || 1;
+      let fb = 0, fl = 0, fr = 0;
+      if (R) {
+        const right = tq.left + tq.right > R.left + R.right, free = (right ? tq.left - R.left : R.right - tq.right) / k - 26; fb = Math.ceil((R.bottom - tq.top) / k) + 12;
+        if (R.height / k - fb - (this._narrow && this._narrow.matches ? Math.max(202, this._els.toast.offsetHeight) : 120) < 60 && free >= 200) { const w = Math.ceil((right ? R.right - tq.left : tq.right - R.left) / k) + 12; if (right) fr = w; else fl = w; fb = 0; }
+      }
+      const fk = fb + ' ' + fl + ' ' + fr; if (fk !== this._fk) { this._fk = fk; for (const [n, v] of [['--fb', fb], ['--fl', fl], ['--fr', fr]]) this.root.style.setProperty(n, v + 'px'); }
     }
     const pb = I.padPrev || [], l1 = !!pb[4] && !this._l1, r1 = !!pb[5] && !this._r1; this._l1 = !!pb[4]; this._r1 = !!pb[5];   // (L1 and R1 this step: a screen's tabs)
     const mini = this._els && this._els.mini; if (mini && !this._stack.length) {   // the pad's cursor (drawn on the canvas, under the HTML) shows through the minimap, and ✕ on it is a click there

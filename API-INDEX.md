@@ -1267,7 +1267,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `shell.show('help')` †: { keys: [[key, what]], sections: [[heading, text]] }
 - `shell.show('results')` †: { emblem, stats: [[value, label]], medals: [[label, earned]] }
 - `shell.show('map')` †: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }
-- `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds
+- `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds (on a screen 640 px wide or less, up from the bottom: above the touch buttons, as every piece at the bottom stands)
 - `shell.tutorial(title, text = '', seconds = 15)` †: a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away
 - `shell.root = null` †: game: the game it is over; o: its options; root: its DOM element (null in a headless game)
 

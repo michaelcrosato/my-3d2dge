@@ -69,6 +69,10 @@
 //      of the middle (those that come and go shown too), a left thumb set down at the bottom-left steers; on its side a
 //      row; GAME OVER (upright and on its side) and the rts end menu go to the title on a sideways flick, not one in
 //      GAME OVER's first moment (a dodge mashed as the run ends)
+//  27. the Shell's bands (bands): in every kit with touch buttons, on four phones (320 to 430 wide) held upright and on
+//      their side, every touch button shown (those that come and go too), its toast (a title and a line), prompt, tip and
+//      tutorial card lie over none of them nor the corner's, on the screen (the tip aside); stealth's fight: the parry's
+//      toast above BLOCK and ROLL, a finger low on BLOCK presses it (the toast stays), a tap on the toast takes it away
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -1294,6 +1298,63 @@ if (want('stick')) {
     check('rts upright: its end menu goes to the title on a sideways flick', after === 'title' && !errors.length, `then ${after}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
+}
+
+/* 27. the Shell's bands keep off the touch buttons: in every kit that has them, on four phones held upright and on their
+ * side, every touch button shown (those that come and go too: a fight's BLOCK and ROLL), the Shell's toast (a title and a
+ * line, as stealth's say() makes one), prompt, tip and tutorial card show, lie over none of them nor the corner's buttons,
+ * and (the tip aside: over the prompt on a phone 320 high on its side, it reaches past the top, as before) lie on the
+ * screen; and in stealth's fight (a guard alert beside the hero) the parry's toast is above BLOCK, a finger low on BLOCK
+ * presses it and leaves the toast up, and a tap on the toast takes it away */
+if (want('bands')) {
+  console.log('the Shell\'s bands clear of the touch buttons');
+  const PHONES = [[320, 568], [360, 640], [390, 844], [430, 932]], still = '.esh *{transition:none!important}';   // (where the bands end, not where they slide from)
+  const turn = async (page, w, h) => { await page.setViewportSize({ width: w, height: h }); await page.waitForFunction(up => window.__game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 5000 }).catch(() => {}); await wait(150); };
+  const bands = () => {
+    const G = window.__game.game, I = G.input, sh = G.shell, R = e => { const q = e.getBoundingClientRect(); return q.width && q.height && getComputedStyle(e).display !== 'none' ? q : null; };
+    const btns = [...document.querySelectorAll('[data-sys=touch] [data-act]')]; if (!btns.length || !sh || !sh.root) return null;
+    for (const b of btns) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true);
+    sh.toast('Checkpoint', 'The ledger is yours', 3); sh.hud({ prompt: { key: 'E', label: 'Take the ledger' }, tip: { title: 'Hidden', text: 'Stay in the grass' } }); sh.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up');
+    sh._step();   // (a step: the shell sees the buttons just shown, as the game's next one would)
+    const over = [], targets = btns.concat([...document.querySelectorAll('[data-sys=corner] button')]).filter(R);
+    for (const [k, e] of [['toast', sh._els.toast], ['prompt', sh._els.pr], ['tip', sh._els.tip], ['card', sh._els.tut]]) {
+      const q = !e.hidden && R(e); if (!q) { over.push(k + ' not shown'); continue; }
+      for (const b of targets) { const p = R(b), x = Math.min(q.right, p.right) - Math.max(q.left, p.left), y = Math.min(q.bottom, p.bottom) - Math.max(q.top, p.top); if (x > .5 && y > .5) over.push(`${k} over ${b.dataset.act || b.getAttribute('aria-label')} ${Math.round(x)} x ${Math.round(y)}`); }
+      // on the screen, all of it (not put out of the way): the tip aside, which over the prompt reaches past the top of a
+      // phone on its side 320 high, as it did before the bands kept off the buttons
+      if (k !== 'tip' && (q.left < -.5 || q.top < -.5 || q.right > innerWidth + .5 || q.bottom > innerHeight + .5)) over.push(`${k} off the screen at ${Math.round(q.left)},${Math.round(q.top)}..${Math.round(q.right)},${Math.round(q.bottom)}`);
+    }
+    sh.tutorial(null); sh.hud({}); return { n: btns.length, over };
+  };
+  const seen = [];
+  for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'zero', 'special', 'sky', 'blaster', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
+    const { page, ctx, errors } = await open(kit, UP); await page.addStyleTag({ content: still }); await wait(300);
+    let n = 0; const bad = [];
+    for (const [w, h] of PHONES.flatMap(([w, h]) => [[w, h], [h, w]])) { await turn(page, w, h); const r = await ev(page, bands); if (!r) continue; n = Math.max(n, r.n); if (r.over.length) bad.push(`${w}x${h}: ${r.over.join(', ')}`); }
+    if (n) { seen.push(kit); check(`bands ${kit}: the toast, prompt, tip and card clear of its ${n} touch buttons and the corner's, held either way`, !bad.length && !errors.length, bad.join('; ') + (errors.length ? ' errors: ' + errors.join(' | ') : '') || 'clear at 8 sizes'); }
+    await ctx.close();
+  }
+  check('bands: the kits with touch buttons measured (stealth, roguelike and metroidvania among them)', seen.length >= 15 && ['stealth', 'roguelike', 'metroidvania'].every(k => seen.includes(k)), seen.join(' '));
+  // stealth's fight: a guard alert beside the hero (the game's own BLOCK and ROLL up), the parry's toast as say() makes it
+  const { page, ctx, cdp, errors } = await open('stealth', UP); await page.addStyleTag({ content: still }); await wait(500);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 30, y: 200 }] }); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });   // (a finger: the device in use is touch)
+  await ev(page, () => { const st = window.__game.scenes.stealth.state(), { hero, guards } = st, g = guards.filter(g => !g.dead).sort((a, b) => Math.hypot(a.x - hero.x, a.y - hero.y) - Math.hypot(b.x - hero.x, b.y - hero.y))[0];
+    setInterval(() => { Object.assign(g, { x: hero.x + 30, y: hero.y, z: hero.z }); g.mind.level = 2; g.mind.state = 'alert'; hero.hp = 99; }, 20); });
+  for (const [w, h] of PHONES) {
+    await turn(page, w, h); await wait(300);
+    await ev(page, () => window.__game.game.shell.toast(My3D2dge.t('stealth.toast.parried'), '', 3)); await wait(200);
+    const q = await ev(page, () => { const b = document.querySelector('[data-sys=touch] [data-act=block]').getBoundingClientRect(), t = document.querySelector('.esh-toast').getBoundingClientRect(); return { shown: !!b.width, b: [b.left, b.top, b.right, b.bottom], t: [t.left, t.top, t.right, t.bottom] }; });
+    const x = (q.b[0] + q.b[2]) / 2, y = q.b[1] + .75 * (q.b[3] - q.b[1]);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] }); await wait(100);
+    const held = await ev(page, () => window.__game.game.input.held.has('Act:block'));
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(100);
+    const up = await ev(page, () => document.querySelector('.esh-toast').classList.contains('on'));
+    await page.touchscreen.tap((q.t[0] + q.t[2]) / 2, (q.t[1] + q.t[3]) / 2); await wait(150);
+    const gone = await ev(page, () => !document.querySelector('.esh-toast').classList.contains('on'));
+    check(`bands stealth ${w}x${h}: in a fight the parry's toast is above BLOCK, a finger low on BLOCK presses it (the toast stays), a tap on the toast takes it away`, q.shown && q.t[3] <= q.b[1] && held && up && gone && !errors.length,
+      `BLOCK ${q.shown ? 'shown' : 'hidden'} at ${Math.round(q.b[1])}..${Math.round(q.b[3])}, the toast ${Math.round(q.t[1])}..${Math.round(q.t[3])}; pressed ${held}, the toast up after ${up}, gone at a tap ${gone}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+  }
+  await ctx.close();
 }
 
 await browser.close();
