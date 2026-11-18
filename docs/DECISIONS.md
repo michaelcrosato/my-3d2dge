@@ -2075,12 +2075,23 @@ An entry:
   play. Menus are swiped away.
 - **Call:**
   - `input.layoutDevice` (both editions) is the device the screen is laid out for. It is `lastDevice`, except while a
-    press is down on the canvas and for the step that reads its tap; then it stays what it was when the press began.
+    press on the canvas that can still be a tap is down, and for the step that reads its tap. Then it stays what it was
+    when the press landed.
+  - A tap and the hold follow one rule:
+    - A finger (any pointer except a mouse) that moves past a tap's reach (12 CSS px from where it landed) is a drag and
+      never a tap, even if it comes back, as on a phone. `input.clicked()` reads nothing when it lifts, and it holds
+      nothing from the moment it strays.
+    - A mouse's click is the browser's: let go within 12 px of where it pressed, wherever it went between. So a mouse's
+      press holds until it lets go.
+    - A press that another finger took the tap from holds nothing, and neither does a press on a zone.
+    - A new scene or Shell screen is laid out for the device in use.
   - E.Menu, E.Dialog's choices, the starters' FamilyMenu, the click module's panel and the Shell's tabs and sliders size
-    themselves by it. The Shell's also hold while a press is down on it.
-  - So the first tap after the keys, a pad or a mouse answers the row it pressed on, and the rows grow to a thumb's once
-    it has been read. A modal E.Dialog also keeps its box where it was drawn during the press. Prompts still follow
-    `lastDevice` at once.
+    themselves by it. The Shell's tabs and sliders also hold while a press is down on the Shell.
+  - So the first tap after the keys, a pad or a mouse answers the row it pressed on, on either half of the screen and
+    however slowly. The rows grow to a thumb's once it has been read. A finger that strayed and came back answers
+    nothing.
+  - A modal E.Dialog also keeps its box where it was drawn during the press. A box that play goes on under keeps clear
+    of the touch buttons at once. Prompts still follow `lastDevice` at once.
   - A flick that begins on the move stick's half stays the stick's, and `input.swipe()` never reports it. But E.Menu's
     cancel and a modal E.Dialog's swipe-away take it when the game read no steer from the stick (`move()`, `drag()`)
     from a quarter of a second before it landed until it lifted.
@@ -2091,8 +2102,28 @@ An entry:
     keys read rows the player never saw.
   - Holding the layout's device for the press cures every layout sized by the device at once, and nothing moves under
     the finger.
+  - Only a press that can still be a tap holds, and only on the screen it landed on. A thumb resting on the stick had
+    kept GAME OVER's rows at 19.5 CSS px, and the Shell's tabs and sliders at 40 and 30, for as long as it rested. A
+    held radio box had sat under sports' buttons after every goal.
+  - The hold and the tap must agree on what can still be a tap. With the hold let go at 12 px but `clicked()` still
+    taking a lift back within 12 px, a first tap after the keys that crept past 12 px and came back was read against
+    rows that had grown under it. On kart's menu it picked the row above: BACK picked VS, and upright RACE.
+    - Keeping the hold for as long as a click could come would bring the resting thumb back, since a steering thumb's
+      click can come until it lifts.
+    - A phone's own rule settles it for a finger: a tap is cancelled once the finger leaves its slop, which is 8 dp on
+      Android and 10 pt on iOS, so 12 CSS px is more forgiving than both. A browser's rule settles it for a mouse.
+  - Neither leaving the stick's finger out nor letting go at a long press's time would do: a tap on a row on the stick's
+    half, or a slow tap, would then read rows grown under it. Nor would a steer read, since a game that reads the stick
+    on its menus (fighting's `move()`, FamilyMenu's `drag()`) would let go under a tap there.
   - The stick took every touch on its half, so half the screen could never swipe a game over away. What the game steers
     by tells whether the stick is steering anything.
   - Leaving `swipe()` alone keeps every game's own flicks in play as they were.
+- **Limits:**
+  - A finger that wanders past 12 CSS px and back before it lifts is no tap anywhere, including on a phone played by
+    touch alone; the player taps again.
+  - A pan, a drag or a stick steer that ends where it began no longer clicks what lies there.
+  - A touch laptop's mouse press keeps the screen laid out for the finger until it lets go.
+  - A thumb resting perfectly still on the stick while a menu opens inside the same scene keeps that menu laid out for
+    the keys until it moves, lifts or another finger taps. Every tap on it still picks what it pressed.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
