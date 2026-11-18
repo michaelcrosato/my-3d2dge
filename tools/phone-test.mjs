@@ -71,8 +71,14 @@
 //      GAME OVER's first moment (a dodge mashed as the run ends)
 //  27. the Shell's bands (bands): in every kit with touch buttons, on four phones (320 to 430 wide) held upright and on
 //      their side, every touch button shown (those that come and go too), its toast (a title and a line), prompt, tip and
-//      tutorial card lie over none of them nor the corner's, on the screen (the tip aside); stealth's fight: the parry's
-//      toast above BLOCK and ROLL, a finger low on BLOCK presses it (the toast stays), a tap on the toast takes it away
+//      tutorial card lie over none of them, nor the corner's, nor one another, on the screen (the tip aside on a phone 320
+//      high on its side); under an objective and a status column the toast and the prompt clear them too (but 320 high);
+//      stealth's map as the minimap: under the status column, beside the toast, a finger on it or on the card's × takes
+//      only that, and with no touch buttons (where the toast still lies over its top) a finger on the toast takes only the
+//      toast; all of it at once (stealth's HUD, the minimap, the card, a two-line toast): the stack settles, the toast
+//      on the screen, 140 wide or more, over no button; stealth's fight: the parry's toast above BLOCK and ROLL, a finger
+//      low on BLOCK presses it (the toast stays), a tap on the toast takes it away; a laptop's touch screen: the prompt
+//      and the tip over the key strip
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -1300,41 +1306,132 @@ if (want('stick')) {
   }
 }
 
-/* 27. the Shell's bands keep off the touch buttons: in every kit that has them, on four phones held upright and on their
- * side, every touch button shown (those that come and go too: a fight's BLOCK and ROLL), the Shell's toast (a title and a
- * line, as stealth's say() makes one), prompt, tip and tutorial card show, lie over none of them nor the corner's buttons,
- * and (the tip aside: over the prompt on a phone 320 high on its side, it reaches past the top, as before) lie on the
- * screen; and in stealth's fight (a guard alert beside the hero) the parry's toast is above BLOCK, a finger low on BLOCK
- * presses it and leaves the toast up, and a tap on the toast takes it away */
+/* 27. the Shell's bands keep off the touch buttons and off one another: in every kit that has them, on four phones held
+ * upright and on their side, every touch button shown (those that come and go too: a fight's BLOCK and ROLL), the
+ * Shell's toast (a title and a line, as stealth's say() makes one), prompt, tip and tutorial card show and lie over none
+ * of them, nor the corner's buttons, nor one another, on the screen (a tip under the toast on a screen too short for both
+ * waits hidden there; over a card and the prompt on a phone 320 high on its side, it reaches past the top, as it always
+ * did), the card never lying under the others (that is for buttons with no room left above them); with a top HUD (an
+ * objective, a status column) the toast and the prompt clear it too, but on a phone 320 high on its side, where they
+ * never had the room, or where the buttons stand over half the height. Stealth's map as the minimap: under the status column, beside
+ * the toast, and a finger on it (or on the card's ×) takes it, the toast staying up; with no touch buttons (Touch: off,
+ * each piece where it always stood) a finger on the toast where it lies over the minimap takes the toast and nothing
+ * else, the next finger the minimap. All of it at once (stealth's own objective and status, the minimap, the prompt, the
+ * tip, the card, a toast of two lines): the stack settles in the game's steps, the toast on the screen, 140 wide or
+ * more, over no button. In stealth's fight (a guard alert
+ * beside the hero) the parry's toast is above BLOCK, a finger low on BLOCK presses it and leaves the toast up, and a tap
+ * on the toast takes it away. A laptop's touch screen (a fine pointer: the key strip shows with the touch buttons): the
+ * prompt and the tip stand over the key strip */
 if (want('bands')) {
-  console.log('the Shell\'s bands clear of the touch buttons');
+  console.log('the Shell\'s bands clear of the touch buttons and of one another');
   const PHONES = [[320, 568], [360, 640], [390, 844], [430, 932]], still = '.esh *{transition:none!important}';   // (where the bands end, not where they slide from)
   const turn = async (page, w, h) => { await page.setViewportSize({ width: w, height: h }); await page.waitForFunction(up => window.__game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 5000 }).catch(() => {}); await wait(150); };
-  const bands = () => {
-    const G = window.__game.game, I = G.input, sh = G.shell, R = e => { const q = e.getBoundingClientRect(); return q.width && q.height && getComputedStyle(e).display !== 'none' ? q : null; };
+  // every touch button shown, the mode's pieces up, a step for the shell to see them (as the game's next one would); what
+  // each lies over: the touch buttons, the corner's, another piece, the top HUD (mode 'hud'), the screen's edges
+  const bands = mode => {
+    const G = window.__game.game, I = G.input, sh = G.shell, R = e => { if (!e || !e.isConnected) return null; const q = e.getBoundingClientRect(), c = getComputedStyle(e); return q.width && q.height && c.display !== 'none' && c.visibility !== 'hidden' ? q : null; };
     const btns = [...document.querySelectorAll('[data-sys=touch] [data-act]')]; if (!btns.length || !sh || !sh.root) return null;
     for (const b of btns) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true);
-    sh.toast('Checkpoint', 'The ledger is yours', 3); sh.hud({ prompt: { key: 'E', label: 'Take the ledger' }, tip: { title: 'Hidden', text: 'Stay in the grass' } }); sh.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up');
-    sh._step();   // (a step: the shell sees the buttons just shown, as the game's next one would)
-    const over = [], targets = btns.concat([...document.querySelectorAll('[data-sys=corner] button')]).filter(R);
-    for (const [k, e] of [['toast', sh._els.toast], ['prompt', sh._els.pr], ['tip', sh._els.tip], ['card', sh._els.tut]]) {
-      const q = !e.hidden && R(e); if (!q) { over.push(k + ' not shown'); continue; }
-      for (const b of targets) { const p = R(b), x = Math.min(q.right, p.right) - Math.max(q.left, p.left), y = Math.min(q.bottom, p.bottom) - Math.max(q.top, p.top); if (x > .5 && y > .5) over.push(`${k} over ${b.dataset.act || b.getAttribute('aria-label')} ${Math.round(x)} x ${Math.round(y)}`); }
-      // on the screen, all of it (not put out of the way): the tip aside, which over the prompt reaches past the top of a
-      // phone on its side 320 high, as it did before the bands kept off the buttons
-      if (k !== 'tip' && (q.left < -.5 || q.top < -.5 || q.right > innerWidth + .5 || q.bottom > innerHeight + .5)) over.push(`${k} off the screen at ${Math.round(q.left)},${Math.round(q.top)}..${Math.round(q.right)},${Math.round(q.bottom)}`);
-    }
+    const E3 = sh._els, all = mode === 'all', top = mode === 'hud', over = [];
+    sh.toast('Checkpoint', 'The ledger is yours', 3);
+    sh.hud(Object.assign({ prompt: { key: 'E', label: 'Take the ledger' } }, all && { tip: { title: 'Hidden', text: 'Stay in the grass' } },
+      top && { objective: { step: '01 / 02', title: 'Steal the ledger', text: 'On the brick roof, past the two guards' }, bars: [{ label: 'Health', value: 3, max: 5, kind: 'pips' }], counts: [['Guards down', 0]] }));
+    if (all) sh.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up'); else sh.tutorial(null);
+    sh._step();
+    const ov = (q, p) => { const x = Math.min(q.right, p.right) - Math.max(q.left, p.left), y = Math.min(q.bottom, p.bottom) - Math.max(q.top, p.top); return x > .5 && y > .5 ? Math.round(x) + ' x ' + Math.round(y) : null; };
+    const at = q => `${Math.round(q.left)},${Math.round(q.top)}..${Math.round(q.right)},${Math.round(q.bottom)}`;
+    const pieces = [['toast', E3.toast], ['prompt', E3.pr], ['tip', E3.tip], ['card', E3.tut], ['minimap', E3.mini], ['keys', E3.keys]].map(([k, e]) => [k, R(e)]).filter(p => p[1]);
+    const sunk = E3.tip.classList.contains('esh-sunk'), tq = E3.tip.getBoundingClientRect(), toast = R(E3.toast);   // (a tip under the toast: the toast covers it)
+    for (const k of ['toast', 'prompt'].concat(all ? ['tip', 'card'] : [])) if (!pieces.some(p => p[0] === k) && !(k === 'tip' && sunk)) over.push(k + ' not shown');
+    if (sunk && !(toast && toast.left <= tq.left + .5 && toast.right >= tq.right - .5 && toast.top <= tq.top + .5 && toast.bottom >= tq.bottom - .5)) over.push(`the tip hidden at ${at(tq)} but not under the toast`);
+    const targets = btns.concat([...document.querySelectorAll('[data-sys=corner] button')]).filter(R).map(b => [b.dataset.act || b.getAttribute('aria-label'), R(b)]);
+    const box = I._touchEl && I._touchEl.getBoundingClientRect(), room = innerHeight > 320 && !(box && box.top < innerHeight / 2);   // (the top HUD cleared but on a phone 320 high, or where the buttons stand over half the height)
+    const hud = top && room ? [['the objective', E3.obj], ['the status', E3.vit]].map(([k, e]) => [k, R(e)]).filter(p => p[1]) : [], under = E3.tut.classList.contains('esh-yield');
+    if (under) over.push('the card lies under the others');   // (only where the buttons leave it no room: none of the 2D kits)
+    pieces.forEach(([k, q], i) => {
+      for (const [n, p] of targets.concat(pieces.slice(i + 1), hud)) { const o = ov(q, p); if (o) over.push(`${k} over ${n} ${o}`); }
+      if ((k !== 'tip' || innerHeight > 320) && (q.left < -.5 || q.top < -.5 || q.right > innerWidth + .5 || q.bottom > innerHeight + .5)) over.push(`${k} off the screen at ${at(q)}`);   // (but the tip over a card and the prompt on a phone 320 high on its side: it reaches past the top, as it always did)
+    });
     sh.tutorial(null); sh.hud({}); return { n: btns.length, over };
   };
   const seen = [];
   for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'zero', 'special', 'sky', 'blaster', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'sports', 'animlab']) {
     const { page, ctx, errors } = await open(kit, UP); await page.addStyleTag({ content: still }); await wait(300);
     let n = 0; const bad = [];
-    for (const [w, h] of PHONES.flatMap(([w, h]) => [[w, h], [h, w]])) { await turn(page, w, h); const r = await ev(page, bands); if (!r) continue; n = Math.max(n, r.n); if (r.over.length) bad.push(`${w}x${h}: ${r.over.join(', ')}`); }
-    if (n) { seen.push(kit); check(`bands ${kit}: the toast, prompt, tip and card clear of its ${n} touch buttons and the corner's, held either way`, !bad.length && !errors.length, bad.join('; ') + (errors.length ? ' errors: ' + errors.join(' | ') : '') || 'clear at 8 sizes'); }
+    for (const [w, h] of PHONES.flatMap(([w, h]) => [[w, h], [h, w]])) for (const mode of ['all', 'hud']) { await turn(page, w, h); const r = await ev(page, bands, mode); if (!r) continue; n = Math.max(n, r.n); if (r.over.length) bad.push(`${w}x${h} ${mode}: ${r.over.join(', ')}`); }
+    if (n) { seen.push(kit); check(`bands ${kit}: the toast, prompt, tip and card clear of its ${n} touch buttons, the corner's and one another, and the toast and prompt of a top HUD, held either way`, !bad.length && !errors.length, bad.join('; ') + (errors.length ? ' errors: ' + errors.join(' | ') : '') || 'clear at 8 sizes'); }
     await ctx.close();
   }
   check('bands: the kits with touch buttons measured (stealth, roguelike and metroidvania among them)', seen.length >= 15 && ['stealth', 'roguelike', 'metroidvania'].every(k => seen.includes(k)), seen.join(' '));
+  // stealth's map as the minimap (passed every step, as the Shell's manual has it, with an onClick), its own status column
+  // and a toast: the minimap under the column, beside the toast, over no touch button; a finger on it takes it (once) and
+  // leaves the toast up, and a finger on the tutorial card's × takes the card and leaves the toast up
+  {
+    const { page, ctx, cdp, errors } = await open('stealth', UP); await page.addStyleTag({ content: still }); await wait(500);
+    const tap = async (x, y) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] }); await wait(80); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200); };
+    await tap(30, 300);   // (a finger: the device in use is touch)
+    await ev(page, () => { const sh = window.__game.game.shell, st = window.__game.scenes.stealth.state(), M = { map: st.map, at: st.hero, onClick: () => window.__mini++ }, h0 = sh.hud.bind(sh); window.__mini = 0; sh.hud = s => h0(Object.assign({}, s, { minimap: M })); });
+    for (const [w, h] of PHONES.flatMap(([w, h]) => [[w, h], [h, w]])) {
+      await turn(page, w, h); await wait(150);
+      const q = await ev(page, () => {
+        const G = window.__game.game, sh = G.shell, I = G.input, E3 = sh._els, R = e => { const q = e.getBoundingClientRect(); return q.width && q.height && !e.hidden ? [q.left, q.top, q.right, q.bottom] : null; };
+        for (const b of document.querySelectorAll('[data-sys=touch] [data-act]')) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true);
+        sh.toast('Checkpoint', 'The ledger is yours', 30); sh._step();
+        const m = R(E3.mini), ov = (a, b) => a && b && Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > .5 && Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > .5;
+        const btn = [...document.querySelectorAll('[data-sys=touch] [data-act], [data-sys=corner] button')].map(R).filter(Boolean);
+        return { m, t: R(E3.toast), col: R(E3.vit), over: [ov(m, R(E3.toast)) && 'the toast', ov(m, R(E3.vit)) && 'the status column', btn.some(b => ov(m, b)) && 'a button', m && (m[0] < 0 || m[1] < 0 || m[2] > innerWidth || m[3] > innerHeight) && 'off the screen'].filter(Boolean) };
+      });
+      const r = n => n ? n.map(Math.round).join(',') : 'none';
+      let line = `the minimap ${r(q.m)}, the toast ${r(q.t)}, the status ${r(q.col)}`, ok = !!q.m && !q.over.length;
+      if (h > w && q.m) {   // upright: real fingers on the minimap and on the card's ×, the toast up
+        const x = (q.m[0] + q.m[2]) / 2, y = q.m[1] + .7 * (q.m[3] - q.m[1]); await tap(x, y);
+        const a = await ev(page, () => ({ n: window.__mini, up: document.querySelector('.esh-toast').classList.contains('on') }));
+        await ev(page, () => { const sh = window.__game.game.shell; window.__mini = 0; sh.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up', 30); sh._step(); });
+        const xq = await ev(page, () => { const q = document.querySelector('.esh-tut .esh-x').getBoundingClientRect(); return [(q.left + q.right) / 2, (q.top + q.bottom) / 2]; }); await tap(...xq);
+        const b = await ev(page, () => ({ card: !document.querySelector('.esh-tut').hidden, up: document.querySelector('.esh-toast').classList.contains('on') }));
+        ok = ok && a.n === 1 && a.up && !b.card && b.up; line += `; a finger on the minimap: its onClick ${a.n}x, the toast up ${a.up}; on the card's ×: the card gone ${!b.card}, the toast up ${b.up}`;
+      }
+      check(`bands stealth ${w}x${h}: the minimap clear of the toast, the status column and the buttons${h > w ? ', a finger on it or on the card\'s × takes only that' : ''}`, ok && !errors.length, line + (q.over.length ? '; over ' + q.over.join(', ') : '') + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
+    }
+    // no touch buttons (Settings, Touch: off), on its side 640 wide: each piece where it always stood, the narrow toast
+    // over the minimap's top; a finger there takes the toast and nothing else (its click doesn't fall through to the
+    // minimap as the toast goes from under it), and the next finger there takes the minimap
+    await turn(page, 640, 360);
+    await ev(page, () => { const G = window.__game.game; G.settings.set('touch', 'off'); window.__mini = 0; G.shell.toast('Checkpoint', 'The ledger is yours', 30); }); await wait(300);
+    const o = await ev(page, () => { const E3 = window.__game.game.shell._els, m = E3.mini.getBoundingClientRect(), t = E3.toast.getBoundingClientRect(), y0 = Math.max(m.top, t.top), y1 = Math.min(m.bottom, t.bottom), x0 = Math.max(m.left, t.left), x1 = Math.min(m.right, t.right);
+      return { buttons: !!document.querySelector('[data-sys=touch] [data-act]'), band: E3.mini.style.getPropertyValue('--y') || E3.toast.style.getPropertyValue('--y'), at: x1 - x0 > 4 && y1 - y0 > 4 ? [(x0 + x1) / 2, (y0 + y1) / 2] : null }; });
+    let eat = 'no overlap to tap';
+    if (o.at) {
+      await tap(...o.at); const a = await ev(page, () => ({ n: window.__mini, up: document.querySelector('.esh-toast').classList.contains('on') }));
+      await tap(...o.at); const b = await ev(page, () => window.__mini);
+      eat = `a finger on the toast over the minimap: the toast up ${a.up}, the minimap's onClick ${a.n}x; the next finger: ${b}x`; o.ok = !a.up && a.n === 0 && b === 1;
+    }
+    check('bands stealth 640x360 without touch buttons: the toast where it stood, over the minimap\'s top; a finger on it takes the toast only, the next the minimap', !o.buttons && !o.band && !!o.ok && !errors.length, eat + (o.buttons ? '; touch buttons still up' : '') + (o.band ? '; a piece still stood by the bands (--y ' + o.band + ')' : '') + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
+    await ctx.close();
+  }
+  // stealth with all of it at once (its own objective and status, its map as the minimap, the prompt, the tip, the card,
+  // a toast of two lines, every touch button shown), in the game's own steps: the stack settles (no piece moves after
+  // the first steps: the toast's lines, which change with its width, never sway where it stands), the toast at least 140
+  // wide, on the screen, over no touch button nor the corner's
+  {
+    const { page, ctx, cdp, errors } = await open('stealth', UP); await page.addStyleTag({ content: still }); await wait(500);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 30, y: 300 }] }); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200);
+    await ev(page, () => { const G = window.__game.game, sh = G.shell, st = window.__game.scenes.stealth.state(), M = { map: st.map, at: st.hero }, h0 = sh.hud.bind(sh);
+      sh.hud = s => h0(Object.assign({}, s, { minimap: M, prompt: { key: 'E', label: 'Take the ledger' }, tip: { title: 'Hidden', text: 'Stay in the grass' } })); });
+    for (const [w, h] of PHONES.flatMap(([w, h]) => [[w, h], [h, w]])) {
+      await turn(page, w, h);
+      const r = await ev(page, async () => {
+        const G = window.__game.game, sh = G.shell, I = G.input, E3 = sh._els, show = () => { for (const b of document.querySelectorAll('[data-sys=touch] [data-act]')) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true); };
+        show(); sh.toast('Checkpoint', 'The ledger is yours, and the roof is quiet now', 60); sh.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up', 60);
+        const snap = () => [E3.toast, E3.pr, E3.tip, E3.tut, E3.mini].map(e => ['--y', '--tl', '--tr', '--mw'].map(n => e.style.getPropertyValue(n)).join('/')).join(' ') + ' ' + sh.root.style.getPropertyValue('--fl') + '/' + sh.root.style.getPropertyValue('--fr');
+        const seen = []; for (let i = 0; i < 60; i++) { await new Promise(r => requestAnimationFrame(r)); show(); seen.push(snap()); }
+        const q = E3.toast.getBoundingClientRect(), hit = [...document.querySelectorAll('[data-sys=touch] [data-act], [data-sys=corner] button')].filter(b => { const p = b.getBoundingClientRect(); return p.width && Math.min(q.right, p.right) - Math.max(q.left, p.left) > .5 && Math.min(q.bottom, p.bottom) - Math.max(q.top, p.top) > .5; }).map(b => b.dataset.act || b.getAttribute('aria-label'));
+        return { states: new Set(seen.slice(10)).size, t: [q.left, q.top, q.right, q.bottom].map(Math.round), on: q.left >= -.5 && q.top >= -.5 && q.right <= innerWidth + .5 && q.bottom <= innerHeight + .5, hit };
+      });
+      check(`bands stealth ${w}x${h}, all of it at once: the stack settles, the toast on the screen, 140 wide or more, over no button`, r.states === 1 && r.on && r.t[2] - r.t[0] >= 140 && !r.hit.length && !errors.length, `${r.states} layout${r.states === 1 ? '' : 's'} after the first steps, the toast ${r.t.join(',')}${r.hit.length ? ' over ' + r.hit.join(', ') : ''}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    }
+    await ctx.close();
+  }
   // stealth's fight: a guard alert beside the hero (the game's own BLOCK and ROLL up), the parry's toast as say() makes it
   const { page, ctx, cdp, errors } = await open('stealth', UP); await page.addStyleTag({ content: still }); await wait(500);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 30, y: 200 }] }); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });   // (a finger: the device in use is touch)
@@ -1355,6 +1452,21 @@ if (want('bands')) {
       `BLOCK ${q.shown ? 'shown' : 'hidden'} at ${Math.round(q.b[1])}..${Math.round(q.b[3])}, the toast ${Math.round(q.t[1])}..${Math.round(q.t[3])}; pressed ${held}, the toast up after ${up}, gone at a tap ${gone}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
   }
   await ctx.close();
+  // a laptop's touch screen: a mouse and keys (a fine pointer, so the key strip shows), Settings, Touch: on; the keys again
+  for (const vp of [{ width: 1280, height: 720 }, { width: 1366, height: 768 }]) {
+    const c = await browser.newContext({ viewport: vp, deviceScaleFactor: 1 }), p = await c.newPage(), errs = []; p.on('pageerror', e => errs.push(e.message));
+    await p.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-stealth.html')).href + '#stealth'); await p.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'stealth');
+    await ev(p, () => window.__game.game.settings.set('touch', 'on')); await wait(300); await p.keyboard.down('KeyD'); await wait(150); await p.keyboard.up('KeyD'); await wait(300);
+    const r = await ev(p, () => {
+      const G = window.__game.game, sh = G.shell, I = G.input, E3 = sh._els, R = e => { const q = e.getBoundingClientRect(); return q.width && q.height && getComputedStyle(e).display !== 'none' ? [q.left, q.top, q.right, q.bottom] : null; };
+      sh.hud({ keys: [['WASD', 'Move'], [{ act: 'attack' }, 'Attack'], [{ act: 'crouch' }, 'Crouch'], [{ act: 'interact' }, 'Interact']], prompt: { act: 'attack', label: 'Take down', hint: 'From behind' }, tip: { title: 'Hidden', text: 'Stay in the grass' } }); sh._step();
+      const k = R(E3.keys), pr = R(E3.pr), tip = R(E3.tip), b = I._touchEl && R(I._touchEl), ov = (a, c) => a && c && Math.min(a[2], c[2]) - Math.max(a[0], c[0]) > .5 && Math.min(a[3], c[3]) - Math.max(a[1], c[1]) > .5;
+      const out = { k, pr, tip, b, over: [ov(k, pr) && 'the prompt on the key strip', ov(tip, pr) && 'the tip on the prompt', ov(k, b) && 'the key strip on the touch buttons', ov(pr, b) && 'the prompt on the touch buttons'].filter(Boolean) }; sh.hud({}); return out;
+    });
+    const s = q => q ? q.map(Math.round).join(',') : 'none';
+    check(`bands stealth on a laptop's touch screen ${vp.width}x${vp.height}: the prompt and the tip over the key strip, all clear of the touch buttons`, !!(r.k && r.pr && r.b) && !r.over.length && !errs.length, `touch buttons ${s(r.b)}, the key strip ${s(r.k)}, the prompt ${s(r.pr)}, the tip ${s(r.tip)}${r.over.length ? '; ' + r.over.join(', ') : ''}${errs.length ? '; errors: ' + errs.join(' | ') : ''}`);
+    await c.close();
+  }
 }
 
 await browser.close();
