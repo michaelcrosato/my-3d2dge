@@ -45,6 +45,5 @@ Logged in `docs/DECISIONS.md` and flagged in pull request #235:
 
 ## 3. Left for later (an agent's, when the owner asks)
 
-- 52in1's own Settings at ten feet (the hub's, not the engine's).
 - D113's rows of three buttons on a narrow phone, if the play test finds the third button under a thumb.
 - The kits' tall toasts that still reach past the top where no card can lie under (D117's costs).
