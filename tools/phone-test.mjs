@@ -67,11 +67,13 @@
 //      edition's FamilyMenu, the Shell's Settings and Controls tabs and sliders; sky's menu, too long on its side, scrolls
 //      under a finger to BACK, which a tap picks. After the keys (a touch laptop, a phone after a keyboard or a pad) the
 //      rows are drawn small, and a finger's tap held a moment picks what it pressed on, the rows unchanged under it and a
-//      thumb's after it: kart's BACK, FamilyMenu's POINT-AND-CLICK, Morwen's A WHALE; a touch laptop's first touch on a
-//      bottom dialog's choice answers it, the touch buttons it brings moving nothing from under it. A thumb resting on the
-//      stick holds no new screen: after the keys, at rest on it in play, the Shell's Settings and GAME OVER come up a
-//      thumb's size; on GAME OVER one that lands on the stick's half and moves past a tap's reach lets the rows grow while
-//      it rests, and a slow tap there (held past a long press) still picks the row it pressed on
+//      thumb's after it: kart's BACK, FamilyMenu's POINT-AND-CLICK, Morwen's A WHALE; one on kart's BACK that creeps past
+//      a tap's reach and back before it lifts is no tap (it picks nothing as the rows grow); a touch laptop's first touch
+//      on a bottom dialog's choice answers it, the touch buttons it brings moving nothing from under it. A thumb resting on
+//      the stick holds no new screen: after the keys, at rest on it in play (its press held), GAME OVER comes up a thumb's
+//      size, and so do the Shell's Settings in a page of their own; on GAME OVER one that lands on the stick's half and
+//      moves past a tap's reach lets the rows grow while it rests, and a slow tap there (held past a long press) still
+//      picks the row it pressed on
 //  26. the stick's half (stealth, roguelike, metroidvania): upright, their four or five touch buttons in two columns right
 //      of the middle (those that come and go shown too), a left thumb set down at the bottom-left steers; on its side a
 //      row; GAME OVER (upright and on its side) and the rts end menu go to the title on a sideways flick, not one in
@@ -83,11 +85,12 @@
 //      tutorial card lie over none of them, nor the corner's, nor one another, on the screen (the tip aside on a phone 320
 //      high on its side); under an objective and a status column the toast and the prompt clear them too (but 320 high);
 //      stealth's map as the minimap: under the status column, beside the toast, a finger on it or on the card's × takes
-//      only that, and with no touch buttons (where the toast still lies over its top) a finger on the toast takes only the
-//      toast; all of it at once (stealth's HUD, the minimap, the card, a two-line toast): the stack settles, the toast
-//      on the screen, 140 wide or more, over no button; stealth's fight: the parry's toast above BLOCK and ROLL, a finger
-//      low on BLOCK presses it (the toast stays), a tap on the toast takes it away; a laptop's touch screen: the prompt
-//      and the tip over the key strip
+//      only that; on its side 640 wide a toast taller than a line comes and goes and nothing moves (the layout, the
+//      card's ×, the minimap); with no touch buttons (where the toast still lies over its top) a finger on the toast takes
+//      only the toast; all of it at once (stealth's HUD, the minimap, the card, a two-line toast): the stack settles, the
+//      toast on the screen, 140 wide or more, over no button; stealth's fight: the parry's toast above BLOCK and ROLL, a
+//      finger low on BLOCK presses it (the toast stays), a tap on the toast takes it away; a laptop's touch screen: the
+//      prompt and the tip over the key strip
 //  28. two thumbs (platformer, on its side and upright): a tap is its own finger's: input.clicked() reads a finger's tap
 //      on the right half whatever the stick's thumb does meanwhile (it lands, steers or lifts, in every order) and while
 //      a finger on JUMP lifts; the stick's thumb, steered and brought back, is no tap; a finger on the stick's half lifted
@@ -1332,19 +1335,33 @@ if (want('menus')) {
       const said = await ev(page, () => (window.__game.scenes.pointclick.state().story.log.filter(e => e.who === 'choice').slice(-1)[0] || {}).text);
       check(`menus ${label}: after the keys, a finger's tap held on Morwen's ${q.first} (the choices drawn small) answers it`, under === q.rh && said === q.first && !errors.length, `rows ${q.rh} px before, ${under} under the finger; answered ${said}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
       await ctx.close(); }
+    // a finger that creeps past a tap's reach and back before it lifts is no tap (the layout let go of it as it strayed, and
+    // the rows grew under it): after the keys, on kart's BACK as drawn small, it picks nothing, not the row now under it
+    { const { page, ctx, errors, cdp } = await open('kart', vp); await wait(500); await hook(page); await wait(200); await useKeys(page);
+      const r = await ev(page, () => { const m = [...window.__menus][0]; window.__picks = []; m.onPick = i => window.__picks.push(m.items[i]); return { th: m._box.th, back: m.rowAt(2) }; });
+      const q = await toCss(page, r.back[0] + r.back[2] / 2, r.back[1] + r.back[3] / 2), at = (type, dx) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: q[0] + dx, y: q[1], id: 1 }] });
+      await at('touchStart', 0); await wait(60); let grew = 0;
+      for (const dx of [5, 10, 14, 9, 4]) { await at('touchMove', dx); await wait(50); if (dx === 4) grew = await ev(page, () => [...window.__menus][0]._box.th); }
+      await at('touchEnd'); await wait(500);
+      const g = await ev(page, () => ({ picks: window.__picks, scene: window.__game.game.sceneName }));
+      check(`menus ${label}: after the keys, a finger on kart's BACK (its rows drawn small) that creeps past a tap's reach and back to 4 CSS px before it lifts is no tap: it picks nothing as the rows grow`, r.th === 0 && grew > 0 && !g.picks.length && g.scene === 'kart' && !errors.length, `rows ${r.th ? 'a thumb\'s' : 'small'} before and ${grew ? 'a thumb\'s' : 'small'} as it came back; picked ${g.picks.join() || 'nothing'}, the scene ${g.scene}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close(); }
     // a thumb resting on the stick holds no layout for a new screen: after the keys, set down on it in play and resting there
-    // still, the Shell's Settings and then GAME OVER come up meanwhile a thumb's size (nothing on them was under it)
-    { const { page, ctx, errors, cdp } = await open('platformer', vp); await wait(500); await hook(page); await useKeys(page);
+    // still (its press held, as a tap's would be), GAME OVER comes up meanwhile a thumb's size (a scene entered), and in a
+    // page of its own so do the Shell's Settings (a Shell screen opened): nothing on either was under it
+    const still = async show => {
+      const { page, ctx, errors, cdp } = await open('platformer', vp); await wait(500); await hook(page); await useKeys(page);
       const dev = await ev(page, () => window.__game.game.input.lastDevice), st = [vp.width * .15, vp.height * .75];
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: st[0], y: st[1], id: 1 }] }); await wait(400);
-      const on = await ev(page, () => window.__game.game.input.stickOn); await ev(page, () => window.__game.game.menu('settings')); await wait(400);
-      const tabs = await ev(page, () => [...document.querySelectorAll('.esh-tabs button, .esh input[type=range]')].filter(e => e.offsetParent).map(e => Math.round(e.getBoundingClientRect().height)));
-      await ev(page, () => window.__game.game.shell.hide()); await wait(200);
-      await ev(page, () => window.__game.game.go('over', { from: 'platformer' }, { fade: 0 })); await wait(600);
-      const m = (await rowsOf(page))[0];
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200);
-      check(`menus ${label}: after the keys, a thumb resting still on the stick in play: the Shell's Settings tabs and sliders, then GAME OVER's rows, come up a thumb's size`, dev === 'keyboard' && on && tabs.length >= 4 && Math.min(...tabs) >= 44 && !!m && m.h >= 44 && !errors.length, `the device ${dev}, the stick ${on ? 'held' : 'not held'}; Settings' ${tabs.join(' ')} CSS px, GAME OVER's rows ${m ? m.h.toFixed(1) : '?'}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
-      await ctx.close(); }
+      const s = await ev(page, () => { const I = window.__game.game.input; return { on: I.stickOn, held: !!I._press && I.lastDevice === 'touch' && I.layoutDevice === 'keyboard' }; });   // (the thumb's press holds the keys' layout until the screen is new)
+      const got = await show(page);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200); await ctx.close();
+      return Object.assign(s, got, { dev, errors, said: `the device ${dev}, the stick ${s.on ? 'held' : 'not held'}, the keys' layout ${s.held ? 'held' : 'not held'} under it as the screen comes` + (errors.length ? '; errors: ' + errors.join(' | ') : '') });
+    };
+    const ov = await still(async page => { await ev(page, () => window.__game.game.go('over', { from: 'platformer' }, { fade: 0 })); await wait(600); const m = (await rowsOf(page))[0]; return { h: m ? m.h : 0 }; });
+    check(`menus ${label}: after the keys, a thumb resting still on the stick in play (its press held): GAME OVER's rows come up a thumb's size`, ov.dev === 'keyboard' && ov.on && ov.held && ov.h >= 44 && !ov.errors.length, `${ov.said}; GAME OVER's rows ${ov.h.toFixed(1)} CSS px`);
+    const se = await still(async page => { await ev(page, () => window.__game.game.menu('settings')); await wait(400); return { tabs: await ev(page, () => [...document.querySelectorAll('.esh-tabs button, .esh input[type=range]')].filter(e => e.offsetParent).map(e => Math.round(e.getBoundingClientRect().height))) }; });
+    check(`menus ${label}: after the keys, a thumb resting still on the stick in play (its press held): the Shell's Settings tabs and sliders come up a thumb's size`, se.dev === 'keyboard' && se.on && se.held && se.tabs.length >= 4 && Math.min(...se.tabs) >= 44 && !se.errors.length, `${se.said}; Settings' ${se.tabs.join(' ')} CSS px`);
     // on GAME OVER, where nothing steers: after the keys a thumb that lands on the stick's half and moves past a tap's reach
     // lets the rows grow while it rests there (it picks nothing as it lifts); a slow tap there, held past a long press on
     // TITLE's row as drawn small, is a tap all the same and picks TITLE (the rows held under it)
@@ -1453,7 +1470,10 @@ if (want('stick')) {
  * did), the card never lying under the others (that is for buttons with no room left above them); with a top HUD (an
  * objective, a status column) the toast and the prompt clear it too, but on a phone 320 high on its side, where they
  * never had the room, or where the buttons stand over half the height. Stealth's map as the minimap: under the status column, beside
- * the toast, and a finger on it (or on the card's ×) takes it, the toast staying up; with no touch buttons (Touch: off,
+ * the toast, and a finger on it (or on the card's ×) takes it, the toast staying up; on its side 640 wide, with the
+ * prompt and the card up too, a toast taller than a line (a '\n' in it, or a long line) comes and goes and nothing
+ * moves: the layout (above the buttons or beside them), the card's × and the minimap stay, and a finger at the ×'s
+ * place takes the card; with no touch buttons (Touch: off,
  * each piece where it always stood) a finger on the toast where it lies over the minimap takes the toast and nothing
  * else, the next finger the minimap. All of it at once (stealth's own objective and status, the minimap, the prompt, the
  * tip, the card, a toast of two lines): the stack settles in the game's steps, the toast on the screen, 140 wide or
@@ -1532,6 +1552,33 @@ if (want('bands')) {
       }
       check(`bands stealth ${w}x${h}: the minimap clear of the toast, the status column and the buttons${h > w ? ', a finger on it or on the card\'s × takes only that' : ''}`, ok && !errors.length, line + (q.over.length ? '; over ' + q.over.join(', ') : '') + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
     }
+    // on its side 640 wide, the minimap, the prompt and the card up: a toast taller than a line (a '\n' in it, or a line too
+    // long for one) comes and goes, and nothing moves (whether the pieces stand above the buttons or beside them, --fl and
+    // --fr, is the screen's: no toast tips it), so a finger on the card's × or the minimap where they stood takes them
+    await turn(page, 640, 360);
+    await ev(page, () => { const sh = window.__game.game.shell, h1 = window.__hud1 = sh.hud; sh.hud = s => h1(Object.assign({}, s, { prompt: { key: 'E', label: 'Take the ledger' } })); sh.tutorial('Climb', 'Walk into a wall to climb it', 60); }); await wait(250);
+    for (const [k, text] of [['a \'\\n\' in it', 'Strength +1\nAgility +1'], ['a long line', 'The ledger is yours: now the east gate, past the two guards on the bridge and the dogs in the yard below']]) {
+      const q = await ev(page, text => {
+        const G = window.__game.game, sh = G.shell, I = G.input, E3 = sh._els, show = () => { for (const b of document.querySelectorAll('[data-sys=touch] [data-act]')) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true); };
+        const R = e => { const q = e && e.getBoundingClientRect(); return q && q.width && q.height && !e.hidden ? [q.left, q.top, q.right, q.bottom].map(Math.round) : null; }, mid = q => q && [(q[0] + q[2]) / 2, (q[1] + q[3]) / 2];
+        const snap = () => ({ f: [sh.root.style.getPropertyValue('--fl'), sh.root.style.getPropertyValue('--fr')].join('/'), x: R(E3.tut.querySelector('.esh-x')), m: R(E3.mini) });
+        const hit = (p, sel) => { const e = p && document.elementFromPoint(...p); return !!(e && e.closest(sel)); };
+        show(); E3.toast.classList.remove('on'); sh._toastEnd = 0; sh._step(); const a = snap();
+        sh.toast('Checkpoint', text, 30); show(); sh._step(); const b = snap(), t = R(E3.toast), lines = t ? 1 + Math.round((t[3] - t[1] - 64) / 17) : 0;
+        const onX = hit(mid(a.x), '.esh-x'), onM = hit(mid(a.m), '.esh-mini');
+        E3.toast.classList.remove('on'); sh._toastEnd = 0; show(); sh._step(); const c = snap();
+        sh.toast('Checkpoint', text, 30); show(); sh._step(); return { a, b, c, t, lines, onX, onM, at: mid(a.x) };
+      }, text);
+      let ok = !!(q.a.x && q.a.m && q.t) && q.lines >= 2 && [q.b, q.c].every(s => s.f === q.a.f && JSON.stringify([s.x, s.m]) === JSON.stringify([q.a.x, q.a.m])) && q.onX && q.onM;
+      let line = `the toast ${q.t} (${q.lines} lines); --fl/--fr ${q.a.f} with it away, ${q.b.f} up, ${q.c.f} gone; the card's × ${q.a.x} -> ${q.b.x} -> ${q.c.x}; the minimap ${q.a.m} -> ${q.b.m} -> ${q.c.m}; at their places from before a finger meets the × ${q.onX}, the minimap ${q.onM}`;
+      if (q.at) {   // a real finger at the ×'s place while the toast is up: the card goes, the toast stays
+        await tap(...q.at); const r = await ev(page, () => ({ card: !document.querySelector('.esh-tut').hidden, up: document.querySelector('.esh-toast').classList.contains('on') }));
+        ok = ok && !r.card && r.up; line += `; a finger there: the card gone ${!r.card}, the toast up ${r.up}`;
+        await ev(page, () => { const sh = window.__game.game.shell; sh._els.toast.classList.remove('on'); sh._toastEnd = 0; sh.tutorial('Climb', 'Walk into a wall to climb it', 60); }); await wait(150);
+      }
+      check(`bands stealth 640x360: a toast taller than a line (${k}) comes and goes, and the layout, the card's × and the minimap stay where they stood`, ok && !errors.length, line + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
+    }
+    await ev(page, () => { const sh = window.__game.game.shell; sh.hud = window.__hud1; sh.tutorial(null); }); await wait(150);
     // no touch buttons (Settings, Touch: off), on its side 640 wide: each piece where it always stood, the narrow toast
     // over the minimap's top; a finger there takes the toast and nothing else (its click doesn't fall through to the
     // minimap as the toast goes from under it), and the next finger there takes the minimap

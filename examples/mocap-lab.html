@@ -958,11 +958,11 @@ class Input {
     /** clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked()) */
     this._clickAt = null; this._click = null;
     // the presses that may be clicks or taps, each followed by its own pointer from its press to its lift: pointerId ->
-    // { x, y, where it landed (CSS px); far, the most it has wandered from there, every move counted }. Another finger
+    // { x, y }, where it landed (CSS px); a finger's is let go once it strays past a tap's reach (_stray). Another finger
     // landing, steering or lifting meanwhile changes none of them (a thumb on the stick, a touch button let go)
     this._downs = new Map();
-    // the press on the canvas that can still be a tap (_press: { dev, the layout's device as it landed; id, x, y, its
-    // pointer and where it landed; up, lifted; out, the steps since }: layoutDevice); when the game last read a steer
+    // the press on the canvas that can still be a tap (_press: { dev, the layout's device as it landed; id, its pointer;
+    // up, lifted; out, the steps since }: layoutDevice); when the game last read a steer
     // (move(), drag()); a flick of the stick's finger for the engine's menus and dialogs (_flick)
     this._press = null; this._steerAt = -1e9; this._gStick = this._stickAt = null;
     /** stick: the touch stick's direction [x, y], length <= 1; stickOn: a finger is on it; padMove: the gamepad's
@@ -1042,16 +1042,16 @@ class Input {
     on(window, 'blur', () => all(q => q.clear()));
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
-    on(el, 'pointermove', e => { const P = this._press; if (P && P.id === e.pointerId && !P.up && Math.hypot(e.clientX - P.x, e.clientY - P.y) >= 12) this._press = null;   // (past a tap's reach: a drag, a thumb steering, holds no layout)
+    on(el, 'pointermove', e => {
       if (e.pointerType !== 'mouse') this._lookMove(e); if (e.pointerType === 'mouse') { if (this.lastDevice !== 'mouse' && this.lastDevice !== 'keyboard' && Math.hypot(e.clientX - this.mouse.cx, e.clientY - this.mouse.cy) > 3) this.lastDevice = 'mouse'; this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
     // a mouse button pressed or let go while another is held comes as a pointermove, not a pointerdown or pointerup
     // (Pointer Events' chorded buttons: e.button the one that changed, e.buttons those down now): right held to aim, a
     // left click fires; either let go first, the other stays held and this one lets go. A press counts on the canvas
-    on(window, 'pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } this._wander(e); });
+    on(window, 'pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } this._stray(e); });
     on(el, 'pointerdown', e => {
       const dev = this.layoutDevice;   // (the device the screen is drawn for as it lands: _press)
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
-      if (e.pointerType !== 'mouse' || e.button === 0) this._downs.set(e.pointerId, { x: e.clientX, y: e.clientY, far: 0 });   // a click or tap if it lifts never having wandered from here (pointerup)
+      if (e.pointerType !== 'mouse' || e.button === 0) this._downs.set(e.pointerId, { x: e.clientX, y: e.clientY });   // a click or tap once it lifts near here (pointerup), a finger's never having strayed (_stray)
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
@@ -1060,18 +1060,18 @@ class Input {
         if (z) this._zoneDown(e.pointerId, z); else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
       // the latest press that can still be a tap (one of _downs) holds the layout as drawn until its tap is read, not a
-      // zone's (its act, as a touch button's); it lets go past a tap's reach (pointermove), once no tap can come (tick) and
-      // on a new screen (_relayout)
-      if (this._downs.has(e.pointerId) && !this._zoneOf.has(e.pointerId)) this._press = { dev, id: e.pointerId, x: e.clientX, y: e.clientY, up: false, out: 0 };
+      // zone's (its act, as a touch button's); it lets go once no tap can come (a finger past a tap's reach: _stray; its
+      // press forgotten: tick) and on a new screen (_relayout)
+      if (this._downs.has(e.pointerId) && !this._zoneOf.has(e.pointerId)) this._press = { dev, id: e.pointerId, up: false, out: 0 };
       if (e.pointerType === 'mouse' || this._fingers.size === 1) this._gesture('down', ...this.screenPoint(e.clientX, e.clientY), { touch: e.pointerType !== 'mouse', button: e.button, id: e.pointerId }); else this._g = this._gBox = null;   // (a second finger: a pinch, no gesture)
     });
     on(window, 'pointerup', e => {
       if (this._press && this._press.id === e.pointerId) this._press.up = true;   // (its tap, read the next step, on the layout it pressed on)
-      // a click or tap: this pointer's own press, lifted never having wandered 12 CSS px from where it landed (a drag is
-      // none, the stick's thumb steering too, even brought back): clicked() for a step, in screen pixels now: where it
-      // touched what was drawn, before a phone's first tap goes full screen and moves the canvas
-      const d = this._wander(e); this._downs.delete(e.pointerId);
-      if (d && d.far < 12) this._click = this.screenPoint(e.clientX, e.clientY);
+      // a click or tap: this pointer's own press, lifted within 12 CSS px of where it landed (a drag is none, the stick's
+      // thumb steering too; a finger's that strayed, none though it came back: _stray): clicked() for a step, in screen
+      // pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
+      const d = this._downs.get(e.pointerId); this._downs.delete(e.pointerId);
+      if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
       if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
       if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); }
     });
@@ -1340,8 +1340,13 @@ class Input {
    *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
    *  first tap, the one that went full screen, is a JUMP */
   _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._downs.clear(); }
-  // pointer e moved or lifted: how far its press has wandered from where it landed (its entry, or undefined: none of ours)
-  _wander(e) { const d = this._downs.get(e.pointerId); if (d) d.far = Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y)); return d; }
+  // pointer e moved: a finger's press moved past a tap's reach (12 CSS px from where it landed: a drag, a thumb steering)
+  // is no tap, though it comes back (a phone's own rule), so it holds no layout either (layoutDevice); a mouse's click is
+  // lifted near where it pressed, wherever it went between (a browser's), and its press holds until then
+  _stray(e) {
+    const d = e.pointerType !== 'mouse' && this._downs.get(e.pointerId);
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 12) { this._downs.delete(e.pointerId); if (this._press && this._press.id === e.pointerId) this._press = null; }
+  }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._press = null; this._downs.clear();
@@ -1370,11 +1375,12 @@ class Input {
   /** mouse position in projected screen pixels, or null */
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
   /** where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step
-   *  after it lifted; else null. A tap is its own finger's: that pointer went down and came up never having wandered 12
-   *  CSS px from where it landed, whatever other fingers did meanwhile (the stick's thumb landing, steering or lifting, a
-   *  touch button let go). A press that drags away is none, the stick's thumb steering too (even brought back to where it
-   *  landed); a finger on the stick's half lifted unmoved is a tap. Menus and dialogs answer to it; a HUD button of your
-   *  own can: if (hit(input.clicked())) ... */
+   *  after it lifted within 12 CSS px of where it pressed; else null. A tap is its own finger's: that pointer went down
+   *  and came up, whatever other fingers did meanwhile (the stick's thumb landing, steering or lifting, a touch button let
+   *  go). A press that drags away is none, the stick's thumb steering too, and a finger that strayed past 12 px is none
+   *  though it comes back, as on a phone (a mouse's click is a browser's: lifted near where it pressed, wherever it went
+   *  between); a finger on the stick's half lifted unmoved is a tap. Menus and dialogs answer to it; a HUD button of
+   *  your own can: if (hit(input.clicked())) ... */
   clicked() { return this._clickAt; }
   /** a quick one-finger flick on the canvas (a touch screen): { dir: 'left' | 'right' | 'up' | 'down', x, y } (where it
    *  began, in screen pixels) during the step after the finger lifted, else null. take: true uses it up, so nothing
@@ -1399,10 +1405,11 @@ class Input {
   get assist() { return this.lastDevice === 'touch' && !(this._settings && this._settings.assists === false); }
   /** the device the screen is laid out for: lastDevice, except while a press on the canvas can still be a tap and for the
    *  step that reads its tap, when it stays the one it was as the press landed (on the screen it landed on: a new scene
-   *  or Shell screen is laid out for the device in use). A press moved past a tap's reach (12 CSS px: a thumb steering),
-   *  a zone's, or one a newer press landed after (the latest that can still be a tap holds it) holds nothing. A layout
-   *  sized by the device (a thumb's rows by touch: E.Menu's, E.Dialog's choices, a menu of the game's own) reads it, so a
-   *  tap answers what was under the finger as drawn when it pressed and the rows grow after it; prompts read lastDevice */
+   *  or Shell screen is laid out for the device in use). A finger moved past a tap's reach (12 CSS px: a thumb steering,
+   *  no tap though it comes back), a zone's, or one a newer press landed after (the latest that can still be a tap holds
+   *  it) holds nothing; a mouse's press holds until it lifts (its click may come back). A layout sized by the device (a
+   *  thumb's rows by touch: E.Menu's, E.Dialog's choices, a menu of the game's own) reads it, so a tap answers what was
+   *  under the finger as drawn when it pressed and the rows grow after it; prompts read lastDevice */
   get layoutDevice() { return this._press ? this._press.dev : this.lastDevice; }
   // a new screen (a scene entered, a Shell screen opened): nothing on it was drawn under the press, so it is laid out for
   // the device in use (a thumb resting on the stick as GAME OVER or Settings comes up gets thumb-sized rows)
@@ -1564,7 +1571,7 @@ class Input {
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     // the held layout let go (layoutDevice follows the device again): the step that read the press's tap gone, or no tap to
-    // come from it (its press forgotten: cancelled, a pinch, the page gone full screen)
+    // come from it (its press forgotten: a finger strayed, cancelled, a pinch, the page gone full screen)
     const Pr = this._press; if (Pr && (Pr.up ? Pr.out++ : !this._downs.has(Pr.id))) this._press = null;
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
     this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._stickAt = this._gStick; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._gStick = this._tap2nd = null;
@@ -10803,18 +10810,21 @@ class Shell {
   // and a TV's as they were), the pieces at the bottom one above another: each stands above what lies under it where they
   // meet across (the touch buttons' line fb, the card, the minimap, the key strip, a narrow screen's toast, the prompt), a
   // gap between, and never lower than its place without them (--y, each piece's bottom). The narrow toast's place and the
-  // prompt's are kept while they're away, so nothing moves as they come and go; the narrow toast stands beside the
-  // minimap, the card or the top HUD where that keeps it lower or clear of the HUD, 140 px wide or more (--tl, --tr). The
-  // minimap is no taller than the room under the top HUD over it (the column, the objective, the corner's buttons), down
-  // to 64 px wide (--mw). Where the stack won't fit under the top HUD, the ways to stand it are tried in turn: a narrow
-  // screen's prompt and tip as a wide one stands them and the toast over the tip (the tip hidden under it while it's up),
-  // then the card lying under the others (esh-yield: only where nothing else leaves the toast and the prompt on the
-  // screen, 3D SHOOTER's ten buttons upright, a phone 320 high on its side with every piece up), never one that leaves
-  // them off the screen or on the top's buttons where another keeps them off (the toast, which takes a tap, first); a
-  // stack that still won't fit reaches up over the objective and the status (they take no taps). The tap that takes the
-  // toast away takes nothing else (_eat: its click falls on what lay under it). The toast's height for each stretch is a
-  // hidden copy's (_toastH), so where it stood never sways where it stands next. (In the shell's own pixels, from its
-  // bottom)
+  // prompt's are kept while they're away, and the way they stand is chosen with a line's toast, up or away, so nothing a
+  // finger takes moves as they come and go: a toast of more lines stands in that way at its own height, the card, the
+  // minimap and the keys where they were, and only what stands over it (the prompt, the tip) gives way (it stands over the
+  // tip, or not, instead only where that alone keeps it, then the prompt, on the screen and off the top's buttons). The
+  // narrow toast stands beside the minimap, the card or the top HUD where that keeps it lower or clear of the HUD, 140 px
+  // wide or more (--tl, --tr). The minimap is no taller than the room under the top HUD over it (the column, the
+  // objective, the corner's buttons), down to 64 px wide (--mw). Where the stack won't fit under the top HUD, the ways to
+  // stand it are tried in turn: a narrow screen's prompt and tip as a wide one stands them and the toast over the tip
+  // (the tip hidden under it while it's up), then the card lying under the others (esh-yield: only where nothing else
+  // leaves the toast and the prompt on the screen, 3D SHOOTER's ten buttons upright, a phone 320 high on its side with
+  // every piece up), never one that leaves them off the screen or on the top's buttons where another keeps them off (the
+  // toast, which takes a tap, first); a stack that still won't fit reaches up over the objective and the status (they
+  // take no taps). The tap that takes the toast away takes nothing else (_eat: its click falls on what lay under it). The
+  // toast's height for each stretch is a hidden copy's (_toastH), so where it stood never sways where it stands next. (In
+  // the shell's own pixels, from its bottom)
   _bands(fb, fl, fr) {
     if (!this._band) { this._band = true; this.root.classList.add('esh-band'); }   // (first: the card's width while they stand, which the measures below see)
     const r = this.root, E3 = this._els, I = this._game.input, k = this._k || 1, R = r.getBoundingClientRect(), F = this._fit.getBoundingClientRect(), W = R.width / k, H = R.height / k, G = 8;
@@ -10823,7 +10833,7 @@ class Shell {
     const box = e => { const q = e.getBoundingClientRect(); return [(q.left - R.left) / k, (q.right - R.left) / k, (q.bottom - R.top) / k, q.height]; };
     const seen = es => es.filter(e => e && e.isConnected).map(box).filter(q => q[3] > 0), corner = seen([this._game._corner, I._startEl, E3.hb]), hud = seen([E3.obj, this._col]).concat(corner);
     const roof = (a, b, all) => (all ? hud : corner).reduce((m, [c, d, y]) => a < d && c < b ? Math.max(m, y) : m, pt);   // (how far down the top HUD reaches over a stretch; or its buttons alone, the corner's and the HUD's)
-    const T = E3.toast, tOn = T.classList.contains('on'), th = w => tOn ? this._toastH(w) : 64, w0 = Math.min(176, innerWidth * .28);   // (the toast's height on a stretch so wide; away, the place a line's toast takes)
+    const T = E3.toast, tOn = T.classList.contains('on'), w0 = Math.min(176, innerWidth * .28); let th = () => 64;   // (the toast's height on a stretch so wide: first a line's, the place it takes away)
     const [C, K, Q, Z] = [E3.tut, E3.keys, E3.pr, E3.tip].map(e => on(e) && box(e).slice(0, 2).concat(e.offsetHeight));   // (the card, the keys, the prompt, the tip: their stretch and height)
     const pw = Q ? Q.slice(0, 2) : [mid - 100, mid + 100], ph = Q ? Q[2] : 48, iw = Z ? Z.slice(0, 2) : [mid - 61, mid + 61], ih = Z ? Z[2] : 64;   // (the prompt's place, kept while it's away)
     const way = (under, compact) => {   // one way to stand them: the card under the others or not, a narrow toast over the tip or not
@@ -10843,6 +10853,7 @@ class Shell {
       L.score = (fit(false, [L.toast]) ? 8 : 0) + (fit(false, [Q && L.pq]) ? 4 : 0) + (under ? 0 : 2) + (fit(true, [L.toast, Q && L.pq, Z && L.tip]) ? 1 : 0); return L;
     };
     let L = null; for (const [u, c] of [[0, 0], [0, 1], [1, 0], [1, 1]]) if ((!u || C) && (!c || narrow)) { const v = way(!!u, !!c); if (!L || v.score > L.score) L = v; if (L.score === 15) break; }
+    if (tOn && narrow) { th = w => this._toastH(w); let M = null; for (const c of [L.compact, !L.compact]) { const v = way(L.under, c); if (!M || v.score >> 2 > M.score >> 2) M = v; } L = M; }   // (a narrow screen's toast up at its own height, in the way a line's takes: the card, the minimap and the keys stay where they are, and only what stands over it gives way; it stands over the tip (or not) instead only where that alone keeps it, then the prompt, on the screen and off the top's buttons)
     const set = this._sv;
     for (const [e, p] of [[E3.tut, L.card], [E3.mini, L.mini], [E3.keys, L.keys], [E3.pr, L.pq], [E3.tip, L.tip], [T, L.toast]]) set(e, '--y', p ? p.y : e === T ? null : line);   // (a piece away waits on the line)
     set(E3.mini, '--mw', L.mw || null); set(T, '--tl', L.toast && L.tw[0] > x0 ? L.tw[0] : null); set(T, '--tr', L.toast && L.tw[1] < x1 ? W - L.tw[1] : null);
@@ -10881,13 +10892,15 @@ class Shell {
       // the touch buttons, all of them (a grid's that come and go too): above them (fb: their top over the shell's bottom,
       // and a gap) while their stack (the toast, the prompt and the tip over it) still fits there under the corner's row,
       // else beside them (--fl or --fr: their width from that side, and a gap) where that leaves room: a short screen on its
-      // side (--fw, the width left beside them, is the card's, the prompt's and the tip's widest); _bands stands them there
+      // side (--fw, the width left beside them, is the card's, the prompt's and the tip's widest); _bands stands them there.
+      // Which of the two is the screen's and the buttons' alone: the stack is measured with a line's toast, up or away, so
+      // no toast tips it as it comes and goes (one of more lines stands in the layout it finds: _bands)
       const te = I._touchEl, tq = te && te.isConnected && te.getBoundingClientRect(), R = tq && tq.height && this.root.getBoundingClientRect(), k = this._k || 1;
       let fb = 0, fl = 0, fr = 0;
       if (R) {
         const right = tq.left + tq.right > R.left + R.right, free = (right ? tq.left - R.left : R.right - tq.right) / k - 26; fb = Math.ceil((R.bottom - tq.top) / k) + 12;
-        const narrow = this._narrow && this._narrow.matches, th = this._els.toast.classList.contains('on') ? this._toastH(narrow ? this._fit.getBoundingClientRect().width / k : 420) : 64;   // (the stack: the toast (its height across the screen: _toastH), the prompt and the tip; on a wide screen the prompt and the tip, under the toast at the top)
-        if (R.height / k - fb - (narrow ? th + 138 : 130) < (narrow ? 60 : th + 22) && free >= 200) { const w = Math.ceil((right ? R.right - tq.left : tq.right - R.left) / k) + 12; if (right) fr = w; else fl = w; fb = 0; }
+        const narrow = this._narrow && this._narrow.matches;   // (the stack: a line's toast (64), the prompt and the tip, and 60 to spare; on a wide screen the prompt and the tip, under a line's toast at the top)
+        if (R.height / k - fb - (narrow ? 202 : 130) < (narrow ? 60 : 86) && free >= 200) { const w = Math.ceil((right ? R.right - tq.left : tq.right - R.left) / k) + 12; if (right) fr = w; else fl = w; fb = 0; }
       }
       const fk = fl + ' ' + fr; if (fk !== this._fk) { this._fk = fk; for (const [n, v] of [['--fl', fl], ['--fr', fr]]) this.root.style.setProperty(n, v + 'px'); }
       if (R) this._bands(fb, fl, fr); else if (this._band) this._unband();   // (no touch buttons on the screen: no layout read, and each piece where it always stood)
