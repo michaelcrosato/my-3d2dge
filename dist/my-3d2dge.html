@@ -15769,8 +15769,10 @@ a game plays the same without them (docs/CONTROLS.md).
   force] } (a buzz from start: an engine, a machine gun); numbers 0..1, hz 1..255. Set it when it changes, not each step;
   under a pause the triggers are free by themselves.
 - ds.gyroAim(dt) -> [dx, dy]: screen pixels to add to an aim cursor or a camera this step, from the controller's turn and
-  tilt ([0, 0] with gyro aim off or no DualSense). ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() ->
-  'left' | 'right' | 'up' | 'down' in the step after a flick on the touchpad, else null.
+  tilt ([0, 0] with gyro aim off or no DualSense), less the gyro's drift: learned from what gives no aim, and past that
+  only where the accelerometer says the controller lies still (its first rest, or a reading held there 5 s), so a slow
+  turn stays aim. ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() -> 'left' | 'right' | 'up' | 'down'
+  in the step after a flick on the touchpad, else null.
 - ds.speaker(name, o): a sound effect (audio.sfx's name and options) from the controller's speaker while the player has
   it on, else from the game's as usual. ds.micLevel() -> 0..1, how loud the microphone hears (0 while it is off).
 - ds.connected: a DualSense is open; ds.allowed: { hid, speaker, mic }, what the player has allowed.
@@ -15804,7 +15806,7 @@ const SONY = 0x054c, PIDS = [0x0ce6, 0x0df2];   // DualSense, DualSense Edge
 const isDS = d => !!d && d.vendorId === SONY && PIDS.includes(d.productId);
 const LEDS = [0x04, 0x0a, 0x15, 0x1b];   // the player lights for players 1 to 4, as the console lights them
 const GYRO = { off: 0, low: 2.5, medium: 5, high: 9 };   // gyro aim: screen pixels for a degree of turn
-const DRIFT = 3;   // degrees a second: more than a DualSense lying still reads, less than a hand's slowest aiming turn
+const DRIFT = 3;   // degrees a second: the most a DualSense lying still reads (its drift)
 const ONCE = new WeakMap();
 E.lang.engine({
   'engine.setting.pad_light': 'Light bar', 'engine.setting.pad_light.help': 'The DualSense\'s light shows what the game says: your health, danger, your team',
@@ -15850,7 +15852,7 @@ class DualSense {
      *  allowed: what the player has allowed ({ hid, speaker, mic }); touches: the touchpad's fingers [{ x, y }] (0..1) */
     this.game = game; this._o = o; this.connected = false; this.allowed = { hid: false, speaker: false, mic: false }; this.touches = [];
     this._dev = null; this._wire = 'usb'; this._seq = 0; this._want = { light: null, player: null, left: null, right: null }; this._sent = ''; this._busy = false;
-    this._raw = [0, 0, 0]; this._bias = [0, 0, 0]; this._avg = [0, 0, 0]; this._rate = [0, 0, 0]; this._still = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
+    this._raw = [0, 0, 0]; this._acc = [0, 0, 0]; this._bias = [0, 0, 0]; this._rest = [0, 0, 0]; this._avg = [0, 0, 0]; this._m0 = [0, 0, 0]; this._pull = this._was = null; this._found = false; this._rate = [0, 0, 0]; this._still = this._lie = this._off = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
     this._hub = game.headless ? null : hubOf(); this._may = { light: true, triggers: true, gyro: true }; this._later = false;   // (_may: what 52in1 lets a game do with the one it holds; _later: its microphone allowed after this game was opened)
     this.extras(o);
     game.hook('input', dt => this._tick(dt));
@@ -15899,7 +15901,7 @@ class DualSense {
     try {
       if (navigator.hid && policy('hid')) {
         navigator.hid.addEventListener('connect', e => { if (isDS(e.device) && !this._dev) this._open(e.device); });
-        navigator.hid.addEventListener('disconnect', e => { if (e.device === this._dev) { this._dev = null; this.connected = false; this.touches = []; this._rate = [0, 0, 0]; } });
+        navigator.hid.addEventListener('disconnect', e => { if (e.device === this._dev) { this._dev = null; this.connected = this._found = false; this.touches = []; this._rate = [0, 0, 0]; } });
         const d = (await navigator.hid.getDevices()).find(isDS); this.allowed.hid = !!d; if (d) await this._open(d);
       }
       this.allowed.mic = policy('microphone') && await granted('microphone');
@@ -15914,7 +15916,7 @@ class DualSense {
     const H = this._hub, P = H.dualsense, on = !!P.connected, mic = this.allowed.mic, spk = this.allowed.speaker, S = this.game.settings;
     this.connected = on; this.allowed = { hid: on, speaker: on && !!P.speaker, mic: H.mic === true }; this._later = H.micLater === true;
     this._may = { light: on && !!P.lightbar, triggers: on && !!P.triggers, gyro: on && !!P.motion };
-    if (!on) { this.touches = []; this._rate = [0, 0, 0]; this._flick = null; }
+    if (!on) { this.touches = []; this._rate = [0, 0, 0]; this._flick = null; this._found = false; }   // (the next one's first rest finds its own drift)
     if (spk !== this.allowed.speaker) this._speakerOn(!!S.padSpeaker);
     if (mic !== this.allowed.mic) this._micOn(!!S.mic);
     this._push();
@@ -15929,10 +15931,12 @@ class DualSense {
       this._push();
     } catch (e) { this._dev = null; this.connected = false; }
   }
-  // an input report: the gyro (pitch, yaw, roll: raw, about 16.4 a degree a second, ±2,000 over 16 bits) and the touchpad's two fingers
+  // an input report: the gyro (pitch, yaw, roll: raw, about 16.4 a degree a second, ±2,000 over 16 bits), the
+  // accelerometer (raw, about 8,192 a g) and the touchpad's two fingers
   _report(e) {
     const v = e.data, k = e.reportId === 0x31 ? 1 : e.reportId === 0x01 && v.byteLength >= 63 ? 0 : -1; if (k < 0) return;
     this._raw = [v.getInt16(k + 15, true), v.getInt16(k + 17, true), v.getInt16(k + 19, true)];
+    this._acc = [v.getInt16(k + 21, true), v.getInt16(k + 23, true), v.getInt16(k + 25, true)];
     const pts = [];
     for (let i = 0; i < 2; i++) { const at = k + 32 + i * 4; if (v.getUint8(at) & 0x80) continue; const b1 = v.getUint8(at + 1), b2 = v.getUint8(at + 2), b3 = v.getUint8(at + 3); pts.push({ x: (b1 | (b2 & 15) << 8) / 1919, y: ((b2 >> 4) | b3 << 4) / 1079 }); }
     this.touches = pts;
@@ -15941,11 +15945,11 @@ class DualSense {
   _tick(dt) {
     this._flicked = null;
     if (this.game.paused !== this._paused) { this._paused = this.game.paused; this._push(); }   // (the triggers freed under a pause, back after it)
-    if (this._hub && this.connected) {   // (52in1 sends the turn, in degrees a second, and the fingers; the gyro is read only while gyro aim is on, so the hub's own Motion aim keeps the stick until then)
-      const P = this._hub.dualsense, gy = GYRO[this.game.settings.gyro] && this._o.gyro && this._may.gyro ? P.gyro : null;
-      if (gy) this._turn([+gy.x || 0, +gy.y || 0, +gy.z || 0], dt); else this._rate = [0, 0, 0];
+    if (this._hub && this.connected) {   // (52in1 sends the turn, in degrees a second, the pull in g and the fingers; the motion is read only while gyro aim is on, so the hub's own Motion aim keeps the stick until then)
+      const P = this._hub.dualsense, gy = GYRO[this.game.settings.gyro] && this._o.gyro && this._may.gyro ? P.gyro : null, ac = gy && P.accel;
+      if (gy) this._turn([+gy.x || 0, +gy.y || 0, +gy.z || 0], ac ? [+ac.x || 0, +ac.y || 0, +ac.z || 0] : null, dt); else this._rate = [0, 0, 0];
       this.touches = (P.touches || []).map(q => ({ x: +q.x || 0, y: +q.y || 0 }));
-    } else if (this.connected) this._turn(this._raw.map(r => r / 16.384), dt);   // (WebHID's raw gyro: about 16.4 a degree a second)
+    } else if (this.connected) this._turn(this._raw.map(r => r / 16.384), this._acc.map(r => r / 8192), dt);   // (WebHID's raw gyro: about 16.4 a degree a second; its accelerometer about 8,192 a g)
     const SS = E.session;   // (a recorded session keeps what the controller said, and a replay hears it again: E.session.stream)
     if (SS && (SS.recording || SS.replaying) && SS.stream) { const v = SS.stream('dualsense', [this.connected ? 1 : 0, this._may.gyro ? 1 : 0, this._rate, this.touches]); if (SS.replaying) { this.connected = this.allowed.hid = !!v[0]; this._may.gyro = !!v[1]; this._rate = v[2]; this.touches = v[3]; } }
     if (this.connected) {
@@ -15956,15 +15960,37 @@ class DualSense {
     }
     if (this._an) { this._an.getFloatTimeDomainData(this._buf); let s = 0; for (const x of this._buf) s += x * x; const l = Math.min(1, Math.sqrt(s / this._buf.length) * 4); this._level += (l - this._level) * Math.min(1, dt * 12); }
   }
-  // the turn v (degrees a second, each axis) less the gyro's drift, learned only while the controller lies still: every
-  // axis under DRIFT and steady (within a degree a second of its last quarter second) for a second, then followed slowly
-  // (two seconds' time constant). So a slow, steady turn of the hand stays aim, and the drift, never more than DRIFT, is
-  // learned again whenever the controller rests; a hair's noise (under 1.5 degrees a second) is none
-  _turn(v, dt) {
-    const m = this._avg, calm = v.every((r, i) => Math.abs(r) < DRIFT && Math.abs(r - m[i]) < 1);
-    for (let i = 0; i < 3; i++) m[i] += (v[i] - m[i]) * Math.min(1, dt * 4);
-    this._still = calm ? this._still + dt : 0; if (this._still > 1) for (let i = 0; i < 3; i++) this._bias[i] += (v[i] - this._bias[i]) * Math.min(1, dt / 2);
-    this._rate = v.map((r, i) => Math.abs(r - this._bias[i]) < 1.5 ? 0 : r - this._bias[i]);
+  // the turn v (degrees a second, each axis) less the gyro's drift; a: the accelerometer's pull (g; null, or none at all
+  // from a stand-in that sends nothing). The gyro alone can't tell a slow, steady turn from a drift, so a reading that
+  // gives aim (past the dead zone, 1.5 degrees a second: a hair's noise) is taken for drift only where the pull says the
+  // controller lies still, and only where a slow aiming turn can't be what it reads:
+  // - lying still: the pull steady to a hundredth of a g, the turn steady (within a degree a second of its quarter
+  //   second) and under DRIFT, its quarter-second average holding within half a degree a second of where it began. On
+  //   the controller's first rest since it connected (half a second of it), or once a reading has held there for 5 s
+  //   (longer than an aiming turn holds one speed: a drift holds for good), whatever it reads is the drift, followed in
+  //   half a second until found (within a tenth of a degree a second). If, lying there, it then reads again what it
+  //   read before those 5 s (within half a degree a second), they were a turn: the drift goes back to what it was (the
+  //   old one forgotten once the controller has been off a rest for a second). A jolt is no sign of a rest: a pressed
+  //   button or a flick of the aim jolts it too, and a hand resting on a lap can be as steady as a table
+  // - anywhere, only a reading that gives no aim: the average within the dead zone, held a second; followed in four
+  //   seconds (a hand's tremor averaged out) and kept within three quarters of a degree a second of the drift a rest
+  //   found. So a drift that warms is followed, and no turn, not even one that speeds up slowly enough to hide in the
+  //   dead zone, is taken for long
+  _turn(v, a, dt) {
+    const m = this._avg, b = this._bias, o = this._rest, k = Math.min(1, dt * 4), q = a && Math.hypot(a[0], a[1], a[2]) > .5 ? (this._pull = this._pull || a.slice()) : null;   // (q: the pull's quarter-second average)
+    const lying = !!q && a.every((x, i) => Math.abs(x - q[i]) < .01) && v.every((r, i) => Math.abs(r - m[i]) < 1 && Math.abs(r) < DRIFT);
+    for (let i = 0; i < 3; i++) { m[i] += (v[i] - m[i]) * k; if (q) q[i] += (a[i] - q[i]) * k; }
+    const held = m.every((r, i) => Math.abs(r - this._m0[i]) < .5), gives = m.some((r, i) => Math.abs(r - b[i]) >= 1.5);
+    if (!held || !(this._still || this._lie)) this._m0 = m.slice();   // (where the average began to hold)
+    this._still = held && !gives ? this._still + dt : 0; this._lie = lying && held ? this._lie + dt : 0;
+    this._off = lying ? 0 : this._off + dt; if (this._off > 1) this._was = null;   // (_was: the drift before a 5 s hold was taken for one)
+    if (this._lie > (this._found ? 5 : .5)) {
+      if (gives && this._found && !this._was) this._was = b.slice();
+      for (let i = 0; i < 3; i++) o[i] = b[i] += (m[i] - b[i]) * Math.min(1, dt * 2);
+      this._found = this._found || m.every((r, i) => Math.abs(r - b[i]) < .1);
+    } else if (this._was && gives && this._lie > .5 && m.every((r, i) => Math.abs(r - this._was[i]) < .5)) { for (let i = 0; i < 3; i++) o[i] = b[i] = this._was[i]; this._was = null; }
+    else if (this._still > 1) for (let i = 0; i < 3; i++) b[i] = Math.max(o[i] - .75, Math.min(o[i] + .75, b[i] + (m[i] - b[i]) * Math.min(1, dt / 4)));
+    this._rate = v.map((r, i) => Math.abs(r - b[i]) < 1.5 ? 0 : r - b[i]);
   }
   // the output report for what is wanted now, sent when it changed (a light set each step sends once)
   _push() {
