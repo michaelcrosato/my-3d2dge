@@ -2035,3 +2035,60 @@ An entry:
   loop. A DualSense that drifts more than 3 degrees a second lying still would need a larger `DRIFT`.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+
+## D115 · 2026-11-17 · Emberdeep under a finger: a tap is its own finger's, from its press to its lift
+
+- **Principle:** the controls standard (D100), docs/CONTROLS.md rule 7 and D110: under a finger a target acts on a tap,
+  decided by what pressed rather than the device used last; touch must not change how a pad, the keys or a mouse play
+- **Call:**
+  - UI.mouse is the pointer that presses (a mouse, or a finger that isn't steering the stick), followed by its own id
+    from its press to its lift: another finger landing, steering or lifting meanwhile neither moves it nor lets it go,
+    and a finger that lands while another presses presses nothing (two are the tree's pinch). A primary pointer always
+    presses, so a press whose lift never came locks nothing out.
+  - A finger's tap is its own (UI_tapped): lifted within 12 CSS px of where it landed, every move and its lift counted,
+    in place of the engine's `input.clicked()` (one pointer for all, lost when another finger lands or lifts) and of the
+    6 px the steps saw. The core's UI.tap judges it by the rect it pressed and where its finger lifted, the same panel
+    on top, so a target the finger's own layout redraws bigger while it is down (the six skill slots under the SKILL
+    BAR, a loot tab grown a finger tall) still takes the first tap after a mouse or a pad. The loot panels, the tree and
+    Skills take the same test; the gallery's reels are plain targets of the core's tap; an item's first finger tap after
+    the mouse chooses it, as every finger's does.
+  - A press of the pointer that falls in a hit-stop (the input steps, the scene doesn't) is kept for the first step in
+    play (UI.late), as the world's own presses are buffered.
+  - The waystone's rows scroll under a finger whatever the touch buttons' setting.
+- **Why:** D110 took the tap from the rect drawn at the lift and from the engine's single-pointer tap: the first finger
+  after a mouse or a pad lost its tap wherever the layout grows for a finger (the case D110's Why meant to serve), and a
+  thumb landing on or lifting off the stick took a tap on the SKILL BAR or the points chip away; the waystone's scroll
+  hung on the touch buttons showing; and a real-speed test lost a gallery reel's tap to a hit-stop's step (older than
+  D110: a mouse's click on the HUD too). Following each finger by its own id is one rule that closes them all and keeps
+  the flick rule.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
+
+## D116 · 2026-11-17 · Under a finger nothing grows until its tap is read; the stick's half backs out of the engine's menus where nothing steers
+
+- **Principle:** the controls standard (D100) and docs/CONTROLS.md rule 7. Under a finger a target acts on a tap, as the
+  finger lifts where it pressed. Every touch target is at least 44 CSS px. Touch never changes pad or keyboard-and-mouse
+  play. Menus are swiped away.
+- **Call:**
+  - `input.layoutDevice` (both editions) is the device the screen is laid out for. It is `lastDevice`, except while a
+    press is down on the canvas and for the step that reads its tap; then it stays what it was when the press began.
+  - E.Menu, E.Dialog's choices, the starters' FamilyMenu, the click module's panel and the Shell's tabs and sliders size
+    themselves by it. The Shell's also hold while a press is down on it.
+  - So the first tap after the keys, a pad or a mouse answers the row it pressed on, and the rows grow to a thumb's once
+    it has been read. A modal E.Dialog also keeps its box where it was drawn during the press. Prompts still follow
+    `lastDevice` at once.
+  - A flick that begins on the move stick's half stays the stick's, and `input.swipe()` never reports it. But E.Menu's
+    cancel and a modal E.Dialog's swipe-away take it when the game read no steer from the stick (`move()`, `drag()`)
+    from a quarter of a second before it landed until it lifted.
+  - The engine's camera pan by the keys, the Shell's focus and a long menu's scroll read the stick without counting as a
+    steer.
+- **Why:**
+  - v0.108.0 grew the rows to a thumb's the moment a finger landed, and every real tap spans frames. So a tap after the
+    keys read rows the player never saw.
+  - Holding the layout's device for the press cures every layout sized by the device at once, and nothing moves under
+    the finger.
+  - The stick took every touch on its half, so half the screen could never swipe a game over away. What the game steers
+    by tells whether the stick is steering anything.
+  - Leaving `swipe()` alone keeps every game's own flicks in play as they were.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
