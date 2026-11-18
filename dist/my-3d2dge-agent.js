@@ -790,7 +790,7 @@ class Input {
     addEventListener('blur', () => this.clear());
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); }, { signal });
     el.addEventListener('contextmenu', e => e.preventDefault(), { signal });
-    el.addEventListener('pointermove', e => { at(e); const P = this._press, q = P && P.ids.get(e.pointerId); if (q && Math.hypot(e.clientX - q[0], e.clientY - q[1]) >= 12) P.ids.delete(e.pointerId); }, { signal });   // (past a tap's reach: a drag holds no layout)
+    el.addEventListener('pointermove', e => { at(e); const P = this._press, q = P && P.ids.get(e.pointerId); if (q && e.pointerType !== 'mouse' && Math.hypot(e.clientX - q[0], e.clientY - q[1]) >= 12) P.ids.delete(e.pointerId); }, { signal });   // (a finger past a tap's reach: a drag, no tap though it comes back, holds no layout; a mouse's click is lifted where it pressed, wherever it went, and holds until it lifts)
     el.addEventListener('pointerdown', e => { const P = this._press || (this._press = { dev: this.lastDevice, ids: new Map(), out: 0 }); P.ids.set(e.pointerId, [e.clientX, e.clientY]); P.out = 0; at(e); this.press('Mouse' + e.button); if (e.pointerType !== 'mouse') { this.lastDevice = 'touch'; this._f0 = { id: e.pointerId, x: e.clientX, y: e.clientY, t: this.clock }; } }, { signal });
     addEventListener('pointerup', e => {
       if (this._press) this._press.ids.delete(e.pointerId);
@@ -864,9 +864,10 @@ class Input {
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
   // true while the player plays by touch (and Touch assists is on): gate a touch assist on it (an attack or a shot by itself)
   get assist() { return this.lastDevice === 'touch' && !(this._settings && this._settings.assists === false); }
-  // the device the screen is laid out for: lastDevice, held while a press on the canvas can still be a tap (not dragged past
-  // 12 CSS px) and the step after it lifts, on the scene it landed on, so what a finger taps keeps its size under it (a
-  // layout of your own a thumb's size by touch reads it; prompts, lastDevice)
+  // the device the screen is laid out for: lastDevice, held while a press on the canvas can still be a tap (a finger never
+  // dragged past 12 CSS px: past it, no tap though it comes back; a mouse until it lifts) and the step after it lifts, on the
+  // scene it landed on, so what a finger taps keeps its size under it (a layout of your own a thumb's size by touch reads
+  // it; prompts, lastDevice)
   get layoutDevice() { return this._press ? this._press.dev : this.lastDevice; }
   clear() { this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; this._press = null; }
   anyPressed() { return this._now.size > 0; }
