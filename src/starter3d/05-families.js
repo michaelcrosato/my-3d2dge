@@ -10,7 +10,7 @@ class FamilyMenu {
   get items() { return this.slices.map(s => s.label); }
   /** the layout on a screen W x H: columns of rows ({ head } or { k }, slice k), the row height, the rows in view */
   layout(W, H) {
-    const S = game.screen, th = game.input.lastDevice === 'touch' && S.canvas ? Math.ceil(44 * S.dpr / S.S) : 0, rh = E.font.lineHeight() + 2, rowH = Math.max(rh, th), fams = [];   // (a thumb's rows by touch)
+    const S = game.screen, th = game.input.layoutDevice === 'touch' && S.canvas ? Math.ceil(44 * S.dpr / S.S) : 0, rh = E.font.lineHeight() + 2, rowH = Math.max(rh, th), fams = [];   // (a thumb's rows by touch, as drawn while a press is down: a tap picks what it pressed on)
     this.slices.forEach((s, k) => { let f = fams.find(f => f.name === s.family); if (!f) fams.push(f = { name: s.family, ks: [] }); f.ks.push(k); });
     const colW = Math.max(...this.slices.map(s => E.font.width(s.label)), ...fams.map(f => E.font.width(f.name, { font: 'tiny' }))) + 24;
     const total = fams.reduce((n, f) => n + f.ks.length + 1, 0), two = W >= 400, cols = [[]];
