@@ -701,7 +701,7 @@ try {
 		},
 	);
 	await check(
-		"A finger's tap follows its own finger: the first after a mouse or a pad, another finger landing or lifting meanwhile, a hit-stop, the waystone with the touch buttons hidden",
+		"A finger's tap follows its own finger: the first after a mouse or a pad, another finger landing or lifting meanwhile, a hit-stop, the focus lost under it, the waystone with the touch buttons hidden (a drag that scrolls it is no tap)",
 		async () => {
 			// a hot rect's middle in page pixels; what the top panel shows; touch points by CDP ([id, x, y]: a touchEnd that
 			// lists points lifts those alone)
@@ -779,6 +779,22 @@ try {
 			await T("touchEnd", []);
 			await p.waitForTimeout(400);
 			assert.equal(await shown(p), null, "a flick begun on SKILL BAR opens nothing");
+			// a finger resting on a bag item (its tooltip up) as the window loses focus: its press goes, and its hover with
+			// it, so its lift leaves no tooltip behind
+			await p.evaluate(() => { const { ED, UI } = __ed, h = ED.hero; UI.closeAll(); h.bag.length = 0; for (let i = 0; i < 3; i++) h.bag.push(__ed.makeItem({ slot: "helm", ilvl: 20, rarity: 1 })); UI.open("inventory"); });
+			await p.waitForTimeout(400);
+			await p.evaluate(() => { __edLoot.ui.gear = false; __edLoot.ui.tab = "bag"; });
+			await p.waitForTimeout(250);
+			const I = await mid(p, await p.evaluate(() => { const n = __edLoot.ui.navLast.find((q) => q.it && /^bag/.test(q.key)); return n && { x: n.x, y: n.y, w: n.w, h: n.h }; }));
+			const itemTip = () => p.evaluate(() => !!(__edLoot.ui.tip && __edLoot.ui.tip.it));
+			await T("touchStart", [[1, ...I]]);
+			await p.waitForTimeout(250);
+			assert.ok(await itemTip(), "a finger on a bag item shows its tooltip");
+			await p.evaluate(() => dispatchEvent(new Event("blur")));
+			await p.waitForTimeout(200);
+			await T("touchEnd", []);
+			await p.waitForTimeout(500);
+			assert.ok(!(await itemTip()), "the finger down as the focus went has lifted: its tooltip has gone with it");
 			// 3. the waystone with the touch buttons hidden (Settings, Controls): a finger dragged up its list scrolls it
 			await p.evaluate(() => { __ed.UI.closeAll(); __ed.CONTROL.touch = "off"; __ed.ED.hero.maxDepth = 70; __ed.UI.open("waystone"); });
 			await p.waitForTimeout(400);
@@ -794,6 +810,37 @@ try {
 			await p.evaluate(() => { __ed.CONTROL.touch = "auto"; });
 			assert.deepEqual(await p.evaluate(() => __ed.game.errors), []);
 			await phone.close();
+			// 4. a small phone on its side (a CSS px a game px), the touch buttons hidden: the rows a menu's height, half a row
+			// is less than a tap's 12 CSS px, so a short drag up scrolls a row under the finger before it lifts. A press that
+			// scrolled is a drag: it descends nowhere, not to the depth scrolled under it; a tap still descends
+			const small = await browser.newContext({ viewport: { width: 568, height: 320 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+			p = await small.newPage();
+			track(p);
+			await ready(p);
+			T = fingers(await small.newCDPSession(p));
+			const wayRows = () => p.evaluate(() => __ed.UI.hot.filter((h) => h.drag && /^DEPTH/.test(h.label || "")).map((h) => ({ x: h.x, y: h.y, w: h.w, h: h.h, l: h.label })));
+			const wayOpen = async () => { await p.evaluate(() => { __ed.UI.closeAll(); __ed.CONTROL.touch = "off"; const h = __ed.ED.hero, w = __ed.ED.L.waystone; h.maxDepth = 70; h.x = w.x + 16; h.y = w.y + 4; __ed.UI.open("waystone"); }); await p.waitForTimeout(400); return wayRows(); };
+			let wr = await wayOpen();
+			const r2 = wr[2], [nx, ny] = await mid(p, { x: r2.x, y: r2.y + r2.h - 3, w: r2.w, h: 2 });   // (near the bottom of DEPTH 60's row)
+			assert.ok(/^DEPTH 60/.test(r2.l) && r2.h < 16, "the third row is DEPTH 60, a menu row: " + JSON.stringify(r2));
+			await T("touchStart", [[1, nx, ny]]);
+			await p.waitForTimeout(80);
+			for (let k = 1; k <= 6; k++) { await T("touchMove", [[1, nx, ny - (10 * k) / 6]]); await p.waitForTimeout(50); }
+			await p.waitForTimeout(120);
+			const nudged = (await wayRows())[0].l;
+			await T("touchEnd", []);
+			await p.waitForTimeout(600);
+			const after = await p.evaluate(() => ({ open: __ed.UI.top()?.id, mode: __ed.ED.mode, depth: __ed.ED.depth }));
+			assert.ok(nudged !== wr[0].l && after.open === "waystone" && after.mode === "town", "a finger dragged up 10 CSS px scrolls the waystone a row and descends nowhere: " + JSON.stringify({ nudged, ...after }));
+			wr = await wayOpen();
+			const [qx, qy] = await mid(p, wr[2]);
+			await T("touchStart", [[1, qx, qy]]);
+			await p.waitForTimeout(100);
+			await T("touchEnd", []);
+			await p.waitForTimeout(600);
+			assert.deepEqual(await p.evaluate(() => [__ed.ED.mode, __ed.ED.depth]), ["level", 60], "a tap on DEPTH 60 descends to it");
+			assert.deepEqual(await p.evaluate(() => __ed.game.errors), []);
+			await small.close();
 		},
 	);
 	await check(

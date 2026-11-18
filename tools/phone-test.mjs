@@ -49,7 +49,8 @@
 //      the rope up; its inventory slot a thumb's size, a tap puts it on the cursor and a tap takes it off; a long press
 //      looks (at the tavern's door); a tap on a person, TALK, and a tap on a choice picks it
 //  21. sports: PASS, SHOOT and LOB a thumb's size; the stick runs the player (with the ball at its feet); PASS passes to
-//      the teammate; SHOOT held and let go shoots
+//      the teammate; SHOOT held and let go shoots; a thumb resting on the stick through a goal, or another finger resting
+//      on the pitch, leaves the radio clear of the buttons as they come back at the kickoff
 //  21. pinball: a tap starts a game; a swipe up fires the plunger (the ball leaves the lane); a finger on the left half
 //      raises the left flipper and lifting it lowers it, the right half the right, two fingers both
 //  22. artillery: ONE PLAYER a thumb's height, a tap on it starts a match; on the player's turn a tap beside the grub
@@ -67,7 +68,10 @@
 //      under a finger to BACK, which a tap picks. After the keys (a touch laptop, a phone after a keyboard or a pad) the
 //      rows are drawn small, and a finger's tap held a moment picks what it pressed on, the rows unchanged under it and a
 //      thumb's after it: kart's BACK, FamilyMenu's POINT-AND-CLICK, Morwen's A WHALE; a touch laptop's first touch on a
-//      bottom dialog's choice answers it, the touch buttons it brings moving nothing from under it
+//      bottom dialog's choice answers it, the touch buttons it brings moving nothing from under it. A thumb resting on the
+//      stick holds no new screen: after the keys, at rest on it in play, the Shell's Settings and GAME OVER come up a
+//      thumb's size; on GAME OVER one that lands on the stick's half and moves past a tap's reach lets the rows grow while
+//      it rests, and a slow tap there (held past a long press) still picks the row it pressed on
 //  26. the stick's half (stealth, roguelike, metroidvania): upright, their four or five touch buttons in two columns right
 //      of the middle (those that come and go shown too), a left thumb set down at the bottom-left steers; on its side a
 //      row; GAME OVER (upright and on its side) and the rts end menu go to the title on a sideways flick, not one in
@@ -751,6 +755,27 @@ if (want('sports')) {
     check(`sports ${label}: PASS, SHOOT and LOB, each a thumb's size`, acts === 'lob,pass,shoot' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`sports ${label}: SHOOT held and let go shoots; the stick held right runs the player right with the ball; PASS passes`, s0.mode === 'play' && s1.shots >= 1 && s3.you.x > s2.you.x + 20 && s4.passes >= 1 && !errors.length,
       `mode ${s0.mode}, shots ${s1.shots}, x ${s2.you && s2.you.x} -> ${s3.you && s3.you.x}, passes ${s4.passes}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    // the radio (a box play goes on under, at the bottom) through a goal, with a thumb resting on the stick, then with a
+    // finger resting on the pitch apart from it: at the kickoff, the buttons back, it is drawn clear of them (the game's own
+    // steps, each read as its frame would draw it)
+    await ev(page, () => { const D = My3D2dge.Dialog.prototype, s0 = D.say; D.say = function (...a) { if (a[1] && a[1].modal === false) window.__radio = this; return s0.apply(this, a); }; });
+    const toKick = () => ev(page, () => {
+      const G = window.__game.game, I = G.input, st = () => window.__game.scenes.sports.state(); let goal = false, open = 0, over = 0, worst = '';
+      for (let i = 0; i < 60 * 240; i++) {
+        G.advance(1 / 60); const m = st().mode, D = window.__radio; if (m === 'goal') goal = true;
+        if (D && D.open) { const b = D._drawn(), t = I.touchArea(); if (goal && m === 'kickoff') { open++; if (t && b.x + b.w > t.x0 && b.x < t.x1 && b.y + b.h > t.y0 && b.y < t.y1) { over++; worst = worst || `the radio ${[b.x, b.y, b.w, b.h]} over the buttons ${[t.x0, t.y0, t.x1, t.y1].map(Math.round)}`; } } }
+        if (goal && m === 'play') break;
+      }
+      return { goal, open, over, worst };
+    });
+    const rest = [vp.width * .18, vp.height * .82];
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: rest[0], y: rest[1], id: 1 }] }); await wait(150);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: rest[0] + 20, y: rest[1] - 6, id: 1 }] }); await wait(150);
+    const k1 = await toKick(); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: vp.width * .7, y: vp.height * .35, id: 2 }] }); await wait(150);
+    const k2 = await toKick(); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200);
+    check(`sports ${label}: a thumb resting on the stick through a goal, and then a finger resting on the pitch: at the kickoffs the radio is drawn clear of PASS, SHOOT and LOB`, k1.goal && k2.goal && k1.open && k2.open && !k1.over && !k2.over && !errors.length,
+      `on the stick: ${k1.goal ? `${k1.over} of ${k1.open} kickoff frames under the buttons` : 'no goal'}${k1.worst ? ` (${k1.worst})` : ''}; resting apart: ${k2.goal ? `${k2.over} of ${k2.open}` : 'no goal'}${k2.worst ? ` (${k2.worst})` : ''}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
@@ -1296,6 +1321,36 @@ if (want('menus')) {
       const under = await hold(cdp, await toCss(page, q.at[0], q.at[1]), 120, () => ev(page, () => { const D = window.__game.scenes.pointclick.state().story.talk; return D._cbox(D._dims()).rh; })); await wait(500);
       const said = await ev(page, () => (window.__game.scenes.pointclick.state().story.log.filter(e => e.who === 'choice').slice(-1)[0] || {}).text);
       check(`menus ${label}: after the keys, a finger's tap held on Morwen's ${q.first} (the choices drawn small) answers it`, under === q.rh && said === q.first && !errors.length, `rows ${q.rh} px before, ${under} under the finger; answered ${said}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close(); }
+    // a thumb resting on the stick holds no layout for a new screen: after the keys, set down on it in play and resting there
+    // still, the Shell's Settings and then GAME OVER come up meanwhile a thumb's size (nothing on them was under it)
+    { const { page, ctx, errors, cdp } = await open('platformer', vp); await wait(500); await hook(page); await useKeys(page);
+      const dev = await ev(page, () => window.__game.game.input.lastDevice), st = [vp.width * .15, vp.height * .75];
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: st[0], y: st[1], id: 1 }] }); await wait(400);
+      const on = await ev(page, () => window.__game.game.input.stickOn); await ev(page, () => window.__game.game.menu('settings')); await wait(400);
+      const tabs = await ev(page, () => [...document.querySelectorAll('.esh-tabs button, .esh input[type=range]')].filter(e => e.offsetParent).map(e => Math.round(e.getBoundingClientRect().height)));
+      await ev(page, () => window.__game.game.shell.hide()); await wait(200);
+      await ev(page, () => window.__game.game.go('over', { from: 'platformer' }, { fade: 0 })); await wait(600);
+      const m = (await rowsOf(page))[0];
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200);
+      check(`menus ${label}: after the keys, a thumb resting still on the stick in play: the Shell's Settings tabs and sliders, then GAME OVER's rows, come up a thumb's size`, dev === 'keyboard' && on && tabs.length >= 4 && Math.min(...tabs) >= 44 && !!m && m.h >= 44 && !errors.length, `the device ${dev}, the stick ${on ? 'held' : 'not held'}; Settings' ${tabs.join(' ')} CSS px, GAME OVER's rows ${m ? m.h.toFixed(1) : '?'}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close(); }
+    // on GAME OVER, where nothing steers: after the keys a thumb that lands on the stick's half and moves past a tap's reach
+    // lets the rows grow while it rests there (it picks nothing as it lifts); a slow tap there, held past a long press on
+    // TITLE's row as drawn small, is a tap all the same and picks TITLE (the rows held under it)
+    { const { page, ctx, errors, cdp } = await open('platformer', vp); await wait(300); await lastMenu(page);
+      await ev(page, () => window.__game.game.go('over', { from: 'platformer' }, { fade: 0 })); await wait(800); await useKeys(page);
+      const th0 = await ev(page, () => window.__menu._box.th), a = [vp.width * .12, vp.height * .85];
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: a[0], y: a[1], id: 1 }] }); await wait(100);
+      for (let i = 1; i <= 6; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: a[0] + i * 5, y: a[1], id: 1 }] }); await wait(80); }
+      await wait(300); const rest = await ev(page, () => { const S = window.__game.game.screen; return window.__menu._box.rowH * S.S / S.dpr; });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(400);
+      const stay = await ev(page, () => window.__game.game.sceneName); await useKeys(page);
+      const r = await ev(page, () => ({ th: window.__menu._box.th, row: window.__menu.rowAt(1) })), q = await toCss(page, r.row[0] + 4, r.row[1] + r.row[3] / 2);
+      const under = await hold(cdp, q, 600, () => ev(page, () => window.__menu._box.th)); await wait(500);
+      const scene = await ev(page, () => window.__game.game.sceneName);
+      check(`menus ${label}: on GAME OVER after the keys, a thumb on the stick's half moved past a tap's reach lets the rows grow to a thumb's while it rests, and picks nothing`, th0 === 0 && rest >= 44 && stay === 'over' && !errors.length, `rows ${th0 ? 'a thumb\'s' : 'small'} before, ${rest.toFixed(1)} CSS px while it rests; then ${stay}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+      check(`menus ${label}: on GAME OVER after the keys, a slow tap (held .6 s) on TITLE's row on the stick's half picks TITLE, the rows unchanged under it`, r.th === 0 && under === 0 && q[0] < vp.width / 2 && scene === 'title' && !errors.length, `rows ${r.th ? 'a thumb\'s' : 'small'} before and ${under ? 'a thumb\'s' : 'small'} under the finger at ${q.map(Math.round)} CSS px; the scene ${scene}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
       await ctx.close(); }
   }
   // a touch laptop (a fine pointer first, the touch buttons only from the first touch): its first touch, held on a bottom

@@ -592,6 +592,7 @@ const endTouch = (e) => UI.fingers.delete(e.pointerId);
 addEventListener("pointerup", endTouch);
 addEventListener("pointercancel", endTouch);
 function pauseOnFocusLoss() {
+	if (UI.mouse.down && UI.mouse.finger) UI.mouse.lift = true;   // (a finger down as the focus went lets go of its hover too, as at its lift: its own lift, no longer the press's, would leave a tooltip behind, UI_lift)
 	UI.mouse.down = false;
 	UI.mouse.far = Infinity;   // (a finger down as the focus went: its lift is no tap)
 	UI.drag = null;
