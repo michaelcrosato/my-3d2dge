@@ -142,7 +142,7 @@ Input (game.input): down(a) held, pressed(a) this step only, released(a), repeat
   label('jump') -> its key or button on the device in use, for prompts: 'Space', '✕' (PlayStation's by default; 'A' with
   glyphs 'xbox'); every prompt comes from it (docs/CONTROLS.md: a pad on a TV first, the genre's keys, touch an add-on:
   gate a touch assist on input.assist, swipe a box away with input.swipe(true), size what a finger taps by
-  input.layoutDevice (it holds while a press is down), E.assist.aim and nearest for aim)
+  input.layoutDevice (it holds while a tap is pressed), E.assist.aim and nearest for aim)
 Standard, with no code: game.settings (saved per game: volume music effects sound motion shake flashes scale deadzone
   glyphs; set(key, v) checks, saves, applies; yours (or a standard one's default: { key: 'glyphs', value: 'xbox' }):
   new E.Game({ menu: { settings: [{ key: 'hints', value: true }] } })),
@@ -791,8 +791,8 @@ class Input {
     addEventListener('blur', () => this.clear());
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); }, { signal });
     el.addEventListener('contextmenu', e => e.preventDefault(), { signal });
-    el.addEventListener('pointermove', at, { signal });
-    el.addEventListener('pointerdown', e => { const P = this._press || (this._press = { dev: this.lastDevice, ids: new Set(), out: 0 }); P.ids.add(e.pointerId); P.out = 0; at(e); this.press('Mouse' + e.button); if (e.pointerType !== 'mouse') { this.lastDevice = 'touch'; this._f0 = { id: e.pointerId, x: e.clientX, y: e.clientY, t: this.clock }; } }, { signal });
+    el.addEventListener('pointermove', e => { at(e); const P = this._press, q = P && P.ids.get(e.pointerId); if (q && e.pointerType !== 'mouse' && Math.hypot(e.clientX - q[0], e.clientY - q[1]) >= 12) P.ids.delete(e.pointerId); }, { signal });   // (a finger past a tap's reach: a drag, no tap though it comes back, holds no layout; a mouse's click is lifted where it pressed, wherever it went, and holds until it lifts)
+    el.addEventListener('pointerdown', e => { const P = this._press || (this._press = { dev: this.lastDevice, ids: new Map(), out: 0 }); P.ids.set(e.pointerId, [e.clientX, e.clientY]); P.out = 0; at(e); this.press('Mouse' + e.button); if (e.pointerType !== 'mouse') { this.lastDevice = 'touch'; this._f0 = { id: e.pointerId, x: e.clientX, y: e.clientY, t: this.clock }; } }, { signal });
     addEventListener('pointerup', e => {
       if (this._press) this._press.ids.delete(e.pointerId);
       this.release('Mouse' + e.button); const f = this._f0; if (!f || f.id !== e.pointerId) return; this._f0 = null;   // a quick flick of a finger: swipe()
@@ -865,8 +865,10 @@ class Input {
   swipe(take = false) { const s = this._swipeAt; if (take) this._swipeAt = null; return s; }
   // true while the player plays by touch (and Touch assists is on): gate a touch assist on it (an attack or a shot by itself)
   get assist() { return this.lastDevice === 'touch' && !(this._settings && this._settings.assists === false); }
-  // the device the screen is laid out for: lastDevice, held while a press is down on the canvas and the step after it lifts,
-  // so what a finger taps keeps its size under it (a layout of your own a thumb's size by touch reads it; prompts, lastDevice)
+  // the device the screen is laid out for: lastDevice, held while a press on the canvas can still be a tap (a finger never
+  // dragged past 12 CSS px: past it, no tap though it comes back; a mouse until it lifts) and the step after it lifts, on the
+  // scene it landed on, so what a finger taps keeps its size under it (a layout of your own a thumb's size by touch reads
+  // it; prompts, lastDevice)
   get layoutDevice() { return this._press ? this._press.dev : this.lastDevice; }
   clear() { this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._lateUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; this._press = null; }
   anyPressed() { return this._now.size > 0; }
@@ -911,7 +913,7 @@ class Input {
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n; this._freshCodes.clear();
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._swipeAt = this._gSwipe; this._gSwipe = null;
-    const P = this._press; if (P && !P.ids.size && P.out++) this._press = null;   // (every press lifted a step ago: the layout follows the device again)
+    const P = this._press; if (P && !P.ids.size && P.out++) this._press = null;   // (every press lifted a step ago, or dragged: the layout follows the device again)
   }
   // a step that ticks input but holds the scene's update back (a hit-stop) keeps what it made fresh for the first step that
   // runs the scene (_takeLate), so pressed() and released() report it there, once: no key or button is lost to a hit-stop
@@ -1858,7 +1860,7 @@ class Game {
     if (!s) throw new Error('scene "' + name + '" does not exist. Scenes: ' + Object.keys(this.scenes).join(', '));
     const old = this.scene; if (old && old.exit) old.exit();
     this.scene = s; this.sceneName = name; this.paused = false; if (old) prune(this._timers, t => !t.keep); this.hitstop = 0; this.input._dropLate();   // (timers made before the first scene live into it; the presses a hit-stop kept for the old scene don't)
-    this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null;
+    this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null; this.input._press = null;   // (a new screen: laid out for the device in use, input.layoutDevice)
     const ok = sceneField(name, s);
     if (ok('view')) this.setView(s.view);
     if (ok('views')) this.views = s.views;

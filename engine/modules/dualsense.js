@@ -19,8 +19,12 @@ a game plays the same without them (docs/CONTROLS.md).
   force] } (a buzz from start: an engine, a machine gun); numbers 0..1, hz 1..255. Set it when it changes, not each step;
   under a pause the triggers are free by themselves.
 - ds.gyroAim(dt) -> [dx, dy]: screen pixels to add to an aim cursor or a camera this step, from the controller's turn and
-  tilt ([0, 0] with gyro aim off or no DualSense). ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() ->
-  'left' | 'right' | 'up' | 'down' in the step after a flick on the touchpad, else null.
+  tilt ([0, 0] with gyro aim off or no DualSense), less the gyro's drift: on each axis, learned from a reading under 1.5
+  degrees a second held half a second near the drift learned, 2.5 s further, 15 s where it moves the aim, and kept within
+  a degree a second (a healthy DualSense's firmware leaves a few tenths); nothing within 1.5 of it moves the aim, so it
+  never runs on at rest and no turn of 2.5 or more is taken for drift. A drift past a degree a second (a faulty
+  controller) leaves the rest in the aim. ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() -> 'left' |
+  'right' | 'up' | 'down' in the step after a flick on the touchpad, else null.
 - ds.speaker(name, o): a sound effect (audio.sfx's name and options) from the controller's speaker while the player has
   it on, else from the game's as usual. ds.micLevel() -> 0..1, how loud the microphone hears (0 while it is off).
 - ds.connected: a DualSense is open; ds.allowed: { hid, speaker, mic }, what the player has allowed.
@@ -54,7 +58,9 @@ const SONY = 0x054c, PIDS = [0x0ce6, 0x0df2];   // DualSense, DualSense Edge
 const isDS = d => !!d && d.vendorId === SONY && PIDS.includes(d.productId);
 const LEDS = [0x04, 0x0a, 0x15, 0x1b];   // the player lights for players 1 to 4, as the console lights them
 const GYRO = { off: 0, low: 2.5, medium: 5, high: 9 };   // gyro aim: screen pixels for a degree of turn
-const DRIFT = 3;   // degrees a second: more than a DualSense lying still reads, less than a hand's slowest aiming turn
+const DRIFT = 1;   // degrees a second: the most drift learned (a healthy DualSense's firmware takes its gyro's bias out: a
+                   // few tenths are left), so a healthy controller at rest is always inside the dead zone of what was learned
+const DEAD = 1.5;   // degrees a second: the aim's dead zone around the drift (a turn slower than this moves nothing)
 const ONCE = new WeakMap();
 E.lang.engine({
   'engine.setting.pad_light': 'Light bar', 'engine.setting.pad_light.help': 'The DualSense\'s light shows what the game says: your health, danger, your team',
@@ -100,7 +106,7 @@ class DualSense {
      *  allowed: what the player has allowed ({ hid, speaker, mic }); touches: the touchpad's fingers [{ x, y }] (0..1) */
     this.game = game; this._o = o; this.connected = false; this.allowed = { hid: false, speaker: false, mic: false }; this.touches = [];
     this._dev = null; this._wire = 'usb'; this._seq = 0; this._want = { light: null, player: null, left: null, right: null }; this._sent = ''; this._busy = false;
-    this._raw = [0, 0, 0]; this._bias = [0, 0, 0]; this._avg = [0, 0, 0]; this._rate = [0, 0, 0]; this._still = 0; this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
+    this._raw = [0, 0, 0]; this._forget(); this._flick = null; this._flicked = null; this._level = 0; this._an = null; this._spk = null;
     this._hub = game.headless ? null : hubOf(); this._may = { light: true, triggers: true, gyro: true }; this._later = false;   // (_may: what 52in1 lets a game do with the one it holds; _later: its microphone allowed after this game was opened)
     this.extras(o);
     game.hook('input', dt => this._tick(dt));
@@ -149,7 +155,7 @@ class DualSense {
     try {
       if (navigator.hid && policy('hid')) {
         navigator.hid.addEventListener('connect', e => { if (isDS(e.device) && !this._dev) this._open(e.device); });
-        navigator.hid.addEventListener('disconnect', e => { if (e.device === this._dev) { this._dev = null; this.connected = false; this.touches = []; this._rate = [0, 0, 0]; } });
+        navigator.hid.addEventListener('disconnect', e => { if (e.device === this._dev) { this._dev = null; this.connected = false; this.touches = []; this._forget(); } });
         const d = (await navigator.hid.getDevices()).find(isDS); this.allowed.hid = !!d; if (d) await this._open(d);
       }
       this.allowed.mic = policy('microphone') && await granted('microphone');
@@ -164,7 +170,7 @@ class DualSense {
     const H = this._hub, P = H.dualsense, on = !!P.connected, mic = this.allowed.mic, spk = this.allowed.speaker, S = this.game.settings;
     this.connected = on; this.allowed = { hid: on, speaker: on && !!P.speaker, mic: H.mic === true }; this._later = H.micLater === true;
     this._may = { light: on && !!P.lightbar, triggers: on && !!P.triggers, gyro: on && !!P.motion };
-    if (!on) { this.touches = []; this._rate = [0, 0, 0]; this._flick = null; }
+    if (!on) { this.touches = []; this._flick = null; this._forget(); }
     if (spk !== this.allowed.speaker) this._speakerOn(!!S.padSpeaker);
     if (mic !== this.allowed.mic) this._micOn(!!S.mic);
     this._push();
@@ -179,7 +185,8 @@ class DualSense {
       this._push();
     } catch (e) { this._dev = null; this.connected = false; }
   }
-  // an input report: the gyro (pitch, yaw, roll: raw, about 16.4 a degree a second, ±2,000 over 16 bits) and the touchpad's two fingers
+  // an input report: the gyro (pitch, yaw, roll: raw, about 16.4 a degree a second, ±2,000 over 16 bits) and the
+  // touchpad's two fingers
   _report(e) {
     const v = e.data, k = e.reportId === 0x31 ? 1 : e.reportId === 0x01 && v.byteLength >= 63 ? 0 : -1; if (k < 0) return;
     this._raw = [v.getInt16(k + 15, true), v.getInt16(k + 17, true), v.getInt16(k + 19, true)];
@@ -187,11 +194,11 @@ class DualSense {
     for (let i = 0; i < 2; i++) { const at = k + 32 + i * 4; if (v.getUint8(at) & 0x80) continue; const b1 = v.getUint8(at + 1), b2 = v.getUint8(at + 2), b3 = v.getUint8(at + 3); pts.push({ x: (b1 | (b2 & 15) << 8) / 1919, y: ((b2 >> 4) | b3 << 4) / 1079 }); }
     this.touches = pts;
   }
-  // each step: the gyro's rate less its drift (learned while the controller lies still), a touchpad flick, the mic's level
+  // each step: the gyro's rate less its drift (learned where it reads little: _turn), a touchpad flick, the mic's level
   _tick(dt) {
     this._flicked = null;
     if (this.game.paused !== this._paused) { this._paused = this.game.paused; this._push(); }   // (the triggers freed under a pause, back after it)
-    if (this._hub && this.connected) {   // (52in1 sends the turn, in degrees a second, and the fingers; the gyro is read only while gyro aim is on, so the hub's own Motion aim keeps the stick until then)
+    if (this._hub && this.connected) {   // (52in1 sends the turn, in degrees a second, and the fingers; the motion is read only while gyro aim is on, so the hub's own Motion aim keeps the stick until then)
       const P = this._hub.dualsense, gy = GYRO[this.game.settings.gyro] && this._o.gyro && this._may.gyro ? P.gyro : null;
       if (gy) this._turn([+gy.x || 0, +gy.y || 0, +gy.z || 0], dt); else this._rate = [0, 0, 0];
       this.touches = (P.touches || []).map(q => ({ x: +q.x || 0, y: +q.y || 0 }));
@@ -206,15 +213,36 @@ class DualSense {
     }
     if (this._an) { this._an.getFloatTimeDomainData(this._buf); let s = 0; for (const x of this._buf) s += x * x; const l = Math.min(1, Math.sqrt(s / this._buf.length) * 4); this._level += (l - this._level) * Math.min(1, dt * 12); }
   }
-  // the turn v (degrees a second, each axis) less the gyro's drift, learned only while the controller lies still: every
-  // axis under DRIFT and steady (within a degree a second of its last quarter second) for a second, then followed slowly
-  // (two seconds' time constant). So a slow, steady turn of the hand stays aim, and the drift, never more than DRIFT, is
-  // learned again whenever the controller rests; a hair's noise (under 1.5 degrees a second) is none
+  // a controller gone (or none yet): the next one's drift is its own, learned afresh
+  _forget() { this._rate = [0, 0, 0]; this._bias = [0, 0, 0]; this._avg = [0, 0, 0]; this._m0 = [0, 0, 0]; this._still = [0, 0, 0]; }
+  // the turn v (degrees a second, each axis) less the gyro's drift. The DualSense's firmware takes its gyro's bias out of
+  // the report (Linux's hid-playstation and 52in1 use the calibration's bias only in the sensitivity, never as an
+  // offset), so a healthy controller at rest reads a few tenths of a degree a second, on WebHID and in 52in1 alike. The
+  // gyro alone can't tell a slow turn from a drift; what the aim never moves for can be learned safely. Each axis on its
+  // own, its quarter-second average held within half a degree a second of where it began and inside the dead zone
+  // (DEAD: a reading that would move no aim on a controller without drift):
+  // - near the drift learned (within half a degree a second), held half a second, it is followed in a second: a healthy
+  //   controller's own drift is found in a second or two at rest, on a table or in a hand, and followed as it warms
+  // - further from it but inside the dead zone of it (a reading the aim doesn't move for), held 2.5 s, it is followed in
+  //   four: a slow pan's reading (2 s or so) moves the drift little, a controller that rests there for good is found in
+  //   a few seconds, and a turn that eases in moves it little
+  // - a reading the aim moves for (a turn, slow and against the drift), held 15 s, longer than an aiming turn holds one
+  //   speed, it is followed in four: a long slow track keeps its aim
+  // - the drift learned is kept within DRIFT, so a healthy controller at rest reads inside the dead zone of it, whatever
+  //   was learned: the aim never runs on by itself. A turn of DEAD + DRIFT or more is never taken for drift
+  // A controller that drifts more than DRIFT (one its firmware no longer corrects) keeps the rest on that axis: every
+  // turn there is off by it, and past the dead zone the aim creeps by it at rest (gyro aim is an extra: the stick
+  // always works, and Settings turns it off)
   _turn(v, dt) {
-    const m = this._avg, calm = v.every((r, i) => Math.abs(r) < DRIFT && Math.abs(r - m[i]) < 1);
-    for (let i = 0; i < 3; i++) m[i] += (v[i] - m[i]) * Math.min(1, dt * 4);
-    this._still = calm ? this._still + dt : 0; if (this._still > 1) for (let i = 0; i < 3; i++) this._bias[i] += (v[i] - this._bias[i]) * Math.min(1, dt / 2);
-    this._rate = v.map((r, i) => Math.abs(r - this._bias[i]) < 1.5 ? 0 : r - this._bias[i]);
+    const m = this._avg, b = this._bias, k = Math.min(1, dt * 4);
+    for (let i = 0; i < 3; i++) {
+      m[i] += (v[i] - m[i]) * k;
+      const held = Math.abs(m[i]) < DEAD && Math.abs(m[i] - this._m0[i]) < .5, off = Math.abs(m[i] - b[i]);
+      if (!held || !this._still[i]) this._m0[i] = m[i];   // (where the average began to hold)
+      this._still[i] = held ? this._still[i] + dt : 0;
+      if (this._still[i] > (off < .5 ? .5 : off < DEAD ? 2.5 : 15)) b[i] += (Math.max(-DRIFT, Math.min(DRIFT, m[i])) - b[i]) * Math.min(1, dt / (off < .5 ? 1 : 4));
+    }
+    this._rate = v.map((r, i) => Math.abs(r - b[i]) < DEAD ? 0 : r - b[i]);
   }
   // the output report for what is wanted now, sent when it changed (a light set each step sends once)
   _push() {

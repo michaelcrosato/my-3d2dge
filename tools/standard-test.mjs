@@ -14,7 +14,8 @@
 //   page         the viewport (viewport-fit=cover, pinch zoom left alone) and the canvas's touch-action; a fixed
 //                resolution filling a high-density screen ('auto' scale) or kept whole ('sharp'); expand filling every
 //                shape with no bars; the touch stick pressing the directions; a bottom dialog clear of the touch buttons;
-//                a tap or click on a menu entry picking it and on a dialog box turning the page
+//                a tap or click on a menu entry picking it and on a dialog box turning the page; input.layoutDevice held
+//                under a press until its tap is read, let go by a drag past a tap's reach and by a new scene
 //   corner       the menu and full-screen buttons: shown on a title and while paused, hidden in play; the menu button
 //                pauses (the agent edition: and resumes); full screen from a click, and the player's choice kept (leaving
 //                it means a phone's tap no longer takes it there)
@@ -283,6 +284,26 @@ if (!process.argv.includes('--node')) {
     const byButton = await ev(p, () => [!!document.fullscreenElement, game.settings.fullscreen, document.querySelector('#e3-corner button:last-child').getAttribute('aria-label')]);
     check(`${ed}: a phone's first tap goes full screen, and a game started by a tap goes back after a gesture left it; the corner's button turning it off is kept (the next visit's tap leaves the page as it is), and turns it on`,
       tapped.join() === 'true,' && left.join() === 'false,' && started.join() === 'true,play' && off.join() === 'false,false' && !stays && byButton.join() === 'true,true,Leave full screen', JSON.stringify([tapped, left, started, off, stays, byButton]));
+    // input.layoutDevice (a finger after the keys): the layout as drawn holds while a press that can still be a tap is down
+    // and until its tap is read; a finger moved past a tap's reach (a thumb steering) holds nothing, and is no tap though it
+    // comes back (the full engine's clicked(): what the layout let go of is never read as a tap); a mouse's click is lifted
+    // near where it pressed, wherever it went, so its press holds until it lifts (a touch laptop's mouse after a finger);
+    // a new scene holds nothing
+    { const q = await open();
+      const lay = await ev(q, () => {
+        const I = game.input, c = document.getElementById('screen'), r = c.getBoundingClientRect(), x = r.left + r.width * .75, y = r.top + r.height * .3, out = [];   // (the right half: no stick)
+        const at = (type, id, dx = 0, pointerType = 'touch') => c.dispatchEvent(new PointerEvent(type, { pointerType, pointerId: id, isPrimary: true, clientX: x + dx, clientY: y, bubbles: true }));
+        const one = () => game.advance(1 / 120, { draw: true }), tap = () => I.clicked ? (I.clicked() ? 'click' : 'none') : '-';   // (one update step: the one a click is read in; the agent edition has no clicked())
+        I.lastDevice = 'keyboard'; at('pointerdown', 11); step(); out.push(I.lastDevice + '/' + I.layoutDevice);   // the prompts follow the finger, the layout holds
+        at('pointermove', 11, 6); step(); out.push(I.layoutDevice); at('pointerup', 11, 6); out.push(I.layoutDevice); step(3); out.push(I.layoutDevice);   // (a tap: held until it is read)
+        I.lastDevice = 'keyboard'; at('pointerdown', 12); step(); at('pointermove', 12, 40); step(); out.push(I.layoutDevice); at('pointermove', 12, 4); step(); at('pointerup', 12, 4); one(); out.push(tap()); step();   // (a drag, back near where it landed: no tap)
+        I.lastDevice = 'touch'; at('pointerdown', 1, 0, 'mouse'); step(); I.lastDevice = 'mouse'; at('pointermove', 1, 40, 'mouse'); step(); out.push(I.layoutDevice); at('pointermove', 1, 4, 'mouse'); step(); at('pointerup', 1, 4, 'mouse'); one(); out.push(tap()); step(3); out.push(I.layoutDevice);   // (a mouse's drag and back: its click, held till then)
+        I.lastDevice = 'keyboard'; at('pointerdown', 13); step(); const was = I.layoutDevice; game.go('play', null, { fade: 0 }); step(); out.push(was + '/' + I.layoutDevice); at('pointerup', 13); step(3);
+        game.go('title', null, { fade: 0 }); step(); return out;
+      });
+      const want = ed === 'full' ? 'touch/keyboard,keyboard,keyboard,touch,touch,none,touch,click,mouse,keyboard/touch' : 'touch/keyboard,keyboard,keyboard,touch,touch,-,touch,-,mouse,keyboard/touch';
+      check(`${ed}: input.layoutDevice holds the layout under a press that can still be a tap until its tap is read; a finger moved past a tap's reach lets go, and is no tap though it comes back; a mouse's press holds until it lifts, its click where it pressed; a new scene lets go`, lay.join() === want && !q.errors.length, lay.join() + (q.errors.length ? '; errors: ' + q.errors.join(' | ') : ''));
+      await q.close(); }
     if (ed === 'full') {
       // touch buttons: no START among them: the corner's menu button is it (top right, there in play on a touch screen), and
       // it pauses into the menu; the player's side, size and visibility

@@ -2044,7 +2044,8 @@ An entry:
   - UI.mouse is the pointer that presses (a mouse, or a finger that isn't steering the stick), followed by its own id
     from its press to its lift: another finger landing, steering or lifting meanwhile neither moves it nor lets it go,
     and a finger that lands while another presses presses nothing (two are the tree's pinch). A primary pointer always
-    presses, so a press whose lift never came locks nothing out.
+    presses, so a press whose lift never came locks nothing out. A finger down as the window loses focus lets go of its
+    press and of its hover: its lift is no tap and leaves no tooltip.
   - A finger's tap is its own (UI_tapped): lifted within 12 CSS px of where it landed, every move and its lift counted,
     in place of the engine's `input.clicked()` (one pointer for all, lost when another finger lands or lifts) and of the
     6 px the steps saw. The core's UI.tap judges it by the rect it pressed and where its finger lifted, the same panel
@@ -2054,16 +2055,19 @@ An entry:
     the mouse chooses it, as every finger's does.
   - A press of the pointer that falls in a hit-stop (the input steps, the scene doesn't) is kept for the first step in
     play (UI.late), as the world's own presses are buffered.
-  - The waystone's rows scroll under a finger whatever the touch buttons' setting.
+  - The waystone's rows scroll under a finger whatever the touch buttons' setting. A press on one that moves more than
+    6 px is a drag and never a tap, as on the loot panels' grids and Skills' list: where the rows are a menu's height
+    (the buttons hidden, a small phone) half a row is less than a tap's 12 CSS px, and a short drag that scrolls a row
+    under the finger descends nowhere.
 - **Why:** D110 took the tap from the rect drawn at the lift and from the engine's single-pointer tap: the first finger
   after a mouse or a pad lost its tap wherever the layout grows for a finger (the case D110's Why meant to serve), and a
   thumb landing on or lifting off the stick took a tap on the SKILL BAR or the points chip away; the waystone's scroll
   hung on the touch buttons showing; and a real-speed test lost a gallery reel's tap to a hit-stop's step (older than
   D110: a mouse's click on the HUD too). Following each finger by its own id is one rule that closes them all and keeps
-  the flick rule.
+  the flick rule. A scrolling list keeps its own 6 px drag rule beside it, so a press can never both scroll and tap.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
-- **Superseded in part by D117** (v0.108.1): the engine keeps a press that falls in a hit-stop for every game;
+- **Superseded in part by D119** (v0.108.1): the engine keeps a press that falls in a hit-stop for every game;
   Emberdeep's own latch (UI.late) is gone.
 
 ## D116 · 2026-11-17 · Under a finger nothing grows until its tap is read; the stick's half backs out of the engine's menus where nothing steers
@@ -2073,12 +2077,23 @@ An entry:
   play. Menus are swiped away.
 - **Call:**
   - `input.layoutDevice` (both editions) is the device the screen is laid out for. It is `lastDevice`, except while a
-    press is down on the canvas and for the step that reads its tap; then it stays what it was when the press began.
+    press on the canvas that can still be a tap is down, and for the step that reads its tap. Then it stays what it was
+    when the press landed.
+  - A tap and the hold follow one rule:
+    - A finger (any pointer except a mouse) that moves past a tap's reach (12 CSS px from where it landed) is a drag and
+      never a tap, even if it comes back, as on a phone. `input.clicked()` reads nothing when it lifts, and it holds
+      nothing from the moment it strays.
+    - A mouse's click is the browser's: let go within 12 px of where it pressed, wherever it went between. So a mouse's
+      press holds until it lets go.
+    - A press that another finger took the tap from holds nothing, and neither does a press on a zone.
+    - A new scene or Shell screen is laid out for the device in use.
   - E.Menu, E.Dialog's choices, the starters' FamilyMenu, the click module's panel and the Shell's tabs and sliders size
-    themselves by it. The Shell's also hold while a press is down on it.
-  - So the first tap after the keys, a pad or a mouse answers the row it pressed on, and the rows grow to a thumb's once
-    it has been read. A modal E.Dialog also keeps its box where it was drawn during the press. Prompts still follow
-    `lastDevice` at once.
+    themselves by it. The Shell's tabs and sliders also hold while a press is down on the Shell.
+  - So the first tap after the keys, a pad or a mouse answers the row it pressed on, on either half of the screen and
+    however slowly. The rows grow to a thumb's once it has been read. A finger that strayed and came back answers
+    nothing.
+  - A modal E.Dialog also keeps its box where it was drawn during the press. A box that play goes on under keeps clear
+    of the touch buttons at once. Prompts still follow `lastDevice` at once.
   - A flick that begins on the move stick's half stays the stick's, and `input.swipe()` never reports it. But E.Menu's
     cancel and a modal E.Dialog's swipe-away take it when the game read no steer from the stick (`move()`, `drag()`)
     from a quarter of a second before it landed until it lifted.
@@ -2089,13 +2104,165 @@ An entry:
     keys read rows the player never saw.
   - Holding the layout's device for the press cures every layout sized by the device at once, and nothing moves under
     the finger.
+  - Only a press that can still be a tap holds, and only on the screen it landed on. A thumb resting on the stick had
+    kept GAME OVER's rows at 19.5 CSS px, and the Shell's tabs and sliders at 40 and 30, for as long as it rested. A
+    held radio box had sat under sports' buttons after every goal.
+  - The hold and the tap must agree on what can still be a tap. With the hold let go at 12 px but `clicked()` still
+    taking a lift back within 12 px, a first tap after the keys that crept past 12 px and came back was read against
+    rows that had grown under it. On kart's menu it picked the row above: BACK picked VS, and upright RACE.
+    - Keeping the hold for as long as a click could come would bring the resting thumb back, since a steering thumb's
+      click can come until it lifts.
+    - A phone's own rule settles it for a finger: a tap is cancelled once the finger leaves its slop, which is 8 dp on
+      Android and 10 pt on iOS, so 12 CSS px is more forgiving than both. A browser's rule settles it for a mouse.
+  - Neither leaving the stick's finger out nor letting go at a long press's time would do: a tap on a row on the stick's
+    half, or a slow tap, would then read rows grown under it. Nor would a steer read, since a game that reads the stick
+    on its menus (fighting's `move()`, FamilyMenu's `drag()`) would let go under a tap there.
   - The stick took every touch on its half, so half the screen could never swipe a game over away. What the game steers
     by tells whether the stick is steering anything.
   - Leaving `swipe()` alone keeps every game's own flicks in play as they were.
+- **Limits:**
+  - A finger that wanders past 12 CSS px and back before it lifts is no tap anywhere, including on a phone played by
+    touch alone; the player taps again.
+  - A pan, a drag or a stick steer that ends where it began no longer clicks what lies there.
+  - A touch laptop's mouse press keeps the screen laid out for the finger until it lets go.
+  - A thumb resting perfectly still on the stick while a menu opens inside the same scene keeps that menu laid out for
+    the keys until it moves, lifts or another finger taps. Every tap on it still picks what it pressed.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
 
-## D117 · 2026-11-18 · A press in a hit-stop is the scene's first step's after it, in the engine
+## D117 · 2026-11-18 · The Shell's pieces at the bottom stand above the touch buttons and above one another, or beside the buttons on a short screen
+
+- **Principle:** the controls standard (D100): a finger each for the stick and every button, nothing over a button, and
+  a target under a finger acts on that tap alone (docs/CONTROLS.md, "Touch: nothing over a button"). Touch is tertiary
+  and never changes pad or keyboard-and-mouse play. Follows D113, whose two columns lifted stealth's BLOCK and ROLL into
+  the narrow toast's band.
+- **Call:**
+  - While touch buttons are on the screen, E.Shell reads their box each step and stands its pieces at the bottom above
+    it: a narrow screen's toast, the prompt, the tip, the tutorial card, the minimap and the key strip. A grid's box
+    holds its hidden buttons, so nothing moves as BLOCK pops up; a row's box is its buttons shown.
+  - Where the toast, the prompt and the tip would not fit above under the corner's row, and 200 px or more are left
+    beside the buttons (a phone on its side), they stand beside them (`--fl`, `--fr`). The card, the prompt and the tip
+    are then no wider than that room (`--fw`).
+  - Which of the two is the screen's and the buttons' call alone. The stack is measured with a line's toast (64 px)
+    whether a toast is up or not, so no toast tips the pieces beside the buttons and back as it comes and goes.
+  - The pieces stand one above another where they meet across (`_bands`, each piece's bottom in `--y`), never lower than
+    their old places:
+    - the narrow toast over the card and the minimap, or beside them;
+    - the prompt over the key strip;
+    - the minimap no taller than the room under the top HUD (down to 64 px wide);
+    - the card out of the centre column on a wide screen.
+  - Nothing a finger takes moves as the toast and the prompt come and go.
+    - The narrow toast's place and the prompt's are kept while they're away.
+    - The way the pieces stand (the card under the others or not, the narrow toast over the tip or not) is chosen with a
+      line's toast.
+    - A toast of more lines stands in that way at its own height. The card, the minimap and the key strip stay where
+      they are; only the prompt and the tip above it give way.
+    - It stands over the tip, or not, instead only where that alone keeps it, then the prompt, on the screen and off the
+      top's buttons.
+    - Where that still leaves the toast or the prompt past the top of the screen (the safe area's) or on the corner's
+      buttons, the card lies under the toast while it's up, in its place. That happens only where it alone keeps the
+      toast, then the prompt, on the screen: stealth upright at 320x568 with a title and six lines; a phone 640 wide on
+      its side with the card and a minimap no status column narrows (platformer, rpg, adventure, roguelike,
+      metroidvania, 3D ACTION) with four; 3D ACTION upright at 320x568 with six. The minimap and the key strip stay
+      where the line's way stood them, and the card is on top again as the toast goes. A prompt still on the screen, in
+      the shell's 14 px margin, leaves the card on top.
+    - The toast's height for each width it might take is measured on a hidden copy, so where it stands never sways where
+      it stands next.
+  - Where the pieces still won't fit:
+    - a narrow screen's toast stands over the tip, which is hidden while the toast is up;
+    - the card lies under the others only where nothing else keeps the toast, then the prompt, on the screen and off the
+      corner's buttons (3D SHOOTER's ten buttons upright, a phone 320 high on its side with every piece up);
+    - a stack that still won't fit reaches over the objective and the status, which take no taps.
+  - The tap that takes the toast away takes nothing else: its click, which would land on what lay under the toast, is
+    eaten. A finger at the card's × while a toast lies over it takes the toast, and the next takes the card.
+  - Without touch buttons nothing is measured and every piece stands where it always did. A desk's, a TV's and a pad's
+    screens are as they were: 321 screens identical pixel for pixel.
+  - Left as it was: on a phone 320 high on its side, the tip reaches past the top, as it always did (58 px in 3D SHOOTER
+    with every piece up; 42 before). No kit shows the tip.
+- **Why:**
+  - A toast over BLOCK took the tap meant for it in the middle of a fight.
+  - A fixed height can't clear every layout of buttons; reading their box can.
+  - The pieces lifted above the box must then clear one another, or the toast takes the finger meant for the card's × or
+    the minimap.
+  - A toast's text is the game's: a second line must not move what a finger is already reaching for.
+  - A toast past the top loses its title, and one on the corner's buttons covers Menu's face. A card under a toast for
+    the seconds it's up costs a finger one more tap, and takes no tap meant for anything else.
+- **Costs:**
+  - One layout read per step while touch buttons are up.
+  - While a narrow screen's toast is up, the line's way laid again at the toast's height, the other way of the tip tried
+    where that leaves the toast or the prompt off, and up to two ways with the card under where they're still off.
+  - A hidden-copy measure for each new toast text and width.
+  - Stealth upright at 320x568 with a tutorial card and the prompt up: the prompt covers the objective and the status
+    column while both are up. The 188 px between the buttons and the status column hold the card or the prompt, not
+    both, and the 86 px beside the card hold neither. A card nothing covers outranks a clear top HUD, which takes no
+    taps.
+  - While a toast of several lines is up where the card leaves it no room above (the cases above), the toast lies over
+    the card and its ×. A finger there takes the toast first, and the card at the next; a mouse clicks through the
+    toast.
+  - Where no card is up to lie under, or it already lies under, a tall toast still reaches past the top while it's up,
+    as on 78b0cc0 and a82d24a:
+    - the prompt, with 3D SHOOTER's ten buttons, under six lines at 320x568 and 640x360 and under four at 568x320;
+    - the prompt, on a phone 320 high on its side with the card and the minimap, under three lines or more (roguelike)
+      or six (platformer, rpg, adventure, brawler);
+    - the toast itself, under six lines in roguelike and 3D SHOOTER at 568x320, and under eight in stealth.
+    The prompt takes no taps, and the corner's Menu is drawn above the toast, so a finger on it still pauses.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
+
+## D118 · 2026-11-18 · The gyro's drift is learned from what moves no aim, kept within a degree a second; a turn is never undone
+
+- **Principle:** the controls standard (D100): gyro aim fine-tunes an aim on top of the stick (docs/CONTROLS.md rule 6),
+  and every extra is an extra: the game is whole on any controller. Amends D114.
+- **Call:**
+  - D114's premise was wrong. The DualSense's firmware takes its gyro's bias out of the report: Linux's hid-playstation
+    ("HID: playstation: correct DualSense gyro bias handling", 2023) uses the calibration's bias only in the
+    sensitivity, never as an offset, and 52in1's `calibrationOf` does the same. So a healthy controller at rest reads a
+    few tenths of a degree a second, on WebHID and in 52in1 alike.
+  - The `dualsense` module learns the drift on each axis on its own, from a reading whose quarter-second average holds
+    within half a degree a second of where it began and inside the aim's dead zone (`DEAD`, 1.5 degrees a second):
+    - near the drift learned (within half a degree a second), held half a second, followed in a second: a healthy
+      controller's own drift is found in a second or two at rest, on a table or in a hand, and followed as it warms;
+    - further from it but still inside its dead zone (a reading the aim doesn't move for), held 2.5 s, followed in four
+      seconds: a slow pan (2 s or so) moves it little, and a controller that rests there for good is found in a few
+      seconds;
+    - a reading the aim moves for (a slow turn against the drift), held 15 s, longer than an aiming turn holds one
+      speed, followed in four seconds.
+  - The drift learned is kept within a degree a second (`DRIFT`). A healthy controller at rest is then always inside the
+    dead zone of it, whatever was learned, so the aim never runs on by itself, and no turn of 2.5 degrees a second or
+    more is ever taken for drift.
+  - The undo records, the in-hand 10 s hold, the first rest's half second, the 5 s rest and the accelerometer's part
+    (rounds 2 to 4) are gone. Nothing is learned that would have to be given back.
+- **Why:**
+  - Four rounds of rules that learned drift from a held reading of any speed under 3 degrees a second, then undid what
+    turned out to be a turn, each fixed what the last review found and opened something new. A long slow track (2
+    degrees a second for 20 s) was learned and lost 400 to 1,000 px. A turn begun at connect ran back up to 470 px.
+  - The gyro alone can't tell a slow turn from a drift. What the aim never moves for can be learned safely, and a
+    firmware that leaves a few tenths needs no more.
+  - Scored headless on the reviews' scenarios (30, 60 and 144 frames a second, two seeds each, the library's noise
+    models), mean aim error in px on High against the 3rd and 4th rounds' rule and round 5's (only under a degree a
+    second, held half a second):
+    - healthy play 17 (207 to 219; round 5 21);
+    - the slowest pans 10 (61; 18);
+    - turns that ease in 41 (30; 53);
+    - walking past a target 37 (22; 47);
+    - a drift of 0.5 to 1.45 with pans 103 (9; 215);
+    - laid down after pans 162 (12; 550).
+    On the earlier reviews' library, every healthy family is as good as or better than both earlier rules.
+- **Costs:**
+  - A worn controller (a drift its firmware no longer corrects) keeps what is past a degree a second on that axis: every
+    turn there is off by the rest. From about 2 degrees a second a trembling hand's aim creeps, and past 2.5 it creeps
+    at rest, as it would with no rule. The earlier rule learned such a drift on a table. Gyro aim is an extra: the stick
+    always works, and Settings turns it off.
+  - With a drift of 1 to 1.5, pans against it give part of their turn: the tremor of a hand and the dead zone around a
+    drift learned only to 1.
+  - A turn that eases in over 4 to 8 s, or a target walked past, loses up to a sixth of what follows its slow start,
+    which is followed as drift.
+  - A slow turn against a healthy drift held 15 s or more is taken for drift after that.
+  - The premise ("a few tenths") is the firmware's, not measured here: no DualSense was at hand.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
+
+## D119 · 2026-11-18 · A press in a hit-stop is the scene's first step's after it, in the engine
 
 - **Principle:** the controls standard (D100) and principle 5, deterministic by construction (replays stay exact: what
   is kept depends only on the game's own state)
