@@ -5,6 +5,10 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.1 (2026-11-18)
+
+- **Tools**: `ed-controls-test`'s town conversation gives the world's clock up to 5 s to move on after the travel, where it gave it 150 ms after 0.7 s: a machine busy with other work failed it in two full runs though nothing held the world (it passed alone each time, and with three cores kept busy); a held world still fails it.
+
 ## 0.108.0 (2026-11-17)
 
 The controls standard, its last gaps: Emberdeep held upright on any phone at a thumb's size, its words in the normal font on a TV, and a DualSense's extras that work inside 52in1; then what the final review found: under a finger every target acts on a tap, never as it lands, the engine's own menus a thumb's size, the kits upright clear of the stick's half, and every end menu swiped away.
