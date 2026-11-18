@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.1 (2026-11-18)
+
+Under a finger the engine's tap is its own finger's, as Emberdeep's has been since v0.108.0: a tap made with two thumbs on the glass counts.
+
+- **Engine**: `input.clicked()`: a tap is its own finger's. Each pointer is followed by its own id from its press to its lift, and it is a tap when it never wandered 12 CSS px from where it landed, every move counted. Where the engine kept one press for every pointer, the stick's thumb landing or lifting during a tap, another finger landing, or a finger on a touch button let go took the tap away (two-thumb play: the kits' taps that walk, shoot, turn a piece, pick a row); now none of them does. The stick's thumb, steering, is never a tap, even brought back to where it landed (it was one); a finger that lands on the stick's half and lifts unmoved still is (a menu's row there, a cell tapped there, the puzzle's turn). A mouse dragged away and back is no click either (D117).
+- **Tools**: `phone-test` 27 (`taps`): real touches on the platformer, held either way: a tap on the right half counts in every order the stick's thumb lands, steers and lifts around it and while a finger on JUMP lifts; the stick's thumb steered and brought back is no tap; a finger lifted unmoved on the stick's half is one. It fails on v0.108.0.
+- **Docs**: `API.md` and `docs/CONTROLS.md` say a tap is its own finger's.
+
 ## 0.108.0 (2026-11-17)
 
 The controls standard, its last gaps: Emberdeep held upright on any phone at a thumb's size, its words in the normal font on a TV, and a DualSense's extras that work inside 52in1; then what the final review found: under a finger every target acts on a tap, never as it lands, the engine's own menus a thumb's size, the kits upright clear of the stick's half, and every end menu swiped away.

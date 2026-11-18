@@ -2092,3 +2092,27 @@ An entry:
   - Leaving `swipe()` alone keeps every game's own flicks in play as they were.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+
+## D117 · 2026-11-18 · The engine's tap is its own finger's; the stick's thumb steering is never one, a finger lifted unmoved on its half is
+
+- **Principle:** the controls standard (D100) and docs/CONTROLS.md rule 7: under a finger a target acts on a tap, as the
+  finger lifts where it pressed; touch never changes pad or keyboard-and-mouse play. The engine catches up with D115.
+- **Call:**
+  - `input.clicked()` follows each pointer by its own id from its press to its lift (`Input._downs`): it is a tap when
+    it never wandered 12 CSS px from where it landed, every move and its lift counted. Another finger landing, steering
+    or lifting meanwhile (the stick's thumb, a touch button's finger) changes nothing; a pinch's two fingers, a
+    cancelled pointer and a page that went full screen under a press are none, as before.
+  - The owner asked that "the stick's own finger is never a tap". Read here as the thumb steering it: steering is
+    wandering, so it is never a tap, even brought back to where it landed (the old test, where it lifted, took that as
+    one). A finger that lands on the stick's half and lifts unmoved is still a tap. The stick takes any finger on its
+    half that no zone or touch button holds, on a menu as in play, and in drag mode (`steer = 'drag'`) every finger is
+    the stick's: a menu's row on that half, the roguelike's cell tapped there, the puzzle's turn and the artillery's
+    walk are such taps, and the phone test's checks of them would fail under the literal rule.
+  - The agent edition is unchanged: it has no `clicked()` and no stick.
+- **Why:** the engine kept one press for every pointer: a pointerdown overwrote it and any pointerup cleared it, so a
+  tap was lost whenever the stick's thumb landed or lifted during it, and a finger let go of a touch button lost one too
+  (phone test 27 fails on v0.108.0 in three orders of four and with JUMP). Emberdeep has followed each finger since
+  D115; this is the same rule in the engine, for every kit that reads `clicked()`. What would change it: a game that
+  wants the stick's half to take no taps at all says so with `input.touchFilter`, or a scene turns the stick off.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.1

@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.108.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.108.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -87,7 +87,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.108.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.108.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -784,7 +784,11 @@ class Input {
      *  moved */
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     /** clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked()) */
-    this._clickAt = null; this._click = null; this._down = null;
+    this._clickAt = null; this._click = null;
+    // the presses that may be clicks or taps, each followed by its own pointer from its press to its lift: pointerId ->
+    // { x, y, where it landed (CSS px); far, the most it has wandered from there, every move counted }. Another finger
+    // landing, steering or lifting meanwhile changes none of them (a thumb on the stick, a touch button let go)
+    this._downs = new Map();
     // the presses down on the canvas (_press: { dev, the layout's device as they began; ids, the pointers down; out, the
     // steps since the last lifted }: layoutDevice); when the game last read a steer (move(), drag()); a flick of the stick's
     // finger for the engine's menus and dialogs (_flick)
@@ -870,11 +874,11 @@ class Input {
     // a mouse button pressed or let go while another is held comes as a pointermove, not a pointerdown or pointerup
     // (Pointer Events' chorded buttons: e.button the one that changed, e.buttons those down now): right held to aim, a
     // left click fires; either let go first, the other stays held and this one lets go. A press counts on the canvas
-    on(window, 'pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } });
+    on(window, 'pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } this._wander(e); });
     on(el, 'pointerdown', e => {
       const P = this._press || (this._press = { dev: this.lastDevice, ids: new Set(), out: 0 }); P.ids.add(e.pointerId); P.out = 0;   // (the layout as drawn holds until its tap is read)
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
-      if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
+      if (e.pointerType !== 'mouse' || e.button === 0) this._downs.set(e.pointerId, { x: e.clientX, y: e.clientY, far: 0 });   // a click or tap if it lifts never having wandered from here (pointerup)
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
@@ -886,13 +890,15 @@ class Input {
     });
     on(window, 'pointerup', e => {
       if (this._press) this._press.ids.delete(e.pointerId);
-      const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none): clicked() for a step,
-      // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
-      if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
+      // a click or tap: this pointer's own press, lifted never having wandered 12 CSS px from where it landed (a drag is
+      // none, the stick's thumb steering too, even brought back): clicked() for a step, in screen pixels now: where it
+      // touched what was drawn, before a phone's first tap goes full screen and moves the canvas
+      const d = this._wander(e); this._downs.delete(e.pointerId);
+      if (d && d.far < 12) this._click = this.screenPoint(e.clientX, e.clientY);
       if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
       if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); }
     });
-    on(window, 'pointercancel', e => { if (this._press) this._press.ids.delete(e.pointerId); this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); });
+    on(window, 'pointercancel', e => { if (this._press) this._press.ids.delete(e.pointerId); this._downs.delete(e.pointerId); this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); });
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
@@ -1156,10 +1162,12 @@ class Input {
   /** the page went full screen or back: the keys and mouse buttons let go (one held through the change may never come up),
    *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
    *  first tap, the one that went full screen, is a JUMP */
-  _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._down = null; }
+  _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._downs.clear(); }
+  // pointer e moved or lifted: how far its press has wandered from where it landed (its entry, or undefined: none of ours)
+  _wander(e) { const d = this._downs.get(e.pointerId); if (d) d.far = Math.max(d.far, Math.hypot(e.clientX - d.x, e.clientY - d.y)); return d; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
-    this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = this._press = null;
+    this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._press = null; this._downs.clear();
     this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._zoneOf.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
@@ -1185,8 +1193,11 @@ class Input {
   /** mouse position in projected screen pixels, or null */
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
   /** where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step
-   *  after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to
-   *  it; a HUD button of your own can: if (hit(input.clicked())) ... */
+   *  after it lifted; else null. A tap is its own finger's: that pointer went down and came up never having wandered 12
+   *  CSS px from where it landed, whatever other fingers did meanwhile (the stick's thumb landing, steering or lifting, a
+   *  touch button let go). A press that drags away is none, the stick's thumb steering too (even brought back to where it
+   *  landed); a finger on the stick's half lifted unmoved is a tap. Menus and dialogs answer to it; a HUD button of your
+   *  own can: if (hit(input.clicked())) ... */
   clicked() { return this._clickAt; }
   /** a quick one-finger flick on the canvas (a touch screen): { dir: 'left' | 'right' | 'up' | 'down', x, y } (where it
    *  began, in screen pixels) during the step after the finger lifted, else null. take: true uses it up, so nothing
@@ -1441,7 +1452,7 @@ class Input {
     if (!this._pinching) {
       const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, pa = (a.x - a.x0) * ux + (a.y - a.y0) * uy, pb = (b.x - b.x0) * ux + (b.y - b.y0) * uy;
       if (Math.abs(pa) < 4 || Math.abs(pb) < 4 || pa * pb >= 0 || Math.abs(d - Math.hypot(b.x0 - a.x0, b.y0 - a.y0)) < 16) return;
-      this._pinching = true; this._pinchD = d; this._down = null; this._g = this._gBox = null;
+      this._pinching = true; this._pinchD = d; for (const id of this._fingers.keys()) this._downs.delete(id); this._g = this._gBox = null;   // (the two pinching are no taps)
       if (this.stickOn && this._fingers.has(this.stickId)) this._stickEnd({ pointerId: this.stickId });
       return;
     }
@@ -11429,7 +11440,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.108.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.108.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11670,7 +11681,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.108.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.108.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12087,7 +12098,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.108.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.108.1: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12332,7 +12343,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DUALSENSE v0.108.0: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
+my-3D2dge module DUALSENSE v0.108.1: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12618,7 +12629,7 @@ E.DualSense = {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.108.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.108.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13192,7 +13203,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.108.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.108.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13375,7 +13386,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.108.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.108.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13784,7 +13795,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MESH v0.108.0: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.108.1: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13922,7 +13933,7 @@ E.Mesh = Mesh;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MGA v0.108.0: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
+my-3D2dge module MGA v0.108.1: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14082,7 +14093,7 @@ E.MGA = {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.108.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.108.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14441,7 +14452,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.108.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.108.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14808,7 +14819,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module REWIND v0.108.0: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.108.1: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14868,7 +14879,7 @@ E.Rewind = Rewind;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.108.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.108.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -15075,7 +15086,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.108.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.108.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15264,7 +15275,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.108.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.108.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15447,7 +15458,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.108.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.108.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15782,7 +15793,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.108.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.108.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15936,7 +15947,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.108.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.108.1: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16144,7 +16155,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.108.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.108.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -16599,7 +16610,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.108.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.108.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

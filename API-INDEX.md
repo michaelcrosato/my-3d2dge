@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.108.0)
+# my-3D2dge API index (v0.108.1)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -119,7 +119,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.108.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.108.1"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -290,7 +290,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.box()` †: the pointer's gestures, read each step in screen pixels (the HUD's space), from a mouse or one finger: box() -> { x0, y0, x1, y1, from, to, done } while a box is drawn (a mouse's left button dragged; on a touch screen a long press, then a drag), done the step it is let go; else null
 - `input.buffered(a, win = .15)`: was it pressed within the last `win` seconds and not yet consumed? (input buffering)
 - `input.clear()`: Release all devices and discard buffered input on focus loss or a modal transition.
-- `input.clicked()` †: where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to it; a HUD button of your own can: if (hit(input.clicked())) ...
+- `input.clicked()` †: where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step after it lifted; else null. A tap is its own finger's: that pointer went down and came up never having wandered 12 CSS px from where it landed, whatever other fingers did meanwhile (the stick's thumb landing, steering or lifting, a touch button let go). A press that drags away is none, the stick's thumb steering too (even brought back to where it landed); a finger on the stick's half lifted unmoved is a tap. Menus and dialogs answer to it; a HUD button of your own can: if (hit(input.clicked())) ...
 - `input.codeLabel(code, short = false)`: a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family). short: true, the form for a small badge ('LMB', 'Spc', '↑' for the d-pad's)
 - `input.consume(a)`: mark a buffered press of action a as used, so buffered(a) is false until the next press
 - `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack; the pad cursor's ✕ too, so its release clicks nothing)
