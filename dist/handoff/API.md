@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.108.0)
+# my-3D2dge API card (v0.108.1)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -95,7 +95,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - `input`: `'DEFAULT'` (top-down action), `'PLATFORMER'`, `'SHMUP'`, `'THIRDPERSON'`, or your own `{ action: ['KeyQ', 'Pad0'] }`.
 - `views`: the views your game supports; `game.nextView()` cycles them (bind it to a key).
 - Start: `game.start({ update(dt), draw(r) })`, or with scenes (below).
-- Methods: `follow(obj, { z: 16, lead: 20 })` (camera tracks it automatically), `focus(x, y, z)` (or aim it yourself every update), `setView(id)`, `nextView()`, `freeze(s)` (hit-stop: `update` waits; `game.hitstop` is the time left), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `hook('input' | 'step' | 'enter', fn)` (your own each step, paused too for input; returns its removal), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
+- Methods: `follow(obj, { z: 16, lead: 20 })` (camera tracks it automatically), `focus(x, y, z)` (or aim it yourself every update), `setView(id)`, `nextView()`, `freeze(s)` (hit-stop: `update` waits; `game.hitstop` is the time left; a press, release or click in it is `update`'s on the first step after, once), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `hook('input' | 'step' | 'enter', fn)` (your own each step, paused too for input; returns its removal), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
 - Fields: `W`, `H` (screen pixels), `time`, `real`, `timeScale` (0.25 = slow motion), `paused`, `input`, `audio`, `particles`, `lights`, `view`, `errors`, `cam`. `game.fail('my power', err)` reports an error in your code (logged, in `errors`, on the error panel) and plays on.
 - Camera zoom and turn: `game.setZoom(1.5)` (.5 .. 3; everything drawn by the engine re-rasterizes crisply, the HUD stays), `game.rotateView(45)` (ground views only), `game.resetCamera()` (to the scene's zoom), `game.zoom`, `game.yaw`, `game.note('ZOOM 2x')` (a short notice at the top of the screen; `game.shownNote` is the one showing). Custom painters can read `r.view.zoom` (undefined at 1x) to scale their own art.
 - The player's zoom: a scene's `camera: { zoom: [.75, 2], start: 1, tall: 1.5 }` lets the player zoom within `zoom` from `start` (wheel, `-` `=`, pinch, Settings; `false`: none; `AI_GUIDE.md`, Camera).

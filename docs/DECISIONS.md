@@ -2063,6 +2063,8 @@ An entry:
   the flick rule.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+- **Superseded in part by D117** (v0.108.1): the engine keeps a press that falls in a hit-stop for every game;
+  Emberdeep's own latch (UI.late) is gone.
 
 ## D116 · 2026-11-17 · Under a finger nothing grows until its tap is read; the stick's half backs out of the engine's menus where nothing steers
 
@@ -2092,3 +2094,27 @@ An entry:
   - Leaving `swipe()` alone keeps every game's own flicks in play as they were.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+
+## D117 · 2026-11-18 · A press in a hit-stop is the scene's first step's after it, in the engine
+
+- **Principle:** the controls standard (D100) and principle 5, deterministic by construction (replays stay exact: what
+  is kept depends only on the game's own state)
+- **Call:**
+  - A step that ticks input but holds the scene's update back (a hit-stop: `game.freeze`) keeps what it made fresh:
+    `pressed()`, `released()` and, on the full engine, `clicked()`, for each player. The first step that runs the scene
+    reports it, once, as its own. Both editions.
+  - It is handed over after the engine's own readers (the pause and `escape: 'back'`, the Shell) and the `'input'`
+    hooks, which saw it in its own step, so none of them sees it twice. A widget's `suppress()` in that step keeps it
+    back, as it would have.
+  - A pause in between doesn't drop it. A scene's entry, `consumeAll()` and `clear()` do.
+  - Presses made while paused, or while a scene fades out, are not kept: the pause menu read them, and a fade-out is the
+    old scene's.
+  - Gestures (`swipe()`, a long press, a double tap) and `sequence()` / `motion()` are not kept.
+  - Emberdeep's own latch for the pointer's click (UI.late, D115) is gone. Its pause, bag, skills and tree keys read in
+    `updateUI` now take the first press in a fight too.
+- **Why:** a hit-stop's step ran `input.tick()` and skipped the scene, so a press fresh only in that step reached no
+  `update`. That cost Emberdeep's Esc and hotkeys a second press in a fight; a 0.4 s freeze lost every key, button and
+  click in it. Keeping only what the scene never saw, and handing it over after the readers that did, makes the first step
+  after see what it would have seen with no hit-stop.
+- **Answered:** yes: the owner asked for the fix in the engine for every game
+- **Landed in:** v0.108.1

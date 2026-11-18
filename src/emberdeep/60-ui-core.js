@@ -8,7 +8,6 @@
 const UI = {
   mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0, finger: false, id: null, x0: 0, y0: 0, far: Infinity, up: null },
   panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, tap: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
-  late: { click: false, rclick: false, hc: false, hr: false },   // (a press a hit-stop's step took: hc hr held, click rclick for the next step in play)
   /* the HUD's frame on a phone (screen pixels): l t r b keep it out of the notch, the status bar and the home bar, and
      b lifts the HUD bar over the touch buttons on a screen held upright; barB is how far down the touch buttons at the
      top reach (the minimap, the boss bar and the notices go under them). HUD_layout in 61-controls sets them */
@@ -58,11 +57,6 @@ function mouseHUD() { const p = UI_hud(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p
  *  The engine's tap (input.clicked()), but its own finger's alone: another finger landing, steering or lifting meanwhile
  *  changes nothing, and a flick, however quick, is never one */
 const UI_tapped = id => UI.mouse.id === id && !UI.mouse.down && UI.mouse.far < 12;
-/* a press of the pointer in a step the world holds still for (a hit-stop: the input's step runs, the scene's update
-   doesn't) would reach no update and be lost: it is kept (UI.late) for the first step in play after, which updateUI reads
-   as its own, so a tap or a click on the HUD or a gallery reel in a fight still lands (as a skill's press is buffered) */
-game.hook('input', () => { const inp = game.input, L = UI.late; if (game.hitstop > 0) { if (inp.pressed('click')) L.hc = true; if (inp.pressed('rclick')) L.hr = true; } });
-game.hook('step', () => { const L = UI.late; L.click = L.hc; L.rclick = L.hr; L.hc = L.hr = false; });
 /** register a hot rectangle (inside draw). o: { click, rclick, tip: lines | () => lines, drag(mx, my), key } */
 function hot(x, y, w, h, o) { if ((UI.hudPass || UI.underPass) && UI.modal) return false;   // under a modal panel the HUD and the panels below it are display only
   if (UI.hotO) { x += UI.hotO[0]; y += UI.hotO[1]; }   // drawn inside the HUD's frame: the rectangle in screen pixels
@@ -105,7 +99,7 @@ function updateUI(dt) {
   if (UI.drag && UI.mouse.down) UI.drag(m.x, m.y);
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
-  const acts = !!over && !!(over.click || over.drag || over.rclick), L = UI.late, pc = inp.pressed('click') || L.click, prc = inp.pressed('rclick') || L.rclick; L.click = L.rclick = false;   // (pc, prc: this step's press, or one a hit-stop's step took: UI.late)
+  const acts = !!over && !!(over.click || over.drag || over.rclick), pc = inp.pressed('click'), prc = inp.pressed('rclick');   // (a press in a hit-stop's step, where updateUI doesn't run, is the first step's after it: the engine keeps it)
   // under a finger a rect's click waits for its tap (UI.tap): the finger that pressed (its own pointer: another landing,
   // steering or lifting meanwhile changes nothing) lifts inside the rect it pressed, never having wandered 12 CSS px from
   // where it landed (UI_tapped), the same panel on top. So no flick, in any direction and however quick, presses what it

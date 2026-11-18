@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.108.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.108.1: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -389,7 +389,7 @@ only what the game needs; never read one whole. Its home page, index.html, opens
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.108.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped in a shared copy
+const E = { version: '0.108.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped in a shared copy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
 // tools/play.mjs), where every page it carries shares the path, the page it plays (?play=<id>) too. href: a recorded
@@ -780,6 +780,7 @@ class Input {
     this.screen = screen; this.use(map);
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {}; this._rk = {};
     this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set(); this._holds = new Set(); this._freshCodes = new Set();
+    this._late = new Set(); this._lateUp = new Set();   // (what a hit-stop's steps made fresh, kept for the scene's next step: _keepLate)
     this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this.padPrev = []; this.padIndex = null; this.padId = ''; this.deadzone = .18;
     this.lastDevice = 'keyboard'; this.glyphs = 'playstation'; this.padLost = false; this._swipeAt = this._gSwipe = this._f0 = this._press = null;   // label() follows the device used last; glyphs: 'playstation' (the standard's) | 'xbox' | 'auto' | 'nintendo' | 'generic'
     const el = screen.canvas; if (!el) return;
@@ -841,7 +842,7 @@ class Input {
   }
   buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this._pt[a]; return t !== undefined && !this._used[a] && this.clock - t <= win; }
   consume(a) { this._used[a] = true; }
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._swipeAt = null; }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._late.clear(); this._swipeAt = null; }
   // Create is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (neither reaches
   // the game, Options not until it is let go); let go sooner it is a tap; held, a press
   _create(down, p) {
@@ -867,7 +868,7 @@ class Input {
   // the device the screen is laid out for: lastDevice, held while a press is down on the canvas and the step after it lifts,
   // so what a finger taps keeps its size under it (a layout of your own a thumb's size by touch reads it; prompts, lastDevice)
   get layoutDevice() { return this._press ? this._press.dev : this.lastDevice; }
-  clear() { this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; this._press = null; }
+  clear() { this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._lateUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; this._press = null; }
   anyPressed() { return this._now.size > 0; }
   move() {
     let x = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), y = (this.down('down') ? 1 : 0) - (this.down('up') ? 1 : 0);
@@ -912,6 +913,15 @@ class Input {
     this._swipeAt = this._gSwipe; this._gSwipe = null;
     const P = this._press; if (P && !P.ids.size && P.out++) this._press = null;   // (every press lifted a step ago: the layout follows the device again)
   }
+  // a step that ticks input but holds the scene's update back (a hit-stop) keeps what it made fresh for the first step that
+  // runs the scene (_takeLate), so pressed() and released() report it there, once: no key or button is lost to a hit-stop
+  _keepLate() { for (const a of this._now) this._late.add(a); for (const a of this._nowUp) this._lateUp.add(a); }
+  _takeLate() {
+    if (this._late.size) { for (const a of this._late) this._now.add(a); this._late.clear(); }
+    if (this._lateUp.size) { for (const a of this._lateUp) this._nowUp.add(a); this._lateUp.clear(); }
+  }
+  // a scene's entry drops what a hit-stop kept: the new scene starts clean
+  _dropLate() { this._late.clear(); this._lateUp.clear(); }
 }
 // menu actions in every preset. Pad9 = Start, Pad0 = A (bottom), Pad1 = B (right), Pad12-15 = d-pad
 const MENU_KEYS = { start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyJ', 'KeyZ', 'Pad0'], cancel: ['Escape', 'Backspace', 'KeyX', 'KeyK', 'Pad1'] };
@@ -1684,6 +1694,8 @@ class Game {
     if (p >= 2) this.flash('#ffffff', .06);
   }
   flash(color = '#ffffff', seconds = .12, strength = 1) { if (this.reduceMotion) seconds *= .4; this._flash = { color, t: 0, dur: seconds, k: strength * clamp(this.settings.flashes, 0, 1) }; }
+  // hit-stop: the game stands still for s seconds; a key or button pressed or let go in it is pressed() or released() on
+  // the first step after it, once
   freeze(s) { this.hitstop = Math.max(this.hitstop, s); }
   focus(x, y, z = 0) { this.cam.tx = x; this.cam.ty = y; this.cam.tz = z; }
   // keep the camera on an object: follow(hero, { z: 16, lead: 0 }); follow(null) stops
@@ -1845,7 +1857,7 @@ class Game {
     const s = this.scenes[name];
     if (!s) throw new Error('scene "' + name + '" does not exist. Scenes: ' + Object.keys(this.scenes).join(', '));
     const old = this.scene; if (old && old.exit) old.exit();
-    this.scene = s; this.sceneName = name; this.paused = false; if (old) prune(this._timers, t => !t.keep); this.hitstop = 0;   // (timers made before the first scene live into it)
+    this.scene = s; this.sceneName = name; this.paused = false; if (old) prune(this._timers, t => !t.keep); this.hitstop = 0; this.input._dropLate();   // (timers made before the first scene live into it; the presses a hit-stop kept for the old scene don't)
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null;
     const ok = sceneField(name, s);
     if (ok('view')) this.setView(s.view);
@@ -1880,7 +1892,8 @@ class Game {
     if (!this.paused) this.pauseReason = null;
     this.audio._duck(this.paused);
     if (this.paused) return;
-    if (this.hitstop > 0) { this.hitstop -= dt; return; }
+    if (this.hitstop > 0) { this.hitstop -= dt; this.input._keepLate(); return; }   // (input ticks in a hit-stop, the scene waits: what this step made fresh waits for it)
+    this.input._takeLate();   // (the scene's first step after a hit-stop: what its steps kept is this step's)
     this.time += dt;
     const T = this._timers;
     if (T.length) {

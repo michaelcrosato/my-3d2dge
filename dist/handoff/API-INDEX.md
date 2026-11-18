@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.108.0)
+# my-3D2dge API index (v0.108.1)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -119,7 +119,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.108.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.108.1"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -546,7 +546,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.flash(color = '#ffffff', seconds = .12, strength = 1)`: flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning. Shorter when reduceMotion, dimmer by the player's settings.flashes
 - `game.focus(x, y, z = 0)`: camera follows this world point. Side-scrollers: game.focus(x, 0, z)
 - `game.follow(target, o = {})`: keep the camera on an object automatically (instead of calling focus every update). opts: { z: extra height to look at (default 16), lead: look ahead in the facing / moving direction }. follow(null) stops.
-- `game.freeze(s)`: hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks
+- `game.freeze(s)`: hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks, and a key, button or click pressed or let go in it is pressed(), released() or clicked() on the first step after it, once
 - `game.go(name, data, o = {})`: switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 (a cut) or another number of seconds; opts.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or 'dissolve', each way taking opts.seconds (.4), round opts.at (iris and swirl: a world point { x, y, z }, which each scene's camera places, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
 - `game.hitFx(x, y, z, o = {})`: everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound, a damage number and a rumble on a gamepad. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit', rumble: true })
 - `game.hook(kind, fn)` †: a function of the game's own on the engine's clock: kind 'input' fn(dt) every step, paused or not, after the input is read (a host's guard, an idle timer); 'step' fn(dt) every update step in play, before the scene's update (an attract mode's watcher); 'enter' fn(name, data) as a scene starts. Returns a function that removes it

@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.1 (2026-11-18)
+
+- **Engine**: a key, pad button or click pressed or let go during a hit-stop (`game.freeze`: input ticks, the scene's `update` waits) is no longer lost: `pressed()`, `released()` and `clicked()` report it once, on the first step after the hit-stop, for every player (both editions). The pause, the Shell and `'input'` hooks, which saw it in its own step, don't see it again; a scene change in between drops it (D117).
+- **Emberdeep**: in a fight, Esc or Options to pause and the bag, skills and tree keys take the first press, even one that falls in a hit-stop; its own latch for the pointer's click (UI.late, D115) is gone, the engine's covers it.
+- **Tools**: the contract test checks, on both editions, that a key pressed and let go during a 0.4 s hit-stop is pressed and released once on the first step after it (a click and player 2's press on the full engine), and that a scene change drops it.
+- **Docs**: API.md's `freeze(s)`, AI_GUIDE.md's loop and the decisions log (D117; D115's latch superseded) say so.
+
 ## 0.108.0 (2026-11-17)
 
 The controls standard, its last gaps: Emberdeep held upright on any phone at a thumb's size, its words in the normal font on a TV, and a DualSense's extras that work inside 52in1; then what the final review found: under a finger every target acts on a tap, never as it lands, the engine's own menus a thumb's size, the kits upright clear of the stick's half, and every end menu swiped away.
