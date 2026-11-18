@@ -2044,7 +2044,8 @@ An entry:
   - UI.mouse is the pointer that presses (a mouse, or a finger that isn't steering the stick), followed by its own id
     from its press to its lift: another finger landing, steering or lifting meanwhile neither moves it nor lets it go,
     and a finger that lands while another presses presses nothing (two are the tree's pinch). A primary pointer always
-    presses, so a press whose lift never came locks nothing out.
+    presses, so a press whose lift never came locks nothing out. A finger down as the window loses focus lets go of its
+    press and of its hover: its lift is no tap and leaves no tooltip.
   - A finger's tap is its own (UI_tapped): lifted within 12 CSS px of where it landed, every move and its lift counted,
     in place of the engine's `input.clicked()` (one pointer for all, lost when another finger lands or lifts) and of the
     6 px the steps saw. The core's UI.tap judges it by the rect it pressed and where its finger lifted, the same panel
@@ -2054,13 +2055,16 @@ An entry:
     the mouse chooses it, as every finger's does.
   - A press of the pointer that falls in a hit-stop (the input steps, the scene doesn't) is kept for the first step in
     play (UI.late), as the world's own presses are buffered.
-  - The waystone's rows scroll under a finger whatever the touch buttons' setting.
+  - The waystone's rows scroll under a finger whatever the touch buttons' setting. A press on one that moves more than
+    6 px is a drag and never a tap, as on the loot panels' grids and Skills' list: where the rows are a menu's height
+    (the buttons hidden, a small phone) half a row is less than a tap's 12 CSS px, and a short drag that scrolls a row
+    under the finger descends nowhere.
 - **Why:** D110 took the tap from the rect drawn at the lift and from the engine's single-pointer tap: the first finger
   after a mouse or a pad lost its tap wherever the layout grows for a finger (the case D110's Why meant to serve), and a
   thumb landing on or lifting off the stick took a tap on the SKILL BAR or the points chip away; the waystone's scroll
   hung on the touch buttons showing; and a real-speed test lost a gallery reel's tap to a hit-stop's step (older than
   D110: a mouse's click on the HUD too). Following each finger by its own id is one rule that closes them all and keeps
-  the flick rule.
+  the flick rule. A scrolling list keeps its own 6 px drag rule beside it, so a press can never both scroll and tap.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
 

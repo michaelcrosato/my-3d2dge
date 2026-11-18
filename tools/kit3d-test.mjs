@@ -37,7 +37,11 @@
 //      vendor/ is the repository's byte for byte; tools/check.mjs, run in the package, serves a 3D page and passes it
 //   4. on an emulated phone held upright (390 x 844 at 3x, touch): every kit starts, the 3D picture lies exactly under the
 //      game's, the touch buttons are there, four or more in two columns right of the middle (the move stick's half
-//      clear); a sideways flick on GAME OVER goes to the title (not one in its first moment)
+//      clear); a sideways flick on GAME OVER goes to the title (not one in its first moment); on four phones (320 to 430
+//      wide) held upright and on their side, every touch button shown, the Shell's toast, prompt, tip and tutorial card lie
+//      over none of them, nor the corner's buttons, nor one another (but a card where 3D SHOOTER's ten leave it no room),
+//      on the screen (the tip aside), and the toast and the prompt under an objective and a status column clear them too
+//      (but 320 high, or where the buttons stand over half the height)
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -628,6 +632,38 @@ if (existsSync(join(root, 'dist/handoff/my-3d2dge-3d.js'))) {
 }
 
 /* 4. an upright phone */
+// (the Shell's bands over the touch buttons and one another: every touch button shown, the mode's pieces up (all: the toast
+// with a line, the prompt, the tip and the card; hud: the toast and the prompt under an objective and a status column),
+// a step for the shell to see them; what each lies over of the touch buttons, the corner's, the other pieces and (hud,
+// but on a phone 320 high on its side, where they never had the room, or where the buttons stand over half the height)
+// the top HUD, and each but the tip off the screen (over a card and the prompt it reaches past the top where 3D SHOOTER's
+// ten buttons leave no room, as it always did); a tip under the toast on a screen too short for both waits hidden there,
+// and a card lies under the others only where the buttons leave it no room above them: 3D SHOOTER's ten upright)
+const bands = mode => {
+  const G = window.__game.game, I = G.input, sh = G.shell, R = e => { if (!e || !e.isConnected) return null; const q = e.getBoundingClientRect(), c = getComputedStyle(e); return q.width && q.height && c.display !== 'none' && c.visibility !== 'hidden' ? q : null; };
+  const btns = [...document.querySelectorAll('[data-sys=touch] [data-act]')]; if (!btns.length || !sh || !sh.root) return null;
+  for (const b of btns) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true);
+  const E3 = sh._els, all = mode === 'all', top = mode === 'hud', over = [];
+  sh.toast('Checkpoint', 'The ledger is yours', 3);
+  sh.hud(Object.assign({ prompt: { key: 'E', label: 'Take the ledger' } }, all && { tip: { title: 'Hidden', text: 'Stay in the grass' } },
+    top && { objective: { step: '01 / 02', title: 'Steal the ledger', text: 'On the brick roof, past the two guards' }, bars: [{ label: 'Health', value: 3, max: 5, kind: 'pips' }], counts: [['Guards down', 0]] }));
+  if (all) sh.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up'); else sh.tutorial(null);
+  sh._step();
+  const ov = (q, p) => { const x = Math.min(q.right, p.right) - Math.max(q.left, p.left), y = Math.min(q.bottom, p.bottom) - Math.max(q.top, p.top); return x > .5 && y > .5 ? Math.round(x) + ' x ' + Math.round(y) : null; };
+  const at = q => `${Math.round(q.left)},${Math.round(q.top)}..${Math.round(q.right)},${Math.round(q.bottom)}`;
+  const pieces = [['toast', E3.toast], ['prompt', E3.pr], ['tip', E3.tip], ['card', E3.tut], ['minimap', E3.mini], ['keys', E3.keys]].map(([k, e]) => [k, R(e)]).filter(p => p[1]);
+  const sunk = E3.tip.classList.contains('esh-sunk'), tq = E3.tip.getBoundingClientRect(), toast = R(E3.toast);
+  for (const k of ['toast', 'prompt'].concat(all ? ['tip', 'card'] : [])) if (!pieces.some(p => p[0] === k) && !(k === 'tip' && sunk)) over.push(k + ' not shown');
+  if (sunk && !(toast && toast.left <= tq.left + .5 && toast.right >= tq.right - .5 && toast.top <= tq.top + .5 && toast.bottom >= tq.bottom - .5)) over.push(`the tip hidden at ${at(tq)} but not under the toast`);
+  const targets = btns.concat([...document.querySelectorAll('[data-sys=corner] button')]).filter(R).map(b => [b.dataset.act || b.getAttribute('aria-label'), R(b)]);
+  const box = I._touchEl && I._touchEl.getBoundingClientRect(), room = innerHeight > 320 && !(box && box.top < innerHeight / 2);   // (the top HUD cleared but on a phone 320 high, or where the buttons stand over half the height)
+  const hud = top && room ? [['the objective', E3.obj], ['the status', E3.vit]].map(([k, e]) => [k, R(e)]).filter(p => p[1]) : [], under = E3.tut.classList.contains('esh-yield');
+  pieces.forEach(([k, q], i) => {   // (a card lying under the others, where the buttons leave it no room: 3D SHOOTER's ten upright)
+    for (const [n, p] of targets.concat(pieces.slice(i + 1).filter(([n]) => !under || (k !== 'card' && n !== 'card')), hud)) { const o = ov(q, p); if (o) over.push(`${k} over ${n} ${o}`); }
+    if (k !== 'tip' && (q.left < -.5 || q.top < -.5 || q.right > innerWidth + .5 || q.bottom > innerHeight + .5)) over.push(`${k} off the screen at ${at(q)}`);
+  });
+  sh.tutorial(null); sh.hud({}); return over;
+};
 for (const id of SLICES) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), errors = watch(page);
   await page.goto(SITE + '/kits/3d-' + id + '?backend=webgl#' + id);
@@ -646,6 +682,13 @@ for (const id of SLICES) {
     const b = await page.evaluate(() => { const I = __game.game.input, all = () => [...document.querySelectorAll('[data-sys=touch] [data-act]')].filter(b => b.dataset.act !== 'menu');
       for (const b of all()) I.touchSet(b.dataset.act, null, true); return all().map(b => { const q = b.getBoundingClientRect(); return [b.dataset.act, Math.round(q.left)]; }); });
     if (b.length >= 4 && (b.some(q => q[1] < 195) || new Set(b.map(q => q[1])).size !== 2)) fail(`phone ${id}: its ${b.length} touch buttons are not two columns right of the middle (195): ${b.map(q => q.join('@')).join(' ')}`);
+    // the Shell's bands clear of the touch buttons on four phones held either way (where they end: no slide)
+    await page.addStyleTag({ content: '.esh *{transition:none!important}' });
+    for (const [w, h] of [[320, 568], [360, 640], [390, 844], [430, 932]].flatMap(([w, h]) => [[w, h], [h, w]])) {
+      await page.setViewportSize({ width: w, height: h }); await page.waitForFunction(up => __game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
+      for (const mode of ['all', 'hud']) { const over = await page.evaluate(bands, mode); if (over && over.length) fail(`phone ${id} ${w}x${h} ${mode}: the Shell's bands lie over its touch buttons, one another, the top HUD or off the screen: ${over.join(', ')}`); }
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
     // the GAME OVER: a sideways flick goes to the title, not one in its first moment (a dodge mashed as the run ends); fed
     // on the game's own clock (input.feed('swipe')), so a busy machine's slow fingers can't land in or out of that moment
     if (id === 'action') {
