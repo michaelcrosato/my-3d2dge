@@ -5,6 +5,10 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.107.1 (2026-11-18)
+
+- **Emberdeep**: the pause menu opened mid-talk (Esc, or the touch bar's Menu, while Pip or anyone talks) draws over the talk box, which waits dimmed under it: its lower rows (PASSIVES, TOWN PORTAL, SAVE AND QUIT on a phone on its side; FULL SCREEN and SAVE AND QUIT on a desktop), which took taps and clicks, no longer hide under the box. Any modal panel does the same; with none up the talk draws over the notices and tooltips as before.
+
 ## 0.107.0 (2026-11-16)
 
 The controls standard: every game plays to one standard for its controls and interface (`docs/CONTROLS.md`, the owner's words): a DualSense on a TV first, the keyboard and mouse native, prompts that follow the device, a DualSense's extras, and touch as an add-on with swipes, context buttons and simple assists.
