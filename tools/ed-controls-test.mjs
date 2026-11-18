@@ -563,10 +563,11 @@ try {
 				.getByRole("button", { name: "Return to town", exact: true })
 				.click();
 			await page.waitForTimeout(700);
+			// the world's clock moves on after the travel: given up to 5 s, so a machine busy with other work (a full test
+			// run beside another job) doesn't read a slow frame as a held world, while a held one still fails
 			const t = await page.evaluate(() => __ed.ED.t);
-			await page.waitForTimeout(150);
 			assert.ok(
-				await page.evaluate((t) => __ed.ED.t > t, t),
+				await page.waitForFunction((t) => __ed.ED.t > t, t, { timeout: 5000 }).then(() => true, () => false),
 				"the old conversation does not hold the world after travel",
 			);
 		},
