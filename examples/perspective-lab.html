@@ -10738,7 +10738,9 @@ class Shell {
   // prompt's are kept while they're away, and the way they stand is chosen with a line's toast, up or away, so nothing a
   // finger takes moves as they come and go: a toast of more lines stands in that way at its own height, the card, the
   // minimap and the keys where they were, and only what stands over it (the prompt, the tip) gives way (it stands over the
-  // tip, or not, instead only where that alone keeps it, then the prompt, on the screen and off the top's buttons). The
+  // tip, or not, instead only where that alone keeps it, then the prompt, on the screen and off the top's buttons; the
+  // card lies under it, in its place, only where that alone keeps the toast, then the prompt, from leaving the screen or
+  // standing on the corner's buttons: a phone 320 wide upright, one 640 wide on its side with the minimap up). The
   // narrow toast stands beside the minimap, the card or the top HUD where that keeps it lower or clear of the HUD, 140 px
   // wide or more (--tl, --tr). The minimap is no taller than the room under the top HUD over it (the column, the
   // objective, the corner's buttons), down to 64 px wide (--mw). Where the stack won't fit under the top HUD, the ways to
@@ -10757,16 +10759,16 @@ class Shell {
     const line = Math.max(pb, fb), x0 = Math.max(pl, fl), x1 = W - Math.max(pr, fr), mid = (x0 + x1) / 2, on = e => !e.hidden && e.offsetHeight > 0;
     const box = e => { const q = e.getBoundingClientRect(); return [(q.left - R.left) / k, (q.right - R.left) / k, (q.bottom - R.top) / k, q.height]; };
     const seen = es => es.filter(e => e && e.isConnected).map(box).filter(q => q[3] > 0), corner = seen([this._game._corner, I._startEl, E3.hb]), hud = seen([E3.obj, this._col]).concat(corner);
-    const roof = (a, b, all) => (all ? hud : corner).reduce((m, [c, d, y]) => a < d && c < b ? Math.max(m, y) : m, pt);   // (how far down the top HUD reaches over a stretch; or its buttons alone, the corner's and the HUD's)
+    const roof = (a, b, all, top = pt) => (all ? hud : corner).reduce((m, [c, d, y]) => a < d && c < b ? Math.max(m, y) : m, top);   // (how far down the top HUD reaches over a stretch; or its buttons alone, the corner's and the HUD's; from the shell's margin, or from top)
     const T = E3.toast, tOn = T.classList.contains('on'), w0 = Math.min(176, innerWidth * .28); let th = () => 64;   // (the toast's height on a stretch so wide: first a line's, the place it takes away)
     const [C, K, Q, Z] = [E3.tut, E3.keys, E3.pr, E3.tip].map(e => on(e) && box(e).slice(0, 2).concat(e.offsetHeight));   // (the card, the keys, the prompt, the tip: their stretch and height)
     const pw = Q ? Q.slice(0, 2) : [mid - 100, mid + 100], ph = Q ? Q[2] : 48, iw = Z ? Z.slice(0, 2) : [mid - 61, mid + 61], ih = Z ? Z[2] : 64;   // (the prompt's place, kept while it's away)
-    const way = (under, compact) => {   // one way to stand them: the card under the others or not, a narrow toast over the tip or not
+    const way = (under, compact, keep) => {   // one way to stand them: the card under the others or not, a narrow toast over the tip or not (keep: the way a line's toast took, whose minimap and keys stand where they stood; the card's place is the same either way)
       const at = [], need = (a, b, floor, skip) => at.reduce((y, p) => p !== skip && a < p.b && p.a < b ? Math.max(y, p.t + G) : y, Math.max(floor, line));
       const put = (a, b, h, floor, skip, off) => { const y = need(a, b, floor, skip), p = { a, b, y, t: y + h }; if (!off) at.push(p); return p; };
       const L = { under, compact, card: C && put(C[0], C[1], C[2], pb, null, under), mw: 0, mini: null, tw: [x0, x1], toast: null };
-      if (on(E3.mini)) { const w = Math.max(64, Math.min(w0, (H - roof(x1 - w0, x1, true) - G - need(x1 - w0, x1, pb)) * 176 / 158)); L.mw = w < w0 - .5 ? w : 0; L.mini = put(x1 - w, x1, w * 158 / 176, pb); }
-      L.keys = K && put(K[0], K[1], K[2], pb);
+      if (keep) { L.mw = keep.mw; L.mini = keep.mini; L.keys = keep.keys; for (const p of [L.mini, L.keys]) if (p) at.push(p); }
+      else { if (on(E3.mini)) { const w = Math.max(64, Math.min(w0, (H - roof(x1 - w0, x1, true) - G - need(x1 - w0, x1, pb)) * 176 / 158)); L.mw = w < w0 - .5 ? w : 0; L.mini = put(x1 - w, x1, w * 158 / 176, pb); } L.keys = K && put(K[0], K[1], K[2], pb); }
       // the narrow toast's stretch: clear of the top HUD where it can be, then as low as it can stand (beside the card, the
       // minimap or the top HUD), then as wide; none narrower than 140 px (over the tip: none narrower than the tip)
       const lefts = [x0, L.card && !under && L.card.b + G].concat(hud.filter(h => h[0] + h[1] < 2 * mid).map(h => h[1] + G)).filter(a => a >= x0 && a < x1), rights = [x1, L.mini && L.mini.a - G].concat(hud.filter(h => h[0] + h[1] >= 2 * mid).map(h => h[0] - G)).filter(b => b <= x1 && b > x0);   // (inside the room the buttons leave)
@@ -10778,7 +10780,13 @@ class Shell {
       L.score = (fit(false, [L.toast]) ? 8 : 0) + (fit(false, [Q && L.pq]) ? 4 : 0) + (under ? 0 : 2) + (fit(true, [L.toast, Q && L.pq, Z && L.tip]) ? 1 : 0); return L;
     };
     let L = null; for (const [u, c] of [[0, 0], [0, 1], [1, 0], [1, 1]]) if ((!u || C) && (!c || narrow)) { const v = way(!!u, !!c); if (!L || v.score > L.score) L = v; if (L.score === 15) break; }
-    if (tOn && narrow) { th = w => this._toastH(w); let M = null; for (const c of [L.compact, !L.compact]) { const v = way(L.under, c); if (!M || v.score >> 2 > M.score >> 2) M = v; } L = M; }   // (a narrow screen's toast up at its own height, in the way a line's takes: the card, the minimap and the keys stay where they are, and only what stands over it gives way; it stands over the tip (or not) instead only where that alone keeps it, then the prompt, on the screen and off the top's buttons)
+    if (tOn && narrow) {   // a narrow screen's toast up at its own height, in the way a line's takes: the card, the minimap and the keys stay where they are, and only what stands over it gives way
+      th = w => this._toastH(w); const L0 = L; let M = null;
+      for (const c of [L0.compact, !L0.compact]) { const v = way(L0.under, c, L0); if (!M || v.score >> 2 > M.score >> 2) M = v; if (M.score >> 2 === 3) break; }   // (it stands over the tip, or not, instead only where that alone keeps it, then the prompt, on the screen and off the top's buttons)
+      const lost = v => [v.toast, Q && v.pq].reduce((n, p, i) => p && H - p.t < roof(p.a, p.b, false, pt - 14) - .5 ? n + 2 - i : n, 0);   // (the toast (2), the prompt (1) past the screen's top, the safe area's (--pt less its 14 px margin), or under the corner's buttons)
+      if (C && !L0.under && lost(M)) for (const c of [L0.compact, !L0.compact]) { const v = way(true, c, L0); if (lost(v) < lost(M)) M = v; if (!lost(M)) break; }   // (and the card lies under it, in its place, only where that alone keeps the toast, then the prompt, from leaving the screen)
+      L = M;
+    }
     const set = this._sv;
     for (const [e, p] of [[E3.tut, L.card], [E3.mini, L.mini], [E3.keys, L.keys], [E3.pr, L.pq], [E3.tip, L.tip], [T, L.toast]]) set(e, '--y', p ? p.y : e === T ? null : line);   // (a piece away waits on the line)
     set(E3.mini, '--mw', L.mw || null); set(T, '--tl', L.toast && L.tw[0] > x0 ? L.tw[0] : null); set(T, '--tr', L.toast && L.tw[1] < x1 ? W - L.tw[1] : null);

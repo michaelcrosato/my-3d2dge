@@ -41,7 +41,9 @@
 //      wide) held upright and on their side, every touch button shown, the Shell's toast, prompt, tip and tutorial card lie
 //      over none of them, nor the corner's buttons, nor one another (but a card where 3D SHOOTER's ten leave it no room),
 //      on the screen (the tip aside), and the toast and the prompt under an objective and a status column clear them too
-//      (but 320 high, or where the buttons stand over half the height)
+//      (but 320 high, or where the buttons stand over half the height); 3D ACTION upright 320 wide with the card, a minimap
+//      and the prompt, a toast of a title and six lines: the toast and the prompt on the screen and off the corner's
+//      buttons, the card, its × and the minimap where they stood
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -687,6 +689,28 @@ for (const id of SLICES) {
     for (const [w, h] of [[320, 568], [360, 640], [390, 844], [430, 932]].flatMap(([w, h]) => [[w, h], [h, w]])) {
       await page.setViewportSize({ width: w, height: h }); await page.waitForFunction(up => __game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
       for (const mode of ['all', 'hud']) { const over = await page.evaluate(bands, mode); if (over && over.length) fail(`phone ${id} ${w}x${h} ${mode}: the Shell's bands lie over its touch buttons, one another, the top HUD or off the screen: ${over.join(', ')}`); }
+    }
+    // 3D ACTION upright on a phone 320 wide, the card, a minimap and the prompt up, a toast of a title and six lines: the
+    // toast and the prompt on the screen and off the corner's buttons (the card lying under the toast while it's up, in its
+    // place), the card, its × and the minimap where they stood, and the card on top again as the toast goes
+    if (id === 'action') {
+      await page.setViewportSize({ width: 320, height: 568 }); await page.waitForFunction(() => __game.game.screen.portrait, null, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
+      const q = await page.evaluate(() => {
+        const G = __game.game, sh = G.shell, I = G.input, E3 = sh._els, h0 = sh.hud.bind(sh), map = { T: 16, w: 30, h: 20, version: 1, height: () => 0, cell: () => 0, floorAt: () => '' };
+        const show = () => { for (const b of document.querySelectorAll('[data-sys=touch] [data-act]')) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true); };
+        const R = e => { const q = e && e.getBoundingClientRect(); return q && q.width && q.height && !e.hidden ? [q.left, q.top, q.right, q.bottom].map(Math.round) : null; }, ov = (a, b) => a && b && Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > .5 && Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > .5;
+        sh.hud = s => h0(Object.assign({}, s, { prompt: { key: 'E', label: 'Take the ledger' }, minimap: { map, at: { x: 40, y: 40 } } })); sh.hud({});
+        sh.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up', 60);
+        const snap = () => JSON.stringify([R(E3.tut), R(E3.tut.querySelector('.esh-x')), R(E3.mini), sh.root.style.getPropertyValue('--fl'), sh.root.style.getPropertyValue('--fr')]);
+        const step = () => { show(); sh._step(); sh._step(); }, away = () => { E3.toast.classList.remove('on'); sh._toastEnd = 0; step(); };
+        away(); const a = snap(), under0 = E3.tut.classList.contains('esh-yield');
+        sh.toast('Level up', 'Strength +1\nAgility +1\nStealth +1\nLuck +1\nWits +1\nGrit +1', 30); step();
+        const b = snap(), t = R(E3.toast), p = R(E3.pr), on = [...document.querySelectorAll('[data-sys=corner] button, [data-sys=touch] [data-act]')].filter(e => ov(t, R(e))).map(e => e.dataset.act || e.getAttribute('aria-label'));
+        away(); const c = snap(), under1 = E3.tut.classList.contains('esh-yield'); sh.tutorial(null); delete sh.hud; sh.hud({});
+        return { a, b, c, t, p, on, under: under0 || under1 };
+      });
+      const off = r => !r || r[1] < -.5;
+      if (off(q.t) || off(q.p) || q.on.length || q.b !== q.a || q.c !== q.a || q.under) fail(`phone action 320x568, the card, a minimap and the prompt up, a toast of a title and six lines: the toast ${q.t}${q.on.length ? ' over ' + q.on.join(', ') : ''}, the prompt ${q.p} (both on the screen?); the card, its × and the minimap ${q.a} -> ${q.b} -> ${q.c}${q.under ? '; the card under the others with the toast away' : ''}`);
     }
     await page.setViewportSize({ width: 390, height: 844 });
     // the GAME OVER: a sideways flick goes to the title, not one in its first moment (a dodge mashed as the run ends); fed
