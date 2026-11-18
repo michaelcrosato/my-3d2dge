@@ -6,7 +6,7 @@
  * roof above (J as you stand over them). In a fight their swings are telegraphed: K just before the blow parries and
  * stuns them.
  * Keys (THIRDPERSON without the interact, use and map it never reads; its M muted too): WASD move, Shift sprint, Space
- * jump, climb a wall, vault, leap a gap, C or Ctrl crouch, J or a left click attack or take down (a click strikes toward
+ * jump, climb a wall, vault, leap a gap, C crouch, J or a left click attack or take down (a click strikes toward
  * the pointer), K or a right click block or parry, Q or L dodge roll, V view. PAD: the stick moves, ✕ jump and climb, ○
  * crouch, □ strike, L1 block, R1 roll, R2 or L3 sprint, Options pauses. DUALSENSE: the light bar is the guards' mood
  * (dusk blue; amber as one notices, orange searching, red pulsing in a chase; green while hidden in the grass), a guard's
@@ -14,8 +14,9 @@
  * ledger is a checkpoint. The hero climbs any wall: Space at a face latches on, the stick climbs (up the screen is up the
  * wall), Space leaps up, C lets go. The key list shows for the first 20 seconds and after a respawn. TOUCH: the stick,
  * JUMP (LEAP on a wall), ATTACK (TAKE DOWN when one is in reach), CROUCH (LET GO on a wall, STAND crouched), and in a
- * fight BLOCK (PARRY in a wind-up) and ROLL pop up; with Touch assists on (Settings) the stick pushed all the way
- * sprints, a strike turns to the nearest guard, and the blade swings by itself at a guard who is chasing, in reach.
+ * fight BLOCK (PARRY in a wind-up) and ROLL pop up (upright, the five in two columns in the corner, those two on top,
+ * the stick's half clear); with Touch assists on (Settings) the stick pushed all the way sprints, a strike turns to the
+ * nearest guard, and the blade swings by itself at a guard who is chasing, in reach.
  * HOW IT WORKS: the hero and the guards are E.Mover bodies (the same climbing, vaulting and gap-leaping for both); a
  * guard's eyes are E.sees through the map's heights, its mind an E.Suspicion, its legs a FlowField that climbs, drops and
  * jumps. Climbs, vaults, rolls and takedowns are E.ACTIONS; the facades are wall-type options; the belfry's canopy sorts by
@@ -84,6 +85,7 @@ const STEALTH = (() => {
   // THE KEYS: THIRDPERSON's, without the interact, use and map this game never reads (they listed controls that do
   // nothing, and the map's M was the shell's mute); Q (the left hand, freed from use) rolls too
   const KEYS = (({ interact, use, map: m, ...k }) => Object.assign(k, { dodge: ['KeyQ', 'KeyL', 'Pad5'] }))(E.Input.THIRDPERSON);
+  const TOUCH = ['block', 'dodge', 'jump', 'attack', 'crouch'], fit = touchColumns(TOUCH);   // (the touch buttons; upright, two columns)
   // the DUALSENSE (the dualsense module): the light bar is the guards' mood, the most alarmed one's (green while hidden),
   // a guard's bark comes from the controller's speaker (where the player turned it on); buzz: a rumble on any pad
   let ds = null, padLight = null;
@@ -149,7 +151,7 @@ const STEALTH = (() => {
     ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: it takes over from the engine's own, keeping the pause menu)
     checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; keysT = 20; autoT = 0; wonT = 0; say(E.t('stealth.goal.ledger'), E.t('stealth.toast.start'));
     ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null;
-    game.input.touchSet('block', null, false); game.input.touchSet('dodge', E.t('stealth.touch.roll'), false);   // (not until a fight)
+    fit.reset(); game.input.touchSet('block', null, false); game.input.touchSet('dodge', E.t('stealth.touch.roll'), false);   // (not until a fight)
     game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = !!(window.matchMedia && matchMedia('(pointer: fine)').matches); L.ambient = .6; A.music(SONG); A.layer('chase', 0, .02); A.layer('alarm', 0, .02);
   }
   function respawnAt(cp) {
@@ -182,7 +184,7 @@ const STEALTH = (() => {
     if (d && (d[0] || d[1])) hero.facing = Math.atan2(d[1], d[0]); else if (t) hero.facing = Math.atan2(t.y - hero.y, t.x - hero.x);
   }
   function heroUpdate(dt) {
-    const I = game.input;
+    const I = game.input; fit();   // (upright, the five in two columns: before the touchSet calls below)
     hero.exposure = inGrass(hero) && hero.crouch ? 0 : 1;   // crouched in tall grass: unseen
     // TOUCH ASSIST (input.assist: touch play, Settings' Touch assists on): the stick pushed all the way sprints (touch has
     // no sprint button); let go the moment it isn't (and on any other device: hold() is no key of theirs)
@@ -285,9 +287,9 @@ const STEALTH = (() => {
       }
     });
   }
-  // (the touch buttons: BLOCK and ROLL first, so as they pop up in a fight the others stay under the thumb; an upright
-  // phone starts closer, the district filling more of it)
-  return { view: 'iso', views: ['iso', 'threequarter'], input: KEYS, res: 'ps1', pausable: true, touch: ['block', 'dodge', 'jump', 'attack', 'crouch'],
+  // (the touch buttons: BLOCK and ROLL first, so as they pop up in a fight the others stay under the thumb, and upright
+  // in two columns, the two on top (touchColumns); an upright phone starts closer, the district filling more of it)
+  return { view: 'iso', views: ['iso', 'threequarter'], input: KEYS, res: 'ps1', pausable: true, touch: TOUCH,
     camera: { zoom: [.75, 2], rotate: true, tall: 1.4 }, enter: start, update, draw,
     state: () => ({ hero, guards, map, ledger, won, hp }),   // for tests
     /** the proof: over the rooftops, jumping, swinging and crouching, the guards on their rounds; a hash of the run */

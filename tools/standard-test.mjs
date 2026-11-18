@@ -8,11 +8,14 @@
 //                controller in use is unplugged
 //   input        input.label() per device and controller family, the touch START (Act:menu) starting a title and pausing
 //                a scene in play; on the full engine rebind() (a conflict or a reserved code changes nothing, the arrow
-//                keys and d-pad stay on the moves, bindings survive use() and are saved), resetBindings()
+//                keys and d-pad stay on the moves, bindings survive use() and are saved), resetBindings(); an open dialog's
+//                keys following the device in use; no preset with Ctrl beside WASD, and the RTS kit (Ctrl and a digit for
+//                its groups) asking before the page goes while a match runs, on a page of its own
 //   page         the viewport (viewport-fit=cover, pinch zoom left alone) and the canvas's touch-action; a fixed
 //                resolution filling a high-density screen ('auto' scale) or kept whole ('sharp'); expand filling every
 //                shape with no bars; the touch stick pressing the directions; a bottom dialog clear of the touch buttons;
-//                a tap or click on a menu entry picking it and on a dialog box turning the page
+//                a tap or click on a menu entry picking it and on a dialog box turning the page; input.layoutDevice held
+//                under a press until its tap is read, let go by a drag past a tap's reach and by a new scene
 //   corner       the menu and full-screen buttons: shown on a title and while paused, hidden in play; the menu button
 //                pauses (the agent edition: and resumes); full screen from a click, and the player's choice kept (leaving
 //                it means a phone's tap no longer takes it there)
@@ -35,6 +38,8 @@
 // Usage: node tools/standard-test.mjs [--node]   (exit code 1 on a failure; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { load as loadEngine, engineSource } from './engine-lib.mjs';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const EDITIONS = [['full', 'engine/my-3d2dge.js'], ['agent', 'engine/my-3d2dge-agent.js']];
 const failures = [];
@@ -77,6 +82,14 @@ for (const [ed, file] of EDITIONS) {
   check(`${ed}: input.label: the key, the mouse button, the gamepad button (PlayStation's by default)`, I.label('attack', 'keyboard') === 'J' && I.label('attack', 'mouse') === 'Left click' && I.label('attack', 'gamepad') === '✕' && I.label('up', 'keyboard') === 'W', [I.label('attack', 'keyboard'), I.label('attack', 'mouse'), I.label('attack', 'gamepad')].join());
   S.set('glyphs', 'xbox'); const xb = I.label('attack', 'gamepad'), opts = S.spec('glyphs').options.map(o => o[0]).join(); I.glyphs = 'nintendo'; const nin = I.label('attack', 'gamepad'); I.glyphs = 'auto'; I.padId = 'DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c)'; const auto = I.label('dash', 'gamepad'); I.padId = ''; S.set('glyphs', 'playstation');
   check(`${ed}: gamepad symbols: Settings offers PlayStation and Xbox; a game may still name a family or 'auto' (the controller's name)`, xb === 'A' && opts === 'playstation,xbox' && nin === 'B' && auto === '○' && I.glyphs === 'playstation', [xb, opts, nin, auto].join());
+  // an open dialog's keys follow the device in use: a {key:} in its text, and a line that is a function, called again
+  const gd = new E.Game({ headless: true }), D = new E.Dialog(gd); let calls = 0; gd.start({ scenes: scenes(), scene: 'play' }); gd.advance(1 / 60); gd.input.lastDevice = 'keyboard';
+  D.say(['Press {key:attack} to swing.', () => (calls++, 'Hold ' + gd.input.label('attack') + ' to spin.')]); D.shown = D.pageLen;
+  const kb = D.pages.map(p => p.join(' ')).join('|'); gd.input.lastDevice = 'gamepad'; D.update(1 / 120); const pad = D.pages.map(p => p.join(' ')).join('|');
+  check(`${ed}: an open E.Dialog's keys follow the device ({key:} in its text, a line that is a function called again), the page kept as typed`, kb === 'Press J to swing.|Hold J to spin.' && pad === 'Press ✕ to swing.|Hold ✕ to spin.' && calls === 2 && D.i === 0 && !D.typing, `${kb} -> ${pad}, called ${calls}`);
+  // never Ctrl (or ⌘) beside WASD: Ctrl+W closes the browser's tab before the page hears it (CONTROLS.md rule 1, D112)
+  const ctrl = Object.entries(E.Input).filter(([, m]) => m && typeof m === 'object' && Object.values(m).some(cs => Array.isArray(cs) && cs.includes('KeyW'))).filter(([, m]) => Object.values(m).some(cs => Array.isArray(cs) && cs.some(c => /^(Control|Meta)/.test(c)))).map(([n]) => n);
+  check(`${ed}: no input preset with WASD binds Ctrl or ⌘ (Ctrl+W closes the tab)`, !ctrl.length, ctrl.join());
   // boot, headless: the steps at once, in order; a failing one stops the start; a promise is waited for
   const order = [], gb = new E.Game({ headless: true });
   gb.start({ scenes: scenes(), scene: 'title', boot: { steps: [['One', () => order.push(1)], ['Two', g => order.push(g === gb ? 2 : 0)]] } });
@@ -271,6 +284,26 @@ if (!process.argv.includes('--node')) {
     const byButton = await ev(p, () => [!!document.fullscreenElement, game.settings.fullscreen, document.querySelector('#e3-corner button:last-child').getAttribute('aria-label')]);
     check(`${ed}: a phone's first tap goes full screen, and a game started by a tap goes back after a gesture left it; the corner's button turning it off is kept (the next visit's tap leaves the page as it is), and turns it on`,
       tapped.join() === 'true,' && left.join() === 'false,' && started.join() === 'true,play' && off.join() === 'false,false' && !stays && byButton.join() === 'true,true,Leave full screen', JSON.stringify([tapped, left, started, off, stays, byButton]));
+    // input.layoutDevice (a finger after the keys): the layout as drawn holds while a press that can still be a tap is down
+    // and until its tap is read; a finger moved past a tap's reach (a thumb steering) holds nothing, and is no tap though it
+    // comes back (the full engine's clicked(): what the layout let go of is never read as a tap); a mouse's click is lifted
+    // near where it pressed, wherever it went, so its press holds until it lifts (a touch laptop's mouse after a finger);
+    // a new scene holds nothing
+    { const q = await open();
+      const lay = await ev(q, () => {
+        const I = game.input, c = document.getElementById('screen'), r = c.getBoundingClientRect(), x = r.left + r.width * .75, y = r.top + r.height * .3, out = [];   // (the right half: no stick)
+        const at = (type, id, dx = 0, pointerType = 'touch') => c.dispatchEvent(new PointerEvent(type, { pointerType, pointerId: id, isPrimary: true, clientX: x + dx, clientY: y, bubbles: true }));
+        const one = () => game.advance(1 / 120, { draw: true }), tap = () => I.clicked ? (I.clicked() ? 'click' : 'none') : '-';   // (one update step: the one a click is read in; the agent edition has no clicked())
+        I.lastDevice = 'keyboard'; at('pointerdown', 11); step(); out.push(I.lastDevice + '/' + I.layoutDevice);   // the prompts follow the finger, the layout holds
+        at('pointermove', 11, 6); step(); out.push(I.layoutDevice); at('pointerup', 11, 6); out.push(I.layoutDevice); step(3); out.push(I.layoutDevice);   // (a tap: held until it is read)
+        I.lastDevice = 'keyboard'; at('pointerdown', 12); step(); at('pointermove', 12, 40); step(); out.push(I.layoutDevice); at('pointermove', 12, 4); step(); at('pointerup', 12, 4); one(); out.push(tap()); step();   // (a drag, back near where it landed: no tap)
+        I.lastDevice = 'touch'; at('pointerdown', 1, 0, 'mouse'); step(); I.lastDevice = 'mouse'; at('pointermove', 1, 40, 'mouse'); step(); out.push(I.layoutDevice); at('pointermove', 1, 4, 'mouse'); step(); at('pointerup', 1, 4, 'mouse'); one(); out.push(tap()); step(3); out.push(I.layoutDevice);   // (a mouse's drag and back: its click, held till then)
+        I.lastDevice = 'keyboard'; at('pointerdown', 13); step(); const was = I.layoutDevice; game.go('play', null, { fade: 0 }); step(); out.push(was + '/' + I.layoutDevice); at('pointerup', 13); step(3);
+        game.go('title', null, { fade: 0 }); step(); return out;
+      });
+      const want = ed === 'full' ? 'touch/keyboard,keyboard,keyboard,touch,touch,none,touch,click,mouse,keyboard/touch' : 'touch/keyboard,keyboard,keyboard,touch,touch,-,touch,-,mouse,keyboard/touch';
+      check(`${ed}: input.layoutDevice holds the layout under a press that can still be a tap until its tap is read; a finger moved past a tap's reach lets go, and is no tap though it comes back; a mouse's press holds until it lifts, its click where it pressed; a new scene lets go`, lay.join() === want && !q.errors.length, lay.join() + (q.errors.length ? '; errors: ' + q.errors.join(' | ') : ''));
+      await q.close(); }
     if (ed === 'full') {
       // touch buttons: no START among them: the corner's menu button is it (top right, there in play on a touch screen), and
       // it pauses into the menu; the player's side, size and visibility
@@ -467,6 +500,15 @@ if (!process.argv.includes('--node')) {
     check(`${ed}: boot: false takes the splash away at once`, (await ev(b, () => [getComputedStyle(document.getElementById('e3-boot')).display, game.sceneName])).join() === 'none,play');
     await b.close(); await desk.close();
   }
+  // the RTS keeps Ctrl+digit for its groups (the genre's), beside WASD's camera: while the player's match runs, leaving the
+  // page asks first (beforeunload), on a page of its own only (52in1's frame shows no browser dialogs); not on its title
+  { const ctx = await browser.newContext(), q = await ctx.newPage(), errors = [], ev = (p, f, a) => p.evaluate(f, a); q.on('pageerror', e => errors.push(e.message));
+    await q.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-rts.html')).href); await q.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'title');
+    const asks = () => ev(q, () => { const e = new Event('beforeunload', { cancelable: true }); dispatchEvent(e); return e.defaultPrevented; });
+    const onTitle = await asks(); await ev(q, () => window.__game.game.go('rts', null, { fade: 0 })); await q.waitForTimeout(300); const inMatch = await asks();
+    await ev(q, () => { window.AIHubSettings = new EventTarget(); }); const inHub = await asks(); await ev(q, () => { delete window.AIHubSettings; window.__game.game.go('title', null, { fade: 0 }); }); await q.waitForTimeout(200); const after = await asks();
+    check('rts: while a match runs leaving the page asks first (a stray Ctrl+W beside WASD), not on its title, not inside 52in1', !onTitle && inMatch && !inHub && !after && !errors.length, JSON.stringify({ onTitle, inMatch, inHub, after, errors }));
+    await ctx.close(); }
   await browser.close();
 }
 console.log(failures.length ? `\nFAILED ${failures.length} of ${passed + failures.length}:\n  ` + failures.join('\n  ') : `\nstandard features ok: ${passed} checks`);

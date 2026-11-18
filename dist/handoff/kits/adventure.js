@@ -1,5 +1,5 @@
 // The ADVENTURE kit's game (a top-down action adventure: a village, ruins and a shrine, a sword, a key and a great door, talk with portraits; Zelda and Secret of Mana), readable: the starter's shell (src/starter/00-shell.js), then
-// the slice from line 173 (src/starter/10-adventure.js: its header says what it plays and how), then the start (90-start.js), as the
+// the slice from line 190 (src/starter/10-adventure.js: its header says what it plays and how), then the start (90-start.js), as the
 // single-file kit holds them between GAME START and GAME END. adventure.html plays it; node kits/test.mjs adventure runs it headless.
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu and vertical slices, one per genre (a genre kit file holds one; the file with every
@@ -94,6 +94,21 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there in play (a touch screen,
 // from the first frame, before any touch: cornerArea's pinned), else the edge
 const cornerX = () => { const ca = game.cornerArea({ pinned: true }); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// the touch buttons upright: a row of four or five reaches across the screen's middle into the move stick's half, under
+// the left thumb set down to steer, so a slice with that many lays them out in two columns in the corner while the screen
+// is taller than wide (the ones that come and go first: the top row, where they leave a gap and move none), its row on its
+// side. fit = touchColumns(TOUCH, { labels }); enter: fit.reset() (the scene's row is laid out); each step, before its
+// touchSet calls: fit(), or fit(list), the buttons the player's settings can show (null: the row). Cheap: it lays them out
+// again only when that changes (the phone turned, a setting)
+const touchColumns = (actions, o = {}) => {
+  let was = null;   // (the list in two columns, or null: the scene's row)
+  const fit = (list = actions) => { const now = (game.screen.portrait && list) || null; if (now === was) return; was = now; game.input.touchButtons(now || actions, now ? Object.assign({}, o, { layout: 'grid' }) : o); };
+  fit.reset = () => { was = null; };
+  return fit;
+};
+// a result menu's way back to the title (○, Backspace, a sideways swipe; Esc where the scene leaves it to the menu), read
+// once the menu has shown t > .4 s: a dodge or a skip mashed as the game ends is no answer. Each step: backOut(menu, t)
+const toTitle = () => game.go('title'), backOut = (m, t) => { m.onCancel = t > .4 ? toTitle : null; };
 /* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
  * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
  * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
@@ -117,7 +132,8 @@ const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of d
 // START picks too (the touch START; Enter), any player's; a pad's Options or Esc opens the standard menu
 const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } else if (game.input.map.options && game.input.pressed('options')) { game.input.consumeAll(); game.menu(); } };
 // a title's and a game over's keys: the moves and the menu's, Enter starts, and Options or Esc opens the standard menu
-// (Settings, Controls, Button symbols), so a controller reaches them before it plays
+// (Settings, Controls, Button symbols), so a controller reaches them before it plays (on a game over Esc is a cancel key
+// first: it goes back with ○, Options opens the menu)
 const MENU_IN = { ...E.Input.MENU, start: ['Enter', 'NumpadEnter'], options: ['Escape', 'Pad9'] };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
@@ -155,14 +171,15 @@ scenes.title = {
   }
 };
 
-/* ---- GAME OVER: shared by every slice ---- */
+/* ---- GAME OVER: shared by every slice. ○, Backspace, Esc or a sideways swipe goes back to the title (as the scene's
+ * back() and every kit's result menu: backOut), Options opens the standard menu ---- */
 const overMenu = new E.Menu(game, [E.t('starter.over.retry'), E.t('starter.over.title')], { y: 118, onPick: i => game.go(i === 0 ? overMenu.from : 'title') });
 const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { x: .5, y: .3, r: 16, color: '#e8a0a0' }, stars: 30,
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: MENU_IN, res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
-  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; overMenu.t = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  update(dt) { backOut(overMenu, overMenu.t += dt); if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
@@ -310,7 +327,7 @@ const ADV = (() => {
     florist: { name: E.t('adventure.npc.lise'), face: Math.PI, idle: ['kneel', 'kneel', null], near: 36, talk: ['hips', 'cast'],   // tends the flower bed
       chore: () => new E.Attack('plunge', { hand: 'both', a0: -.5, a1: -.9, r0: 4, r1: 9, wind: .3, active: .16, recover: .45 }),
       lines: [E.t('adventure.lise.1'), E.t('adventure.lise.2')] },
-    villager: { name: E.t('adventure.npc.pip'), idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: [E.t('adventure.pip.1'), () => E.t('adventure.pip.2')] }   // a function: the player's own key ({key:attack})
+    villager: { name: E.t('adventure.npc.pip'), idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: [E.t('adventure.pip.1'), () => E.t('adventure.pip.2')] }   // a function: the player's own key ({key:attack}), on the device in use while the box is open
   };
   // BACKDROP (iso view): a sea of clouds
   const bg = new E.Backdrop({ sky: ['#3a74c8', '#8ac2ea', '#e4f2f4', '#9ccae6', '#5a90c8'], layers: [{ kind: 'clouds', color: '#ffffff', y: .3, height: .16, parallax: .04, drift: 3 },
@@ -458,7 +475,7 @@ const ADV = (() => {
     const t = h.charge >= .6 ? 'charged' : null; if (t !== padTrig) { padTrig = t; ds.trigger('right', t && { pulse: [.1, 18, .25] }); }
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
-  const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };   // (at the bottom, clear of the touch buttons)
+  const say = (who, name, text) => { speaker = who; talk.say(text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };   // (at the bottom, clear of the touch buttons)
   function hurtHero(ang) {   // flinch, knockback, blink; true if it hurt
     if (hero.inv > 0 || won || hero.hp <= 0) return false; hero.hp -= .5; hero.inv = 1; hero.hurt = .25; hero.charge = 0; hero.combo.cancel(); hero.spin.cancel(); hero.push(Math.cos(ang) * 160, Math.sin(ang) * 160);
     game.hitFx(hero.x + Math.cos(ang) * 3, hero.y + Math.sin(ang) * 3, 12, { power: .9, angle: ang + Math.PI, color: '#ff8a6a', sound: 'hurt' }); game.flash('#ff4a3a', .06, .4);

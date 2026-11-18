@@ -16,8 +16,9 @@
  * the pickups, the reload and the dry click from the controller's speaker; any pad rumbles on each shot, a bite, a
  * grab, a blow, a door, and beats with your heart in DANGER. TOUCH: the stick, ITEMS, RUN, AIM, ACT named for what
  * is there (OPEN, TAKE, BOX, SAVE, USE, LOOK; FIRE while aiming, SHAKE in a grab), SWAP (to the knife or the gun) while
- * not aiming; the touch assists (Settings, on at first) run at the stick's rim and lower the aim at a dog when the lock
- * moves to it. A tap picks on the items screen and in the box; a swipe closes them and takes a message away.
+ * not aiming (upright, the five in two columns in the corner, clear of the stick's half); the touch assists (Settings,
+ * on at first) run at the stick's rim and lower the aim at a dog when the lock moves to it. A tap picks on the items
+ * screen and in the box; a swipe closes them and takes a message away.
  * THE 3D: camera zones (world.camera.zones: fixed, one that turns after you, one on a rail), lock-on
  * (camera.lock, cycle), tank steering (camera.steer), the door between rooms (world.through), a flashlight with a
  * failing bulb (world.flashlight), fog. HORROR.run(n): a scripted walk's hash (the proof); HORROR.bot(): to the boss
@@ -577,7 +578,7 @@ const HORROR = (() => {
     act: ['KeyE', 'KeyF', 'KeyJ', 'Space', 'Mouse0', 'Pad0', 'Pad7'], aim: ['KeyK', 'Mouse2', 'Pad6', 'Pad4'], run: ['ShiftLeft', 'ShiftRight', 'Pad1'], swap: ['KeyQ', 'Pad3'], items: ['KeyI', 'Tab', 'Pad2', 'Pad17'],
     start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1'] };
   // the touch buttons (the actions' names: ITEMS, SWAP, RUN, AIM, ACT); ACT and SWAP are named for what they do (update)
-  const TOUCH = ['swap', 'items', 'run', 'aim', 'act'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t('action.' + a))]));
+  const TOUCH = ['swap', 'items', 'run', 'aim', 'act'], TOUCH_LABELS = Object.fromEntries(TOUCH.map(a => [a, E.lang.upper(E.t('action.' + a))])), fit = touchColumns(TOUCH, { labels: TOUCH_LABELS });   // (upright, two columns)
   // (assist: the touch assists, from the player's input: a proof's and the bot's own controls have none)
   const ctl = { move: [0, 0], tank: false, assist: false, down: a => game.input.down(a), pressed: a => game.input.pressed(a), use: a => game.input.consume(a) };
   function controls(dt) { ctl.tank = world.camera.tank; ctl.assist = game.input.assist; world.camera.steer(hero, game.input.move(), H.aim || H.grabbed || H.dead ? 0 : dt, ctl.move); if (H.aim) ctl.move[0] = game.input.move()[0]; return ctl; }
@@ -663,7 +664,7 @@ const HORROR = (() => {
     escape: 'back',
     back() { if (mode !== 'items' && mode !== 'box') return false; if (menu.sub) menu.sub = null; else closeScreen(); game.input.consumeAll(); return true; },
     enter() {
-      game.settings.define(Object.assign({}, W3.CONTROLS, { show: g => g.sceneName === 'horror' })); reset(1); active = world; A.music(null); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS });
+      game.settings.define(Object.assign({}, W3.CONTROLS, { show: g => g.sceneName === 'horror' })); reset(1); active = world; A.music(null); game.input.touchButtons(TOUCH, { labels: TOUCH_LABELS }); fit.reset();
       ds = E.DualSense ? E.DualSense.attach(game, { light: true, triggers: true, speaker: true }) : null; padLight = padTrig = null; flashT = beat = beat2 = 0; hintT = 8;
       game.saves.write = state; game.saves.read = s => reset(1, s.data);
       if (game.saves.any) { mode = 'intro'; menu = new E.Menu(game, [E.t('horror3d.intro.continue'), E.t('horror3d.intro.new')], { y: 'center', onPick: i => { mode = 'play'; menu = null; if (i === 0) game.saves.load(game.saves.latest().slot); } }); }
@@ -682,8 +683,9 @@ const HORROR = (() => {
       const want = H.room === 'gallery' && enemies.some(e => e.type === 'boss' && e.alive) ? DREAD : H.room === 'foyer' ? SAFE : HALL;
       if (want !== song && !ended && !H.dead) { song = want; A.music(want); }
       // ACT named for what it does here (OPEN, TAKE, BOX, SAVE, USE, LOOK; FIRE or STAB while aiming, SHAKE in a grab),
-      // always in its place at the edge (FIRE comes where the thumb that aims expects it); SWAP to the other weapon while
-      // not aiming, first in the row, so its coming and going moves no other button
+      // always in its place by the corner (FIRE comes where the thumb that aims expects it); SWAP to the other weapon while
+      // not aiming, first in the row (upright, on top of the two columns: fit), so its coming and going moves no other button
+      fit();
       const t = H.aim || H.grabbed || H.dead || world.passing ? null : world.reach(hero, 16), d = (t && t.data) || {};
       const what = H.dead ? null : H.grabbed ? 'shake' : H.aim ? (H.gun ? 'fire' : 'stab') : !t ? null : t.kind === 'door' ? (d.id === 'gate' ? 'look' : 'open') : d.item ? 'take' : t.kind === 'trunk' ? 'box' : t.kind === 'typewriter' ? 'save' : t === socket ? 'use' : null;
       inp.touchSet('act', what ? E.t('horror3d.touch.' + what) : null);

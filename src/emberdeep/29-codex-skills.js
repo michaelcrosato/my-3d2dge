@@ -697,10 +697,8 @@ BUS.on("draw", ({ r }) => {
 				c,
 			);
 		}
-		E.font.text(g, "SCRIPT", x + 13, y + 7, CX.paper, {
-			font: "tiny",
-			align: "center",
-		});
+		const sf = UI_tf({ align: "center" }); // (the normal font on a TV)
+		E.font.text(g, "SCRIPT", x + 13, y + (sf.font ? 7 : 6), CX.paper, sf);
 		} finally {
 			HUD_out(g);
 		}

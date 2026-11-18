@@ -700,6 +700,377 @@ try {
 			await mobile.close();
 		},
 	);
+	await check(
+		"A finger's tap follows its own finger: the first after a mouse or a pad, another finger landing or lifting meanwhile, a hit-stop, the focus lost under it, the waystone with the touch buttons hidden (a drag that scrolls it is no tap)",
+		async () => {
+			// a hot rect's middle in page pixels; what the top panel shows; touch points by CDP ([id, x, y]: a touchEnd that
+			// lists points lifts those alone)
+			const mid = (p, r) => p.evaluate((r) => { const sc = __ed.game.screen, rc = sc.canvas.getBoundingClientRect(); return [rc.left + ((r.x + r.w / 2) * sc.S + sc.OX - Math.round(sc.fx * sc.S)) / sc.dpr, rc.top + ((r.y + r.h / 2) * sc.S + sc.OY - Math.round(sc.fy * sc.S)) / sc.dpr]; }, r);
+			const hotBy = (p, label) => p.evaluate((l) => { const h = __ed.UI.hot.find((q) => q.label === l); return h && { x: h.x, y: h.y, w: h.w, h: h.h }; }, label);
+			const shown = (p) => p.evaluate(() => { const t = __ed.UI.top(); return t ? [t.id, __ed.UI.data(t.id) || null] : null; });
+			const fingers = (cdp) => (type, pts) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: pts.map(([id, x, y]) => ({ id, x, y })) });
+			// 1. a touch laptop or a tablet: the HUD and the loot panels lay out for the device in use, so a finger lands on
+			// what the mouse's or the pad's layout drew and is held over its own; its first tap still acts on what it pressed
+			const lap = await browser.newContext({ viewport: { width: 1024, height: 768 }, deviceScaleFactor: 2, hasTouch: true });
+			let p = await lap.newPage();
+			track(p);
+			await ready(p);
+			let T = fingers(await lap.newCDPSession(p));
+			for (const prev of ["mouse", "gamepad"]) {
+				await p.evaluate(() => __ed.UI.closeAll());
+				if (prev === "mouse") { await p.mouse.move(500, 300); await p.mouse.move(560, 340, { steps: 3 }); }
+				else await p.evaluate(() => { __ed.game.input.lastDevice = "gamepad"; });
+				await p.waitForTimeout(300);
+				const slot = await p.evaluate(() => { const H = __ed.game.screen.H, s = __ed.UI.hot.filter((h) => h.click && h.y > H - 70 && h.w < 30 && h.w === h.h).sort((a, b) => a.x - b.x)[2]; return s && { x: s.x, y: s.y, w: s.w, h: s.h }; });
+				assert.ok(slot, prev + ": the HUD's six skill slots");
+				const [x, y] = await mid(p, slot);
+				await T("touchStart", [[1, x, y]]);
+				await p.waitForTimeout(150);
+				await T("touchEnd", []);
+				await p.waitForTimeout(400);
+				assert.deepEqual(await shown(p), ["skills", { slot: 2 }], "after the " + prev + ", a finger's first tap on skill slot 3 opens Skills at it (its SKILL BAR is drawn over the slots while it is down)");
+			}
+			await p.evaluate(() => __ed.UI.closeAll());
+			await p.mouse.move(500, 300);
+			await p.mouse.move(560, 340, { steps: 3 });
+			await p.evaluate(() => __ed.UI.open("inventory"));
+			await p.waitForTimeout(400);
+			const tab = await p.evaluate(() => { const n = __edLoot.ui.navLast.find((q) => q.key === "tab:stats"); return n && { x: n.x, y: n.y, w: n.w, h: n.h }; });
+			const [tx, ty] = await mid(p, tab);
+			assert.equal(await p.evaluate(() => __edLoot.ui.tab), "bag");
+			await T("touchStart", [[1, tx, ty]]);
+			await p.waitForTimeout(150);
+			await T("touchEnd", []);
+			await p.waitForTimeout(400);
+			assert.equal(await p.evaluate(() => __edLoot.ui.tab), "stats", "after the mouse, a finger's first tap on the CHARACTER tab turns to it (the tab grows a finger tall while it is down)");
+			assert.deepEqual(await p.evaluate(() => __ed.game.errors), []);
+			await lap.close();
+			// 2. a phone on its side: the left thumb on the stick (lifting or landing) while the right taps the HUD; a hit-stop
+			const phone = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+			p = await phone.newPage();
+			track(p);
+			await ready(p);
+			T = fingers(await phone.newCDPSession(p));
+			const S = [210, 230];
+			await T("touchStart", [[9, ...S]]);
+			await p.waitForTimeout(120);
+			await T("touchEnd", []);
+			await p.waitForTimeout(500);
+			const B = await mid(p, await hotBy(p, "SKILL BAR")), C = await mid(p, await hotBy(p, "POINTS"));
+			const runs = [
+				["the stick lifts during a tap on SKILL BAR", B, async (P) => { await T("touchStart", [[1, ...S]]); await p.waitForTimeout(150); await T("touchStart", [[1, ...S], [2, ...P]]); await p.waitForTimeout(120); await T("touchEnd", [[1, ...S]]); await p.waitForTimeout(150); await T("touchEnd", [[2, ...P]]); }],
+				["the stick lifts during a tap on the points chip", C, async (P) => { await T("touchStart", [[1, ...S]]); await p.waitForTimeout(150); await T("touchStart", [[1, ...S], [2, ...P]]); await p.waitForTimeout(120); await T("touchEnd", [[1, ...S]]); await p.waitForTimeout(150); await T("touchEnd", [[2, ...P]]); }],
+				["the stick lands during a tap on SKILL BAR", B, async (P) => { await T("touchStart", [[2, ...P]]); await p.waitForTimeout(120); await T("touchStart", [[2, ...P], [1, ...S]]); await p.waitForTimeout(150); assert.ok(await p.evaluate(() => __ed.game.input.stickOn), "the thumb steers"); await T("touchEnd", [[2, ...P]]); await p.waitForTimeout(150); await T("touchEnd", []); }],
+				// (the input's step runs in a hit-stop, the scene's doesn't: the press waits for the first step in play)
+				["a tap on SKILL BAR in a hit-stop", B, async (P) => { await p.evaluate(() => { __ed.game.hitstop = 0.4; }); await T("touchStart", [[1, ...P]]); await p.waitForTimeout(60); await T("touchEnd", []); await p.waitForTimeout(500); }],
+			];
+			for (const [name, P, run] of runs) {
+				await p.evaluate(() => __ed.UI.closeAll());
+				await p.waitForTimeout(250);
+				await run(P);
+				await p.waitForTimeout(300);
+				assert.equal((await shown(p))?.[0], "skills", name + " opens Skills");
+			}
+			// and what made the press wait for the tap still holds: a flick begun on SKILL BAR opens nothing
+			await p.evaluate(() => __ed.UI.closeAll());
+			await p.waitForTimeout(250);
+			await T("touchStart", [[1, ...B]]);
+			for (let k = 1; k <= 4; k++) { await p.waitForTimeout(8); await T("touchMove", [[1, B[0] - k * 20, B[1] - k * 15]]); }
+			await T("touchEnd", []);
+			await p.waitForTimeout(400);
+			assert.equal(await shown(p), null, "a flick begun on SKILL BAR opens nothing");
+			// a finger resting on a bag item (its tooltip up) as the window loses focus: its press goes, and its hover with
+			// it, so its lift leaves no tooltip behind
+			await p.evaluate(() => { const { ED, UI } = __ed, h = ED.hero; UI.closeAll(); h.bag.length = 0; for (let i = 0; i < 3; i++) h.bag.push(__ed.makeItem({ slot: "helm", ilvl: 20, rarity: 1 })); UI.open("inventory"); });
+			await p.waitForTimeout(400);
+			await p.evaluate(() => { __edLoot.ui.gear = false; __edLoot.ui.tab = "bag"; });
+			await p.waitForTimeout(250);
+			const I = await mid(p, await p.evaluate(() => { const n = __edLoot.ui.navLast.find((q) => q.it && /^bag/.test(q.key)); return n && { x: n.x, y: n.y, w: n.w, h: n.h }; }));
+			const itemTip = () => p.evaluate(() => !!(__edLoot.ui.tip && __edLoot.ui.tip.it));
+			await T("touchStart", [[1, ...I]]);
+			await p.waitForTimeout(250);
+			assert.ok(await itemTip(), "a finger on a bag item shows its tooltip");
+			await p.evaluate(() => dispatchEvent(new Event("blur")));
+			await p.waitForTimeout(200);
+			await T("touchEnd", []);
+			await p.waitForTimeout(500);
+			assert.ok(!(await itemTip()), "the finger down as the focus went has lifted: its tooltip has gone with it");
+			// 3. the waystone with the touch buttons hidden (Settings, Controls): a finger dragged up its list scrolls it
+			await p.evaluate(() => { __ed.UI.closeAll(); __ed.CONTROL.touch = "off"; __ed.ED.hero.maxDepth = 70; __ed.UI.open("waystone"); });
+			await p.waitForTimeout(400);
+			const rows = await p.evaluate(() => __ed.UI.hot.filter((h) => /^DEPTH/.test(h.label || "")).map((h) => ({ x: h.x, y: h.y, w: h.w, h: h.h, l: h.label })));
+			const [x0, y0] = await mid(p, rows[rows.length - 1]), [x1, y1] = await mid(p, rows[0]);
+			await T("touchStart", [[1, x0, y0]]);
+			await p.waitForTimeout(60);
+			for (let k = 1; k <= 12; k++) { await T("touchMove", [[1, x0 + ((x1 - x0) * k) / 12, y0 + ((y1 - y0) * k) / 12]]); await p.waitForTimeout(40); }
+			await T("touchEnd", []);
+			await p.waitForTimeout(400);
+			const way = await p.evaluate(() => ({ first: (__ed.UI.hot.find((h) => /^DEPTH/.test(h.label || "")) || {}).label, open: __ed.UI.top()?.id, mode: __ed.ED.mode, buttons: !!document.querySelector(".ed-touch") }));
+			assert.ok(!way.buttons && way.open === "waystone" && way.mode === "town" && way.first !== rows[0].l, "the touch buttons hidden, a finger's drag scrolls the waystone and descends nowhere: " + JSON.stringify(way));
+			await p.evaluate(() => { __ed.CONTROL.touch = "auto"; });
+			assert.deepEqual(await p.evaluate(() => __ed.game.errors), []);
+			await phone.close();
+			// 4. a small phone on its side (a CSS px a game px), the touch buttons hidden: the rows a menu's height, half a row
+			// is less than a tap's 12 CSS px, so a short drag up scrolls a row under the finger before it lifts. A press that
+			// scrolled is a drag: it descends nowhere, not to the depth scrolled under it; a tap still descends
+			const small = await browser.newContext({ viewport: { width: 568, height: 320 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+			p = await small.newPage();
+			track(p);
+			await ready(p);
+			T = fingers(await small.newCDPSession(p));
+			const wayRows = () => p.evaluate(() => __ed.UI.hot.filter((h) => h.drag && /^DEPTH/.test(h.label || "")).map((h) => ({ x: h.x, y: h.y, w: h.w, h: h.h, l: h.label })));
+			const wayOpen = async () => { await p.evaluate(() => { __ed.UI.closeAll(); __ed.CONTROL.touch = "off"; const h = __ed.ED.hero, w = __ed.ED.L.waystone; h.maxDepth = 70; h.x = w.x + 16; h.y = w.y + 4; __ed.UI.open("waystone"); }); await p.waitForTimeout(400); return wayRows(); };
+			let wr = await wayOpen();
+			const r2 = wr[2], [nx, ny] = await mid(p, { x: r2.x, y: r2.y + r2.h - 3, w: r2.w, h: 2 });   // (near the bottom of DEPTH 60's row)
+			assert.ok(/^DEPTH 60/.test(r2.l) && r2.h < 16, "the third row is DEPTH 60, a menu row: " + JSON.stringify(r2));
+			await T("touchStart", [[1, nx, ny]]);
+			await p.waitForTimeout(80);
+			for (let k = 1; k <= 6; k++) { await T("touchMove", [[1, nx, ny - (10 * k) / 6]]); await p.waitForTimeout(50); }
+			await p.waitForTimeout(120);
+			const nudged = (await wayRows())[0].l;
+			await T("touchEnd", []);
+			await p.waitForTimeout(600);
+			const after = await p.evaluate(() => ({ open: __ed.UI.top()?.id, mode: __ed.ED.mode, depth: __ed.ED.depth }));
+			assert.ok(nudged !== wr[0].l && after.open === "waystone" && after.mode === "town", "a finger dragged up 10 CSS px scrolls the waystone a row and descends nowhere: " + JSON.stringify({ nudged, ...after }));
+			wr = await wayOpen();
+			const [qx, qy] = await mid(p, wr[2]);
+			await T("touchStart", [[1, qx, qy]]);
+			await p.waitForTimeout(100);
+			await T("touchEnd", []);
+			await p.waitForTimeout(600);
+			assert.deepEqual(await p.evaluate(() => [__ed.ED.mode, __ed.ED.depth]), ["level", 60], "a tap on DEPTH 60 descends to it");
+			assert.deepEqual(await p.evaluate(() => __ed.game.errors), []);
+			await small.close();
+		},
+	);
+	await check(
+		"inside 52in1 the DualSense comes through the hub's channel (AIHubSettings), each extra only while its Settings allow it, never WebHID",
+		async () => {
+			const hubCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+			await hubCtx.addInitScript(() => {
+				// a stand-in for 52in1's companion (its lib/hub/companion.js): what the game is told, and what it asks
+				const calls = [], api = new EventTarget();
+				let gyroReads = 0, fingers = [], gy = { x: 0, y: 40, z: 0 }, pull = null;
+				const pad = {
+					connected: true, lightbar: true, triggers: false, motion: true, touchpad: true, speaker: false, aim: false,
+					light: (c) => calls.push(["light", c]),
+					trigger: (w, e) => calls.push(["trigger", w, e]),
+					openSpeaker: () => Promise.resolve(null),
+				};
+				Object.defineProperty(pad, "gyro", { get: () => (gyroReads++, gy) });
+				Object.defineProperty(pad, "accel", { get: () => pull });   // (the accelerometer's pull in g; none until a phase lays the controller on a table)
+				Object.defineProperty(pad, "touches", { get: () => fingers });
+				let mics = 0;
+				Object.assign(api, { version: 1, music: 1, effects: 1, vibration: 1, mic: false, muted: false, dualsense: pad, openMicrophone: () => (mics++, Promise.resolve(null)) });
+				window.AIHubSettings = api;
+				window.__hub = { calls, pad, api, gyroReads: () => gyroReads, mics: () => mics, fingers: (f) => (fingers = f), turn: (y, x = 0, z = 0) => (gy = { x, y, z }), pull: (a) => (pull = a), tell: () => api.dispatchEvent(new Event("change")) };
+				window.__hidTouched = false;
+				Object.defineProperty(Navigator.prototype, "hid", { configurable: true, get() { window.__hidTouched = true; return undefined; } });
+			});
+			const p = await hubCtx.newPage();
+			track(p);
+			await ready(p);
+			const step = (n) => p.evaluate((n) => new Promise((r) => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);   // (n frames of the page)
+			await p.evaluate(() => window.__ed.game.settings.set("gyro", "off"));
+			const r = await p.evaluate(async () => {
+				const g = window.__ed.game, S = g.settings, ds = My3D2dge.DualSense.attach(g), H = window.__hub, lock = (k) => S.spec(k).locked(g);
+				const out = { connected: ds.connected, light: lock("padLight"), triggers: lock("padTriggers"), gyro: lock("gyro"), speaker: lock("padSpeaker") };
+				ds.light("#ff2040"); ds.trigger("right", { weapon: [0.2, 0.6, 0.8] });
+				out.lit = H.calls.filter((c) => c[0] === "light").pop();
+				out.trigOff = H.calls.filter((c) => c[0] === "trigger" && c[1] === "right").pop();
+				out.readsOff = H.gyroReads();
+				return out;
+			});
+			assert.equal(r.connected, true, "a DualSense connected in 52in1's Settings is the game's");
+			assert.equal(r.light, null, "the light bar's row is open: 52in1 lets games colour it");
+			assert.equal(r.gyro, null, "and gyro aim's");
+			assert.match(r.triggers || "", /52in1/, "the triggers' row is locked while 52in1's Trigger effects are off, and says where");
+			assert.match(r.speaker || "", /52in1/, "the speaker's while 52in1 has not allowed it");
+			assert.deepEqual(r.lit, ["light", "#ff2040"], "the light bar's colour goes through the hub");
+			assert.deepEqual(r.trigOff, ["trigger", "right", null], "a trigger 52in1 keeps from games stays free");
+			await step(10);
+			assert.equal(await p.evaluate(() => window.__hub.gyroReads()), 0, "the gyro is not read while gyro aim is off: the hub's own Motion aim keeps the stick");
+			// 52in1's Settings changed over the game: the triggers allowed, gyro aim on
+			await p.evaluate(() => { window.__hub.pad.triggers = true; window.__hub.tell(); window.__ed.game.settings.set("gyro", "high"); });
+			await step(10);
+			const r2 = await p.evaluate(() => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub;
+				ds.trigger("right", { weapon: [0.2, 0.6, 0.8] });
+				return { lock: g.settings.spec("padTriggers").locked(g), trig: H.calls.filter((c) => c[0] === "trigger" && c[1] === "right").pop(), reads: H.gyroReads(), aim: ds.gyroAim(1 / 60) };
+			});
+			assert.equal(r2.lock, null, "allowed in 52in1's Settings: the row opens at once");
+			assert.deepEqual(r2.trig, ["trigger", "right", { kind: "weapon", from: 0.2, to: 0.6, strength: 0.8 }], "the effect in the hub's words");
+			assert.ok(r2.reads > 0 && r2.aim[0] < 0, "gyro aim on: the turn left (+y) moves the aim left");
+			// the gyro's drift is learned only from a reading under a degree a second (a healthy DualSense's firmware takes its
+			// gyro's bias out: a few tenths are left), never from a turn, however slow, steady or long, lying still or not. A
+			// slow, steady turn of the hand (4 degrees a second, after holding still) moves the aim all the way and nothing
+			// creeps back after it, nor after a turn that speeds up gently to 30 and stops, nor after a slower one (2.5 degrees
+			// a second for 4 s). Laid on a table (the pull steady), its own drift of 0.4 degrees a second is learned: the aim
+			// stays put; turned slowly on the table (1.8 degrees a second for 8 s: the pull steady, the reading held as long as
+			// a rest, where a rest of 5 s took it for drift), the aim moves all the way, and left lying nothing runs back. Each
+			// phase the module's own steps, the reading (the turn and the drift) set for the next step
+			await p.evaluate(() => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub, T = 29.2;
+				const turn = (t) => (t < 1.2 ? 0 : t < 3.2 ? 4 : t < 4.7 ? 0 : t < 6.2 ? (t - 4.7) * 20 : t < 8.2 ? 0 : t < 12.2 ? 2.5 : t < 18.2 ? 0 : t < 26.2 ? -1.8 : 0);
+				const drift = (t) => (t < 16.2 ? 0 : 0.4), ends = [1.2, 3.2, 4.7, 6.2, 8.2, 12.2, 16.2, 18.2, 26.2, T];
+				const run = (window.__gyroRun = { t: 0, phases: ends.map(() => ({ deg: 0, px: 0 })) });
+				H.turn(0);
+				g.hook("input", (dt) => {
+					if (run.t >= T) return;
+					const ph = run.phases[ends.findIndex((e) => run.t < e)];
+					ph.deg += turn(run.t) * dt; ph.px += ds.gyroAim(dt)[0];
+					run.t += dt; H.turn(run.t >= T ? 0 : turn(run.t) + drift(run.t)); H.pull(run.t >= 16.2 && run.t < T ? { x: 0, y: 1, z: 0 } : null);
+				});
+			});
+			await p.waitForFunction(() => window.__gyroRun.t >= 29.2, null, { timeout: 90000 });
+			const gr = await p.evaluate(() => window.__gyroRun.phases.map((ph) => ({ deg: +ph.deg.toFixed(2), px: +ph.px.toFixed(1) })));
+			assert.ok(-gr[1].px >= gr[1].deg * 9 * 0.9, "a slow, steady turn after holding still moves the aim (9 px a degree on High): " + JSON.stringify(gr));
+			assert.ok(Math.abs(gr[2].px) < 2, "and held still after it, the aim stays put: " + JSON.stringify(gr));
+			assert.ok(-gr[3].px >= gr[3].deg * 9 * 0.9, "a turn that speeds up gently moves it all the way: " + JSON.stringify(gr));
+			assert.ok(Math.abs(gr[4].px) < 3, "and nothing creeps after it stops: " + JSON.stringify(gr));
+			assert.ok(-gr[5].px >= gr[5].deg * 9 * 0.9, "a slower turn, 2.5 degrees a second for 4 s, moves it all the way too: " + JSON.stringify(gr));
+			assert.ok(Math.abs(gr[6].px) < 3, "and held still after it, nothing runs back: " + JSON.stringify(gr));
+			assert.ok(Math.abs(gr[7].px) < 2, "laid on a table, the controller's own drift of 0.4 degrees a second: the aim stays put: " + JSON.stringify(gr));
+			assert.ok(gr[8].px >= -gr[8].deg * 9 * 0.9, "turned slowly on the table (1.8 degrees a second for 8 s, right), the aim moves all the way: " + JSON.stringify(gr));
+			assert.ok(Math.abs(gr[9].px) < 3, "and left lying after it, nothing runs back: " + JSON.stringify(gr));
+			// connected afresh (52in1's channel says it went and came back: its drift its own, and its gyro read again) in a
+			// hand as steady as a table (the pull steady), turning 2.5 degrees a second for 4 s, the controller drifting 0.4
+			// degrees a second on its pitch: the turn moves the aim all the way (a first rest that came mid-turn took most of
+			// it for the drift). Then an ordinary hand (its turn trembling about a degree a second, its pull a hundredth and a
+			// half of a g) holds still 2.5 s: the aim stays put; turns again at that speed for 1.5 s: the aim moves all the
+			// way; and held 10 s, nothing runs back (a take given back was taken again by such a turn, which then ran back
+			// about 90 px). Each with the reading set for the next step
+			await p.evaluate(() => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub, T = 18, ends = [4, 6.5, 8, T];
+				const run = (window.__gyroRun2 = { t: 0, phases: ends.map(() => ({ deg: 0, px: 0 })) });
+				const shake = (t) => 0.7 * Math.sin(2 * Math.PI * 8.7 * t) + 0.5 * Math.sin(2 * Math.PI * 11.3 * t + 1) + 0.3 * Math.sin(2 * Math.PI * 0.7 * t);   // (a hand's tremor, degrees a second)
+				const turn = (t) => (t < 4 || (t >= 6.5 && t < 8) ? 2.5 : 0);
+				const set = (t) => {   // (the turn and the drift, the hand's tremor, the pull in g)
+					if (t < 4) { H.turn(2.5, 0.4); H.pull({ x: 0, y: 0.82, z: 0.57 }); return; }
+					const w = shake(t), j = 0.012 * Math.sin(2 * Math.PI * 9 * t) + 0.006 * Math.sin(2 * Math.PI * 1.3 * t);
+					H.turn(turn(t) + w, 0.4 + w * 0.8); H.pull({ x: j, y: 0.82 + j * 0.7, z: 0.57 - j });
+				};
+				H.pad.connected = false; H.tell(); H.pad.connected = true; H.tell(); set(0);
+				g.hook("input", (dt) => {
+					if (run.t >= T) return;
+					const ph = run.phases[ends.findIndex((e) => run.t < e)];
+					ph.deg += turn(run.t) * dt; ph.px += ds.gyroAim(dt)[0];
+					run.t += dt; if (run.t < T) set(run.t); else { H.turn(0); H.pull(null); }
+				});
+			});
+			await p.waitForFunction(() => window.__gyroRun2.t >= 18, null, { timeout: 90000 });
+			const g2 = await p.evaluate(() => window.__gyroRun2.phases.map((ph) => ({ deg: +ph.deg.toFixed(2), px: +ph.px.toFixed(1) })));
+			assert.ok(-g2[0].px >= g2[0].deg * 9 * 0.9, "connected afresh in a steady hand turning 2.5 degrees a second, the gyro is read and the turn moves the aim all the way: " + JSON.stringify(g2));
+			assert.ok(Math.abs(g2[1].px) < 3, "an ordinary hand held still after it: the aim stays put: " + JSON.stringify(g2));
+			assert.ok(-g2[2].px >= g2[2].deg * 9 * 0.85, "a turn at the same speed soon after moves it all the way: " + JSON.stringify(g2));
+			assert.ok(Math.abs(g2[3].px) < 3, "and held 10 s, nothing runs back: " + JSON.stringify(g2));
+			// connected afresh again, a healthy controller's own drift (0.4 degrees a second on its yaw, -0.3 on its pitch,
+			// 0.2 on its roll) on a table 3 s, then picked up: the aim stays put; slow pans of 2 degrees a second for 2 s,
+			// each way, with 1 s pauses, move it as turned, and the pauses leave it put
+			await p.evaluate(() => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub, T = 16, ends = [3, 4, 6, 7, 9, 10, 12, 13, 15, T];
+				const run = (window.__gyroRun3 = { t: 0, phases: ends.map(() => ({ deg: 0, px: 0 })) });
+				const turn = (t) => (t < 4 ? 0 : t < 6 || (t >= 10 && t < 12) ? -2 : (t >= 7 && t < 9) || (t >= 13 && t < 15) ? 2 : 0);
+				const shake = (t) => 0.7 * Math.sin(2 * Math.PI * 8.7 * t) + 0.5 * Math.sin(2 * Math.PI * 11.3 * t + 1) + 0.3 * Math.sin(2 * Math.PI * 0.7 * t);
+				const set = (t) => {   // (on the table: the drift alone, the pull steady; in the hand: the turn, the drift and the tremor)
+					if (t < 3) { H.turn(0.4, -0.3, 0.2); H.pull({ x: 0, y: 1, z: 0 }); return; }
+					const w = shake(t), j = 0.012 * Math.sin(2 * Math.PI * 9 * t) + 0.006 * Math.sin(2 * Math.PI * 1.3 * t);
+					H.turn(turn(t) + 0.4 + w, -0.3 + w * 0.8, 0.2 + w * 0.5); H.pull({ x: j, y: 0.82 + j * 0.7, z: 0.57 - j });
+				};
+				H.pad.connected = false; H.tell(); H.pad.connected = true; H.tell(); set(0);
+				g.hook("input", (dt) => {
+					if (run.t >= T) return;
+					const ph = run.phases[ends.findIndex((e) => run.t < e)];
+					ph.deg += turn(run.t) * dt; ph.px += ds.gyroAim(dt)[0];
+					run.t += dt; if (run.t < T) set(run.t); else { H.turn(0); H.pull(null); }
+				});
+			});
+			await p.waitForFunction(() => window.__gyroRun3.t >= 16, null, { timeout: 90000 });
+			const g3 = await p.evaluate(() => window.__gyroRun3.phases.map((ph) => ({ deg: +ph.deg.toFixed(2), px: +ph.px.toFixed(1) })));
+			assert.ok(Math.abs(g3[0].px) < 3 && Math.abs(g3[1].px) < 3, "a healthy controller's own drift, on a table and then picked up: the aim stays put: " + JSON.stringify(g3));
+			for (const i of [2, 4, 6, 8]) { const want = g3[i].deg * 9; assert.ok(-g3[i].px / want > 0.65 && -g3[i].px / want < 1.25, "connected afresh again, the gyro is read: each slow pan moves the aim as turned (" + i + "): " + JSON.stringify(g3)); }
+			for (const i of [3, 5, 7, 9]) assert.ok(Math.abs(g3[i].px) < 3, "and each pause leaves it put (" + i + "): " + JSON.stringify(g3));
+			// connected afresh again, a worn controller whose yaw drifts 1.2 degrees a second (past what its firmware takes
+			// out): on a table 4 s, then pans of 2.2 degrees a second for 2 s against the drift and with it, 1.5 s pauses,
+			// twice, then laid on the table 10 s. A pan's reading near nought is no rest: the pans against it still move the
+			// aim their way, and lying on the table it creeps no further (round 5's rule took the pans for the drift, and
+			// the aim then ran on by itself, about 150 px in the 10 s)
+			const tremor = (t) => 0.7 * Math.sin(2 * Math.PI * 8.7 * t) + 0.5 * Math.sin(2 * Math.PI * 11.3 * t + 1) + 0.3 * Math.sin(2 * Math.PI * 0.7 * t);
+			const gyroRun = (name, T, ends, turn, set) => p.evaluate(([name, T, ends, turn, set, tremor]) => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub, shake = eval(tremor), tf = eval(turn), sf = eval(set);
+				const run = (window[name] = { t: 0, phases: ends.map(() => ({ deg: 0, px: 0 })) });
+				H.pad.connected = false; H.tell(); H.pad.connected = true; H.tell(); sf(0, H, shake, tf);
+				g.hook("input", (dt) => {
+					if (run.t >= T) return;
+					const ph = run.phases[ends.findIndex((e) => run.t < e)];
+					ph.deg += tf(run.t) * dt; ph.px += ds.gyroAim(dt)[0];
+					run.t += dt; if (run.t < T) sf(run.t, H, shake, tf); else { H.turn(0); H.pull(null); }
+				});
+			}, [name, T, ends, turn.toString(), set.toString(), tremor.toString()]);
+			const gyroOut = async (name, T) => { await p.waitForFunction(([n, T]) => window[n].t >= T, [name, T], { timeout: 90000 }); return p.evaluate((n) => window[n].phases.map((ph) => ({ deg: +ph.deg.toFixed(2), px: +ph.px.toFixed(1) })), name); };
+			await gyroRun("__gyroRun4", 28, [4, 6, 7.5, 9.5, 11, 13, 14.5, 16.5, 18, 28],
+				(t) => ((t >= 4 && t < 6) || (t >= 11 && t < 13) ? -2.2 : (t >= 7.5 && t < 9.5) || (t >= 14.5 && t < 16.5) ? 2.2 : 0),
+				(t, H, shake, turn) => {   // (on the table: the drift alone, the pull steady; in the hand: the turn, the drift and the tremor)
+					if (t < 4 || t >= 18) { H.turn(1.2); H.pull({ x: 0, y: 1, z: 0 }); return; }
+					const w = shake(t), j = 0.012 * Math.sin(2 * Math.PI * 9 * t) + 0.006 * Math.sin(2 * Math.PI * 1.3 * t);
+					H.turn(turn(t) + 1.2 + w, w * 0.8, w * 0.5); H.pull({ x: j, y: 0.82 + j * 0.7, z: 0.57 - j });
+				});
+			const g4 = await gyroOut("__gyroRun4", 28);
+			for (const i of [1, 5]) assert.ok(-g4[i].px / (g4[i].deg * 9) >= 0.25, "a worn controller's drift of 1.2: each pan against it moves the aim its way (" + i + "): " + JSON.stringify(g4));
+			assert.ok(Math.abs(g4[9].px) < 5, "and laid on the table 10 s after the pans, the aim creeps no further: " + JSON.stringify(g4));
+			// connected afresh again, a healthy controller in a calm hand: held 3 s, a turn that eases in from nought to 2
+			// degrees a second over 4 s, then holds 2 for 3 s, held 4 s; the same the other way. The slow start is not taken
+			// for drift: the turn at 2 moves the aim at least 0.7 of the way (round 5's rule followed the slow start, and gave
+			// half), and held, nothing runs back
+			await gyroRun("__gyroRun5", 25, [3, 7, 10, 14, 18, 21, 25],
+				(t) => (t < 3 ? 0 : t < 7 ? (2 * (t - 3)) / 4 : t < 10 ? 2 : t < 14 ? 0 : t < 18 ? (-2 * (t - 14)) / 4 : t < 21 ? -2 : 0),
+				(t, H, shake, turn) => { const w = shake(t) / 3, j = 0.004 * Math.sin(2 * Math.PI * 9 * t); H.turn(turn(t) + w, w * 0.8, w * 0.5); H.pull({ x: j, y: 0.82 + j * 0.7, z: 0.57 - j }); });
+			const g5 = await gyroOut("__gyroRun5", 25);
+			for (const i of [2, 5]) assert.ok(-g5[i].px / (g5[i].deg * 9) >= 0.7, "a turn that eases in: once at 2 degrees a second it moves the aim at least 0.7 of the way (" + i + "): " + JSON.stringify(g5));
+			for (const i of [3, 6]) assert.ok(Math.abs(g5[i].px) < 3, "and held after it, nothing runs back (" + i + "): " + JSON.stringify(g5));
+			await p.evaluate(() => window.__hub.pull(null));
+			// a flick on the touchpad
+			await p.evaluate(() => { const ds = My3D2dge.DualSense.attach(window.__ed.game); window.__ed.game.hook("input", () => { if (ds.swipe()) window.__sw = ds.swipe(); }); window.__hub.fingers([{ id: 1, x: 0.2, y: 0.5 }]); });
+			await step(2);
+			await p.evaluate(() => window.__hub.fingers([{ id: 1, x: 0.7, y: 0.5 }]));
+			await step(2);
+			await p.evaluate(() => window.__hub.fingers([]));
+			await step(3);
+			const sw = await p.evaluate(() => window.__sw || null);
+			assert.equal(sw, "right", "a flick on the touchpad from the hub's fingers");
+			// 52in1's Light bar off: the row locked, and no colour of the game's reaches the hub
+			const lb = await p.evaluate(() => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub;
+				H.pad.lightbar = false; H.tell(); const n = H.calls.length; ds.light("#00ff00");
+				const out = { lock: g.settings.spec("padLight").locked(g), sent: H.calls.slice(n).filter((c) => c[0] === "light" && c[1]) };
+				H.pad.lightbar = true; H.tell(); return out;
+			});
+			assert.match(lb.lock || "", /52in1/, "52in1 keeps the light bar from games: its row is locked and says where");
+			assert.deepEqual(lb.sent, [], "and no colour of the game's is sent");
+			// the microphone: its row opens only once 52in1 lets games hear it, and only then is it opened
+			const mic = await p.evaluate(async () => {
+				const g = window.__ed.game, S = g.settings, H = window.__hub, wait = () => new Promise((r) => setTimeout(r, 50));
+				My3D2dge.DualSense.attach(g, { mic: true });
+				const out = { before: S.spec("mic").locked(g) };
+				S.set("mic", true); await wait(); out.opensBefore = H.mics();
+				H.api.mic = true; H.tell(); await wait(); out.after = S.spec("mic").locked(g); out.opensAfter = H.mics();
+				H.api.mic = false; H.tell(); out.again = S.spec("mic").locked(g); S.set("mic", false);
+				return out;
+			});
+			assert.match(mic.before || "", /52in1/, "the microphone's row is locked until 52in1 lets games hear it");
+			assert.equal(mic.opensBefore, 0, "and the game never asks for it then, even with its own row on");
+			assert.equal(mic.after, null, "allowed in 52in1: the row opens");
+			assert.equal(mic.opensAfter, 1, "and the microphone is opened through the hub, once");
+			assert.match(mic.again || "", /52in1/, "taken back in 52in1: locked again");
+			// 52in1's DualSense gone: every row locked again, the light given back
+			const r3 = await p.evaluate(() => { const g = window.__ed.game, H = window.__hub; H.pad.connected = false; H.tell(); return { light: g.settings.spec("padLight").locked(g), connected: My3D2dge.DualSense.attach(g).connected }; });
+			assert.equal(r3.connected, false);
+			assert.match(r3.light || "", /Connect a DualSense/, "no DualSense in 52in1: its rows say how to connect one");
+			assert.equal(await p.evaluate(() => window.__hidTouched), false, "the game never touched WebHID");
+			assert.deepEqual(await p.evaluate(() => window.__ed.game.errors), []);
+			await hubCtx.close();
+		},
+	);
 	assert.deepEqual(await page.evaluate(() => __ed.game.errors), []);
 	assert.deepEqual(errors, []);
 	writeFileSync(

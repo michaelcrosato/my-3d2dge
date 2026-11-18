@@ -13,6 +13,9 @@
 //      with what the player had set there (vibration off, stored under the play file's page) moved to the page's own name
 //   8. a session recorded at the old site's root (/, Emberdeep until v0.92.0: case 1's, its address changed) replays on
 //      Emberdeep, not on the play file's home
+//   9. a session recorded inside 52in1 with a DualSense (a stand-in for its companion, window.AIHubSettings): a flick on
+//      the controller's touchpad turns the bag's page; the replay, with no hub, hears the touchpad as recorded
+//      (E.session.stream) and turns it too
 // Usage: node tools/replay-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 // Sessions and pictures in check-output/replay-test/.
 import { chromium } from 'playwright';
@@ -167,6 +170,28 @@ console.log('8. recorded at the old site\'s root (/, Emberdeep until v0.92.0), r
   writeFileSync(file, JSON.stringify(S));
   const r = check('emberdeep-old-root', { file, state: desk.state, S }, ED_PROBE);
   if (!/on file:.*\/examples\/emberdeep\.html\?record=1#depth-3,/.test(r.text)) fail('a session recorded at / was not replayed on examples/emberdeep.html:\n' + r.text);
+}
+
+console.log('9. inside 52in1 with a DualSense: a touchpad flick turns the bag\'s page, and the replay hears it');
+{
+  const hub = () => {   // 52in1's companion as far as the dualsense module reaches: a DualSense connected, its fingers
+    const api = new EventTarget(), pad = { connected: true, lightbar: true, triggers: true, motion: true, touchpad: true, speaker: false, aim: false, light() {}, trigger() {}, openSpeaker: () => Promise.resolve(null) };
+    window.__fingers = []; Object.defineProperty(pad, 'touches', { get: () => window.__fingers }); Object.defineProperty(pad, 'gyro', { get: () => ({ x: 0, y: 0, z: 0 }) });
+    window.AIHubSettings = Object.assign(api, { version: 1, music: 1, effects: 1, vibration: 1, mic: false, muted: false, dualsense: pad, openMicrophone: () => Promise.resolve(null) });
+  };
+  const PROBE9 = '[' + ED_PROBE.slice(1, -1) + ', __edLoot.ui.tab, My3D2dge.DualSense.attach(__ed.game).connected]';
+  const inHub = await record('emberdeep-52in1-touchpad', 'examples/emberdeep.html?record=1#depth-3', { viewport: { width: 960, height: 540 } }, async p => {
+    await p.waitForFunction(() => window.__ed && __ed.game, null, { timeout: 60000 }); await p.waitForTimeout(1500);
+    await p.keyboard.down('KeyD'); await p.waitForTimeout(400); await p.keyboard.up('KeyD');
+    await p.keyboard.press('KeyI'); await p.waitForTimeout(500);
+    for (const x of [0.75, 0.55, 0.3]) { await p.evaluate(x => { window.__fingers = [{ id: 1, x, y: 0.5 }]; }, x); await p.waitForTimeout(60); }
+    await p.evaluate(() => { window.__fingers = []; }); await p.waitForTimeout(500);
+    await p.keyboard.press('KeyA'); await p.waitForTimeout(300);
+  }, PROBE9, hub);
+  const st = JSON.parse(inHub.state);
+  if (st.at(-2) !== 'stats' || st.at(-1) !== true) fail('the touchpad flick did not turn the bag\'s page inside the stand-in 52in1: ' + inHub.state);
+  if (!(inHub.S.streams && inHub.S.streams.dualsense && inHub.S.streams.dualsense.length > 2)) fail('the session kept no DualSense readings (E.session.stream)');
+  check('emberdeep-52in1-touchpad', inHub, PROBE9);
 }
 
 await browser.close();

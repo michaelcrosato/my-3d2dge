@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module CLICK v0.107.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.108.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -291,7 +291,7 @@ class Click {
   // a tall screen (a phone held upright) shows the room at a whole zoom, keeping at least 160 room pixels across (a phone
   // 320 wide: twice the size, things a thumb can tap; the room scrolls with the hero)
   _zoom() { const G = this.game; return Math.max(1, Math.min(Math.floor((G.H - this._panelH()) / this.rooms[this.room].h), Math.floor(G.W / 160))); }
-  _panelH() { return this.game.input.lastDevice === 'touch' ? this._thumb() + 14 : this.ui === 'verbs' ? 56 : 30; }
+  _panelH() { return this.game.input.layoutDevice === 'touch' ? this._thumb() + 14 : this.ui === 'verbs' ? 56 : 30; }   // (the layout's device: it holds under a press, so a tap lands where it was aimed)
   // the screen's layout: the panel along the bottom, the room over it (scrolled to the hero, or centred)
   _layout() {
     const G = this.game, W = G.W, Hs = G.H, R = this.rooms[this.room], panel = this._panelH(), py = Hs - panel, z = this._zoom(), rh = Math.min(R.h * z, py), oy = Math.max(0, Math.floor((py - rh) / 2 / z)) * z;
@@ -337,7 +337,7 @@ class Click {
   _view(k) { const q = Math.round(k * 16) / 16; let v = this._views.get(q); if (!v) { v = new E.View('click', 'Click', 0, 20, q * 1.5, 1); this._views.set(q, v); } return v; }
   /** the room over the whole screen: its backdrop, bodies and things by depth, the lines, the panel (call after the scene) */
   draw(r) {
-    const R = this.rooms[this.room], L = this._layout(), G = this.game, touch = G.input.lastDevice === 'touch', z = L.z, pad = [].concat(R.pad || 0), px0 = pad[0], py0 = pad[1] || 0;
+    const R = this.rooms[this.room], L = this._layout(), G = this.game, touch = G.input.layoutDevice === 'touch', z = L.z, pad = [].concat(R.pad || 0), px0 = pad[0], py0 = pad[1] || 0;
     let cv = PAINTED.get(R); if (!cv && R.paint) { cv = E.mkCanvas(R.w + px0 * 2, R.h + py0 * 2); const g = E.ctx2d(cv); g.translate(px0, py0); R.paint(g); PAINTED.set(R, cv); }   // (painted once, with its margins)
     this._was = this.boxes; this.boxes = [];   // (last frame's, for what the pointer is over before the panel is drawn)
     r.overlay(g => {

@@ -6,8 +6,9 @@
  * pause the level (the town keeps living behind them).
  * ============================================================================= */
 const UI = {
-  mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0 },
-  panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
+  mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0, finger: false, id: null, x0: 0, y0: 0, far: Infinity, up: null },
+  panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, tap: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
+  late: { click: false, rclick: false, hc: false, hr: false },   // (a press a hit-stop's step took: hc hr held, click rclick for the next step in play)
   /* the HUD's frame on a phone (screen pixels): l t r b keep it out of the notch, the status bar and the home bar, and
      b lifts the HUD bar over the touch buttons on a screen held upright; barB is how far down the touch buttons at the
      top reach (the minimap, the boss bar and the notices go under them). HUD_layout in 61-controls sets them */
@@ -21,13 +22,47 @@ const UI = {
   closeAll() { while (this.stack.length) this.close(); },
   data(id) { const s = this.stack.find(q => q.id === id); return s && s.data; }
 };
-/* the mouse in screen pixels (the canvas scale and letterbox undone). A panel opened from the keyboard starts in key navigation */
+/* the mouse in screen pixels (the canvas scale and letterbox undone). A panel opened from the keyboard starts in key navigation.
+   UI.mouse is the pointer that presses, followed by its own id from its press to its lift: a mouse, or a finger that
+   isn't steering the stick. While it is down no other pointer moves it or lets it go (the stick's thumb landing or
+   lifting, a second finger, a touch button let go), so a press, its drag and its tap are that finger's alone. id: its
+   pointer; finger: what pressed, so a press decides by it, whatever was used last; x0 y0: where it landed (CSS px); far:
+   the most it has wandered from there, every move and its lift counted; up: where it lifted (screen px; null: cancelled) */
 addEventListener('keydown', () => { UI.keyT = performance.now(); });
-canvas.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' && game.input.stickOn && e.pointerId === game.input.stickId) return; UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.active = true; UI.keyNav = false; });
-canvas.addEventListener('pointerdown', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; if (e.button === 0) UI.mouse.down = true; });
-addEventListener('pointerup', e => { if (e.button === 0) { UI.mouse.down = false; UI.drag = null; } });
+/** does pointer event e move UI.mouse: a mouse while no finger presses, or the finger that presses (never the stick's) */
+const UI_mine = e => e.pointerType === 'mouse' ? !(UI.mouse.down && UI.mouse.id !== e.pointerId) : UI.mouse.down && e.pointerId === UI.mouse.id;
+canvas.addEventListener('pointermove', e => { const M = UI.mouse; if (!UI_mine(e)) return; M.cx = e.clientX; M.cy = e.clientY; M.active = true; UI.keyNav = false; if (M.down) M.far = Math.max(M.far, Math.hypot(e.clientX - M.x0, e.clientY - M.y0)); });
+canvas.addEventListener('pointerdown', e => {
+  const M = UI.mouse, stick = e.pointerType !== 'mouse' && game.input.stickOn && e.pointerId === game.input.stickId;   // (the engine's listener, first, has started the stick for a finger on open ground)
+  if (stick || (M.down && e.pointerId !== M.id && !e.isPrimary)) return;   // the stick's thumb steers; a finger landing while another presses presses nothing (two are the tree's pinch). A primary pointer (a mouse, a touch with no other finger down) always presses
+  if (M.down && e.button === 0 && e.pointerId !== M.id) game.input.release('Act:click');   // (it takes the press from one whose lift never came: that one's touch press lets go, so this one's is a press; its tap is gone with its id, UI_tapped)
+  M.cx = e.clientX; M.cy = e.clientY; M.finger = e.pointerType !== 'mouse';
+  if (e.button === 0) Object.assign(M, { down: true, id: e.pointerId, x0: e.clientX, y0: e.clientY, far: 0, up: null });
+});
+/** the pointer that presses lifts (cancel: the browser took it, never a tap): UI.mouse lets go, a finger's touch press
+ *  (61-controls) with it. Any other pointer's lift is none of its business */
+function UI_lift(e, cancel) {
+  const M = UI.mouse; if (!M.down || e.pointerId !== M.id || (e.pointerType === 'mouse' && e.button !== 0)) return;   // (a mouse's other button let go while the left is held: still pressed)
+  M.far = cancel ? Infinity : Math.max(M.far, Math.hypot(e.clientX - M.x0, e.clientY - M.y0)); M.up = cancel ? null : UI_hud(e.clientX, e.clientY);
+  M.down = false; UI.drag = null;
+  if (e.pointerType !== 'mouse') { M.lift = true; game.input.release('Act:click'); }   // (a finger has no hover: once the step has taken its tap, the pointer leaves, updateUI)
+}
+addEventListener('pointerup', e => UI_lift(e, false));
+addEventListener('pointercancel', e => UI_lift(e, true));
 canvas.addEventListener('wheel', e => { UI.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
-function mouseHUD() { const sc = game.screen, p = sc.clientToScreen(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p[0] - sc.ix; UI.mouse.y = p[1] - sc.iy; return UI.mouse; }
+/** a page point (CSS px) in the HUD's screen pixels [x, y] */
+function UI_hud(cx, cy) { const sc = game.screen, p = sc.clientToScreen(cx, cy); return [p[0] - sc.ix, p[1] - sc.iy]; }
+function mouseHUD() { const p = UI_hud(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p[0]; UI.mouse.y = p[1]; return UI.mouse; }
+/** the press made by pointer id (UI.mouse.id as it pressed) lifted where it landed: it was that pointer's own (no other
+ *  has pressed since), it is up, and it never wandered 12 CSS px from where it landed, every move and its lift counted.
+ *  The engine's tap (input.clicked()), but its own finger's alone: another finger landing, steering or lifting meanwhile
+ *  changes nothing, and a flick, however quick, is never one */
+const UI_tapped = id => UI.mouse.id === id && !UI.mouse.down && UI.mouse.far < 12;
+/* a press of the pointer in a step the world holds still for (a hit-stop: the input's step runs, the scene's update
+   doesn't) would reach no update and be lost: it is kept (UI.late) for the first step in play after, which updateUI reads
+   as its own, so a tap or a click on the HUD or a gallery reel in a fight still lands (as a skill's press is buffered) */
+game.hook('input', () => { const inp = game.input, L = UI.late; if (game.hitstop > 0) { if (inp.pressed('click')) L.hc = true; if (inp.pressed('rclick')) L.hr = true; } });
+game.hook('step', () => { const L = UI.late; L.click = L.hc; L.rclick = L.hr; L.hc = L.hr = false; });
 /** register a hot rectangle (inside draw). o: { click, rclick, tip: lines | () => lines, drag(mx, my), key } */
 function hot(x, y, w, h, o) { if ((UI.hudPass || UI.underPass) && UI.modal) return false;   // under a modal panel the HUD and the panels below it are display only
   if (UI.hotO) { x += UI.hotO[0]; y += UI.hotO[1]; }   // drawn inside the HUD's frame: the rectangle in screen pixels
@@ -38,6 +73,22 @@ const UI_tall = () => game.H > game.W * 1.3;
  *  takes it: text a player must read (tooltips, totals, the HUD's numbers and labels) is drawn in the normal font there,
  *  not the 3 x 5 tiny one; tf(o) adds { font: 'tiny' } to a text's options only off a TV */
 const UI_tv = () => typeof innerWidth === 'number' && innerWidth >= 1600, UI_tf = (o = {}) => UI_tv() ? o : Object.assign({}, o, { font: 'tiny' });
+/** UI_tf for a text s with only w pixels: the normal font on a TV where s fits in w, else the tiny one */
+const UI_tfit = (s, w, o = {}) => UI_tv() && E.font.width(s) <= w ? o : Object.assign({}, o, { font: 'tiny' });
+/** the skill slots' keys in a line under the slots (on a TV, where a slot's corner is too small for LMB in the normal
+ *  font): each centred at mid(i) in the normal font, but one too wide to keep 2 px clear of its neighbours and inside
+ *  x0..x1 (a slot rebound to Shift beside Ctrl) the tiny one there, so no two run together. Returns each key's options */
+function UI_keyFonts(keys, mid, x0, x1) {
+  const n = keys.length, kf = keys.map(() => ({})), kw = i => E.font.width(keys[i], kf[i]);
+  for (let pass = 0, hit = true; hit && pass < n; pass++) {
+    hit = false;
+    for (let b = 0; b <= n; b++) {   // the room between key b - 1 and key b (x0 before the first, x1 after the last)
+      const a = b - 1, L = a < 0 ? x0 - 1 : mid(a) + kw(a) / 2 + 1, R = b >= n ? x1 + 1 : mid(b) - kw(b) / 2 - 1;
+      if (L > R) { const j = a < 0 ? b : b >= n ? a : kw(a) >= kw(b) ? a : b; if (!kf[j].font) { kf[j] = { font: 'tiny' }; hit = true; } }
+    }
+  }
+  return kf;
+}
 /** how many game pixels make a finger's target (44 CSS pixels) on this screen */
 const UI_finger = () => { const sc = game.screen; return Math.ceil(44 * (sc.dpr || 1) / (sc.S || 1)); };
 const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y < r0.y + r0.h;
@@ -54,19 +105,42 @@ function updateUI(dt) {
   if (UI.drag && UI.mouse.down) UI.drag(m.x, m.y);
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
-  const acts = !!over && !!(over.click || over.drag || over.rclick);
-  if (inp.pressed('click')) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
-  if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
+  const acts = !!over && !!(over.click || over.drag || over.rclick), L = UI.late, pc = inp.pressed('click') || L.click, prc = inp.pressed('rclick') || L.rclick; L.click = L.rclick = false;   // (pc, prc: this step's press, or one a hit-stop's step took: UI.late)
+  // under a finger a rect's click waits for its tap (UI.tap): the finger that pressed (its own pointer: another landing,
+  // steering or lifting meanwhile changes nothing) lifts inside the rect it pressed, never having wandered 12 CSS px from
+  // where it landed (UI_tapped), the same panel on top. So no flick, in any direction and however quick, presses what it
+  // began on (a pause row, a depth, a button, a tab, the points chip): it goes on to do what a flick does. The rect is
+  // judged as it was pressed, so one the finger's own layout has redrawn since still takes its tap (a mouse's or a pad's
+  // six skill slots that a finger's SKILL BAR replaces, a loot tab grown a finger tall). The press itself decides
+  // (UI.mouse.finger), not the device used last; a mouse acts on the press as before
+  if (pc) { if (acts) { if (over.drag) { if (UI.mouse.down) UI.drag = over.drag; over.drag(m.x, m.y); } if (over.click) { if (UI.mouse.finger) UI.tap = { r: over, id: UI.mouse.id, top: UI.top() }; else over.click(); } inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  const tp = UI.tap; if (tp && !(UI.mouse.down && UI.mouse.id === tp.id)) {   // (its own pointer lifted, or another took the press)
+    UI.tap = null; const r = tp.r, u = UI.mouse.up, same = over && over.x === r.x && over.y === r.y && over.w === r.w && over.h === r.h;
+    if (UI_tapped(tp.id) && u && inRect({ x: u[0], y: u[1] }, r) && UI.top() === tp.top) ((same && over.click) || r.click)();   // (the rect as drawn now where it is unchanged, else as pressed: the loot panels' own press may be drawn over it since)
+  }
+  if (prc) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
   if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
-  const P0 = UI.top(), sw = inp.swipe();
+  const P0 = UI.top(); let sw = inp.swipe();
+  // a flick on a loot panel, in any direction, is never a press however fast (the finger may lift before a step sees it
+  // move): a button, a tab, a parcel or a grid's cell it began on doesn't act; an item it began on is a drag only where it
+  // ends on a place an item goes (a worn slot, the counter that sells, the anvil, a stash tab, but not the rail's tabs on
+  // its side, which stand beside the bag where a flick that turns the page ends), and is otherwise let go where it was,
+  // never clicked nor dropped on the ground, while the flick turns the page or does nothing
+  const LP = sw && P0 && LOT_UI.active && LOT_UI.press;
+  if (LP && !LP.it) LP.moved = true;
+  else if (LP) {
+    if (LOT_UI.targets.some(t => (t.kind === 'slot' || t.kind === 'sell' || t.kind === 'anvil' || (t.kind === 'stashTab' && !t.rail)) && LOT_in(UI.mouse, t.x, t.y, t.w, t.h))) { LP.moved = true; inp.swipe(true); sw = null; }
+    else { LOT_UI.press = null; if (!(P0.flicks && P0.flicks(sw.dir))) { inp.swipe(true); sw = null; } }
+  }
   // ○ (Esc) backs out one layer: a panel's back() takes it first (a skill waiting for its slot, the tree's totals, a
   // sale waiting to be confirmed), then the panel closes. Death has no way back: it asks for a choice
   if (inp.pressed('pause') && !(P0 && inp.pressed('cancel'))) { if (P0) UI.close();   // (Options closes a panel whole; Esc, pause and cancel at once, backs out a layer as ○ does)
     else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); else if (ED.mode === 'gallery') game.go('title'); }
   else if (P0 && inp.pressed('cancel')) { if (!(P0.back && P0.back())) UI.close(); }
   // a flick sideways on a touch screen takes the panel away the same way (not the tree, which pans by dragging, nor an
-  // item being dragged out of the bag, nor death)
-  else if (P0 && sw && (sw.dir === 'left' || sw.dir === 'right') && P0.id !== 'death' && P0.id !== 'tree' && !LOT_UI.press && !UI.drag) { inp.swipe(true); if (!(P0.back && P0.back())) UI.close(); }
+  // item being dragged out of the bag, nor death, nor a panel in pages that has a page that way: flicks(dir), and its
+  // update turns to it)
+  else if (P0 && sw && (sw.dir === 'left' || sw.dir === 'right') && P0.id !== 'death' && P0.id !== 'tree' && !(LOT_UI.press && LOT_UI.press.it) && !UI.drag && !(P0.flicks && P0.flicks(sw.dir))) { inp.swipe(true); if (!(P0.back && P0.back())) UI.close(); }
   else if (P0 && P0.update) P0.update(dt, UI.stack[UI.stack.length - 1].data);
   else if (!P0 && sw && NT_swipe(sw)) inp.swipe(true);
   // panel hotkeys (toggle); L2 R2 step between the bag, the skills and the passives while one of them is open (how a
@@ -191,7 +265,7 @@ function drawTimedIcon(g, x, y, c, bg, o, stacks, paint) {
   E.ui.box(g, x, y, S, S, { bg, border: blink ? '#ffffff' : c, shadow: false, gradient: false });
   paint();
   if (T < 999 && o._uiMax > 0) { const k = Math.round((S - 2) * (1 - clamp(T / o._uiMax, 0, 1))); if (k > 0) px.blend(g, .62, 'normal', () => px.rect(g, x + 1, y + 1, S - 2, k, '#05040a')); }
-  if (stacks > 1) E.font.text(g, String(stacks), x + S, y + S - 5, '#ffffff', { align: 'right', font: 'tiny', outline: '#0c0818' });
+  if (stacks > 1) { const f = UI_tfit(String(stacks), S - 2, { align: 'right', outline: '#0c0818' }); E.font.text(g, String(stacks), x + S, y + S - (f.font ? 5 : 7), '#ffffff', f); }   // (the normal font on a TV)
 }
 function drawHUD(r) {
   const h = ED.hero; if (!h) return;
@@ -211,11 +285,14 @@ function HUD_out(g) { if (UI.hotO) { g.restore(); UI.hotO = null; } }
 function HUD_under() { const F = UI.frame; return F.barB > 0 ? Math.max(0, Math.ceil(F.barB - F.t) + 1) : 0; }
 function drawHudInner(g, r, h) {
   {
-    const W = r.W, H = r.H, cx = Math.round(W / 2), by = H - 24;
     // on a TV the labels a player reads (the orbs' numbers, the potion key, LV, the gold, the points, the timer, the
-    // exit's distance, a cooldown) are in the normal font (UI_tf); ty lifts each by a pixel so it keeps its middle (the
-    // normal font is 7 rows to the tiny one's 5). Elsewhere they stay tiny, where they were
-    const tv = UI_tv(), ty = tv ? 1 : 0;
+    // exit's distance, a cooldown, the slots' keys) are in the normal font (UI_tf); ty lifts each by a pixel so it keeps
+    // its middle (the normal font is 7 rows to the tiny one's 5). Elsewhere they stay tiny, where they were. The slots'
+    // keys go under the slots there (LMB is too wide for a slot's corner), so the bar rises 9 px over them (kb). A window
+    // too narrow for the potions' key, LV, that bar and the gold in one line (under 356 game px: a 4:3 one) keeps them in
+    // the slots' corners, as it had them
+    const W = r.W, H = r.H, cx = Math.round(W / 2), tv = UI_tv(), ty = tv ? 1 : 0, touch = ctlDevice() === 'touch', keys = touch ? [] : SLOT_ACTS.map((a, i) => slotKey(i));
+    const kb = tv && keys.length > 0 && W >= 356, by = H - 24 - (kb ? 9 : 0);
     // orbs
     const OR = 17;
     orb(g, 22, H - 22, OR, h.hp / h.maxHp, h.st.poison ? '#6ac03a' : '#d8303a', '#2a0c14');
@@ -225,14 +302,14 @@ function drawHudInner(g, r, h) {
     E.font.text(g, fmt(Math.ceil(h.hp)), 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
     E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25 - ty, '#ffffff', UI_tf({ align: 'center', outline: '#0c0818' }));
     // potions beside the life orb, with their key or button (none on touch: the Potion button says it)
-    const touch = ctlDevice() === 'touch';
     for (let i = 0; i < h.maxPotions; i++) { const x = 44 + i * 7, y = H - 12, full = i < h.potions; px.rect(g, x + 1, y - 7, 2, 2, full ? '#c8b890' : '#4a4050'); px.disc(g, x + 2, y - 2, 2.6, full ? '#e03a4a' : '#2a2030'); if (full) px.dot(g, x + 1, y - 3, '#ffc0c8'); }
     if (!touch) E.font.text(g, keyLabel('potion', true), 44 + h.maxPotions * 7 + 2, H - 13 - ty, '#9a90b0', UI_tf({ outline: '#0c0818' }));
     // skill bar
-    const SW = 18, gap = 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);
-    // the slots' key badges: the normal font on a TV when every badge fits a slot's corner (a pad's □ R1 R2, the keys 1-4),
-    // else all tiny (LMB is too wide), so one bar never mixes the two
-    const keys = touch ? [] : SLOT_ACTS.map((a, i) => slotKey(i)), bf = tv && keys.every(k => E.font.width(k) + 3 <= SW - 4) ? {} : { font: 'tiny' }, bh = bf.font ? 7 : 9;
+    const SW = 18, gap = kb ? 4 : 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);   // (a TV's keys under the slots: 2 px more between them)
+    // the slots' keys: a badge in a slot's corner, tiny (on a TV too narrow for kb the normal font when every badge fits a
+    // corner: a pad's □ R1 R2); on a TV (kb) a line under the slots, each key centred under its slot in the normal font
+    // (UI_keyFonts), clear of the LV and the gold beside the bar
+    const bf = tv && keys.every(k => E.font.width(k) + 3 <= SW - 4) ? {} : { font: 'tiny' }, bh = bf.font ? 7 : 9, km = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2, kf = kb ? UI_keyFonts(keys, km, bx - 3, bx + bw + 3) : [];
     for (let i = 0; i < n; i++) {
       const x = bx + i * (SW + gap) + (i >= 2 ? 4 : 0), y = by, id = h.slots[i], S = id && REG.skills[id];
       E.ui.box(g, x - 1, y - 1, SW + 2, SW + 2, { bg: '#141020', border: h.cdWarn && h.cdWarn.slot === i && h.cdWarn.t > 0 ? '#ff5a5a' : h.act && h.act.slot === i ? GOLD : '#5a4a70', shadow: false, gradient: false });
@@ -242,14 +319,16 @@ function drawHudInner(g, r, h) {
         if (cd > 0 && full) { const k = Math.round(16 * cd / full), s = cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), cf = tv && E.font.width(s) <= 16 ? {} : { font: 'tiny' }; px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, s, x + 9, y + (cf.font ? 6 : 2), '#ffffff', Object.assign({ align: 'center', outline: '#0c0818' }, cf)); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
-      if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
+      if (kb) E.font.text(g, keys[i], km(i), y + SW + 2 + (kf[i].font ? 1 : 0), '#c8c0d8', Object.assign({ align: 'center', outline: '#0c0818' }, kf[i]));
+      else if (!touch) { const slotLabel = keys[i], kw = E.font.width(slotLabel, bf) + 3; px.rect(g, x + SW - kw, y + SW - bh + 1, kw + 1, bh, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - bh + 2, '#c8c0d8', Object.assign({ outline: false }, bf)); }   // (a touch button names its skill)
       hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel ({key:skills}).', c: '#c8c0d8' }], click: touch ? null : () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
     }
     // on touch the bar is ONE target a finger's height (44 CSS px), not six 18 px squares: a tap opens the Skills panel for
-    // the slot nearest it (a near miss arms the next slot, which the panel changes in a tap). The points chip, drawn
-    // after, keeps its own target where the two meet
+    // the slot nearest it (a near miss arms the next slot, which the panel changes in a tap). Its top (t0) is where the
+    // points chip's own target begins, over it
+    const t0 = touch ? Math.min(by - 1, H - Math.max(UI_finger(), SW + 2)) : by - 1;
     if (touch) {
-      const F = Math.max(UI_finger(), SW + 2), t0 = Math.min(by - 1, H - F), ox = UI.hotO ? UI.hotO[0] : 0, mid = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2;
+      const ox = UI.hotO ? UI.hotO[0] : 0, mid = i => bx + i * (SW + gap) + (i >= 2 ? 4 : 0) + SW / 2;
       hot(bx - 2, t0, bw + 4, H - t0, { label: 'SKILL BAR', click: () => { if (!UI.panels.skills) return; const mx = UI.mouse.x - ox; let k = 0; for (let i = 1; i < n; i++) if (Math.abs(mid(i) - mx) < Math.abs(mid(k) - mx)) k = i; UI.open('skills', { slot: k }); } });
     }
     if (h.cdWarn) h.cdWarn.t -= 1 / 60;
@@ -265,17 +344,23 @@ function drawHudInner(g, r, h) {
     // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
     const ck = h.pts.skill + ':' + h.pts.passive + ':' + h.level, cs = typeof PRG_canSpend !== 'function' ? null : UI.csKey === ck && game.real - UI.csT < 2 ? UI.cs : (UI.csKey = ck, UI.csT = game.real, UI.cs = PRG_canSpend(h));
     const skN = cs && !cs.skill ? 0 : h.pts.skill, paN = cs && !cs.passive ? 0 : h.pts.passive;
+    UI.chipLift = 0; let chipTop = null;   // (how far the chip rose over the bar's target on touch, and the top of its own: the prompt and the quick lines stand over both)
     if (skN + paN > 0) {   // '2 SKILL POINTS (K)', '1 PASSIVE POINT (P)', '2 SKILL + 1 PASSIVE POINTS (K / P)'; a controller has no key for
       // them: the menu's button; on touch the line is a chip a tap opens the panel from
       const blink = Math.floor(game.real * 2) % 2, sk = skN, pa = paN, dev = ctlDevice(), K = keyLabel('skills', true), Pk = keyLabel('tree', true);
       const keys = touch ? '' : K || Pk ? (sk && pa ? ' (' + [K, Pk].filter(Boolean).join(' / ') + ')' : sk && K ? ' (' + K + ')' : pa && Pk ? ' (' + Pk + ')' : '') : dev === 'gamepad' ? ' (' + keyLabel('pause', true) + ')' : '';
       const s = (sk ? sk + ' SKILL' : '') + (sk && pa ? ' + ' : '') + (pa ? pa + ' PASSIVE' : '') + ' POINT' + (sk + pa > 1 ? 'S' : '') + keys, sw0 = E.font.width(s, UI_tf());
-      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, by - 18 - ty * 2, sw0 + 8, 10 + ty * 2, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
-      E.font.text(g, s, cx, by - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
+      // on touch the chip and its target sit wholly over the bar's finger-tall target (t0), which reaches higher than the
+      // bar's drawing where a finger is more than 27 game pixels (a phone held upright): the chip rises by that much
+      const lift = UI.chipLift = touch ? Math.max(0, by - 3 - t0) : 0, cy0 = by - lift;
+      if (touch) E.ui.box(g, cx - sw0 / 2 - 4, cy0 - 18 - ty * 2, sw0 + 8, 10 + ty * 2, { bg: '#1c1430', border: blink ? GOLD : '#8a6a30', shadow: false, gradient: false });
+      E.font.text(g, s, cx, cy0 - 15 - ty * 2, blink ? GOLD : '#e0a040', UI_tf({ align: 'center', outline: '#0c0818' }));
       // a tap opens where the points go (a mouse's click there swings, as before). The chip is a short line, so its
-      // target is a finger's (44 CSS px) square or more, reaching up from just over the skill bar: never over a slot
-      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); hot(Math.round(cx - fw / 2), by - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
+      // target is a finger's (44 CSS px) square or more, reaching up from the top of the bar's: never over the bar
+      if (touch) { const F = Math.max(UI_finger(), 16), fw = Math.max(sw0 + 8, F); chipTop = cy0 - 3 - F; hot(Math.round(cx - fw / 2), cy0 - 3 - F, fw, F, { label: 'POINTS', click: () => { if (UI.panels.skills) UI.open(sk ? 'skills' : 'tree'); } }); }
     }
+    UI.overBar = by - 26 - UI.chipLift;   // the line over all that: the interaction prompt, then the quick notices over it
+    if (chipTop !== null) UI.overBar = Math.min(UI.overBar, chipTop - 10);   // (on touch, over the chip's finger-tall target too; a flick that sweeps a notice away from its edge never opens Skills: the chip acts on a tap, UI.tap)
     E.font.text(g, fmt(h.gold) + ' GOLD', W - 44, H - 9 - ty, GOLD, UI_tf({ align: 'right', outline: '#0c0818' }));
     // top left: where we are, the level's elements, buffs
     const L0 = ED.L; let leftW = 0;   // how far the place names reach (the boss bar keeps clear of them)
@@ -306,7 +391,7 @@ function drawHudInner(g, r, h) {
       if (ex < m || ex > W - m || ey < m || ey > H - m) {
         // (on a TV the arrow and its larger label keep clear of what always sits in the corners: above the HUD bar and the
         // orbs, below the place names and the minimap)
-        const mb = tv ? 44 : m, mt = tv ? 62 + HUD_under() : m, dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - (dy > 0 ? mb : mt)) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
+        const mb = tv ? 44 + (kb ? 9 : 0) : m, mt = tv ? 62 + HUD_under() : m, dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - (dy > 0 ? mb : mt)) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
         px.poly(g, [[ax + Math.cos(a) * 6, ay + Math.sin(a) * 6], [ax + Math.cos(a + 2.4) * 5, ay + Math.sin(a + 2.4) * 5], [ax + Math.cos(a - 2.4) * 5, ay + Math.sin(a - 2.4) * 5]], c);
         const dd = Math.round(Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) / T16), ad = tv ? 13 : 9;   // (the wider normal-font label sits further back from the arrow)
         E.font.text(g, dd + 'm', ax - Math.cos(a) * ad, ay - Math.sin(a) * ad - 2 - ty, c, UI_tf({ align: 'center', outline: '#0c0818' }));
@@ -326,7 +411,7 @@ function drawHudInner(g, r, h) {
     UI.hudDrawn = true;
     // interaction prompt (not under a panel or a conversation: '[E] Talk to ILSA' while Ilsa is talking reads as a bug)
     UI.promptShown = !!UI.prompt && !UI.modal && !(typeof talk !== 'undefined' && talk.open);
-    if (UI.promptShown) E.font.text(g, promptText(UI.prompt), cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });   // ('[E] Talk to Bram', '[L3] ...'; on touch the Use button says it)
+    if (UI.promptShown) E.font.text(g, promptText(UI.prompt), cx, UI.overBar, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });   // ('[E] Talk to Bram', '[L3] ...'; on touch the Use button says it)
     // the level card: name, depth, the new element
     if (UI.card && UI.cardT > 0) drawLevelCard(g, W, H, cx, UI.card);
   }
@@ -470,7 +555,7 @@ function drawNoticeFeed(g, W, H, rect, hud) {
     if (rows.length) NT.rect = [fx - ww / 2 - 8 + o0[0], y0 - 8 + o0[1], ww + 16, rows.length * 10 + 16];   // (where a flick sweeps it away: screen pixels)
   }
   // quick feedback over the skill bar (above the interaction prompt when one shows)
-  let qy = H - 24 - 26 - (UI.promptShown ? 11 : 0); const qy1 = qy + 10, o1 = UI.hotO || [0, 0];
+  let qy = (UI.overBar !== undefined ? UI.overBar : H - 50) - (UI.promptShown ? 11 : 0); const qy1 = qy + 10, o1 = UI.hotO || [0, 0];
   for (let i = NT.quick.length - 1; i >= 0; i--) { const n = NT.quick[i], a = NT_alpha(n); if (a <= 0) continue; line(label(n), cx, qy, n.color, a, false); qy -= 10; }
   if (qy < qy1 - 10) NT.qRect = [cx - 90 + o1[0], qy + 4 + o1[1], 180, qy1 - qy + 4];
 }
@@ -606,10 +691,18 @@ function pauseItems() {
 }
 /** a menu row's height: 16 game pixels, a finger's (44 CSS px) on a screen held upright */
 const UI_rowH = () => UI_tall() ? clamp(UI_finger(), 16, 60) : 16;
-UI.def('pause', { title: 'PAUSED', w: W => UI_tall() ? Math.min(W - 8, 260) : 180, h: (W, H) => Math.min(H - 8, 36 + pauseItems().length * (UI_rowH() + 2)), draw(g, x, y, w) {
-  const rh = UI_rowH();
-  pauseItems().forEach(([label, fn], i) => { if (button(g, x + 12, y + 20 + i * (rh + 2), w - 24, rh, label, fn, { focus: UI.keyNav && UI.focus === i }) && !UI.keyNav) UI.focus = i; });   // (the mouse moves the focus: the keys and a pad go on from the row it rests on)
-}, update() { const items = pauseItems(); menuKeys(items.length, i => items[i][1]()); } });
+/** the pause menu's rows: a finger tall held upright (UI_rowH) and, with the touch buttons up, on a screen on its side too,
+ *  where its n rows go in two columns (the first half, then the rest) if one is taller than the screen: [row height,
+ *  rows a column] */
+const PAUSE_rows = (n, H = game.H) => { const side = !!TOUCH.el && !UI_tall(), rh = side ? clamp(UI_finger(), 16, 60) : UI_rowH(); return [rh, side && 36 + n * (rh + 2) > H - 8 ? Math.ceil(n / 2) : n]; };
+UI.def('pause', { title: 'PAUSED', w: (W, H) => UI_tall() ? Math.min(W - 8, 260) : PAUSE_rows(pauseItems().length, H)[1] < pauseItems().length ? Math.min(W - 8, 300) : 180, h: (W, H) => { const [rh, k] = PAUSE_rows(pauseItems().length, H); return Math.min(H - 8, 36 + k * (rh + 2)); }, draw(g, x, y, w) {
+  const items = pauseItems(), [rh, k] = PAUSE_rows(items.length), cw = k < items.length ? Math.floor((w - 30) / 2) : w - 24;   // (two columns: 6 px between them)
+  items.forEach(([label, fn], i) => { if (button(g, x + 12 + (i >= k ? cw + 6 : 0), y + 20 + (i % k) * (rh + 2), cw, rh, label, fn, { focus: UI.keyNav && UI.focus === i }) && !UI.keyNav) UI.focus = i; });   // (the mouse moves the focus: the keys and a pad go on from the row it rests on)
+}, update() {
+  const items = pauseItems(), n = items.length, k = PAUSE_rows(n)[1], inp = game.input;
+  if (k < n && (inp.repeat('menuLeft') || inp.repeat('menuRight'))) { UI.focus = UI.focus >= k ? UI.focus - k : Math.min(n - 1, UI.focus + k); UI.keyNav = true; sfx('select', { vol: .4 }); }   // (two columns: left and right cross between them)
+  menuKeys(n, i => items[i][1]());
+} });
 /** up / down / confirm over a panel's list of n entries */
 function menuKeys(n, pick) {
   const inp = game.input;
@@ -760,17 +853,40 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : D
     });
   } });
 /* the waystone's list: the panel is as tall as its depths need (it scrolls past ten). ONE row is lit: the focus, which
-   the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view */
-const WAY = { top: 0 };
-UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : 200, 52 + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * (UI_rowH() + 1)), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
-  const rs = UI_rowH() + 1, rb = rs - 3;   // (a row's step and its button: a finger's held upright)
-  const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, { font: 'tiny' }).slice(0, 2);
-  sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * 7, '#9a90b0', { align: 'center', font: 'tiny', outline: false }));
-  const top = y + 21 + sub.length * 7, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
-  WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top;
-  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name; if (button(g, x + 12, top + i * rs, w - 24, rb, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k; });
+   the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view.
+   With the touch buttons up every row is a finger tall, held either way, and the panel takes the screen's height on its
+   side; under a finger a row acts on a tap (UI.tap: it lifts where it pressed), so no flick descends, and a finger dragged
+   up or down scrolls the list, the touch buttons up or hidden (Settings, Controls) */
+const WAY = { top: 0, rows: 1, press: null };
+/** a row's step and its button: a finger's with the touch buttons up, else a menu row's (UI_rowH: a finger's held upright) */
+const WAY_rows = () => { if (!TOUCH.el) return [UI_rowH() + 1, UI_rowH() - 2]; const F = Math.max(UI_finger(), 16); return [F + 3, F]; };
+/** a finger on a row: its press, then the drag that scrolls the list (more than 6 px and it is no tap, as the loot
+ *  panels' grids and Skills' list: the core's tap, UI.tap, is dropped, so a finger that scrolled a row under it in less
+ *  than a tap's 12 CSS px, the rows a menu's height, never descends to it). A mouse's press is no finger's: it clicks the
+ *  row as it lands */
+const WAY_press = (mx, my) => {
+  if (!UI.mouse.finger) return;
+  const P = WAY.press; if (!P) { WAY.press = { x: mx, y: my, s: WAY.top, moved: 0 }; return; }
+  P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); if (P.moved <= 6) return;
+  UI.tap = null;   // (a drag now: its lift descends nowhere)
+  const n = ED.hero ? waystoneDepths(ED.hero).length : 1; WAY.top = clamp(Math.round(P.s - (my - P.y) / WAY_rows()[0]), 0, Math.max(0, n - WAY.rows));
+  UI.focus = clamp(UI.focus || 0, WAY.top, WAY.top + WAY.rows - 1);   // (the focus stays in view, so the list stays where the finger left it)
+};
+UI.def('waystone', { title: 'THE WAYSTONE', w: W => UI_tall() ? Math.min(W - 8, 300) : 220, h: (W, H) => Math.min(H - 8, UI_tall() ? H * .7 : TOUCH.el ? H : 200, 52 + (UI_tv() ? 4 : 0) + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * WAY_rows()[0]), open() { WAY.top = 0; WAY.press = null; }, draw(g, x, y, w, h) {
+  const [rs, rb] = WAY_rows();   // (a row's step and its button)
+  const sf = UI_tf({ align: 'center', outline: false }), sl = sf.font ? 7 : 9;   // (the line under the title: the normal font on a TV, the panel 4 px taller for it)
+  const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, sf).slice(0, 2);
+  sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * sl, '#9a90b0', sf));
+  const top = y + 21 + sub.length * sl, rows = Math.max(1, Math.floor((y + h - 6 - top) / rs)), f = clamp(UI.focus || 0, 0, list.length - 1);
+  WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top; WAY.rows = rows;
+  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name, l = label.length > 34 ? label.slice(0, 33) + '.' : label, go = () => { UI.closeAll(); descend(d); }; if (button(g, x + 12, top + i * rs, w - 24, rb, l, go, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k;
+    hot(x + 12, top + i * rs, w - 24, rb, { label: l, drag: WAY_press, click: () => { sfx('confirm', { vol: .6 }); go(); } }); });   // (over the button, whatever was used last and whether the touch buttons show: a finger's press scrolls, its tap descends; a mouse's press clicks it, as the button's)
   if (list.length > rows) { const th = Math.max(6, Math.round((rows * rs - 3) * rows / list.length)), ty = top + Math.round((rows * rs - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * rs - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }
-}, update() { const list = waystoneDepths(ED.hero); menuKeys(list.length, i => { UI.closeAll(); descend(list[i]); }); },
+}, update() {
+  const list = waystoneDepths(ED.hero);
+  if (WAY.press && !UI.mouse.down) WAY.press = null;   // (the finger lifted: a tap descends in the core, UI.tap)
+  menuKeys(list.length, i => { UI.closeAll(); descend(list[i]); });
+},
   wheel(d) { const n = waystoneDepths(ED.hero).length; UI.focus = clamp((UI.focus || 0) + Math.sign(d), 0, n - 1); UI.keyNav = true; } });
 function waystoneDepths(h) { const s = new Set([1]); for (let d = 5; d <= h.maxDepth; d += 5) s.add(d); s.add(h.maxDepth); if (ED.savedLevel) s.delete(0); return [...s].sort((a, b) => b - a); }
 /* the UI's state for tests and tools: window.__edUI.notify('TEXT', '#fff', 3), .feed (the sorted notices), .run */

@@ -23,7 +23,7 @@
  * turns the view. TOUCH: a tap selects a unit, a tap on a blue cell moves there, a tap on a foe in range strikes; the
  * command list's rows are a thumb's height; a finger dragging pans the camera, two pinch it; TURN turns the view, BACK
  * (while moving, aiming or facing) goes back, SKIP skips the scene; a swipe takes the banner or the message away, a
- * sideways one on the command list goes back as a menu's does.
+ * sideways one on the command list goes back as a menu's does, and on the end's menu (○ and Esc too) to the title.
  * HOW IT WORKS: the map is a TileMap whose cells all stand on a base (the earth shows at its edges) at their heights; the
  * grid is E.Grid.from(map, { tops: true }) with the shallows' cost; E.Turns ('ct') orders the turns, grid.reach the
  * moves (allies passed through), grid.shape the areas, grid.side where a blow lands, grid.threat the AI's danger; E.Story
@@ -118,7 +118,7 @@ const TACTICS = (() => {
   // on a pad (the wheel and - = are the engine's)
   const KEYS = { ...E.Input.MENU, cancel: [...E.Input.MENU.cancel, 'Mouse2'], turnL: ['KeyQ', 'Pad4'], turnR: ['KeyE', 'Pad5'], skip: ['KeyX', 'Pad8'],
     next: ['Tab', 'Pad3', 'Pad17'], zoomIn: ['Pad7'], zoomOut: ['Pad6'], row1: ['Digit1'], row2: ['Digit2'], row3: ['Digit3'], row4: ['Digit4'], row5: ['Digit5'] };
-  const endMenu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title') });
+  const endMenu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('tactics', { part: 'battle' }, { fade: 'iris' }) : game.go('title'), onCancel: toTitle });   // (○, Backspace, a right click or a sideways swipe: the title, as Esc does by back())
   const top = (cx, cy) => map.height(cx, cy), key = c => c[0] + ',' + c[1], same = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
   const living = side => units.filter(u => !u.dead && (!side || u.side === side)), unitAt = c => units.find(u => !u.dead && u.cx === c[0] && u.cy === c[1]) || null;
   const foesOf = u => living(u.side === 'hero' ? 'foe' : 'hero'), mates = u => living(u.side).filter(o => o !== u), cell = u => [u.cx, u.cy];
@@ -583,8 +583,8 @@ const TACTICS = (() => {
     enter: start, update, draw, bot,
     exit() { game.input.touchEnabled = true; game.resetCamera(); if (ds) ds.clear(); },
     // a phone's back, and a PC's Esc (escape: 'back'): moving, aiming or facing goes back to the commands (the press is
-    // spent: the step's back key does no more); else false, and Esc pauses
-    back() { const u = active; if (mode === 'move' || mode === 'target' || mode === 'face' || (mode === 'command' && u && u.moved && !u.acted && !u.path)) { back(); game.input.suppress('cancel'); return true; } return false; },   // (Esc as the hint says: out of a move, an aim or a facing, or the move undone, before it pauses)
+    // spent: the step's back key does no more), the end's menu to the title (as ○ there); else false, and Esc pauses
+    back() { const u = active; if (mode === 'over' && over.t > 1.6) { toTitle(); return true; } if (mode === 'move' || mode === 'target' || mode === 'face' || (mode === 'command' && u && u.moved && !u.acted && !u.path)) { back(); game.input.suppress('cancel'); return true; } return false; },   // (Esc as the hint says: out of a move, an aim or a facing, or the move undone, before it pauses)
     /** for tests: the state, and helpers to find a cell or a row on the screen and to place a unit */
     state: () => ({ mode, order, phase, round, active, cursor, sel, units, cells, over, stats, map, grid, turns, rows: active ? rows(active) : [], ui,
       at: (cx, cy) => { const v = game.view, [x, y] = map.center(cx, cy), q = v.p(x, y, top(cx, cy)); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; },

@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.107.1)
+# my-3D2dge API index (v0.108.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -57,60 +57,60 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 227 Views (projections); E.View: view
 - 254 Screen; game.screen
 - 276 Input; E.Input: input
-- 381 Pixel fonts
-- 393 Languages
-- 427 Lighting; game.lights
-- 446 Particles; E.Particles: game.particles
-- 466 Renderer; r
-- 516 Game; E.Game: game
-- 632 Standard features; settings, fullscreen
-- 649 10c. Boot
-- 654 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 671 10e. Paths; E.Path: path
-- 681 10g. Weather
-- 685 10k. Save slots; E.Saves: saves
-- 708 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 787 Blob rig; E.Blob: blob
-- 807 Tile map; E.TileMap: map
-- 871 Materials
-- 892 Flow field; E.FlowField: flow
-- 910 Texture helpers for floortex functions
-- 921 Platform map; E.PlatformMap: level
-- 955 Platformer; E.Platformer: hero
-- 996 Body; E.Body: body
-- 1016 Actions; E.Action: action
-- 1038 17c. Mover; E.Mover: mover
-- 1077 17d. Perception; E.Suspicion: suspicion
-- 1094 Bullets; E.Bullets: shots
-- 1114 Spatial hash; E.SpatialHash: grid
-- 1124 Audio; game.audio
-- 1158 Backdrops; E.Backdrop: backdrop
-- 1166 21c. Props
-- 1171 21e. Shapes
-- 1183 Ui; E.Dialog: talk, E.Menu: menu
-- 1245 21d. Shell; E.Shell: shell
-- 1274 Gpu lighting (webgpu); game.gpu
-- 1295 Sessions
-- 1304 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1339 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1384 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1423 Module dualsense: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic (engine/modules/dualsense.js)
-- 1429 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1510 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1521 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1580 Module mesh: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection (engine/modules/mesh.js); E.Mesh: mesh
-- 1590 Module mga: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code) (engine/modules/mga.js)
-- 1597 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1623 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1652 Module rewind: time run backwards: the game's state kept a moment at a time, walked back on request (engine/modules/rewind.js); E.Rewind: rewind
-- 1662 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
-- 1694 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1713 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1742 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1761 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
-- 1769 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1798 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1845 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 382 Pixel fonts
+- 394 Languages
+- 428 Lighting; game.lights
+- 447 Particles; E.Particles: game.particles
+- 467 Renderer; r
+- 517 Game; E.Game: game
+- 633 Standard features; settings, fullscreen
+- 650 10c. Boot
+- 655 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 672 10e. Paths; E.Path: path
+- 682 10g. Weather
+- 686 10k. Save slots; E.Saves: saves
+- 709 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 788 Blob rig; E.Blob: blob
+- 808 Tile map; E.TileMap: map
+- 872 Materials
+- 893 Flow field; E.FlowField: flow
+- 911 Texture helpers for floortex functions
+- 922 Platform map; E.PlatformMap: level
+- 956 Platformer; E.Platformer: hero
+- 997 Body; E.Body: body
+- 1017 Actions; E.Action: action
+- 1039 17c. Mover; E.Mover: mover
+- 1078 17d. Perception; E.Suspicion: suspicion
+- 1095 Bullets; E.Bullets: shots
+- 1115 Spatial hash; E.SpatialHash: grid
+- 1125 Audio; game.audio
+- 1159 Backdrops; E.Backdrop: backdrop
+- 1167 21c. Props
+- 1172 21e. Shapes
+- 1184 Ui; E.Dialog: talk, E.Menu: menu
+- 1246 21d. Shell; E.Shell: shell
+- 1275 Gpu lighting (webgpu); game.gpu
+- 1296 Sessions
+- 1306 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1341 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1386 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1425 Module dualsense: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic (engine/modules/dualsense.js)
+- 1431 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1512 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1523 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1582 Module mesh: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection (engine/modules/mesh.js); E.Mesh: mesh
+- 1592 Module mga: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code) (engine/modules/mga.js)
+- 1599 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1625 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1654 Module rewind: time run backwards: the game's state kept a moment at a time, walked back on request (engine/modules/rewind.js); E.Rewind: rewind
+- 1664 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1696 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1715 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1744 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1763 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1771 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1800 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1847 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -119,7 +119,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.107.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.108.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -280,7 +280,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.Input.MENU` †: the moves and the menu's keys alone: a game's own preset starts from it ({ ...E.Input.MENU, fire: [...] }), so the Controls screen lists only the actions it reads (not DEFAULT's attack, dash, skill and jump)
 - `E.Input.PLATFORMER { jump, attack, dash, skill }`: side-scrollers (Mario, Mega Man): Space / Z / K jump, X / J attack or shoot, Shift / C dash
 - `E.Input.SHMUP { fire, bomb }`: shoot-'em-ups (1942, Gradius): Space / Z / J fire (hold for autofire), X / K bomb
-- `E.Input.THIRDPERSON { sprint, jump, crouch, interact, attack, block, dodge, use, map }` †: third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour, C crouch (a toggle), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map
+- `E.Input.THIRDPERSON { sprint, jump, crouch, interact, attack, block, dodge, use, map }` †: third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour, C crouch (a toggle; never Ctrl beside WASD, where Ctrl+W closes the tab: D112), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map
 - `E.Input.halfKeys(preset, side)` †: a preset for half a keyboard ('left' or 'right'): its moves and menu keys, the preset's other actions on its buttons in order, and the preset's gamepad codes (Input.halfKeys(Input.SHMUP, 'right') -> fire on . and Numpad 1, bomb on /). A preset's own halves come first: preset.halves = { left: { pass: ['KeyR'] }, right: { pass: ['KeyL'] } } (an action a menu reads beside confirm would take confirm's F otherwise)
 - `input.anyPressed()`: any action pressed this step (title screens: "press any button")
 - `input.assist`: true while the player plays by touch (lastDevice 'touch') and Settings, Touch assists is on (the default): the time for a game's touch assists (an attack or a shot by itself, the throttle held, aim nudged onto a target). Never true on a gamepad, keyboard or mouse, so an assist gated on it leaves their play as it is
@@ -290,7 +290,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.box()` †: the pointer's gestures, read each step in screen pixels (the HUD's space), from a mouse or one finger: box() -> { x0, y0, x1, y1, from, to, done } while a box is drawn (a mouse's left button dragged; on a touch screen a long press, then a drag), done the step it is let go; else null
 - `input.buffered(a, win = .15)`: was it pressed within the last `win` seconds and not yet consumed? (input buffering)
 - `input.clear()`: Release all devices and discard buffered input on focus loss or a modal transition.
-- `input.clicked()` †: where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to it; a HUD button of your own can: if (hit(input.clicked())) ...
+- `input.clicked()` †: where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step after it lifted within 12 CSS px of where it pressed (a press that drags away, like the touch stick's, is none, and a finger that strayed past 12 px is none though it comes back, as on a phone); else null. Menus and dialogs answer to it; a HUD button of your own can: if (hit(input.clicked())) ...
 - `input.codeLabel(code, short = false)`: a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family). short: true, the form for a small badge ('LMB', 'Spc', '↑' for the d-pad's)
 - `input.consume(a)`: mark a buffered press of action a as used, so buffered(a) is false until the next press
 - `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack; the pad cursor's ✕ too, so its release clicks nothing)
@@ -303,6 +303,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.hit(boxes, p = this.pointer())` †: which of a HUD's boxes ([x, y, w, h] or { x, y, w, h }, screen pixels) a point is over: its index, or -1. p: the pointer (the mouse, or the pad's cursor) by default; hit(boxes, input.clicked()) the one clicked or tapped
 - `input.hold(a, on = true)`: hold an action down (on) or let it go (false), as its key would
 - `input.label(a, device = this.lastDevice, o)`: the key or button to show in a prompt for action a, on the device the player used last (or the one named: 'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', '✕' (or 'A' with Xbox symbols). o: { short: true } the form for a small badge ('LMB', 'Spc'), all: true every one it has there
+- `input.layoutDevice`: the device the screen is laid out for: lastDevice, except while a press on the canvas can still be a tap and for the step that reads its tap, when it stays the one it was as the press landed (on the screen it landed on: a new scene or Shell screen is laid out for the device in use). A finger moved past a tap's reach (12 CSS px: a thumb steering, no tap though it comes back), a zone's, or one another finger took the tap from holds nothing; a mouse's press holds until it lifts (its click may come back). A layout sized by the device (a thumb's rows by touch: E.Menu's, E.Dialog's choices, a menu of the game's own) reads it, so a tap answers what was under the finger as drawn when it pressed and the rows grow after it; prompts read lastDevice
 - `input.longPress()` †: [x, y] the step a press held still has been held .45 s (a long press), else null
 - `input.look()` †: how far a finger that is not the stick's dragged this step, in screen pixels [dx, dy], or null: a camera's look on a touch screen (the left thumb on the stick, the right one turning the view)
 - `input.motion(digits, button, o = {})` †: a fighter's move in numpad notation, mirrored by facing: input.motion('236', 'attack', { facing: hero.facing, window }) is a quarter circle forward and punch (down, down-forward, forward, attack: a fireball); '623' a dragon punch, '41236' a half circle. facing: 1 (right, the default) or -1. button: an action, 'attack+kick', or none (the motion alone)
@@ -329,7 +330,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.stopRumble()` †: stop a rumble now (pause, focus lost, unplugged)
 - `input.suppress(a)` †: Suppress a held action until the next tick (a HUD widget owns the pointer this step).
 - `input.suppressCode(code)` †: A widget owns this button; other devices bound to the same action still work.
-- `input.swipe(take = false)`: a quick one-finger flick on the canvas (a touch screen): { dir: 'left' | 'right' | 'up' | 'down', x, y } (where it began, in screen pixels) during the step after the finger lifted, else null. take: true uses it up, so nothing else reads it this step. Swiping away is the touch standard's way out of what is temporary: E.Dialog skips its text, E.Menu cancels, game.note and the Shell's toast, card and screens go by themselves; a game's own canvas menu or banner reads it: if (input.swipe(true)) close()
+- `input.swipe(take = false)`: a quick one-finger flick on the canvas (a touch screen): { dir: 'left' | 'right' | 'up' | 'down', x, y } (where it began, in screen pixels) during the step after the finger lifted, else null. take: true uses it up, so nothing else reads it this step. Swiping away is the touch standard's way out of what is temporary: E.Dialog skips its text, E.Menu cancels, game.note and the Shell's toast, card and screens go by themselves; a game's own canvas menu or banner reads it: if (input.swipe(true)) close(). A flick that begins on the move stick is the stick's: none here (E.Menu's cancel and E.Dialog's skip take it, where the game read no steer from the stick a moment before)
 - `input.swipeOn(el, fn)` †: a touch screen's flick on an element of the page's own (a dialog, a panel of HTML over the game): fn(dir) with 'left' | 'right' | 'up' | 'down', as swipe() reads one on the canvas. Returns a function that stops it
 - `input.tap(a)`: press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down() are true in the next step, released() in the one after
 - `input.tick(dt, own = dt)`: advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and released() (the engine calls it every step: dt its clock's step, game time; own the player's own, which moves the pad's cursor at any game speed)
@@ -484,7 +485,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.groundDisc(x, y, rad, color, alpha = 1, z = 0)`: a dithered disc lying on the ground (radius in world units, z its height): shadows, auras, area attacks
 - `r.groundPts(x, y, rad, n = 18, z = 0)`: n screen points round a circle of radius rad on the ground at (x, y), height z: the outline of a ring or a fan
 - `r.groundRing(x, y, rad, color, alpha = 1, z = 0)`: a ring lying on the ground (radius in world units)
-- `r.marker(x, y, z = 0, o = {})`: an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' }
+- `r.marker(x, y, z = 0, o = {})`: an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow', font: 'tiny' (the label's; 'normal' reads from a sofa) }
 - `r.overlay(fn)`: draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus)
 - `r.pick(sx, sy)` †: what was drawn under a screen point (the HUD's pixels: input.clicked(), input.pointer()) in the last frame, front to back: the pick values of the actors, sprites, props and queued draws given one (r.actor(x, y, z, fn, { pick: unit })), each where its pixels went (an actor's drawn bounds; others' box, or a body's size round its point). [] for none
 - `r.ppu` †: pixels per world unit on the ground here: the view's scale times the zoom (iso 1.41, the others 1.5, overhead 1, at zoom 1). Rigs, maps and props grow with it; a sprite's pixel is a screen pixel at zoom 1 unless drawn with world: true
@@ -1125,7 +1126,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `E.note(n)`: note name -> frequency: E.note('A4') = 440, E.note('C#5'), E.note('Bb2'). Numbers pass through
 - `E.songs: title, adventure, dungeon, boss, victory`: ready-made chiptune loops (original compositions). game.audio.music('adventure')
-- `game.audio.applyVolume()`: apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it)
+- `game.audio.applyVolume()`: apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it). Inside 52in1 (window.AIHubSettings) the music is also times its Music volume and every other sound its Sound effects volume, again on its change event; the hub applies its master volume itself
 - `game.audio.at(step, fn)` †: call fn(step) on the update step the music reaches step (counted from its start, on as it loops); the song's change cancels it. Returns { cancel() }
 - `game.audio.bus(name = 'sfx')`: a bus for a sound of the game's own (Web Audio nodes it makes on audio.ctx: a babble voice, a loop, an instrument) to connect to, so it follows the volume, the mute and the player's settings: 'sfx', 'music', 'voice' (its level is voiceVolume) or 'master'. Returns a GainNode, or null where there is no sound (headless, no Web Audio)
 - `game.audio.calibrate()` †: the audio offset's calibration: a click on each beat (100 bpm, the first of a bar higher) as the music; tap(time) on each one heard (an event's timeStamp, or nothing: this update step). After 8 taps, result is the offset to set (ms: settings.audioOffset) and done is true; taps go on refining it. stop() puts the music back
@@ -1212,7 +1213,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `talk.vars = null`: the values {$name} in the text reads (say's vars first)
 - `talk.voice = 'text'`: the sound effect each letter blips ('text'; null for silence), or a function (letter, index, dialog) called once for each letter as it types (a babble voice: Animalese; dialog.name is the speaker)
 - `talk.width = 0`: the box's width in pixels (320 at most by default, the screen's less 12 at most)
-- `new E.Menu(game, items, o = {}) → menu`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
+- `new E.Menu(game, items, o = {}) → menu`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 } By touch its rows are a thumb's size (44 CSS px each way) and it stays on the screen, a list too long for it scrolling under a finger.
 - `menu.draw(r)`: draw it to the overlay
 - `menu.rowAt(i)` †: entry i's box on the screen, [x, y, w, h] in screen pixels: where a click or tap picks it (a test's feed('down') and feed('up') there); null while it is scrolled out of view
 - `menu.selected`: the entry under the cursor
@@ -1267,7 +1268,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `shell.show('help')` †: { keys: [[key, what]], sections: [[heading, text]] }
 - `shell.show('results')` †: { emblem, stats: [[value, label]], medals: [[label, earned]] }
 - `shell.show('map')` †: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }
-- `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds
+- `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds (on a screen 640 px wide or less, up from the bottom: above the touch buttons, the card and the minimap, or beside them, as every piece at the bottom stands)
 - `shell.tutorial(title, text = '', seconds = 15)` †: a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away
 - `shell.root = null` †: game: the game it is over; o: its options; root: its DOM element (null in a headless game)
 
@@ -1299,6 +1300,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.session.record(on)` †: turn recording on or off for the next page loads (each load is a session of its own)
 - `E.session.recording` †: true while this page load is recorded
 - `E.session.replaying` †: true while it is a replay
+- `E.session.stream(name, v)` †: a value the game reads from outside the page's events (a DualSense's motion, over WebHID or from 52in1): stream(name, value) returns value; while recording it is kept when it changes, and in a replay the recorded one comes back, read by read, as the gamepads' readings do. Call it once a step, recording or not, so the reads line up
 - `E.session.wanted()` †: true when recording is on for page loads (record(true))
 
 ## Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js)

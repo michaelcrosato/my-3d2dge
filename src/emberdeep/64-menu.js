@@ -23,9 +23,10 @@ const menuTabName = id => (MENU_TABS.find(t => t[0] === id) || [id, id])[1];
 
 /* ---------- the pieces a page is made of ---------- */
 /** a setting: its name, the key that does it in play (a function of the device in use: none where it has none), what
- *  it does; the control goes in its head (a switch) or under it */
+ *  it does; the control goes in its head (a switch) or under it. The head is a label, so a tap anywhere on a switch's
+ *  row turns it (on touch the row is a finger tall: the template's CSS) */
 function menuSetting(el, label, about, keys) {
-  const row = formElement('div', '', el, { class: 'ed-set' }), head = formElement('div', '', row, { class: 'ed-set-head' });
+  const row = formElement('div', '', el, { class: 'ed-set' }), head = formElement('label', '', row, { class: 'ed-set-head' });
   formElement('span', label, head, { class: 'ed-set-name' });
   const kk = typeof keys === 'function' ? keys() : keys;
   if (kk) formElement('kbd', kk, head, { title: 'In play' });

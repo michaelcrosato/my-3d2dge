@@ -139,20 +139,39 @@ function titleItems() {
 function loadHeroOrNew(identity = CHAR.selected) { const s = loadSave(identity); if (s) { const h = makeHero(s, identity); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(identity); }
 function startGame(fresh) { if (fresh) { E.store.remove(characterSaveKey()); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
 /** The title menu grows upward from the key legend; shorter windows use tighter rows, a phone held upright taller ones
- *  (a finger's target: about 44 CSS pixels) */
-function titleMenu(n) { const tall = !!TOUCH.el && UI_tall(), T = clamp(UI_finger(), 13, 60), step = tall ? T + 4 : game.H < 260 ? 14 : 16, rowH = tall ? T : 13, y = game.H - UI.frame.b - 29 - n * step; return { y, step, rowH, bw: tall ? Math.min(game.W - 40, 240) : 118 }; }
+ *  (a finger's target: about 44 CSS pixels). With the touch buttons on a screen held on its side the rows are a finger
+ *  tall too, in two columns either side of the hero (one column of them would climb over the title): k rows a column,
+ *  dx(i) an item's left from the middle, top(i) its top; base: the menu's foot; feet: where the hero stands */
+function titleMenu(n) {
+  const tall = !!TOUCH.el && UI_tall(), side = !!TOUCH.el && !tall, T = clamp(UI_finger(), 13, 60), step = tall || side ? T + 4 : game.H < 260 ? 14 : 16, rowH = tall || side ? T : 13, base = game.H - UI.frame.b - 8 - legendRows()[2];
+  if (side) { const k = Math.ceil(n / 2), y = base - k * step, gap = 76, bw = Math.min(124, Math.floor((game.W - gap) / 2) - 8); return { y, step, rowH, bw, k, base, feet: base - 12, dx: i => i < k ? -gap / 2 - bw : gap / 2, top: i => y + (i % k) * step }; }
+  const y = base - n * step, bw = tall ? Math.min(game.W - 40, 240) : 118;
+  return { y, step, rowH, bw, k: n, base, feet: y - 3, dx: () => -bw / 2, top: i => y + i * step };
+}
 /** the title's two lines of controls, for the device in use: the thumbs on touch, the stick and the buttons on a
  *  controller (glyphs), the keys and the mouse on a keyboard (every key from the engine's labels, as bound now) */
-function legend(g, cx, y) {
+function legendLines() {
   const dev = ctlDevice(), K = a => { const l = keyLabel(a, false, dev); return l.length > 6 ? keyLabel(a, true, dev) : l; }, alt = CONTROL.handed === 'left';   // (Space, but LMB and ↑ for the long names)
-  const L = dev === 'touch' || (TOUCH.el && dev !== 'gamepad' && UI.keyT < 0) ? [   // touch buttons showing (and no key pressed yet): the thumbs, not the keys
+  return dev === 'touch' || (TOUCH.el && dev !== 'gamepad' && UI.keyT < 0) ? [   // touch buttons showing (and no key pressed yet): the thumbs, not the keys
     'DRAG ON THE ' + (alt ? 'RIGHT' : 'LEFT') + ' TO MOVE  •  THE BUTTONS ON THE ' + (alt ? 'LEFT' : 'RIGHT') + ' FIGHT',
     'MENU  BAG  MAP  PORTAL: THE BUTTONS AT THE TOP']
     : dev === 'gamepad' ? ['L STICK MOVES  •  R STICK AIMS  •  ' + SLOT_ACTS.map(a => K(a)).join(' ') + ' SKILLS  •  ' + K('dodge') + ' DODGE  •  ' + K('potion') + ' POTION',
       K('interact') + ' USE  •  ' + K('portal') + ' PORTAL  •  ' + K('bag') + ' BAG  •  ' + K('map') + ' MAP  •  ' + K('labels') + ' LOOT  •  ' + K('pause') + ' MENU']
     : [[K('up'), K('left'), K('down'), K('right')].join('') + ' MOVE  MOUSE AIMS  ' + SLOT_ACTS.map(a => K(a)).join(' ') + ' SKILLS  ' + K('dodge') + ' DODGE  ' + K('potion') + ' POTION',
       K('interact') + ' USE  ' + K('portal') + ' PORTAL  ' + K('bag') + ' BAG  ' + K('skills') + ' SKILLS  ' + K('tree') + ' PASSIVES  ' + K('camView') + ' VIEW  ' + K('pause') + ' MENU'];
-  L.forEach((l, i) => E.font.text(g, l, cx, y + i * 7, '#b8b0d0', { align: 'center', font: 'tiny', outline: false }));
+}
+/** the legend as drawn: [its rows, their step, the band's height]. The two lines in the tiny font; on a TV in the normal
+ *  font, each wrapped to the screen (a pad's first line is wider than a 4K TV's 405 game pixels), the band as tall as
+ *  they need (the title menu stands on it) */
+function legendRows() {
+  const L = legendLines(); if (!UI_tv()) return [L, 7, 21];
+  // (on a TV the normal font: a line too wide breaks between its key-and-action groups, never inside one: 'L2 POTION' stays whole)
+  const room = game.W - 12, pack = l => { const out = []; let cur = ''; for (const gp of l.split('  •  ')) { const t = cur ? cur + '  •  ' + gp : gp; if (!cur || E.font.width(t) <= room) cur = t; else { out.push(cur); cur = gp; } } if (cur) out.push(cur); return out.flatMap(r => E.font.width(r) > room ? E.font.wrap(r, room) : [r]); };
+  const R = L.flatMap(pack); return [R, 9, R.length * 9 + 5];
+}
+function legend(g, cx, Hb) {
+  const [R, lh, bh] = legendRows(), f = UI_tf({ align: 'center', outline: false });
+  R.forEach((l, i) => E.font.text(g, l, cx, Hb - bh + 4 + i * lh, '#b8b0d0', f));
 }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
 const KATA = ['slash', 'backslash', 'spin', 'thrust'];
@@ -199,11 +218,14 @@ const titleScene = {
     const inp = game.input;
     if (inp.repeat('menuUp')) { TITLE.menu = (TITLE.menu + items.length - 1) % items.length; sfx('select'); UI.keyNav = true; }
     if (inp.repeat('menuDown')) { TITLE.menu = (TITLE.menu + 1) % items.length; sfx('select'); UI.keyNav = true; }
+    const M = titleMenu(items.length);   // (two columns: left and right cross between them, as the pause menu's)
+    if (M.k < items.length && (inp.repeat('menuLeft') || inp.repeat('menuRight'))) { TITLE.menu = TITLE.menu >= M.k ? TITLE.menu - M.k : Math.min(items.length - 1, TITLE.menu + M.k); sfx('select'); UI.keyNav = true; }
     if (inp.pressed('confirm') || inp.pressed('start')) { inp.consumeAll(); sfx('confirm'); items[clamp(TITLE.menu, 0, items.length - 1)][1](); }
     if (Math.random() < dt * 8) { const b = rnd.pick(ED.L.torches); P.add({ kind: 'ember', x: b.x + (Math.random() - .5) * 6, y: b.y + (Math.random() - .5) * 6, z: 14, vx: (Math.random() - .5) * 14, vy: (Math.random() - .5) * 14, vz: 20 + Math.random() * 40, max: 1.2, color: '#ff8a3a' }); }
-    // the hero stands just above the menu: slide the look point toward (or away from) the camera until his feet sit there
+    // the hero stands just above the menu (between its two columns, on its side): slide the look point toward (or away
+    // from) the camera until his feet sit there
     const v = game.view, fl = Math.hypot(v.fx || 0, v.fy === undefined ? 1 : v.fy) || 1, fx = (v.fx || 0) / fl, fy = (v.fy === undefined ? 1 : v.fy) / fl;
-    const a = v.p(h.x, h.y, 0), b = v.p(h.x + fx * 10, h.y + fy * 10, 0), s = (b[1] - a[1]) / 10, k = Math.abs(s) > .05 ? clamp((game.H / 2 - titleMenu(items.length).y + 3) / s, -150, 150) : 0;
+    const a = v.p(h.x, h.y, 0), b = v.p(h.x + fx * 10, h.y + fy * 10, 0), s = (b[1] - a[1]) / 10, k = Math.abs(s) > .05 ? clamp((game.H / 2 - M.feet) / s, -150, 150) : 0;
     game.focus(h.x + fx * k, h.y + fy * k, 0);
   },
   draw(r) {
@@ -217,13 +239,13 @@ const titleScene = {
       const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1), F = UI.frame, top = F.t, Hb = H - F.b;   // clear of a phone's status bar and home bar
       px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64 + top; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
       E.font.title(g, 'EMBERDEEP', cx, top + (H < 260 ? 5 : 14), { scale: H < 260 ? 3 : 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
-      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, top + (H < 260 ? 34 : 50), characterOf(h).color, { align: 'center', font: 'tiny', shadow: '#05040a', outline: false });
+      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, top + (H < 260 ? 34 : 50), characterOf(h).color, UI_tf({ align: 'center', shadow: '#05040a', outline: false }));   // (the normal font on a TV)
       const items = titleItems(), M = titleMenu(items.length), bw = M.bw;   // laid out up from the key legend, so every item shows
-      items.forEach(([label, fn], i) => { if (button(g, cx - bw / 2, M.y + i * M.step, bw, M.rowH, label, () => { TITLE.menu = i; FS.auto(); fn(); }, { focus: TITLE.menu === i }) && !UI.keyNav) TITLE.menu = i; });   // (the mouse moves the one highlight; keys and a pad go on from it)
-      const h2 = ED.titleHero; if (characterSave()) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
-      px.blend(g, .7, 'normal', () => px.rect(g, 0, Hb - 21, W, 21 + F.b, '#05040a'));
-      legend(g, cx, Hb - 17);
-      E.font.text(g, ('v' + E.version + ' • ' + E.build).toUpperCase(), W - F.r - 4, Hb - 29, '#6f6788', { align: 'right', font: 'tiny', outline: false });   // which release and build this is
+      items.forEach(([label, fn], i) => { if (button(g, cx + M.dx(i), M.top(i), bw, M.rowH, label, () => { TITLE.menu = i; FS.auto(); fn(); }, { focus: TITLE.menu === i }) && !UI.keyNav) TITLE.menu = i; });   // (the mouse moves the one highlight; keys and a pad go on from it)
+      const h2 = ED.titleHero; if (characterSave()) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.base + 1, '#c8c0d8', UI_tf({ align: 'center', outline: '#05040a' }));
+      const lb = legendRows()[2]; px.blend(g, .7, 'normal', () => px.rect(g, 0, Hb - lb, W, lb + F.b, '#05040a'));   // (the band: taller on a TV, its rows in the normal font)
+      legend(g, cx, Hb);
+      E.font.text(g, ('v' + E.version + ' • ' + E.build).toUpperCase(), W - F.r - 4, Hb - lb - (UI_tv() ? 10 : 8), '#6f6788', UI_tf({ align: 'right', outline: false }));   // which release and build this is
     });
     drawPanels(r);
   }
@@ -392,7 +414,7 @@ const levelScene = {
   },
   exit() { BUS.emit('levelEnd', { L: ED.L }); slowMoReset(SLOW.raw === undefined ? SLOW.base : SLOW.raw); },
   update(dt) {
-    if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
+    if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || game.input.stickOn || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }   // (a touch on open ground starts the stick: no press, UI.mouse)
     if (talkStep(dt)) return;
     if (updateUI(dt)) return;
     const L0 = ED.L, h = ED.hero, inp = game.input;

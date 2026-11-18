@@ -573,6 +573,8 @@ game.input.touchFilter = (e) => {
 	);
 };
 UI.fingers = new Set(); // the fingers on the canvas (not the stick's): two or more are a pinch, never a drag
+// a finger that presses (60-ui-core took it as UI.mouse: no other finger was pressing) presses the touch's click until
+// it lifts (UI_lift lets it go); one landing while another presses is only counted, for a pinch
 canvas.addEventListener("pointerdown", (e) => {
 	if (
 		e.pointerType === "mouse" ||
@@ -580,26 +582,19 @@ canvas.addEventListener("pointerdown", (e) => {
 	)
 		return;
 	UI.fingers.add(e.pointerId);
-	UI.mouse.cx = e.clientX;
-	UI.mouse.cy = e.clientY;
-	UI.mouse.active = true;
-	UI.mouse.down = true;
-	game.input.press("Act:click");
+	if (UI.mouse.down && UI.mouse.id === e.pointerId) {
+		UI.mouse.active = true;
+		game.input.press("Act:click");
+	}
 	canvas.setPointerCapture(e.pointerId);
 });
-const endTouch = (e) => {
-	UI.fingers.delete(e.pointerId);
-	if (e.pointerType !== "mouse") {
-		game.input.release("Act:click");
-		UI.mouse.down = false;
-		UI.drag = null;
-		UI.mouse.lift = true;   // a finger has no hover: once the step has taken its tap, the pointer leaves (updateUI), so no tooltip stays behind
-	}
-};
+const endTouch = (e) => UI.fingers.delete(e.pointerId);
 addEventListener("pointerup", endTouch);
 addEventListener("pointercancel", endTouch);
 function pauseOnFocusLoss() {
+	if (UI.mouse.down && UI.mouse.finger) UI.mouse.lift = true;   // (a finger down as the focus went lets go of its hover too, as at its lift: its own lift, no longer the press's, would leave a tooltip behind, UI_lift)
 	UI.mouse.down = false;
+	UI.mouse.far = Infinity;   // (a finger down as the focus went: its lift is no tap)
 	UI.drag = null;
 	if (!UI.modal && ["town", "level", "proving"].includes(ED.mode) && !ED.demo)
 		UI.open("pause");

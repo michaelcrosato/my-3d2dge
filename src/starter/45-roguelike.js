@@ -12,8 +12,9 @@
  * ✕ wait, □ potion, △ scroll, R1 the stairs, Options pauses. DUALSENSE: the light bar is the hero's health (green, amber,
  * red; white for a level); any pad rumbles on the blows (game.hitFx), down the stairs and at the end. TOUCH: tap a cell
  * to walk there (the hero stops when a monster comes into sight), hold the stick to step; WAIT, and POTION and SCROLL
- * while there is one to use; with Touch assists on (Settings), STAIRS once the stairs are seen walks there. A sideways
- * swipe clears the messages and leaves the end's menu.
+ * while there is one to use; with Touch assists on (Settings), STAIRS once the stairs are seen walks there (upright, the
+ * four in two columns in the corner, the stick's half clear). A sideways swipe clears the messages and leaves the end's
+ * menu.
  * HOW IT WORKS: the floor is a TileMap from E.gen's ASCII rows, the grid (E.Grid.from(map)) gives paths, fields of view
  * (symmetric shadowcasting: you see a monster exactly when it sees you) and E.Fog (unseen black, seen dim); E.Turns
  * orders the turns; each step between cells is a tween (game.tween) the rigs walk through, so the game is turn-based
@@ -50,6 +51,7 @@ const ROGUE = (() => {
   let R = Math.random, seed = 1, depth = 1, level = null, map = null, grid = null, fog = null, turns = null;
   let hero = null, foes = [], items = [], braziers = [], log = [], travel = null, busy = 0, mode = 'play', over = null, dirWait = 0, lastDir = null, repeatT = 0, held = 0, going = false;
   let stats = { kills: 0, gold: 0, turns: 0, killer: null };
+  const TOUCH = ['stairs', 'potion', 'scroll', 'wait'], fit = touchColumns(TOUCH);   // (the touch buttons, WAIT in the corner; upright, two columns)
   const menu = new E.Menu(game, [E.lang.upper(E.t('starter.over.retry')), E.lang.upper(E.t('starter.over.title'))], { y: 0, onPick: i => i === 0 ? game.go('roguelike', null, { fade: 'iris' }) : game.go('title'), onCancel: () => game.go('title') });
   // THE KEYS: its own (no borrowed attack, skill or dash: a click only travels, a right click drinks nothing): the moves
   // with the numpad's, its corners the diagonals; wait, quaff and read on the keys a roguelike's player reaches for (the
@@ -203,7 +205,7 @@ const ROGUE = (() => {
     // the buttons a touch screen shows: WAIT; POTION and SCROLL while there is one; STAIRS (a touch assist: Settings, Touch
     // assists) once the stairs are seen. stairs: seen, so the stairs key (G, R1) can walk there
     const st = items.find(t => t.kind === 'stairs'), stairs = !!st && fog.seen([st.cx, st.cy]) && !going;
-    I.touchSet('wait', E.t('roguelike.touch.wait')); I.touchSet('potion', E.t('roguelike.touch.potion'), hero.potions > 0); I.touchSet('scroll', E.t('roguelike.touch.scroll'), hero.scrolls > 0); I.touchSet('stairs', E.t('roguelike.touch.stairs'), stairs && I.assist);
+    fit(); I.touchSet('wait', E.t('roguelike.touch.wait')); I.touchSet('potion', E.t('roguelike.touch.potion'), hero.potions > 0); I.touchSet('scroll', E.t('roguelike.touch.scroll'), hero.scrolls > 0); I.touchSet('stairs', E.t('roguelike.touch.stairs'), stairs && I.assist);
     if (log.length && I.swipe() && (I.swipe().dir === 'left' || I.swipe().dir === 'right')) { I.swipe(true); log = []; }   // a sideways swipe clears the messages
     if (I.mouse.t !== hover.mt) { hover.mt = I.mouse.t; hover.cell = cellAt(I.pointer()); }   // the mouse: the cell under it (its path drawn below)
     busy -= dt; if (busy > 0) return;
@@ -343,9 +345,9 @@ const ROGUE = (() => {
     } finally { Math.random = was; }
   }
 
-  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: ['stairs', 'potion', 'scroll', 'wait'],
+  return { view: 'threequarter', views: ['threequarter', 'iso'], input: KEYS, res: 'ps1', pausable: true, propSize: 1.1, touch: TOUCH,
     camera: { zoom: [.75, 2], start: 1, tall: 1.25 }, update, draw, bot,
-    enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hover = { mt: game.input.mouse.t, cell: null, key: '', path: [] }; start(data); },
+    enter(data) { ds = E.DualSense ? E.DualSense.attach(game, { light: true, speaker: true }) : null; padLight = null; hover = { mt: game.input.mouse.t, cell: null, key: '', path: [] }; fit.reset(); start(data); },
     exit() { L.enabled = false; game.cam.bounds = null; if (ds) ds.clear(); },
     state: () => ({ depth, hero, foes, items, mode, turns, grid, fog }),   // for tests
     /** the proof: steps about the first floor, a wait, a potion; the monsters on their turns; a hash of the run */

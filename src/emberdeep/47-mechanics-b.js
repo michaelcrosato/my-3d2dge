@@ -517,7 +517,8 @@ function MKB_rushHud(r, L0) {
     const x = f.W - 8, y = 64 + HUD_under(), sh = S.shake * S.shake, jx = Math.round((Math.random() * 2 - 1) * sh * 3), jy = Math.round((Math.random() * 2 - 1) * sh * 2);
     if (S.n >= 1 || S.t > 0) {
       const sc = (S.n >= 50 ? 4 : 3) + (S.pop > 0 ? 1 : 0), hot = S.pop > 0, cols = hot ? ['#ffffff', '#ffffff', '#ffd0d0', '#ff6a7a'] : S.mul >= MKB_BR.cap ? ['#fff6d0', '#ffd36a', '#ff5a2a', '#8a1010'] : ['#fff0f0', '#ff8a8a', '#e0202e', '#7a0614'];
-      E.font.text(g, 'KILL STREAK', x, y, '#ff8a8a', { align: 'right', font: 'tiny', outline: '#1a0008' });
+      const sf = UI_tf({ align: 'right', outline: '#1a0008' }), sy = sf.font ? 0 : 2;   // (its words in the normal font on a TV, 2 px higher: the same foot)
+      E.font.text(g, 'KILL STREAK', x, y - sy, '#ff8a8a', sf);
       const tw = E.font.title(g, String(S.n), x + jx, y + 8 + jy - (hot ? 3 : 0), { scale: sc, colors: cols, depth: 2, depthColor: '#2a0008', outline: '#12000a', align: 'right' });
       E.font.title(g, 'x', x + jx - tw.w - 2, y + 8 + jy + 7 * sc - 14, { scale: 2, colors: ['#ffc0c0', '#e0202e'], depth: 1, depthColor: '#2a0008', outline: '#12000a', align: 'right' });
       const bw = 62, by = y + 12 + 7 * (S.n >= 50 ? 4 : 3), u = clamp(S.t / MKB_BR.win, 0, 1), warn = u < .3 && Math.floor(game.real * 10) % 2;
@@ -525,11 +526,11 @@ function MKB_rushHud(r, L0) {
       px.rect(g, x - bw + 1, by + 1, Math.round((bw - 2) * u), 3, warn ? '#ffffff' : '#e0202e'); px.rect(g, x - bw + 1, by + 1, Math.round((bw - 2) * u), 1, warn ? '#ffffff' : '#ff8a8a');
       const st = Math.min(MKB_BR.stacks, S.n);
       E.font.text(g, 'XP x' + S.mul.toFixed(2).replace(/0$/, ''), x, by + 8, S.mul >= MKB_BR.cap ? '#ffd36a' : '#ffc0a0', { align: 'right', outline: '#1a0008' });
-      if (st) E.font.text(g, '+' + Math.round(st * MKB_BR.mv) + '% SPEED  +' + Math.round(st * MKB_BR.as) + '% ATTACK', x, by + 18, '#e8a0a8', { align: 'right', font: 'tiny', outline: '#1a0008' });
+      if (st) E.font.text(g, '+' + Math.round(st * MKB_BR.mv) + '% SPEED  +' + Math.round(st * MKB_BR.as) + '% ATTACK', x, by + 18, '#e8a0a8', sf);
     } else if (S.endT > 0) {
       const a = clamp(S.endT / .6, 0, 1);
       px.blend(g, a, 'normal', () => {
-        E.font.text(g, 'STREAK ENDED', x, y, '#c88a90', { align: 'right', font: 'tiny', outline: '#1a0008' });
+        const sf = UI_tf({ align: 'right', outline: '#1a0008' }); E.font.text(g, 'STREAK ENDED', x, y - (sf.font ? 0 : 2), '#c88a90', sf);   // (the normal font on a TV)
         E.font.title(g, 'x' + S.last, x, y + 8, { scale: 2, colors: ['#e8c8c8', '#a84050'], depth: 1, depthColor: '#2a0008', outline: '#12000a', align: 'right' });
         if (S.lastXp >= 1) E.font.text(g, '+' + fmt(S.lastXp) + ' BONUS XP', x, y + 26, '#ffd36a', { align: 'right', outline: '#1a0008' });
       });

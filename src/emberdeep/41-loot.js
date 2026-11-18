@@ -1025,7 +1025,7 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
 }
 
 /* =============================================================================
- * LOOT ON THE GROUND: click a label to pick it up (close by), hover it for the full tooltip with the comparison.
+ * LOOT ON THE GROUND: click a label to pick it up (close by; a finger walks over it), hover it for the full tooltip with the comparison.
  * UI.hotItem is the hovered drop (drawDrops sets it while drawing its labels).
  * ============================================================================= */
 const LOT_PICK_R = 44;
@@ -1051,9 +1051,16 @@ BUS.on('draw', e => {
   for (const d of ED.drops) if (d.kind === 'item') d.lab = null;   // drawDrops' overlay sets the labels it really draws this frame
   if (UI.stack.length || !ED.hero) return;
   r.overlay(() => {
-    for (const d of ED.drops) if (d.kind === 'item' && d.lab) { const [x, y, w, hh] = d.lab; hot(x, y, w, hh, { click: () => LOT_pickup(d) }); }
+    // (under a finger a label is no target: labels stack 9 px apart, too close for a finger each, so a finger walks over
+    // loot, or USE picks up what walking won't take, and a touch on a label starts the stick there as on open ground)
+    // A finger held on a label still shows its tooltip, to compare (not while it steers the stick: the pointer stays
+    // where the stick began), its hint how a finger takes it: walking over it, or the touch bar's Pick up (USE) for one
+    // he dropped (pickupPrompt)
+    const fing = ctlDevice() === 'touch';
+    if (!fing) for (const d of ED.drops) if (d.kind === 'item' && d.lab) { const [x, y, w, hh] = d.lab; hot(x, y, w, hh, { click: () => LOT_pickup(d) }); }
     const d = UI.hotItem;
-    if (d && d.item) r.overlay(g => { LOT_drawTip(g, d.item, UI.mouse.x, UI.mouse.y, { anchor: d.lab, hint: [{ t: Math.hypot(ED.hero.x - d.x, ED.hero.y - d.y) <= LOT_PICK_R ? 'CLICK TO PICK UP' : 'CLICK TO PICK UP (COME CLOSER)', c: '#c8c0d8' }] }); });
+    if (d && d.item && !(fing && game.input.stickOn)) r.overlay(g => { const near = Math.hypot(ED.hero.x - d.x, ED.hero.y - d.y) <= LOT_PICK_R;
+      LOT_drawTip(g, d.item, UI.mouse.x, UI.mouse.y, { anchor: d.lab, hint: [{ t: fing ? (d.noAuto ? 'WALK TO IT, THEN TAP PICK UP' : 'WALK OVER IT TO PICK IT UP') : near ? 'CLICK TO PICK UP' : 'CLICK TO PICK UP (COME CLOSER)', c: '#c8c0d8' }] }); });
   });
 });
 
