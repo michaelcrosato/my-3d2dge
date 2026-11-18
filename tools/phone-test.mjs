@@ -67,11 +67,13 @@
 //      edition's FamilyMenu, the Shell's Settings and Controls tabs and sliders; sky's menu, too long on its side, scrolls
 //      under a finger to BACK, which a tap picks. After the keys (a touch laptop, a phone after a keyboard or a pad) the
 //      rows are drawn small, and a finger's tap held a moment picks what it pressed on, the rows unchanged under it and a
-//      thumb's after it: kart's BACK, FamilyMenu's POINT-AND-CLICK, Morwen's A WHALE; a touch laptop's first touch on a
-//      bottom dialog's choice answers it, the touch buttons it brings moving nothing from under it. A thumb resting on the
-//      stick holds no new screen: after the keys, at rest on it in play, the Shell's Settings and GAME OVER come up a
-//      thumb's size; on GAME OVER one that lands on the stick's half and moves past a tap's reach lets the rows grow while
-//      it rests, and a slow tap there (held past a long press) still picks the row it pressed on
+//      thumb's after it: kart's BACK, FamilyMenu's POINT-AND-CLICK, Morwen's A WHALE; one on kart's BACK that creeps past
+//      a tap's reach and back before it lifts is no tap (it picks nothing as the rows grow); a touch laptop's first touch
+//      on a bottom dialog's choice answers it, the touch buttons it brings moving nothing from under it. A thumb resting on
+//      the stick holds no new screen: after the keys, at rest on it in play (its press held), GAME OVER comes up a thumb's
+//      size, and so do the Shell's Settings in a page of their own; on GAME OVER one that lands on the stick's half and
+//      moves past a tap's reach lets the rows grow while it rests, and a slow tap there (held past a long press) still
+//      picks the row it pressed on
 //  26. the stick's half (stealth, roguelike, metroidvania): upright, their four or five touch buttons in two columns right
 //      of the middle (those that come and go shown too), a left thumb set down at the bottom-left steers; on its side a
 //      row; GAME OVER (upright and on its side) and the rts end menu go to the title on a sideways flick, not one in
@@ -1328,19 +1330,33 @@ if (want('menus')) {
       const said = await ev(page, () => (window.__game.scenes.pointclick.state().story.log.filter(e => e.who === 'choice').slice(-1)[0] || {}).text);
       check(`menus ${label}: after the keys, a finger's tap held on Morwen's ${q.first} (the choices drawn small) answers it`, under === q.rh && said === q.first && !errors.length, `rows ${q.rh} px before, ${under} under the finger; answered ${said}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
       await ctx.close(); }
+    // a finger that creeps past a tap's reach and back before it lifts is no tap (the layout let go of it as it strayed, and
+    // the rows grew under it): after the keys, on kart's BACK as drawn small, it picks nothing, not the row now under it
+    { const { page, ctx, errors, cdp } = await open('kart', vp); await wait(500); await hook(page); await wait(200); await useKeys(page);
+      const r = await ev(page, () => { const m = [...window.__menus][0]; window.__picks = []; m.onPick = i => window.__picks.push(m.items[i]); return { th: m._box.th, back: m.rowAt(2) }; });
+      const q = await toCss(page, r.back[0] + r.back[2] / 2, r.back[1] + r.back[3] / 2), at = (type, dx) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: q[0] + dx, y: q[1], id: 1 }] });
+      await at('touchStart', 0); await wait(60); let grew = 0;
+      for (const dx of [5, 10, 14, 9, 4]) { await at('touchMove', dx); await wait(50); if (dx === 4) grew = await ev(page, () => [...window.__menus][0]._box.th); }
+      await at('touchEnd'); await wait(500);
+      const g = await ev(page, () => ({ picks: window.__picks, scene: window.__game.game.sceneName }));
+      check(`menus ${label}: after the keys, a finger on kart's BACK (its rows drawn small) that creeps past a tap's reach and back to 4 CSS px before it lifts is no tap: it picks nothing as the rows grow`, r.th === 0 && grew > 0 && !g.picks.length && g.scene === 'kart' && !errors.length, `rows ${r.th ? 'a thumb\'s' : 'small'} before and ${grew ? 'a thumb\'s' : 'small'} as it came back; picked ${g.picks.join() || 'nothing'}, the scene ${g.scene}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+      await ctx.close(); }
     // a thumb resting on the stick holds no layout for a new screen: after the keys, set down on it in play and resting there
-    // still, the Shell's Settings and then GAME OVER come up meanwhile a thumb's size (nothing on them was under it)
-    { const { page, ctx, errors, cdp } = await open('platformer', vp); await wait(500); await hook(page); await useKeys(page);
+    // still (its press held, as a tap's would be), GAME OVER comes up meanwhile a thumb's size (a scene entered), and in a
+    // page of its own so do the Shell's Settings (a Shell screen opened): nothing on either was under it
+    const still = async show => {
+      const { page, ctx, errors, cdp } = await open('platformer', vp); await wait(500); await hook(page); await useKeys(page);
       const dev = await ev(page, () => window.__game.game.input.lastDevice), st = [vp.width * .15, vp.height * .75];
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: st[0], y: st[1], id: 1 }] }); await wait(400);
-      const on = await ev(page, () => window.__game.game.input.stickOn); await ev(page, () => window.__game.game.menu('settings')); await wait(400);
-      const tabs = await ev(page, () => [...document.querySelectorAll('.esh-tabs button, .esh input[type=range]')].filter(e => e.offsetParent).map(e => Math.round(e.getBoundingClientRect().height)));
-      await ev(page, () => window.__game.game.shell.hide()); await wait(200);
-      await ev(page, () => window.__game.game.go('over', { from: 'platformer' }, { fade: 0 })); await wait(600);
-      const m = (await rowsOf(page))[0];
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200);
-      check(`menus ${label}: after the keys, a thumb resting still on the stick in play: the Shell's Settings tabs and sliders, then GAME OVER's rows, come up a thumb's size`, dev === 'keyboard' && on && tabs.length >= 4 && Math.min(...tabs) >= 44 && !!m && m.h >= 44 && !errors.length, `the device ${dev}, the stick ${on ? 'held' : 'not held'}; Settings' ${tabs.join(' ')} CSS px, GAME OVER's rows ${m ? m.h.toFixed(1) : '?'}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
-      await ctx.close(); }
+      const s = await ev(page, () => { const I = window.__game.game.input; return { on: I.stickOn, held: !!I._press && I.lastDevice === 'touch' && I.layoutDevice === 'keyboard' }; });   // (the thumb's press holds the keys' layout until the screen is new)
+      const got = await show(page);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200); await ctx.close();
+      return Object.assign(s, got, { dev, errors, said: `the device ${dev}, the stick ${s.on ? 'held' : 'not held'}, the keys' layout ${s.held ? 'held' : 'not held'} under it as the screen comes` + (errors.length ? '; errors: ' + errors.join(' | ') : '') });
+    };
+    const ov = await still(async page => { await ev(page, () => window.__game.game.go('over', { from: 'platformer' }, { fade: 0 })); await wait(600); const m = (await rowsOf(page))[0]; return { h: m ? m.h : 0 }; });
+    check(`menus ${label}: after the keys, a thumb resting still on the stick in play (its press held): GAME OVER's rows come up a thumb's size`, ov.dev === 'keyboard' && ov.on && ov.held && ov.h >= 44 && !ov.errors.length, `${ov.said}; GAME OVER's rows ${ov.h.toFixed(1)} CSS px`);
+    const se = await still(async page => { await ev(page, () => window.__game.game.menu('settings')); await wait(400); return { tabs: await ev(page, () => [...document.querySelectorAll('.esh-tabs button, .esh input[type=range]')].filter(e => e.offsetParent).map(e => Math.round(e.getBoundingClientRect().height))) }; });
+    check(`menus ${label}: after the keys, a thumb resting still on the stick in play (its press held): the Shell's Settings tabs and sliders come up a thumb's size`, se.dev === 'keyboard' && se.on && se.held && se.tabs.length >= 4 && Math.min(...se.tabs) >= 44 && !se.errors.length, `${se.said}; Settings' ${se.tabs.join(' ')} CSS px`);
     // on GAME OVER, where nothing steers: after the keys a thumb that lands on the stick's half and moves past a tap's reach
     // lets the rows grow while it rests there (it picks nothing as it lifts); a slow tap there, held past a long press on
     // TITLE's row as drawn small, is a tap all the same and picks TITLE (the rows held under it)

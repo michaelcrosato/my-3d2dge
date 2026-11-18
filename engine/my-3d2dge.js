@@ -785,8 +785,8 @@ class Input {
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     /** clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked()) */
     this._clickAt = null; this._click = null; this._down = null;
-    // the press on the canvas that can still be a tap (_press: { dev, the layout's device as it landed; id, x, y, its
-    // pointer and where it landed; up, lifted; out, the steps since }: layoutDevice); when the game last read a steer
+    // the press on the canvas that can still be a tap (_press: { dev, the layout's device as it landed; id, its pointer;
+    // up, lifted; out, the steps since }: layoutDevice); when the game last read a steer
     // (move(), drag()); a flick of the stick's finger for the engine's menus and dialogs (_flick)
     this._press = null; this._steerAt = -1e9; this._gStick = this._stickAt = null;
     /** stick: the touch stick's direction [x, y], length <= 1; stickOn: a finger is on it; padMove: the gamepad's
@@ -866,7 +866,10 @@ class Input {
     on(window, 'blur', () => all(q => q.clear()));
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
-    on(el, 'pointermove', e => { const P = this._press; if (P && P.id === e.pointerId && !P.up && Math.hypot(e.clientX - P.x, e.clientY - P.y) >= 12) this._press = null;   // (past a tap's reach: a drag, a thumb steering, holds no layout)
+    // a finger moved past a tap's reach (12 CSS px: a drag, a thumb steering) is no tap, though it comes back (a phone's
+    // own rule), so it holds no layout either (layoutDevice); a mouse's click is lifted near where it pressed, wherever it
+    // went between (a browser's), and its press holds until then
+    on(el, 'pointermove', e => { const d = this._down; if (d && d.id === e.pointerId && e.pointerType !== 'mouse' && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 12) { this._down = null; if (this._press && this._press.id === e.pointerId) this._press = null; }
       if (e.pointerType !== 'mouse') this._lookMove(e); if (e.pointerType === 'mouse') { if (this.lastDevice !== 'mouse' && this.lastDevice !== 'keyboard' && Math.hypot(e.clientX - this.mouse.cx, e.clientY - this.mouse.cy) > 3) this.lastDevice = 'mouse'; this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
     // a mouse button pressed or let go while another is held comes as a pointermove, not a pointerdown or pointerup
     // (Pointer Events' chorded buttons: e.button the one that changed, e.buttons those down now): right held to aim, a
@@ -875,7 +878,7 @@ class Input {
     on(el, 'pointerdown', e => {
       const dev = this.layoutDevice;   // (the device the screen is drawn for as it lands: _press)
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
-      if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
+      if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup), a finger's never having strayed (pointermove)
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
@@ -884,14 +887,14 @@ class Input {
         if (z) this._zoneDown(e.pointerId, z); else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
       // the press that can still be a tap (the click to come, _down) holds the layout as drawn until its tap is read, not a
-      // zone's (its act, as a touch button's); it lets go past a tap's reach (pointermove), once no tap can come (tick) and
-      // on a new screen (_relayout)
-      if (this._down && this._down.id === e.pointerId && !this._zoneOf.has(e.pointerId)) this._press = { dev, id: e.pointerId, x: e.clientX, y: e.clientY, up: false, out: 0 };
+      // zone's (its act, as a touch button's); it lets go once no tap can come (a finger past a tap's reach: pointermove;
+      // another's, none: tick) and on a new screen (_relayout)
+      if (this._down && this._down.id === e.pointerId && !this._zoneOf.has(e.pointerId)) this._press = { dev, id: e.pointerId, up: false, out: 0 };
       if (e.pointerType === 'mouse' || this._fingers.size === 1) this._gesture('down', ...this.screenPoint(e.clientX, e.clientY), { touch: e.pointerType !== 'mouse', button: e.button, id: e.pointerId }); else this._g = this._gBox = null;   // (a second finger: a pinch, no gesture)
     });
     on(window, 'pointerup', e => {
       if (this._press && this._press.id === e.pointerId) this._press.up = true;   // (its tap, read the next step, on the layout it pressed on)
-      const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none): clicked() for a step,
+      const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none; a finger's that strayed, none): clicked() for a step,
       // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
       if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
       if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
@@ -1190,7 +1193,8 @@ class Input {
   /** mouse position in projected screen pixels, or null */
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
   /** where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step
-   *  after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to
+   *  after it lifted within 12 CSS px of where it pressed (a press that drags away, like the touch stick's, is none, and a
+   *  finger that strayed past 12 px is none though it comes back, as on a phone); else null. Menus and dialogs answer to
    *  it; a HUD button of your own can: if (hit(input.clicked())) ... */
   clicked() { return this._clickAt; }
   /** a quick one-finger flick on the canvas (a touch screen): { dir: 'left' | 'right' | 'up' | 'down', x, y } (where it
@@ -1216,8 +1220,9 @@ class Input {
   get assist() { return this.lastDevice === 'touch' && !(this._settings && this._settings.assists === false); }
   /** the device the screen is laid out for: lastDevice, except while a press on the canvas can still be a tap and for the
    *  step that reads its tap, when it stays the one it was as the press landed (on the screen it landed on: a new scene
-   *  or Shell screen is laid out for the device in use). A press moved past a tap's reach (12 CSS px: a thumb steering),
-   *  a zone's, or one another finger took the tap from holds nothing. A layout sized by the device (a thumb's rows by
+   *  or Shell screen is laid out for the device in use). A finger moved past a tap's reach (12 CSS px: a thumb steering,
+   *  no tap though it comes back), a zone's, or one another finger took the tap from holds nothing; a mouse's press holds
+   *  until it lifts (its click may come back). A layout sized by the device (a thumb's rows by
    *  touch: E.Menu's, E.Dialog's choices, a menu of the game's own) reads it, so a tap answers what was under the finger
    *  as drawn when it pressed and the rows grow after it; prompts read lastDevice */
   get layoutDevice() { return this._press ? this._press.dev : this.lastDevice; }
@@ -1381,7 +1386,7 @@ class Input {
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     // the held layout let go (layoutDevice follows the device again): the step that read the press's tap gone, or no tap to
-    // come from it (the click is another press's, or none's: a second finger, another's lift, a pinch)
+    // come from it (the click is another press's, or none's: a second finger, another's lift, a pinch, a finger strayed)
     const Pr = this._press, dn = this._down; if (Pr && (Pr.up ? Pr.out++ : !dn || dn.id !== Pr.id)) this._press = null;
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
     this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._stickAt = this._gStick; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._gStick = this._tap2nd = null;
