@@ -990,6 +990,44 @@ try {
 			assert.ok(Math.abs(g3[0].px) < 3 && Math.abs(g3[1].px) < 3, "a healthy controller's own drift, on a table and then picked up: the aim stays put: " + JSON.stringify(g3));
 			for (const i of [2, 4, 6, 8]) { const want = g3[i].deg * 9; assert.ok(-g3[i].px / want > 0.65 && -g3[i].px / want < 1.25, "connected afresh again, the gyro is read: each slow pan moves the aim as turned (" + i + "): " + JSON.stringify(g3)); }
 			for (const i of [3, 5, 7, 9]) assert.ok(Math.abs(g3[i].px) < 3, "and each pause leaves it put (" + i + "): " + JSON.stringify(g3));
+			// connected afresh again, a worn controller whose yaw drifts 1.2 degrees a second (past what its firmware takes
+			// out): on a table 4 s, then pans of 2.2 degrees a second for 2 s against the drift and with it, 1.5 s pauses,
+			// twice, then laid on the table 10 s. A pan's reading near nought is no rest: the pans against it still move the
+			// aim their way, and lying on the table it creeps no further (round 5's rule took the pans for the drift, and
+			// the aim then ran on by itself, about 150 px in the 10 s)
+			const tremor = (t) => 0.7 * Math.sin(2 * Math.PI * 8.7 * t) + 0.5 * Math.sin(2 * Math.PI * 11.3 * t + 1) + 0.3 * Math.sin(2 * Math.PI * 0.7 * t);
+			const gyroRun = (name, T, ends, turn, set) => p.evaluate(([name, T, ends, turn, set, tremor]) => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub, shake = eval(tremor), tf = eval(turn), sf = eval(set);
+				const run = (window[name] = { t: 0, phases: ends.map(() => ({ deg: 0, px: 0 })) });
+				H.pad.connected = false; H.tell(); H.pad.connected = true; H.tell(); sf(0, H, shake, tf);
+				g.hook("input", (dt) => {
+					if (run.t >= T) return;
+					const ph = run.phases[ends.findIndex((e) => run.t < e)];
+					ph.deg += tf(run.t) * dt; ph.px += ds.gyroAim(dt)[0];
+					run.t += dt; if (run.t < T) sf(run.t, H, shake, tf); else { H.turn(0); H.pull(null); }
+				});
+			}, [name, T, ends, turn.toString(), set.toString(), tremor.toString()]);
+			const gyroOut = async (name, T) => { await p.waitForFunction(([n, T]) => window[n].t >= T, [name, T], { timeout: 90000 }); return p.evaluate((n) => window[n].phases.map((ph) => ({ deg: +ph.deg.toFixed(2), px: +ph.px.toFixed(1) })), name); };
+			await gyroRun("__gyroRun4", 28, [4, 6, 7.5, 9.5, 11, 13, 14.5, 16.5, 18, 28],
+				(t) => ((t >= 4 && t < 6) || (t >= 11 && t < 13) ? -2.2 : (t >= 7.5 && t < 9.5) || (t >= 14.5 && t < 16.5) ? 2.2 : 0),
+				(t, H, shake, turn) => {   // (on the table: the drift alone, the pull steady; in the hand: the turn, the drift and the tremor)
+					if (t < 4 || t >= 18) { H.turn(1.2); H.pull({ x: 0, y: 1, z: 0 }); return; }
+					const w = shake(t), j = 0.012 * Math.sin(2 * Math.PI * 9 * t) + 0.006 * Math.sin(2 * Math.PI * 1.3 * t);
+					H.turn(turn(t) + 1.2 + w, w * 0.8, w * 0.5); H.pull({ x: j, y: 0.82 + j * 0.7, z: 0.57 - j });
+				});
+			const g4 = await gyroOut("__gyroRun4", 28);
+			for (const i of [1, 5]) assert.ok(-g4[i].px / (g4[i].deg * 9) >= 0.25, "a worn controller's drift of 1.2: each pan against it moves the aim its way (" + i + "): " + JSON.stringify(g4));
+			assert.ok(Math.abs(g4[9].px) < 5, "and laid on the table 10 s after the pans, the aim creeps no further: " + JSON.stringify(g4));
+			// connected afresh again, a healthy controller in a calm hand: held 3 s, a turn that eases in from nought to 2
+			// degrees a second over 4 s, then holds 2 for 3 s, held 4 s; the same the other way. The slow start is not taken
+			// for drift: the turn at 2 moves the aim at least 0.7 of the way (round 5's rule followed the slow start, and gave
+			// half), and held, nothing runs back
+			await gyroRun("__gyroRun5", 25, [3, 7, 10, 14, 18, 21, 25],
+				(t) => (t < 3 ? 0 : t < 7 ? (2 * (t - 3)) / 4 : t < 10 ? 2 : t < 14 ? 0 : t < 18 ? (-2 * (t - 14)) / 4 : t < 21 ? -2 : 0),
+				(t, H, shake, turn) => { const w = shake(t) / 3, j = 0.004 * Math.sin(2 * Math.PI * 9 * t); H.turn(turn(t) + w, w * 0.8, w * 0.5); H.pull({ x: j, y: 0.82 + j * 0.7, z: 0.57 - j }); });
+			const g5 = await gyroOut("__gyroRun5", 25);
+			for (const i of [2, 5]) assert.ok(-g5[i].px / (g5[i].deg * 9) >= 0.7, "a turn that eases in: once at 2 degrees a second it moves the aim at least 0.7 of the way (" + i + "): " + JSON.stringify(g5));
+			for (const i of [3, 6]) assert.ok(Math.abs(g5[i].px) < 3, "and held after it, nothing runs back (" + i + "): " + JSON.stringify(g5));
 			await p.evaluate(() => window.__hub.pull(null));
 			// a flick on the touchpad
 			await p.evaluate(() => { const ds = My3D2dge.DualSense.attach(window.__ed.game); window.__ed.game.hook("input", () => { if (ds.swipe()) window.__sw = ds.swipe(); }); window.__hub.fingers([{ id: 1, x: 0.2, y: 0.5 }]); });

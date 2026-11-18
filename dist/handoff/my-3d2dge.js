@@ -12476,10 +12476,11 @@ a game plays the same without them (docs/CONTROLS.md).
   force] } (a buzz from start: an engine, a machine gun); numbers 0..1, hz 1..255. Set it when it changes, not each step;
   under a pause the triggers are free by themselves.
 - ds.gyroAim(dt) -> [dx, dy]: screen pixels to add to an aim cursor or a camera this step, from the controller's turn and
-  tilt ([0, 0] with gyro aim off or no DualSense), less the gyro's drift: on each axis, a reading under a degree a second
-  held half a second (a healthy DualSense's firmware leaves a few tenths), never a turn however slow or long; nothing
-  within 1.5 degrees a second of it moves the aim, so it never runs on at rest. A drift of a degree a second or more
-  (a faulty controller) stays in the aim. ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() -> 'left' |
+  tilt ([0, 0] with gyro aim off or no DualSense), less the gyro's drift: on each axis, learned from a reading under 1.5
+  degrees a second held half a second near the drift learned, 2.5 s further, 15 s where it moves the aim, and kept within
+  a degree a second (a healthy DualSense's firmware leaves a few tenths); nothing within 1.5 of it moves the aim, so it
+  never runs on at rest and no turn of 2.5 or more is taken for drift. A drift past a degree a second (a faulty
+  controller) leaves the rest in the aim. ds.touches: the touchpad's fingers [{ x, y }] (0..1); ds.swipe() -> 'left' |
   'right' | 'up' | 'down' in the step after a flick on the touchpad, else null.
 - ds.speaker(name, o): a sound effect (audio.sfx's name and options) from the controller's speaker while the player has
   it on, else from the game's as usual. ds.micLevel() -> 0..1, how loud the microphone hears (0 while it is off).
@@ -12514,8 +12515,9 @@ const SONY = 0x054c, PIDS = [0x0ce6, 0x0df2];   // DualSense, DualSense Edge
 const isDS = d => !!d && d.vendorId === SONY && PIDS.includes(d.productId);
 const LEDS = [0x04, 0x0a, 0x15, 0x1b];   // the player lights for players 1 to 4, as the console lights them
 const GYRO = { off: 0, low: 2.5, medium: 5, high: 9 };   // gyro aim: screen pixels for a degree of turn
-const DRIFT = 1;   // degrees a second: the most a healthy DualSense reads at rest (its firmware takes its gyro's bias out:
-                   // a few tenths are left), so the most taken for its drift: a reading of more is a turn
+const DRIFT = 1;   // degrees a second: the most drift learned (a healthy DualSense's firmware takes its gyro's bias out: a
+                   // few tenths are left), so a healthy controller at rest is always inside the dead zone of what was learned
+const DEAD = 1.5;   // degrees a second: the aim's dead zone around the drift (a turn slower than this moves nothing)
 const ONCE = new WeakMap();
 E.lang.engine({
   'engine.setting.pad_light': 'Light bar', 'engine.setting.pad_light.help': 'The DualSense\'s light shows what the game says: your health, danger, your team',
@@ -12672,27 +12674,32 @@ class DualSense {
   _forget() { this._rate = [0, 0, 0]; this._bias = [0, 0, 0]; this._avg = [0, 0, 0]; this._m0 = [0, 0, 0]; this._still = [0, 0, 0]; }
   // the turn v (degrees a second, each axis) less the gyro's drift. The DualSense's firmware takes its gyro's bias out of
   // the report (Linux's hid-playstation and 52in1 use the calibration's bias only in the sensitivity, never as an
-  // offset), so a healthy controller at rest reads a few tenths of a degree a second, on WebHID and in 52in1 alike. Each
-  // axis on its own:
-  // - its quarter-second average, held half a second within half a degree a second of where it began and under DRIFT,
-  //   is followed in a second: at rest, on a table or in a hand, the drift is found in a second or two, and as it warms
-  // - nothing else is taken for drift: a reading of DRIFT or more is a turn, however slow, steady or long, and a
-  //   reading under it is inside the aim's dead zone (1.5 degrees a second) anyway
-  // - the drift learned is under DRIFT, so a healthy controller at rest reads inside the dead zone of it, whatever was
-  //   learned: the aim never runs on by itself
-  // A controller that drifts DRIFT or more (one its firmware no longer corrects) keeps it on that axis: every turn there
-  // is off by it, and past the dead zone the aim creeps by it at rest (gyro aim is an extra: the stick always works, and
-  // Settings turns it off)
+  // offset), so a healthy controller at rest reads a few tenths of a degree a second, on WebHID and in 52in1 alike. The
+  // gyro alone can't tell a slow turn from a drift; what the aim never moves for can be learned safely. Each axis on its
+  // own, its quarter-second average held within half a degree a second of where it began and inside the dead zone
+  // (DEAD: a reading that would move no aim on a controller without drift):
+  // - near the drift learned (within half a degree a second), held half a second, it is followed in a second: a healthy
+  //   controller's own drift is found in a second or two at rest, on a table or in a hand, and followed as it warms
+  // - further from it but inside the dead zone of it (a reading the aim doesn't move for), held 2.5 s, it is followed in
+  //   four: a slow pan's reading (2 s or so) moves the drift little, a controller that rests there for good is found in
+  //   a few seconds, and a turn that eases in moves it little
+  // - a reading the aim moves for (a turn, slow and against the drift), held 15 s, longer than an aiming turn holds one
+  //   speed, it is followed in four: a long slow track keeps its aim
+  // - the drift learned is kept within DRIFT, so a healthy controller at rest reads inside the dead zone of it, whatever
+  //   was learned: the aim never runs on by itself. A turn of DEAD + DRIFT or more is never taken for drift
+  // A controller that drifts more than DRIFT (one its firmware no longer corrects) keeps the rest on that axis: every
+  // turn there is off by it, and past the dead zone the aim creeps by it at rest (gyro aim is an extra: the stick
+  // always works, and Settings turns it off)
   _turn(v, dt) {
     const m = this._avg, b = this._bias, k = Math.min(1, dt * 4);
     for (let i = 0; i < 3; i++) {
       m[i] += (v[i] - m[i]) * k;
-      const held = Math.abs(m[i]) < DRIFT && Math.abs(m[i] - this._m0[i]) < .5;
+      const held = Math.abs(m[i]) < DEAD && Math.abs(m[i] - this._m0[i]) < .5, off = Math.abs(m[i] - b[i]);
       if (!held || !this._still[i]) this._m0[i] = m[i];   // (where the average began to hold)
       this._still[i] = held ? this._still[i] + dt : 0;
-      if (this._still[i] > .5) b[i] += (m[i] - b[i]) * Math.min(1, dt);
+      if (this._still[i] > (off < .5 ? .5 : off < DEAD ? 2.5 : 15)) b[i] += (Math.max(-DRIFT, Math.min(DRIFT, m[i])) - b[i]) * Math.min(1, dt / (off < .5 ? 1 : 4));
     }
-    this._rate = v.map((r, i) => Math.abs(r - b[i]) < 1.5 ? 0 : r - b[i]);
+    this._rate = v.map((r, i) => Math.abs(r - b[i]) < DEAD ? 0 : r - b[i]);
   }
   // the output report for what is wanted now, sent when it changed (a light set each step sends once)
   _push() {
