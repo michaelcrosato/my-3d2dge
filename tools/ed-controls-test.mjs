@@ -720,7 +720,7 @@ try {
 				let mics = 0;
 				Object.assign(api, { version: 1, music: 1, effects: 1, vibration: 1, mic: false, muted: false, dualsense: pad, openMicrophone: () => (mics++, Promise.resolve(null)) });
 				window.AIHubSettings = api;
-				window.__hub = { calls, pad, api, gyroReads: () => gyroReads, mics: () => mics, fingers: (f) => (fingers = f), turn: (y) => (gy = { x: 0, y, z: 0 }), pull: (a) => (pull = a), tell: () => api.dispatchEvent(new Event("change")) };
+				window.__hub = { calls, pad, api, gyroReads: () => gyroReads, mics: () => mics, fingers: (f) => (fingers = f), turn: (y, x = 0, z = 0) => (gy = { x, y, z }), pull: (a) => (pull = a), tell: () => api.dispatchEvent(new Event("change")) };
 				window.__hidTouched = false;
 				Object.defineProperty(Navigator.prototype, "hid", { configurable: true, get() { window.__hidTouched = true; return undefined; } });
 			});
@@ -789,6 +789,37 @@ try {
 			assert.ok(Math.abs(gr[8].px) < 2, "a drift of 2 degrees a second, the controller lying on a table, is learned: the aim stays put: " + JSON.stringify(gr));
 			assert.ok(gr[9].px >= -gr[9].deg * 9 * 0.9, "turned slowly on the table (2.5 degrees a second, right), the aim moves all the way: " + JSON.stringify(gr));
 			assert.ok(Math.abs(gr[10].px) < 3, "and left lying after it, nothing runs back: " + JSON.stringify(gr));
+			// a first rest that came mid-turn (a hand as steady as a table, turning 2.5 degrees a second as the controller
+			// connects) is given back once an ordinary hand holds still (its turn trembling about a degree a second, its pull
+			// a hundredth and a half of a g: never lying still): the aim runs back a moment, then no further. And a drift of 2
+			// degrees a second, in a hand whose turn is calm but whose pull trembles (never lying still either), is learned
+			// once it has held 10 s, longer than an aiming turn holds one speed. Each with a controller connected afresh
+			// (52in1's channel says it went and came back: its drift its own), the reading set for the next step
+			await p.evaluate(() => {
+				const g = window.__ed.game, ds = My3D2dge.DualSense.attach(g), H = window.__hub, T = 23.5, ends = [1.5, 3.5, 7.5, 19.5, T];
+				const run = (window.__gyroRun2 = { t: 0, again: false, phases: ends.map(() => ({ deg: 0, px: 0 })) });
+				const again = () => { H.pad.connected = false; H.tell(); H.pad.connected = true; H.tell(); };
+				const shake = (t, s) => s * (0.7 * Math.sin(2 * Math.PI * 8.7 * t) + 0.5 * Math.sin(2 * Math.PI * 11.3 * t + 1) + 0.3 * Math.sin(2 * Math.PI * 0.7 * t));   // (a hand's tremor, degrees a second)
+				const read = (t) => {   // (the turn and the drift, the hand's tremor, the pull in g)
+					if (t < 1.5) return { y: 2.5, x: 0, a: { x: 0, y: 0.82, z: 0.57 } };
+					const w = shake(t, t < 7.5 ? 1 : 0.5), j = 0.012 * Math.sin(2 * Math.PI * 9 * t) + 0.006 * Math.sin(2 * Math.PI * 1.3 * t);
+					return { y: (t < 7.5 ? 0 : -2) + w, x: w * 0.8, a: { x: j, y: 0.82 + j * 0.7, z: 0.57 - j } };
+				};
+				const set = (t) => { const r = read(t); H.turn(r.y, r.x); H.pull(r.a); };
+				again(); set(0);
+				g.hook("input", (dt) => {
+					if (run.t >= T) return;
+					const ph = run.phases[ends.findIndex((e) => run.t < e)];
+					ph.deg += (run.t < 1.5 ? 2.5 : 0) * dt; ph.px += ds.gyroAim(dt)[0];
+					run.t += dt; if (run.t >= 7.5 && !run.again) { run.again = true; again(); }
+					if (run.t < T) set(run.t); else { H.turn(0); H.pull(null); }
+				});
+			});
+			await p.waitForFunction(() => window.__gyroRun2.t >= 23.5, null, { timeout: 90000 });
+			const g2 = await p.evaluate(() => window.__gyroRun2.phases.map((ph) => ({ deg: +ph.deg.toFixed(2), px: +ph.px.toFixed(1) })));
+			assert.ok(Math.abs(g2[1].px) < 45, "a first rest that came mid-turn, then an ordinary hand held still: the aim runs back a moment: " + JSON.stringify(g2));
+			assert.ok(Math.abs(g2[2].px) < 3, "then no further (the drift before the turn back): " + JSON.stringify(g2));
+			assert.ok(Math.abs(g2[4].px) < 3, "a drift of 2 degrees a second in a calm hand whose pull trembles is learned once held 10 s: the aim stays put: " + JSON.stringify(g2));
 			await p.evaluate(() => window.__hub.pull(null));
 			// a flick on the touchpad
 			await p.evaluate(() => { const ds = My3D2dge.DualSense.attach(window.__ed.game); window.__ed.game.hook("input", () => { if (ds.swipe()) window.__sw = ds.swipe(); }); window.__hub.fingers([{ id: 1, x: 0.2, y: 0.5 }]); });
