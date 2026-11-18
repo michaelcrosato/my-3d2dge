@@ -40849,12 +40849,15 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, UI_tall() ? 420 : D
 const WAY = { top: 0, rows: 1, press: null };
 /** a row's step and its button: a finger's with the touch buttons up, else a menu row's (UI_rowH: a finger's held upright) */
 const WAY_rows = () => { if (!TOUCH.el) return [UI_rowH() + 1, UI_rowH() - 2]; const F = Math.max(UI_finger(), 16); return [F + 3, F]; };
-/** a finger on a row: its press, then the drag that scrolls the list (more than 6 px and it is no tap). A mouse's press
- *  is no finger's: it clicks the row as it lands */
+/** a finger on a row: its press, then the drag that scrolls the list (more than 6 px and it is no tap, as the loot
+ *  panels' grids and Skills' list: the core's tap, UI.tap, is dropped, so a finger that scrolled a row under it in less
+ *  than a tap's 12 CSS px, the rows a menu's height, never descends to it). A mouse's press is no finger's: it clicks the
+ *  row as it lands */
 const WAY_press = (mx, my) => {
   if (!UI.mouse.finger) return;
   const P = WAY.press; if (!P) { WAY.press = { x: mx, y: my, s: WAY.top, moved: 0 }; return; }
   P.moved = Math.max(P.moved, Math.abs(mx - P.x) + Math.abs(my - P.y)); if (P.moved <= 6) return;
+  UI.tap = null;   // (a drag now: its lift descends nowhere)
   const n = ED.hero ? waystoneDepths(ED.hero).length : 1; WAY.top = clamp(Math.round(P.s - (my - P.y) / WAY_rows()[0]), 0, Math.max(0, n - WAY.rows));
   UI.focus = clamp(UI.focus || 0, WAY.top, WAY.top + WAY.rows - 1);   // (the focus stays in view, so the list stays where the finger left it)
 };
@@ -41472,6 +41475,7 @@ const endTouch = (e) => UI.fingers.delete(e.pointerId);
 addEventListener("pointerup", endTouch);
 addEventListener("pointercancel", endTouch);
 function pauseOnFocusLoss() {
+	if (UI.mouse.down && UI.mouse.finger) UI.mouse.lift = true;   // (a finger down as the focus went lets go of its hover too, as at its lift: its own lift, no longer the press's, would leave a tooltip behind, UI_lift)
 	UI.mouse.down = false;
 	UI.mouse.far = Infinity;   // (a finger down as the focus went: its lift is no tap)
 	UI.drag = null;
