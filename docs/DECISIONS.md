@@ -2127,3 +2127,135 @@ An entry:
     the keys until it moves, lifts or another finger taps. Every tap on it still picks what it pressed.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+
+## D117 · 2026-11-18 · The Shell's pieces at the bottom stand above the touch buttons and above one another, or beside the buttons on a short screen
+
+- **Principle:** the controls standard (D100): a finger each for the stick and every button, nothing over a button, and
+  a target under a finger acts on that tap alone (docs/CONTROLS.md, "Touch: nothing over a button"). Touch is tertiary
+  and never changes pad or keyboard-and-mouse play. Follows D113, whose two columns lifted stealth's BLOCK and ROLL into
+  the narrow toast's band.
+- **Call:**
+  - While touch buttons are on the screen, E.Shell reads their box each step and stands its pieces at the bottom above
+    it: a narrow screen's toast, the prompt, the tip, the tutorial card, the minimap and the key strip. A grid's box
+    holds its hidden buttons, so nothing moves as BLOCK pops up; a row's box is its buttons shown.
+  - Where the toast, the prompt and the tip would not fit above under the corner's row, and 200 px or more are left
+    beside the buttons (a phone on its side), they stand beside them (`--fl`, `--fr`). The card, the prompt and the tip
+    are then no wider than that room (`--fw`).
+  - Which of the two is the screen's and the buttons' call alone. The stack is measured with a line's toast (64 px)
+    whether a toast is up or not, so no toast tips the pieces beside the buttons and back as it comes and goes.
+  - The pieces stand one above another where they meet across (`_bands`, each piece's bottom in `--y`), never lower than
+    their old places:
+    - the narrow toast over the card and the minimap, or beside them;
+    - the prompt over the key strip;
+    - the minimap no taller than the room under the top HUD (down to 64 px wide);
+    - the card out of the centre column on a wide screen.
+  - Nothing a finger takes moves as the toast and the prompt come and go.
+    - The narrow toast's place and the prompt's are kept while they're away.
+    - The way the pieces stand (the card under the others or not, the narrow toast over the tip or not) is chosen with a
+      line's toast.
+    - A toast of more lines stands in that way at its own height. The card, the minimap and the key strip stay where
+      they are; only the prompt and the tip above it give way.
+    - It stands over the tip, or not, instead only where that alone keeps it, then the prompt, on the screen and off the
+      top's buttons.
+    - Where that still leaves the toast or the prompt past the top of the screen (the safe area's) or on the corner's
+      buttons, the card lies under the toast while it's up, in its place. That happens only where it alone keeps the
+      toast, then the prompt, on the screen: stealth upright at 320x568 with a title and six lines; a phone 640 wide on
+      its side with the card and a minimap no status column narrows (platformer, rpg, adventure, roguelike,
+      metroidvania, 3D ACTION) with four; 3D ACTION upright at 320x568 with six. The minimap and the key strip stay
+      where the line's way stood them, and the card is on top again as the toast goes. A prompt still on the screen, in
+      the shell's 14 px margin, leaves the card on top.
+    - The toast's height for each width it might take is measured on a hidden copy, so where it stands never sways where
+      it stands next.
+  - Where the pieces still won't fit:
+    - a narrow screen's toast stands over the tip, which is hidden while the toast is up;
+    - the card lies under the others only where nothing else keeps the toast, then the prompt, on the screen and off the
+      corner's buttons (3D SHOOTER's ten buttons upright, a phone 320 high on its side with every piece up);
+    - a stack that still won't fit reaches over the objective and the status, which take no taps.
+  - The tap that takes the toast away takes nothing else: its click, which would land on what lay under the toast, is
+    eaten. A finger at the card's × while a toast lies over it takes the toast, and the next takes the card.
+  - Without touch buttons nothing is measured and every piece stands where it always did. A desk's, a TV's and a pad's
+    screens are as they were: 321 screens identical pixel for pixel.
+  - Left as it was: on a phone 320 high on its side, the tip reaches past the top, as it always did (58 px in 3D SHOOTER
+    with every piece up; 42 before). No kit shows the tip.
+- **Why:**
+  - A toast over BLOCK took the tap meant for it in the middle of a fight.
+  - A fixed height can't clear every layout of buttons; reading their box can.
+  - The pieces lifted above the box must then clear one another, or the toast takes the finger meant for the card's × or
+    the minimap.
+  - A toast's text is the game's: a second line must not move what a finger is already reaching for.
+  - A toast past the top loses its title, and one on the corner's buttons covers Menu's face. A card under a toast for
+    the seconds it's up costs a finger one more tap, and takes no tap meant for anything else.
+- **Costs:**
+  - One layout read per step while touch buttons are up.
+  - While a narrow screen's toast is up, the line's way laid again at the toast's height, the other way of the tip tried
+    where that leaves the toast or the prompt off, and up to two ways with the card under where they're still off.
+  - A hidden-copy measure for each new toast text and width.
+  - Stealth upright at 320x568 with a tutorial card and the prompt up: the prompt covers the objective and the status
+    column while both are up. The 188 px between the buttons and the status column hold the card or the prompt, not
+    both, and the 86 px beside the card hold neither. A card nothing covers outranks a clear top HUD, which takes no
+    taps.
+  - While a toast of several lines is up where the card leaves it no room above (the cases above), the toast lies over
+    the card and its ×. A finger there takes the toast first, and the card at the next; a mouse clicks through the
+    toast.
+  - Where no card is up to lie under, or it already lies under, a tall toast still reaches past the top while it's up,
+    as on 78b0cc0 and a82d24a:
+    - the prompt, with 3D SHOOTER's ten buttons, under six lines at 320x568 and 640x360 and under four at 568x320;
+    - the prompt, on a phone 320 high on its side with the card and the minimap, under three lines or more (roguelike)
+      or six (platformer, rpg, adventure, brawler);
+    - the toast itself, under six lines in roguelike and 3D SHOOTER at 568x320, and under eight in stealth.
+    The prompt takes no taps, and the corner's Menu is drawn above the toast, so a finger on it still pauses.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
+
+## D118 · 2026-11-18 · The gyro's drift is learned from what moves no aim, kept within a degree a second; a turn is never undone
+
+- **Principle:** the controls standard (D100): gyro aim fine-tunes an aim on top of the stick (docs/CONTROLS.md rule 6),
+  and every extra is an extra: the game is whole on any controller. Amends D114.
+- **Call:**
+  - D114's premise was wrong. The DualSense's firmware takes its gyro's bias out of the report: Linux's hid-playstation
+    ("HID: playstation: correct DualSense gyro bias handling", 2023) uses the calibration's bias only in the
+    sensitivity, never as an offset, and 52in1's `calibrationOf` does the same. So a healthy controller at rest reads a
+    few tenths of a degree a second, on WebHID and in 52in1 alike.
+  - The `dualsense` module learns the drift on each axis on its own, from a reading whose quarter-second average holds
+    within half a degree a second of where it began and inside the aim's dead zone (`DEAD`, 1.5 degrees a second):
+    - near the drift learned (within half a degree a second), held half a second, followed in a second: a healthy
+      controller's own drift is found in a second or two at rest, on a table or in a hand, and followed as it warms;
+    - further from it but still inside its dead zone (a reading the aim doesn't move for), held 2.5 s, followed in four
+      seconds: a slow pan (2 s or so) moves it little, and a controller that rests there for good is found in a few
+      seconds;
+    - a reading the aim moves for (a slow turn against the drift), held 15 s, longer than an aiming turn holds one
+      speed, followed in four seconds.
+  - The drift learned is kept within a degree a second (`DRIFT`). A healthy controller at rest is then always inside the
+    dead zone of it, whatever was learned, so the aim never runs on by itself, and no turn of 2.5 degrees a second or
+    more is ever taken for drift.
+  - The undo records, the in-hand 10 s hold, the first rest's half second, the 5 s rest and the accelerometer's part
+    (rounds 2 to 4) are gone. Nothing is learned that would have to be given back.
+- **Why:**
+  - Four rounds of rules that learned drift from a held reading of any speed under 3 degrees a second, then undid what
+    turned out to be a turn, each fixed what the last review found and opened something new. A long slow track (2
+    degrees a second for 20 s) was learned and lost 400 to 1,000 px. A turn begun at connect ran back up to 470 px.
+  - The gyro alone can't tell a slow turn from a drift. What the aim never moves for can be learned safely, and a
+    firmware that leaves a few tenths needs no more.
+  - Scored headless on the reviews' scenarios (30, 60 and 144 frames a second, two seeds each, the library's noise
+    models), mean aim error in px on High against the 3rd and 4th rounds' rule and round 5's (only under a degree a
+    second, held half a second):
+    - healthy play 17 (207 to 219; round 5 21);
+    - the slowest pans 10 (61; 18);
+    - turns that ease in 41 (30; 53);
+    - walking past a target 37 (22; 47);
+    - a drift of 0.5 to 1.45 with pans 103 (9; 215);
+    - laid down after pans 162 (12; 550).
+    On the earlier reviews' library, every healthy family is as good as or better than both earlier rules.
+- **Costs:**
+  - A worn controller (a drift its firmware no longer corrects) keeps what is past a degree a second on that axis: every
+    turn there is off by the rest. From about 2 degrees a second a trembling hand's aim creeps, and past 2.5 it creeps
+    at rest, as it would with no rule. The earlier rule learned such a drift on a table. Gyro aim is an extra: the stick
+    always works, and Settings turns it off.
+  - With a drift of 1 to 1.5, pans against it give part of their turn: the tremor of a hand and the dead zone around a
+    drift learned only to 1.
+  - A turn that eases in over 4 to 8 s, or a target walked past, loses up to a sixth of what follows its slow start,
+    which is followed as drift.
+  - A slow turn against a healthy drift held 15 s or more is taken for drift after that.
+  - The premise ("a few tenths") is the firmware's, not measured here: no DualSense was at hand.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.0
