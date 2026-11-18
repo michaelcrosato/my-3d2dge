@@ -105,7 +105,12 @@ function worldDraw(r) {
   BUS.emit('draw', { r, L: L0 });
   if (!UI.hideHud) { drawFoeBars(r); drawHUD(r); }
   devDraw(r);
+  // a talk (Pip's, a shopkeeper's chat) draws over the HUD; while a modal panel is up (the pause menu opened mid-talk,
+  // the talk frozen under it) it draws under the panels and their dim, so no row of the panel, which still takes taps,
+  // hides under the box. With none up it draws after them, over the notices and the tooltip, as it always has
+  const under = UI.modal; if (under) talk.draw(r);
   drawPanels(r);
+  if (!under) talk.draw(r);
 }
 function enterWorld(L0) {
   ED.L = L0; ED.fx.length = 0; ED.drops.length = 0; ED.corpses.length = 0; ED.foes.length = 0; ED.allies.length = 0; ED.boss = null; ED.t = 0;
@@ -300,7 +305,7 @@ const townScene = {
     else if (!T.use) promptUse();
     if (L0.portal && ED.savedLevel && Math.hypot(L0.portal.x - h.x, L0.portal.y - h.y) < 10) returnThroughPortal();
   },
-  draw(r) { worldDraw(r); talk.draw(r); }
+  draw(r) { worldDraw(r); }   // (worldDraw draws the talk: under a modal panel, else over the panels)
 };
 /** what E does where the hero stands. The waystone always wins when he touches it (Ilsa and Pip stand close by and
  *  must never steal its prompt); otherwise the nearest person or thing in reach: a shopkeeper opens the shop at once
@@ -432,7 +437,7 @@ const levelScene = {
       sfx('portal'); goTown({ arrive: 'portal' });
     }
   },
-  draw(r) { worldDraw(r); talk.draw(r); if (ED.demo) r.overlay(g => { const a = .6 + .4 * Math.sin(game.real * 3), y = r.H - 58; px.blend(g, .55, 'normal', () => px.rect(g, 0, y - 3, r.W, 13, '#05040a')); px.blend(g, a, 'normal', () => E.font.text(g, 'DEMO  •  ' + (ctlDevice() === 'gamepad' ? 'PRESS ANY BUTTON' : ctlDevice() === 'touch' ? 'TAP TO RETURN' : 'PRESS ANY KEY'), r.W / 2, y, '#ffd36a', { align: 'center', shadow: '#05040a', outline: '#0c0818' })); }); }   // above the hotbar, clear of the boss bar and item labels
+  draw(r) { worldDraw(r); if (ED.demo) r.overlay(g => { const a = .6 + .4 * Math.sin(game.real * 3), y = r.H - 58; px.blend(g, .55, 'normal', () => px.rect(g, 0, y - 3, r.W, 13, '#05040a')); px.blend(g, a, 'normal', () => E.font.text(g, 'DEMO  •  ' + (ctlDevice() === 'gamepad' ? 'PRESS ANY BUTTON' : ctlDevice() === 'touch' ? 'TAP TO RETURN' : 'PRESS ANY KEY'), r.W / 2, y, '#ffd36a', { align: 'center', shadow: '#05040a', outline: '#0c0818' })); }); }   // above the hotbar, clear of the boss bar and item labels
 };
 
 /** a depth is done: record the time (best times per depth for speedrunners) and say how it went */
