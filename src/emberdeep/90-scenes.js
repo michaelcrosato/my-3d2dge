@@ -409,7 +409,7 @@ const levelScene = {
   },
   exit() { BUS.emit('levelEnd', { L: ED.L }); slowMoReset(SLOW.raw === undefined ? SLOW.base : SLOW.raw); },
   update(dt) {
-    if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
+    if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || game.input.stickOn || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }   // (a touch on open ground starts the stick: no press, UI.mouse)
     if (talkStep(dt)) return;
     if (updateUI(dt)) return;
     const L0 = ED.L, h = ED.hero, inp = game.input;
