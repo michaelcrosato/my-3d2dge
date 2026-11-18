@@ -53,6 +53,10 @@ The controls standard, its last gaps: Emberdeep held upright on any phone at a t
 - **Tools**: `ed-controls-test` checks a finger's tap after a mouse and after a pad, with the stick's thumb lifting or landing during it, in a hit-stop, and the waystone dragged with the touch buttons hidden; `phone-test` 25 taps after the keys on kart's BACK, the reference title's POINT-AND-CLICK and Morwen's A WHALE, and a touch laptop's first touch on a dialog's choice; 26 a real finger's flick from the stick's half on GAME OVER (begun on RETRY's row) and kart's results, both orientations, and none in play.
 - **Docs**: `docs/CONTROLS.md`: the Ctrl rule for every genre (rule 1), the engine's thumb-sized menus, 52in1's volumes, two columns upright and the end menus (rule 7), and a genre table as the kits play (Tab or R for the metroidvania's map, a drag pans in strategy and two fingers zoom, the grid crawler's keys); `src/emberdeep/DESIGN.md`: every target acts on a tap; D110 to D116 in `docs/DECISIONS.md`; `docs/CONTROLS.md` and API.md name `input.layoutDevice` and the stick's half's flick; DESIGN.md says a tap is its own finger's.
 
+## 0.107.1 (2026-11-18)
+
+- **Emberdeep**: the pause menu opened mid-talk (Esc, or the touch bar's Menu, while Pip or anyone talks) draws over the talk box, which waits dimmed under it: its lower rows (PASSIVES, TOWN PORTAL, SAVE AND QUIT on a phone on its side; FULL SCREEN and SAVE AND QUIT on a desktop), which took taps and clicks, no longer hide under the box. Any modal panel does the same; with none up the talk draws over the notices and tooltips as before.
+
 ## 0.107.0 (2026-11-16)
 
 The controls standard: every game plays to one standard for its controls and interface (`docs/CONTROLS.md`, the owner's words): a DualSense on a TV first, the keyboard and mouse native, prompts that follow the device, a DualSense's extras, and touch as an add-on with swipes, context buttons and simple assists.
