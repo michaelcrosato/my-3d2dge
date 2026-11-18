@@ -86,11 +86,14 @@
 //      high on its side); under an objective and a status column the toast and the prompt clear them too (but 320 high);
 //      stealth's map as the minimap: under the status column, beside the toast, a finger on it or on the card's × takes
 //      only that; on its side 640 wide a toast taller than a line comes and goes and nothing moves (the layout, the
-//      card's ×, the minimap); with no touch buttons (where the toast still lies over its top) a finger on the toast takes
-//      only the toast; all of it at once (stealth's HUD, the minimap, the card, a two-line toast): the stack settles, the
-//      toast on the screen, 140 wide or more, over no button; stealth's fight: the parry's toast above BLOCK and ROLL, a
-//      finger low on BLOCK presses it (the toast stays), a tap on the toast takes it away; a laptop's touch screen: the
-//      prompt and the tip over the key strip
+//      card's ×, the minimap); a toast of several lines where the card leaves it no room above (stealth upright 320x568,
+//      six lines; platformer on its side 640x360 with its minimap, four): the toast and the prompt on the screen, the card
+//      under the toast in its place, a finger at the ×'s place takes the toast, the next the card; with no touch buttons
+//      (where the toast still lies over its top) a finger on the toast takes only the toast; all of it at once
+//      (stealth's HUD, the minimap, the card, a two-line toast): the stack settles, the toast on the screen, 140 wide or
+//      more, over no button; stealth's fight: the parry's toast above BLOCK and ROLL, a finger low on BLOCK presses it
+//      (the toast stays), a tap on the toast takes it away; a laptop's touch screen: the prompt and the tip over the key
+//      strip
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -1469,7 +1472,11 @@ if (want('stick')) {
  * the toast, and a finger on it (or on the card's ×) takes it, the toast staying up; on its side 640 wide, with the
  * prompt and the card up too, a toast taller than a line (a '\n' in it, or a long line) comes and goes and nothing
  * moves: the layout (above the buttons or beside them), the card's × and the minimap stay, and a finger at the ×'s
- * place takes the card; with no touch buttons (Touch: off,
+ * place takes the card; a toast of several lines where the card leaves it no room above (stealth upright 320x568, a
+ * title and six lines; platformer on its side 640x360 with its minimap and the prompt, four lines): the toast, then the
+ * prompt, on the screen and off the corner's buttons, the card lying under the toast while it's up, in its place, and
+ * nothing a finger takes moving; a finger at the ×'s place takes the toast alone, the next the card; with no touch
+ * buttons (Touch: off,
  * each piece where it always stood) a finger on the toast where it lies over the minimap takes the toast and nothing
  * else, the next finger the minimap. All of it at once (stealth's own objective and status, the minimap, the prompt, the
  * tip, the card, a toast of two lines): the stack settles in the game's steps, the toast on the screen, 140 wide or
@@ -1589,6 +1596,41 @@ if (want('bands')) {
       eat = `a finger on the toast over the minimap: the toast up ${a.up}, the minimap's onClick ${a.n}x; the next finger: ${b}x`; o.ok = !a.up && a.n === 0 && b === 1;
     }
     check('bands stealth 640x360 without touch buttons: the toast where it stood, over the minimap\'s top; a finger on it takes the toast only, the next the minimap', !o.buttons && !o.band && !!o.ok && !errors.length, eat + (o.buttons ? '; touch buttons still up' : '') + (o.band ? '; a piece still stood by the bands (--y ' + o.band + ')' : '') + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
+    await ctx.close();
+  }
+  // a toast of several lines where the card leaves it no room above: stealth upright 320x568 with the card (and the prompt,
+  // with its map as the minimap or without), a title and six lines; platformer on its side 640x360 (a minimap no status
+  // column narrows) with the card, the minimap and the prompt, a title and four lines. The toast, then the prompt, stay
+  // on the screen and off the corner's buttons (the card lying under the toast while it's up); the layout, the card, its ×
+  // and the minimap stay where they stood, and the card is on top again when the toast goes; a finger at the ×'s place
+  // takes the toast alone where it lies over it, the card where it doesn't, and the next finger there the card
+  for (const [kit, w, h, n, mini] of [['stealth', 320, 568, 6, false], ['stealth', 320, 568, 6, true], ['platformer', 640, 360, 4, true]]) {
+    const { page, ctx, cdp, errors } = await open(kit, { width: w, height: h }); await page.addStyleTag({ content: still }); await wait(500);
+    const tap = async (x, y) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] }); await wait(80); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200); };
+    await tap(30, Math.round(h * .45));   // (a finger: the device in use is touch)
+    const text = ['Strength +1', 'Agility +1', 'Stealth +1', 'Luck +1', 'Wits +1', 'Grit +1'].slice(0, n).join('\n'), card = () => window.__game.game.shell.tutorial('Climb', 'Walk into a wall to climb it: Space at its face latches on, the stick climbs, Space leaps up', 60);
+    await ev(page, mini => { const sh = window.__game.game.shell, S = window.__game.scenes.stealth, st = S && S.state && S.state(), h0 = sh.hud.bind(sh), map = st ? st.map : { T: 16, w: 30, h: 20, version: 1, height: () => 0, cell: () => 0, floorAt: () => '' };
+      sh.hud = s => h0(Object.assign({}, s, { prompt: { key: 'E', label: 'Take the ledger' } }, mini && { minimap: { map, at: st ? st.hero : { x: 40, y: 40 }, onClick: () => {} } })); sh.hud({}); }, mini);
+    await ev(page, card); await wait(250);
+    const q = await ev(page, text => {
+      const G = window.__game.game, sh = G.shell, I = G.input, E3 = sh._els, show = () => { for (const b of document.querySelectorAll('[data-sys=touch] [data-act]')) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true); };
+      const R = e => { const q = e && e.getBoundingClientRect(); return q && q.width && q.height && !e.hidden ? [q.left, q.top, q.right, q.bottom].map(Math.round) : null; }, ov = (a, b) => a && b && Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > .5 && Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > .5;
+      const snap = () => ({ f: [sh.root.style.getPropertyValue('--fl'), sh.root.style.getPropertyValue('--fr')].join('/'), card: R(E3.tut), x: R(E3.tut.querySelector('.esh-x')), m: R(E3.mini), under: E3.tut.classList.contains('esh-yield') });
+      const step = () => { show(); sh._step(); sh._step(); }, away = () => { E3.toast.classList.remove('on'); sh._toastEnd = 0; step(); };
+      away(); const a = snap(); sh.toast('Level up', text, 30); step(); const b = snap(), t = R(E3.toast), p = R(E3.pr), lines = t ? 1 + Math.round((t[3] - t[1] - 64) / 17) : 0;
+      const on = []; for (const e of document.querySelectorAll('[data-sys=corner] button, [data-sys=touch] [data-act]')) if (ov(t, R(e))) on.push(e.dataset.act || e.getAttribute('aria-label'));
+      const covered = ov(t, a.x); away(); const c = snap(); sh.toast('Level up', text, 30); step();
+      return { a, b, c, t, p, lines, on, covered, at: a.x && [(a.x[0] + a.x[2]) / 2, (a.x[1] + a.x[3]) / 2] };
+    }, text);
+    const J = JSON.stringify, same = s => s.f === q.a.f && J([s.card, s.x, s.m]) === J([q.a.card, q.a.x, q.a.m]);
+    let ok = !!(q.a.x && q.t && q.p) && q.lines >= n && q.t[1] >= -.5 && q.p[1] >= -.5 && !q.on.length && same(q.b) && same(q.c) && !q.a.under && !q.c.under;
+    let line = `the toast ${q.t} (${q.lines} lines)${q.on.length ? ' over ' + q.on.join(', ') : ''}, the prompt ${q.p}; the card ${q.a.card} -> ${q.b.card}${q.b.under ? ' (under the toast)' : ''} -> ${q.c.card}${q.c.under ? ' (under)' : ''}; its × ${q.a.x} -> ${q.b.x} -> ${q.c.x}; the minimap ${q.a.m} -> ${q.b.m} -> ${q.c.m}; --fl/--fr ${q.a.f}, ${q.b.f}, ${q.c.f}`;
+    if (q.at) {   // real fingers at the ×'s place, the toast up
+      await tap(...q.at); const r1 = await ev(page, () => ({ card: !document.querySelector('.esh-tut').hidden, up: document.querySelector('.esh-toast').classList.contains('on') }));
+      await tap(...q.at); const r2 = await ev(page, () => !document.querySelector('.esh-tut').hidden);
+      ok = ok && (q.covered ? !r1.up && r1.card && !r2 : r1.up && !r1.card); line += `; a finger at the ×'s place (the toast ${q.covered ? 'over it' : 'clear of it'}): the toast up ${r1.up}, the card up ${r1.card}; the next: the card up ${r2}`;
+    }
+    check(`bands ${kit} ${w}x${h}${mini ? ', its minimap up' : ''}: the card up and a toast of a title and ${n} lines: the toast and the prompt on the screen, off the corner's buttons; the layout, the card, its × and the minimap stay where they stood`, ok && !errors.length, line + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
     await ctx.close();
   }
   // stealth with all of it at once (its own objective and status, its map as the minimap, the prompt, the tip, the card,
