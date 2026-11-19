@@ -634,6 +634,15 @@ if (existsSync(join(root, 'dist/handoff/my-3d2dge-3d.js'))) {
 }
 
 /* 4. an upright phone */
+// a phone turned to another size: the page leaves full screen first, as a player can (the game remembers it left), since a
+// window in full screen can't be resized (Chromium 153: "restore it to normal state first"). The kit goes full screen by
+// itself when its game starts after a tap (_autoFull), and every page.evaluate Playwright makes counts as one
+// (navigator.userActivation is active from the first), so here it is full screen from the start
+const turnTo = async (page, size) => {
+  await page.evaluate(() => document.fullscreenElement && document.exitFullscreen()).catch(() => {});
+  await page.waitForFunction(() => !document.fullscreenElement, null, { timeout: 5000 }).catch(() => {});
+  await page.setViewportSize(size);
+};
 // (the Shell's bands over the touch buttons and one another: every touch button shown, the mode's pieces up (all: the toast
 // with a line, the prompt, the tip and the card; hud: the toast and the prompt under an objective and a status column),
 // a step for the shell to see them; what each lies over of the touch buttons, the corner's, the other pieces and (hud,
@@ -687,14 +696,14 @@ for (const id of SLICES) {
     // the Shell's bands clear of the touch buttons on four phones held either way (where they end: no slide)
     await page.addStyleTag({ content: '.esh *{transition:none!important}' });
     for (const [w, h] of [[320, 568], [360, 640], [390, 844], [430, 932]].flatMap(([w, h]) => [[w, h], [h, w]])) {
-      await page.setViewportSize({ width: w, height: h }); await page.waitForFunction(up => __game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
+      await turnTo(page, { width: w, height: h }); await page.waitForFunction(up => __game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
       for (const mode of ['all', 'hud']) { const over = await page.evaluate(bands, mode); if (over && over.length) fail(`phone ${id} ${w}x${h} ${mode}: the Shell's bands lie over its touch buttons, one another, the top HUD or off the screen: ${over.join(', ')}`); }
     }
     // 3D ACTION upright on a phone 320 wide, the card, a minimap and the prompt up, a toast of a title and six lines: the
     // toast and the prompt on the screen and off the corner's buttons (the card lying under the toast while it's up, in its
     // place), the card, its × and the minimap where they stood, and the card on top again as the toast goes
     if (id === 'action') {
-      await page.setViewportSize({ width: 320, height: 568 }); await page.waitForFunction(() => __game.game.screen.portrait, null, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
+      await turnTo(page, { width: 320, height: 568 }); await page.waitForFunction(() => __game.game.screen.portrait, null, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
       const q = await page.evaluate(() => {
         const G = __game.game, sh = G.shell, I = G.input, E3 = sh._els, h0 = sh.hud.bind(sh), map = { T: 16, w: 30, h: 20, version: 1, height: () => 0, cell: () => 0, floorAt: () => '' };
         const show = () => { for (const b of document.querySelectorAll('[data-sys=touch] [data-act]')) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true); };
@@ -712,7 +721,7 @@ for (const id of SLICES) {
       const off = r => !r || r[1] < -.5;
       if (off(q.t) || off(q.p) || q.on.length || q.b !== q.a || q.c !== q.a || q.under) fail(`phone action 320x568, the card, a minimap and the prompt up, a toast of a title and six lines: the toast ${q.t}${q.on.length ? ' over ' + q.on.join(', ') : ''}, the prompt ${q.p} (both on the screen?); the card, its × and the minimap ${q.a} -> ${q.b} -> ${q.c}${q.under ? '; the card under the others with the toast away' : ''}`);
     }
-    await page.setViewportSize({ width: 390, height: 844 });
+    await turnTo(page, { width: 390, height: 844 });
     // the GAME OVER: a sideways flick goes to the title, not one in its first moment (a dodge mashed as the run ends); fed
     // on the game's own clock (input.feed('swipe')), so a busy machine's slow fingers can't land in or out of that moment
     if (id === 'action') {
