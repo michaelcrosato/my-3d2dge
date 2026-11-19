@@ -641,7 +641,14 @@ if (existsSync(join(root, 'dist/handoff/my-3d2dge-3d.js'))) {
 const turnTo = async (page, size) => {
   await page.evaluate(() => document.fullscreenElement && document.exitFullscreen()).catch(() => {});
   await page.waitForFunction(() => !document.fullscreenElement, null, { timeout: 5000 }).catch(() => {});
-  await page.setViewportSize(size);
+  for (let i = 0; ; i++) {   // (the window can stay in full screen a moment after the page left it: set it back to normal)
+    try { await page.setViewportSize(size); return; } catch (e) {
+      if (i >= 4 || !/normal state/.test(e.message)) throw e;
+      const cdp = await page.context().newCDPSession(page), { windowId } = await cdp.send('Browser.getWindowForTarget');
+      await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } }).catch(() => {}); await cdp.detach().catch(() => {});
+      await new Promise(r => setTimeout(r, 250));
+    }
+  }
 };
 // (the Shell's bands over the touch buttons and one another: every touch button shown, the mode's pieces up (all: the toast
 // with a line, the prompt, the tip and the card; hud: the toast and the prompt under an objective and a status column),

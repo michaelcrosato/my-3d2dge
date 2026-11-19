@@ -140,7 +140,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function turnTo(page, size) {
   await page.evaluate(() => document.fullscreenElement && document.exitFullscreen()).catch(() => {});
   await page.waitForFunction(() => !document.fullscreenElement, null, { timeout: 5000 }).catch(() => {});
-  await page.setViewportSize(size);
+  for (let i = 0; ; i++) {   // (the window can stay in full screen a moment after the page left it: set it back to normal)
+    try { await page.setViewportSize(size); return; } catch (e) {
+      if (i >= 4 || !/normal state/.test(e.message)) throw e;
+      const cdp = await page.context().newCDPSession(page), { windowId } = await cdp.send('Browser.getWindowForTarget');
+      await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } }).catch(() => {}); await cdp.detach().catch(() => {});
+      await new Promise(r => setTimeout(r, 250));
+    }
+  }
 }
 /** game (screen) pixels -> CSS pixels on the page */
 const toCss = (p, x, y) => ev(p, ([x, y]) => { const S = window.__game.game.screen, rc = S.canvas.getBoundingClientRect(); return [rc.left + (x * S.S + S.OX) / S.dpr, rc.top + (y * S.S + S.OY) / S.dpr]; }, [x, y]);
