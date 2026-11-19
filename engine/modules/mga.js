@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module MGA v0.108.3: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
+my-3D2dge module MGA v0.108.4: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
