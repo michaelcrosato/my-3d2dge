@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.8 (2026-11-19)
+
+A3 of `docs/HANDOFF-FINISH.md`: the trimming pass D98 put off. Every kit grew 14,000 to 35,000 tokens since v0.104.1 (where D98 made the budgets soft), most of it the controls standard every kit's game plays to: the core's input and Shell (11,044 to 12,461 tokens minified) and the dualsense module (5,878), which the kit diet can't leave out. What could go went; 28 of the 33 kits stay past (D122).
+
+- **Tools**: a kit's API card leaves out its pieces on a part its engine leaves out (the kit diet): `**TileMap**` and the heights' rule, `**PlatformMap**`, `**Platformer**`, `**Body**`, `**Mover**`, `**Bullets**`, `**Blob**`, and the items for tweens and scripts, paths, weather and GPU lighting, each only where that kit's engine has no such part; one line in their place names them and says `API.md` has them (`CARD_PARTS` in `tools/build.mjs`). 1,118 to 3,052 tokens a kit; the engine, the games and the rest of the card are as they were.
+- **Docs**: D122: the card's pieces, and why the kits, the API card (22,379 of 22,000) and the index (65,860 of 64,000) stay past their soft budgets (D98: none raised). On the owner's reading list: every 2D kit keeps the platform map (6,900 tokens) only for its title screen's floor.
+- **Docs**: `README.md`'s sizes, measured again (cl100k, at v0.108.8): the play file about 14 MB; the handoff package ~11 MB (its zip ~4 MB); the agent edition ~121k; the 2D kits ~201k-284k, the 3D ~259k-339k (no longer sized for a 200k context: the controls standard took 28 past their budgets); the compact edition ~965k and the complete one ~1,162k, past a 1M context.
+- **Docs**: `docs/HANDOFF-FINISH.md`: A3 done; D122 and the editions' sizes on the owner's reading list.
+
 ## 0.108.7 (2026-11-19)
 
 A2 of `docs/HANDOFF-FINISH.md`: the controls standard's leftover that needs no play test (`docs/HANDOFF-CONTROLS.md` part 3, its second line; D117's costs).
