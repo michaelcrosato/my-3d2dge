@@ -2341,3 +2341,27 @@ An entry:
   - The one capped case shows five of six lines, the sixth faded.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.7
+
+## D122 · 2026-11-19 · A kit's card leaves out the pieces on what its engine leaves out; the kits stay past their budgets
+
+- **Principle:** 1 (agent-readable: a measured budget for each kit), under D51, D69 to D71 and D98 (the trimming pass:
+  `docs/HANDOFF-FINISH.md` A3)
+- **Call:**
+  - A kit's API card (the card diet, D71) also leaves out its pieces on a part its engine leaves out (the kit diet):
+    a bold head and its lines (`**TileMap**` and the heights' rule, `**PlatformMap**`, `**Platformer**`, `**Body**`,
+    `**Mover**`, `**Bullets**`, `**Blob**`) and an item and its lines (tweens and scripts, paths, weather, GPU lighting),
+    each where that kit's engine has no such part. One line in their place names them and says that `API.md`, in the
+    repository and the reference editions, has them. In such a kit those names only warn (a class throws), so the
+    card's pieces on them said what it couldn't do. 1,100 to 3,100 tokens a kit.
+  - No other trimming. Most kits are 16,000 to 20,000 tokens past: the controls standard's core (the input and the
+    Shell, about 11,500 to 12,200 tokens minified since v0.104.1) and the dualsense module (5,936), which every kit's
+    game uses (D100); the kit diet can't leave out what every kit calls. Every 2D kit also keeps the platform map (about
+    6,900 tokens minified) for its title screen's floor, though only the platformer and the metroidvania use it in their
+    games; drawing the title another way changes what 23 kits show: the owner's call (`docs/HANDOFF-FINISH.md`, B2).
+  - No budget is raised (D98). The API card (22,379 of 22,000) and the index (65,860 of 64,000) stay past too: the
+    index is the engine's doc comments (D82), and the card's lines are how a builder finds a name; cutting either drops
+    what a builder needs.
+- **Why:** the trimming pass D98 put off moves detail, never drops it, and changes nothing a kit does. The card's pieces
+  on a part a kit's engine lacks are the only detail a kit carries that it can't use.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** VERSION
