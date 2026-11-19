@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module DUALSENSE v0.108.5: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
+my-3D2dge module DUALSENSE v0.108.6: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 

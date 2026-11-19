@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.6 (2026-11-19)
+
+A1 of `docs/HANDOFF-FINISH.md`: the feedback log's overdue row, reached and taken up by no plan since v0.84.1.
+
+- **Docs**: `docs/HANDOFF-LOOK.md`, the plan that takes up "The look's remainder" (small figures that merge when they overlap, empty fields: F4.2, F6.2, reached by F7.2 in v0.84.1) and decides again from the code and screenshots of today: the kits don't show either point (TACTICS' units are outlined rigs with their own palettes; KART's fields have stripes, trees, mountains and a sky), and F7's runs had no kit to start from; what builders lack is the rule, so the card's look target and the guide's Visual craft gain two lines (small units; open ground), no engine change. Carried out after A3 (A3b).
+- **Docs**: `docs/FEEDBACK-LOG.md`: the row says which plan takes it up and what it decided. `docs/HANDOFF-FINISH.md`: A0's and A1's lines go, A3b added, Progress filled in (A0: v0.108.5, `86cb008`).
+
 ## 0.108.5 (2026-11-19)
 
 The baseline of `docs/HANDOFF-FINISH.md` (A0): the full `npm test` at v0.108.4 on the owner's machine failed three suites; each is fixed forward here.
