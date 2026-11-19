@@ -3,7 +3,8 @@
 // same motion at 60, 120 and 144 Hz for months while the step size followed the refresh rate.
 //   the clock      the same inputs at 60, 90, 120 and 144 Hz give the same state after the same time; steps are 1/120 s
 //                  of real time, slow motion shortens them, pause and timeScale 0 still tick input, fps reads real time,
-//                  the first frame updates before it draws
+//                  the first frame updates before it draws; a key pressed and let go during a 0.4 s hit-stop is
+//                  pressed() and released() once, on the first step after it (a click and player 2's press too)
 //   the mouse      a second button pressed or let go while one is held (Chromium sends a pointermove, not a down or
 //                  up), by real mouse input: right held to aim, a left click fires; either let go first, the other holds
 //   flow fields    a FlowField follows map.block() and map.set() at its next update
@@ -134,6 +135,7 @@ for (const [ed, file] of EDITIONS) {
   matrixFixes(E, ed);
   matrixInput(E, ed);
   matrixHeadless(E, ed);
+  hitStops(E, ed);
   if (ed === 'full') matrixInput2(E, ed);   // (additions of the full engine's)
   matrixRig(E, ed);
 }
@@ -236,6 +238,34 @@ function matrixHeadless(E, ed) {
   const sl = new E.Game({ headless: true }); sl.start({ scenes: { a: { update() {} }, b: { update() {} } }, scene: 'a' }); sl.advance(.05);
   sl.timeScale = .5; sl.hitstop = 1; sl.go('b', null, { fade: 0 }); sl.advance(1 / 120);
   check(`${ed}: game.timeScale outlives a scene change, hitstop ends with it`, sl.sceneName === 'b' && sl.timeScale === .5 && sl.hitstop === 0, [sl.sceneName, sl.timeScale, sl.hitstop].join());
+}
+
+// a hit-stop holds the scene's update back, never the player: what becomes fresh in its steps (input ticks, the scene
+// doesn't) is the first step after it's, once: pressed(), released(), clicked() and another player's; the engine's own
+// readers and the 'input' hooks saw it in its step and don't see it again; a scene change in between drops it
+function hitStops(E, ed) {
+  const full = ed === 'full', g = new E.Game({ headless: true }), I = g.input, seen = [];
+  let first = null, from = Infinity, hooked = 0, p2 = null;
+  if (full) { p2 = g.addPlayer({ pad: 1 }); g.hook('input', () => { if (I.pressed('attack')) hooked++; }); }
+  g.start({ scenes: { a: { update() {
+    if (first === null && g.real > from) first = g.real;
+    const k = (I.pressed('attack') ? 'P' : '') + (I.released('attack') ? 'U' : '') + (full && I.clicked() ? 'C' : '') + (p2 && p2.pressed('attack') ? '2' : '');
+    if (k) seen.push([k, g.real]);
+  } }, b: { update() { if (I.pressed('attack') || I.released('attack')) seen.push(['b', g.real]); } } }, scene: 'a' });
+  g.advance(.05);
+  I.press('KeyJ'); g.advance(1 / 120); I.release('KeyJ'); g.advance(1 / 120); g.advance(.05);   // (no hit-stop: seen at once)
+  const at = seen.map(e => e[0]).join(' ');
+  g.freeze(.4); from = g.real; g.advance(.1);
+  I.press('KeyJ'); if (full) { I.feed('down', 40, 40); p2.tap('attack'); } g.advance(.05);
+  I.release('KeyJ'); if (full) I.feed('up', 40, 40); g.advance(.05);
+  const during = seen.length - 2, held = g.hitstop > 0;
+  g.advance(.5); const after = seen.slice(2), hk = hooked;
+  check(`${ed}: a key pressed and let go during a 0.4 s hit-stop is pressed() and released() once, on the first step after it${full ? ' (a click and player 2\'s press too; the input hook saw it once)' : ''}`,
+    at === 'P U' && held && during === 0 && after.length === 1 && after[0][0] === (full ? 'PUC2' : 'PU') && after[0][1] === first && (!full || hk === 2),
+    JSON.stringify({ at, held, during, after, first, hooked: hk }));
+  // a scene change in a hit-stop drops what it held: the new scene starts clean
+  g.freeze(.4); g.advance(.1); I.press('KeyJ'); g.advance(.05); I.release('KeyJ'); g.advance(.05); g.go('b', null, { fade: 0 }); g.advance(.2);
+  check(`${ed}: a scene change during a hit-stop drops the presses it held (the new scene sees none)`, g.sceneName === 'b' && !seen.some(e => e[0] === 'b'), JSON.stringify(seen));
 }
 
 // the matrix run's further input (docs/HANDOFF-MATRIX.md 1.5 to 1.9): analog values, the right stick and the wheel as

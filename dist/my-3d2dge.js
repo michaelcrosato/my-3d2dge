@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.108.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.108.2  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -87,7 +87,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.108.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.108.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -780,11 +780,16 @@ class Input {
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {};
     this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._rk = {}; this._freshCodes = new Set();
     this._suppressed = new Set(); this._nowCodes = new Set();
+    this._late = new Set(); this._lateUp = new Set(); this._lateClick = null;   // (what a hit-stop's steps made fresh, kept for the scene's next step: _keepLate)
     /** mouse: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last
      *  moved */
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     /** clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked()) */
-    this._clickAt = null; this._click = null; this._down = null;
+    this._clickAt = null; this._click = null;
+    // the presses that may be clicks or taps, each followed by its own pointer from its press to its lift: pointerId ->
+    // { x, y }, where it landed (CSS px); a finger's is let go once it strays past a tap's reach (_stray). Another finger
+    // landing, steering or lifting meanwhile changes none of them (a thumb on the stick, a touch button let go)
+    this._downs = new Map();
     // the press on the canvas that can still be a tap (_press: { dev, the layout's device as it landed; id, its pointer;
     // up, lifted; out, the steps since }: layoutDevice); when the game last read a steer
     // (move(), drag()); a flick of the stick's finger for the engine's menus and dialogs (_flick)
@@ -866,19 +871,16 @@ class Input {
     on(window, 'blur', () => all(q => q.clear()));
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
-    // a finger moved past a tap's reach (12 CSS px: a drag, a thumb steering) is no tap, though it comes back (a phone's
-    // own rule), so it holds no layout either (layoutDevice); a mouse's click is lifted near where it pressed, wherever it
-    // went between (a browser's), and its press holds until then
-    on(el, 'pointermove', e => { const d = this._down; if (d && d.id === e.pointerId && e.pointerType !== 'mouse' && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 12) { this._down = null; if (this._press && this._press.id === e.pointerId) this._press = null; }
+    on(el, 'pointermove', e => {
       if (e.pointerType !== 'mouse') this._lookMove(e); if (e.pointerType === 'mouse') { if (this.lastDevice !== 'mouse' && this.lastDevice !== 'keyboard' && Math.hypot(e.clientX - this.mouse.cx, e.clientY - this.mouse.cy) > 3) this.lastDevice = 'mouse'; this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
     // a mouse button pressed or let go while another is held comes as a pointermove, not a pointerdown or pointerup
     // (Pointer Events' chorded buttons: e.button the one that changed, e.buttons those down now): right held to aim, a
     // left click fires; either let go first, the other stays held and this one lets go. A press counts on the canvas
-    on(window, 'pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } });
+    on(window, 'pointermove', e => { const bit = e.pointerType === 'mouse' && e.button >= 0 && [1, 4, 2, 8, 16][e.button]; if (bit) { if (!(e.buttons & bit)) this.release('Mouse' + e.button); else if (e.target === el) this.press('Mouse' + e.button); } this._stray(e); });
     on(el, 'pointerdown', e => {
       const dev = this.layoutDevice;   // (the device the screen is drawn for as it lands: _press)
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
-      if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup), a finger's never having strayed (pointermove)
+      if (e.pointerType !== 'mouse' || e.button === 0) this._downs.set(e.pointerId, { x: e.clientX, y: e.clientY });   // a click or tap once it lifts near here (pointerup), a finger's never having strayed (_stray)
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
@@ -886,21 +888,23 @@ class Input {
         const rc = this.zones && el.getBoundingClientRect(), z = rc && this._zone((e.clientX - rc.left) / rc.width, (e.clientY - rc.top) / rc.height);
         if (z) this._zoneDown(e.pointerId, z); else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
-      // the press that can still be a tap (the click to come, _down) holds the layout as drawn until its tap is read, not a
-      // zone's (its act, as a touch button's); it lets go once no tap can come (a finger past a tap's reach: pointermove;
-      // another's, none: tick) and on a new screen (_relayout)
-      if (this._down && this._down.id === e.pointerId && !this._zoneOf.has(e.pointerId)) this._press = { dev, id: e.pointerId, up: false, out: 0 };
+      // the latest press that can still be a tap (one of _downs) holds the layout as drawn until its tap is read, not a
+      // zone's (its act, as a touch button's); it lets go once no tap can come (a finger past a tap's reach: _stray; its
+      // press forgotten: tick) and on a new screen (_relayout)
+      if (this._downs.has(e.pointerId) && !this._zoneOf.has(e.pointerId)) this._press = { dev, id: e.pointerId, up: false, out: 0 };
       if (e.pointerType === 'mouse' || this._fingers.size === 1) this._gesture('down', ...this.screenPoint(e.clientX, e.clientY), { touch: e.pointerType !== 'mouse', button: e.button, id: e.pointerId }); else this._g = this._gBox = null;   // (a second finger: a pinch, no gesture)
     });
     on(window, 'pointerup', e => {
       if (this._press && this._press.id === e.pointerId) this._press.up = true;   // (its tap, read the next step, on the layout it pressed on)
-      const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none; a finger's that strayed, none): clicked() for a step,
-      // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
-      if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
+      // a click or tap: this pointer's own press, lifted within 12 CSS px of where it landed (a drag is none, the stick's
+      // thumb steering too; a finger's that strayed, none though it came back: _stray): clicked() for a step, in screen
+      // pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
+      const d = this._downs.get(e.pointerId); this._downs.delete(e.pointerId);
+      if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
       if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
       if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); }
     });
-    on(window, 'pointercancel', e => { this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); });
+    on(window, 'pointercancel', e => { this._downs.delete(e.pointerId); this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); });
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
@@ -1160,14 +1164,21 @@ class Input {
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack; the pad cursor's
    *  ✕ too, so its release clicks nothing) */
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._clickAt = this._click = null; this._swipeAt = this._stickAt = null; this._padCancel(); }   // (the pad cursor's ✕ taken too: no click when it is let go)
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._freshCodes.clear(); this._late.clear(); this._clickAt = this._click = this._lateClick = null; this._swipeAt = this._stickAt = null; this._padCancel(); }   // (the pad cursor's ✕ taken too: no click when it is let go)
   /** the page went full screen or back: the keys and mouse buttons let go (one held through the change may never come up),
    *  but a finger on the glass goes on (the stick, a drag, a touch button) and a press that has landed counts: a phone's
    *  first tap, the one that went full screen, is a JUMP */
-  _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._down = null; }
+  _refit() { for (const c of [...this.held]) if (!c.startsWith('Act:') && !c.startsWith('Pad')) this.release(c); this._downs.clear(); }
+  // pointer e moved: a finger's press moved past a tap's reach (12 CSS px from where it landed: a drag, a thumb steering)
+  // is no tap, though it comes back (a phone's own rule), so it holds no layout either (layoutDevice); a mouse's click is
+  // lifted near where it pressed, wherever it went between (a browser's), and its press holds until then
+  _stray(e) {
+    const d = e.pointerType !== 'mouse' && this._downs.get(e.pointerId);
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 12) { this._downs.delete(e.pointerId); if (this._press && this._press.id === e.pointerId) this._press = null; }
+  }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
-    this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = this._press = null;
+    this.held.clear(); this._holds.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._lateUp.clear(); this._pt = {}; this._rk = {}; this._press = null; this._downs.clear();
     this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._zoneOf.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
@@ -1193,9 +1204,12 @@ class Input {
   /** mouse position in projected screen pixels, or null */
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
   /** where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step
-   *  after it lifted within 12 CSS px of where it pressed (a press that drags away, like the touch stick's, is none, and a
-   *  finger that strayed past 12 px is none though it comes back, as on a phone); else null. Menus and dialogs answer to
-   *  it; a HUD button of your own can: if (hit(input.clicked())) ... */
+   *  after it lifted within 12 CSS px of where it pressed; else null. A tap is its own finger's: that pointer went down
+   *  and came up, whatever other fingers did meanwhile (the stick's thumb landing, steering or lifting, a touch button let
+   *  go). A press that drags away is none, the stick's thumb steering too, and a finger that strayed past 12 px is none
+   *  though it comes back, as on a phone (a mouse's click is a browser's: lifted near where it pressed, wherever it went
+   *  between); a finger on the stick's half lifted unmoved is a tap. Menus and dialogs answer to it; a HUD button of
+   *  your own can: if (hit(input.clicked())) ... */
   clicked() { return this._clickAt; }
   /** a quick one-finger flick on the canvas (a touch screen): { dir: 'left' | 'right' | 'up' | 'down', x, y } (where it
    *  began, in screen pixels) during the step after the finger lifted, else null. take: true uses it up, so nothing
@@ -1221,10 +1235,10 @@ class Input {
   /** the device the screen is laid out for: lastDevice, except while a press on the canvas can still be a tap and for the
    *  step that reads its tap, when it stays the one it was as the press landed (on the screen it landed on: a new scene
    *  or Shell screen is laid out for the device in use). A finger moved past a tap's reach (12 CSS px: a thumb steering,
-   *  no tap though it comes back), a zone's, or one another finger took the tap from holds nothing; a mouse's press holds
-   *  until it lifts (its click may come back). A layout sized by the device (a thumb's rows by
-   *  touch: E.Menu's, E.Dialog's choices, a menu of the game's own) reads it, so a tap answers what was under the finger
-   *  as drawn when it pressed and the rows grow after it; prompts read lastDevice */
+   *  no tap though it comes back), a zone's, or one a newer press landed after (the latest that can still be a tap holds
+   *  it) holds nothing; a mouse's press holds until it lifts (its click may come back). A layout sized by the device (a
+   *  thumb's rows by touch: E.Menu's, E.Dialog's choices, a menu of the game's own) reads it, so a tap answers what was
+   *  under the finger as drawn when it pressed and the rows grow after it; prompts read lastDevice */
   get layoutDevice() { return this._press ? this._press.dev : this.lastDevice; }
   // a new screen (a scene entered, a Shell screen opened): nothing on it was drawn under the press, so it is laid out for
   // the device in use (a thumb resting on the stick as GAME OVER or Settings comes up gets thumb-sized rows)
@@ -1386,14 +1400,30 @@ class Input {
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     // the held layout let go (layoutDevice follows the device again): the step that read the press's tap gone, or no tap to
-    // come from it (the click is another press's, or none's: a second finger, another's lift, a pinch, a finger strayed)
-    const Pr = this._press, dn = this._down; if (Pr && (Pr.up ? Pr.out++ : !dn || dn.id !== Pr.id)) this._press = null;
+    // come from it (its press forgotten: a finger strayed, cancelled, a pinch, the page gone full screen)
+    const Pr = this._press; if (Pr && (Pr.up ? Pr.out++ : !this._downs.has(Pr.id))) this._press = null;
     const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
     this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._swipeAt = this._gSwipe; this._stickAt = this._gStick; this._secTapAt = this._tap2nd; this._gLong = this._gTap2 = this._gPan = this._gSwipe = this._gStick = this._tap2nd = null;
     this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
     const la = this._lookAcc; this._lookNow = la && (la[0] || la[1]) ? [la[0] * k, la[1] * k] : null; if (la) la[0] = la[1] = 0;
   }
+  // a step that ticks input but holds the scene's update back (a hit-stop) keeps what it made fresh, pressed() and
+  // released() and clicked() but what a widget suppressed, for the first step that runs the scene (_takeLate), which
+  // reads it as its own: so no key, button or click is lost to a hit-stop. The engine's own readers (the pause, the Shell)
+  // and the 'input' hooks saw it in its own step: _takeLate comes after them, so they don't see it twice
+  _keepLate() {
+    for (const a of this._now) if (!this._suppressed.has(a)) this._late.add(a);
+    for (const a of this._nowUp) this._lateUp.add(a);
+    if (this._clickAt) this._lateClick = this._clickAt;
+  }
+  _takeLate() {
+    if (this._lateClick) { if (!this._clickAt) this._clickAt = this._lateClick; this._lateClick = null; }
+    if (this._late.size) { for (const a of this._late) this._now.add(a); this._late.clear(); }
+    if (this._lateUp.size) { for (const a of this._lateUp) this._nowUp.add(a); this._lateUp.clear(); }
+  }
+  // a scene's entry drops what a hit-stop kept: the new scene starts clean
+  _dropLate() { this._late.clear(); this._lateUp.clear(); this._lateClick = null; }
   // Create (button 8) is held back a quarter of a second: with Options pressed meanwhile it is the 52in1 hub's chord (its
   // bar), so the game sees neither; let go sooner it is a tap; held, a press. Returns whether it is down for the game
   _create(down, p) {
@@ -1458,7 +1488,7 @@ class Input {
     if (!this._pinching) {
       const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, pa = (a.x - a.x0) * ux + (a.y - a.y0) * uy, pb = (b.x - b.x0) * ux + (b.y - b.y0) * uy;
       if (Math.abs(pa) < 4 || Math.abs(pb) < 4 || pa * pb >= 0 || Math.abs(d - Math.hypot(b.x0 - a.x0, b.y0 - a.y0)) < 16) return;
-      this._pinching = true; this._pinchD = d; this._down = null; this._g = this._gBox = null;
+      this._pinching = true; this._pinchD = d; for (const id of this._fingers.keys()) this._downs.delete(id); this._g = this._gBox = null;   // (the two pinching are no taps)
       if (this.stickOn && this._fingers.has(this.stickId)) this._stickEnd({ pointerId: this.stickId });
       return;
     }
@@ -3277,7 +3307,8 @@ class Game {
   /** flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning. Shorter when
    *  reduceMotion, dimmer by the player's settings.flashes */
   flash(color = '#ffffff', seconds = .12, strength = 1) { if (this.reduceMotion) seconds *= .4; this._flash = { color, t: 0, dur: seconds, k: strength * clamp(this.settings.flashes, 0, 1) }; }
-  /** hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks */
+  /** hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks, and a key, button or click
+   *  pressed or let go in it is pressed(), released() or clicked() on the first step after it, once */
   freeze(s) { this.hitstop = Math.max(this.hitstop, s); }
   /** camera follows this world point. Side-scrollers: game.focus(x, 0, z) */
   focus(x, y, z = 0) { this.cam.tx = x; this.cam.ty = y; this.cam.tz = z; }
@@ -3516,6 +3547,7 @@ class Game {
     if (old && old.exit) old.exit();
     if (old && old._propWas !== undefined) { E.style.propSize = old._propWas; old._propWas = undefined; }
     this.scene = s; this.sceneName = name; this.paused = false; if (old) prune(this._timers, t => !t.keep); this.hitstop = 0;   // (timers made before the first scene live into it)
+    for (const I of this._players || [this.input]) I._dropLate();   // (and the presses a hit-stop kept for the old scene)
     if (this.input) this.input._relayout();   // (a new screen: laid out for the device in use, not one a press held)
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = this._framed = null;
     const ok = sceneField(name, s);
@@ -3570,7 +3602,8 @@ class Game {
     if (this._zoomTo && !I._pinching && this._wall - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
     if (this.paused && !this.live && !this._goOn) return;   // (live: the world steps on under the menu)
     if (!this.paused) { this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk, I.zoomPoint()); }
-    if (this.hitstop > 0) { this.hitstop -= dt; return; }
+    if (this.hitstop > 0) { this.hitstop -= dt; for (const I of this._players || [this.input]) I._keepLate(); return; }   // (input ticks in a hit-stop, the scene waits: what this step made fresh waits for it)
+    for (const I of this._players || [this.input]) I._takeLate();   // (the scene's first step after a hit-stop: what its steps kept is this step's, for the scene alone)
     this.time += dt;
     this.audio._tick(true);   // (a synced song: on game.time, it waits with the game)
     const T = this._timers;
@@ -11553,7 +11586,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.108.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.108.2: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11794,7 +11827,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.108.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.108.2: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12211,7 +12244,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.108.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.108.2: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12456,7 +12489,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DUALSENSE v0.108.1: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
+my-3D2dge module DUALSENSE v0.108.2: a DualSense's extras: light bar, adaptive triggers, gyro aim, touchpad, speaker and mic
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12770,7 +12803,7 @@ E.DualSense = {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.108.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.108.2: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13344,7 +13377,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.108.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.108.2: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13527,7 +13560,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.108.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.108.2: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13936,7 +13969,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MESH v0.108.1: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
+my-3D2dge module MESH v0.108.2: low-poly models of flat-shaded polygons, drawn crisp through any camera's projection
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14074,7 +14107,7 @@ E.Mesh = Mesh;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MGA v0.108.1: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
+my-3D2dge module MGA v0.108.2: game.audio plays my-game-audio songs (orchestral, synthwave, chiptune scores as code)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -14234,7 +14267,7 @@ E.MGA = {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.108.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.108.2: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14593,7 +14626,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.108.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.108.2: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14960,7 +14993,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module REWIND v0.108.1: time run backwards: the game's state kept a moment at a time, walked back on request
+my-3D2dge module REWIND v0.108.2: time run backwards: the game's state kept a moment at a time, walked back on request
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15020,7 +15053,7 @@ E.Rewind = Rewind;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RHYTHM v0.108.1: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.108.2: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -15227,7 +15260,7 @@ E.Rhythm = Rhythm;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.108.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.108.2: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15416,7 +15449,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.108.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.108.2: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15599,7 +15632,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.108.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.108.2: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15934,7 +15967,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module SONGS v0.108.1: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.108.2: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16088,7 +16121,7 @@ E.Songbook = Songbook;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.108.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.108.2: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -16296,7 +16329,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.108.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.108.2: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -16751,7 +16784,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.108.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.108.2: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
