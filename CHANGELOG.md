@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.5 (2026-11-19)
+
+The baseline of `docs/HANDOFF-FINISH.md` (A0): the full `npm test` at v0.108.4 on the owner's machine failed three suites; each is fixed forward here.
+
+- **Engine**: the music sounds on a device that lags. `game.audio` holds the music to what is heard (the output's timestamp), which on a device with a long output latency comes that much behind the audio's clock, so each note is scheduled that much earlier; past about 150 ms (a Bluetooth headset; WSL's sound device, at 408 ms) every note was already past when the scheduler reached it and was skipped, and the music fell silent after its first notes. It now looks that much further ahead (the lag it reads, up to 2 s); where the device doesn't lag, nothing changes.
+- **Tools**: the audio suite's 5b forces a device's lag (0, then 400 ms) and counts the music's notes: 14 and 0 before the fix, 14 and 14 after, on any machine.
+- **Tools**: kit3d's phone checks leave full screen before turning the phone to another size. Chromium 153 can't resize a window in full screen, and under Playwright a kit is full screen from the start: every `page.evaluate` counts as a tap (`navigator.userActivation`), so `_autoFull` asks when the game starts, and is granted. The game is right; a real phone asks at a tap.
+- **Tools**: `phone-test`'s stick checks steer for the game's time, not the wall's: the five drags (kart, blaster, sky, zero, special) hold the stick until the game itself has run the drag's 0.9 s, and the arena reads the kart's speed for 1.2 s of the game's time. On a machine busy with other work the game ran a third of real time and zero's turn and special's reverse fell short (0.27 of 0.3; -14 of -20); alone they pass by far (0.98, -42), and where the frames keep up nothing changes.
+
 ## 0.108.4 (2026-11-19)
 
 - **Docs**: `docs/HANDOFF-FINISH.md`, the plan to finish what is open at v0.108.3, from a survey of the repository: an agent's part now (the baseline run, the feedback log's overdue row, the kits' tall toasts, the trimming pass D98 put off with every kit's count, the 30 CMU takes the ledger picked), the owner's in one list (the play tests, the Vehicle and Track Labs, every call made without them from D55 to D119, the plan that replaces co-op), and what each of the owner's answers turns into.
