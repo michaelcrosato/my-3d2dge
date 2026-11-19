@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.108.8)
+# my-3D2dge API card (v0.108.9)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -49,6 +49,8 @@ Aim above SNES, level with the best PS1 / N64 2D games (Symphony of the Night, M
 8. **Typography**: the default font is a 5x7 proportional font with lower case. Titles: `E.font.title(g, 'NAME', x, y, { scale: 3, colors: [...], align: 'center' })`. HUD text: `{ shadow: '#000', outline: false }` or `gradient: [top, bottom]`. `font: 'tiny'` is the old 3x5 font.
 9. **Light every scene**: `game.lights.enabled = true; game.lights.ambient = .5` in a scene's `enter`, then each draw a few lights where light comes from (`r.prop('lamp', x, y, 0, { light: true })`, `game.lights.add(x, y, z, 60, .9, { color })`): dusk, torchlight and glows give depth. It looks the same in every browser and check; `game.enableGPU({ map })` adds shadows in ground views, and falls back to it.
 10. **Faces in dialog**: `talk.say(lines, { name: 'MIRA', portrait: miraRig })` puts a live close-up of that Humanoid (blinking, hair, hat) beside every line. `rig.drawPortrait(g, x, y, 40)` draws one anywhere (HUD, RPG party windows).
+11. **Small units read apart** (tactics, strategy, a crowd): rigs through `r.actor` (each outlined), sprites with `{ outline: true }` (a sprite has none by default), and a palette for each side. The TACTICS slice is the example.
+12. **Open ground is dressed like a room** (a track's fields, an overworld): stripes or a texture on the field, rows of trees and props past its edges, a backdrop over its horizon. The KART slice is the example.
 
 ## Coordinates: what x, y, z mean in each view
 World units: one tile = 16. **z is always up.** Game logic never stores screen pixels.

@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.9 (2026-11-19)
+
+A3b of `docs/HANDOFF-FINISH.md`: `docs/HANDOFF-LOOK.md` carried out, and the feedback log's "The look's remainder" taken up.
+
+- **Docs**: the API card's look target and the guide's Visual craft gain two lines: small units (tactics, strategy, a crowd) read apart where they overlap (rigs through `r.actor`, each outlined; sprites with `{ outline: true }`, which a sprite lacks by default; a palette for each side: the TACTICS slice), and open ground is dressed like a room (stripes or a texture, rows of trees and props past its edges, a backdrop over its horizon: the KART slice). No engine change: the kits already do both; what builders lacked was the rule.
+- **Docs**: `docs/FEEDBACK-LOG.md`: the theme and its point F7.2 taken up in v0.108.9. `docs/HANDOFF-LOOK.md` goes, its one phase done (its text: `git show 99edafa:docs/HANDOFF-LOOK.md`). `docs/HANDOFF-FINISH.md`: A3b done.
+
 ## 0.108.8 (2026-11-19)
 
 A3 of `docs/HANDOFF-FINISH.md`: the trimming pass D98 put off. Every kit grew 14,000 to 35,000 tokens since v0.104.1 (where D98 made the budgets soft), most of it the controls standard every kit's game plays to: the core's input and Shell (11,044 to 12,461 tokens minified) and the dualsense module (5,878), which the kit diet can't leave out. What could go went; 28 of the 33 kits stay past (D122).

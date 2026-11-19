@@ -35,12 +35,6 @@ this one.
 
 ## Part A: an agent's, now
 
-### A3b. The look's remainder (A1's plan)
-
-A1 found the feedback log's row reached: `docs/HANDOFF-LOOK.md` takes it up and decided again (no engine change:
-the card's look target gains two lines, for small units and for open ground, the TACTICS and KART slices their
-examples). Carry out its one phase after A3, then close the theme as it says.
-
 ### A4. The 30 picked CMU takes (optional)
 
 `src/mocap/catalogs/cmu-takes.tsv` has marked 30 takes `pick` (next to import) since 2026-10-07, and none is imported
@@ -121,8 +115,8 @@ Yours to give. `docs/HANDOFF-COOP.md` was scrapped for it in v0.108.3; its text 
 | A0 the baseline | done | v0.108.5, `86cb008` | three failures fixed forward: the music fell silent on a device that lags (an engine bug: a Bluetooth headset's player could hear no music); kit3d's and phone-test's turns in full screen; phone-test's stick checks timed by the wall's clock |
 | A1 the feedback row | done | v0.108.6, `99edafa` | reached: `docs/HANDOFF-LOOK.md` takes it up (A3b) |
 | A2 the tall toasts | done | v0.108.7, `2e3e3ef` | the prompt sinks under a tall toast, then the toast is set tight, then no taller than its room (D121): 15 cases past the top or on Menu, none after |
-| A3 the trimming pass | done | v0.108.8 | a kit's card leaves out its pieces on what its engine leaves out: 1,118 to 3,052 tokens a kit (D122); 28 kits stay past, by the controls standard every kit's game uses |
-| A3b the look's remainder | not started | | `docs/HANDOFF-LOOK.md` |
+| A3 the trimming pass | done | v0.108.8, `7d65660` | a kit's card leaves out its pieces on what its engine leaves out: 1,118 to 3,052 tokens a kit (D122); 28 kits stay past, by the controls standard every kit's game uses |
+| A3b the look's remainder | done | v0.108.9 | the look target's two lines (small units, open ground); the theme taken up; `docs/HANDOFF-LOOK.md` gone (its text: `git show 99edafa:docs/HANDOFF-LOOK.md`) |
 | A4 the CMU picks (optional) | not started | | |
 | B the owner's | waiting on the owner | | |
 | C after the answers | waits on B | | |
