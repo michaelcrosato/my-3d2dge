@@ -94,6 +94,10 @@
 //      more, over no button; stealth's fight: the parry's toast above BLOCK and ROLL, a finger low on BLOCK presses it
 //      (the toast stays), a tap on the toast takes it away; a laptop's touch screen: the prompt and the tip over the key
 //      strip
+//  28. two thumbs (platformer, on its side and upright): a tap is its own finger's: input.clicked() reads a finger's tap
+//      on the right half whatever the stick's thumb does meanwhile (it lands, steers or lifts, in every order) and while
+//      a finger on JUMP lifts; the stick's thumb, steered and brought back, is no tap; a finger on the stick's half lifted
+//      unmoved is one
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -1690,6 +1694,49 @@ if (want('bands')) {
     const s = q => q ? q.map(Math.round).join(',') : 'none';
     check(`bands stealth on a laptop's touch screen ${vp.width}x${vp.height}: the prompt and the tip over the key strip, all clear of the touch buttons`, !!(r.k && r.pr && r.b) && !r.over.length && !errs.length, `touch buttons ${s(r.b)}, the key strip ${s(r.k)}, the prompt ${s(r.pr)}, the tip ${s(r.tip)}${r.over.length ? '; ' + r.over.join(', ') : ''}${errs.length ? '; errors: ' + errs.join(' | ') : ''}`);
     await c.close();
+  }
+}
+
+/* 28. two thumbs: a tap is its own finger's. input.clicked() as the platformer's steps read it, under real touches: a
+ * finger's tap on the right half counts in every order the stick's thumb lands, steers and lifts around it, and while a
+ * touch button's finger lifts; the stick's thumb, steered and brought back to where it landed, is no tap; a finger that
+ * lands on the stick's half and lifts unmoved is (a menu's row there, a cell tapped there) */
+if (want('taps')) {
+  console.log('two thumbs: a tap is its own finger\'s');
+  /** touches one after another, [id, 'down' | 'move' | 'up', [x, y] (CSS px)], ms between. A touchStart or touchMove
+   *  carries every finger on the glass (CDP presses the new one, moves those that changed); a touchEnd names the finger
+   *  that lifts (Chromium lifts those it names: a touchMove without one lifts nothing) */
+  async function touches(cdp, seq, ms = 50) {
+    const on = new Map();
+    for (const [id, type, q] of seq) {
+      if (type === 'up') on.delete(id); else on.set(id, q);
+      await cdp.send('Input.dispatchTouchEvent', { type: type === 'down' ? 'touchStart' : type === 'up' ? 'touchEnd' : 'touchMove', touchPoints: type === 'up' ? [{ x: q[0], y: q[1], id }] : [...on].map(([id, q]) => ({ x: q[0], y: q[1], id })) });
+      await wait(ms);
+    }
+  }
+  for (const [label, vp] of [['on its side', SIDE], ['upright', UP]]) {
+    const { page, ctx, errors, cdp } = await open('platformer', vp); await wait(400);
+    await ev(page, () => { const I = window.__game.game.input, t0 = I.tick; window.__ck = []; I.tick = function (...a) { const r = t0.apply(this, a); const c = this.clicked(); if (c) window.__ck.push(c.slice()); return r; }; });
+    const S = [vp.width * .14, vp.height * .78], T = [vp.width * .66, vp.height * .3], ST = [S[0] + 34, S[1] - 6], j = await ev(page, () => { const b = document.querySelector('[data-sys=touch] [data-act=jump]').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
+    const under = await ev(page, ps => ps.map(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? e.dataset.act || e.tagName : null; }), [S, T, j]);
+    await touches(cdp, [[9, 'down', [vp.width * .5, vp.height * .1]], [9, 'up', [vp.width * .5, vp.height * .1]]]); await wait(500);   // (a first tap: the one a phone goes full screen on)
+    const [s, t] = await ev(page, ps => ps.map(([x, y]) => window.__game.game.input.screenPoint(x, y)), [S, T]); await ev(page, () => window.__ck.splice(0));
+    const steer = id => [[id, 'move', [S[0] + 12, S[1]]], [id, 'move', [S[0] + 24, S[1] - 4]], [id, 'move', ST]];   // (the stick's thumb pushed right)
+    const near = (c, p) => Math.hypot(c[0] - p[0], c[1] - p[1]) < 1.5, fmt = c => c.map(Math.round).join(',');
+    const run = async (name, seq, want1) => {
+      await touches(cdp, seq); await wait(250);
+      const ck = await ev(page, () => window.__ck.splice(0)), ok = want1 ? ck.length === 1 && near(ck[0], want1) : !ck.length;
+      check(`${label}: ${name}`, ok && !errors.length, `${want1 ? 'the tap at ' + fmt(want1) + '; ' : ''}clicked() read ${ck.map(fmt).join(' ') || 'nothing'}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    };
+    check(`${label}: the stick's thumb, the tap's finger and JUMP's on what they should be`, under[0] === 'CANVAS' && under[1] === 'CANVAS' && under[2] === 'jump', under.join(', '));
+    await run('stick thumb down, tap finger down, stick thumb up, tap finger up: the tap counts', [[1, 'down', S], ...steer(1), [2, 'down', T], [1, 'up', ST], [2, 'up', T]], t);
+    await run('stick thumb down, tap finger down and up, stick thumb up: the tap counts', [[1, 'down', S], ...steer(1), [2, 'down', T], [2, 'up', T], [1, 'up', ST]], t);
+    await run('tap finger down, stick thumb down and steering, tap finger up, stick thumb up: the tap counts', [[2, 'down', T], [1, 'down', S], ...steer(1), [2, 'up', T], [1, 'up', ST]], t);
+    await run('tap finger down, stick thumb down, steering and up, tap finger up: the tap counts', [[2, 'down', T], [1, 'down', S], ...steer(1), [1, 'up', ST], [2, 'up', T]], t);
+    await run('a finger on JUMP lifting during the tap: the tap counts', [[3, 'down', j], [2, 'down', T], [3, 'up', j], [2, 'up', T]], t);
+    await run('the stick\'s thumb steered and brought back to where it landed: no tap', [[1, 'down', S], ...steer(1), [1, 'move', [S[0] + 10, S[1]]], [1, 'move', S], [1, 'up', S]], null);
+    await run('a finger on the stick\'s half lifted where it landed, steering nothing: a tap', [[1, 'down', S], [1, 'up', S]], s);
+    await ctx.close();
   }
 }
 

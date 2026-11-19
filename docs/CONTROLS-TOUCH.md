@@ -15,9 +15,11 @@ them in how a tap is read.
    as on a phone (iOS allows 10 pt, Android 8 dp). Letting a finger that wandered and came back count picked the row
    above on a menu that grew meanwhile (D116).
 3. **A tap is its own finger's,** followed by its pointer from press to lift. The steering thumb landing or lifting during
-   another finger's tap must neither cancel it nor take it (D115).
+   another finger's tap must neither cancel it nor take it (D115; the engine's `input.clicked()` keeps it for every game,
+   D119).
 4. **A finger down as the window loses focus lets go** of its press and its hover: no tap and no tooltip after it.
-5. **A tap in a hit-stop is kept** for the first step in play, not lost to the frozen frames.
+5. **A tap in a hit-stop is kept** for the first step in play, not lost to the frozen frames. The engine keeps every
+   press, release and click made during a hit-stop for every game (`game.freeze`, D120), so a game needs no latch of its own.
 6. **A list that scrolls under a finger:** a press moved a few px (6) scrolls and is never a tap, so one press can't both
    scroll and choose.
 

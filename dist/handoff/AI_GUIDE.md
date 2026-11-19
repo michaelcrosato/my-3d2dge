@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference, read whole: every single file carries it (a genre kit, `dist/my-3d2dge.html`, the compact one), and so does the handoff package. This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back: search it for what you need. Its paths are the repository's (github.com/michaelcrosato/my-3d2dge); the handoff package's `README.md` says which of them it holds. Everything here matches `engine/my-3d2dge.js` v0.108.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference, read whole: every single file carries it (a genre kit, `dist/my-3d2dge.html`, the compact one), and so does the handoff package. This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back: search it for what you need. Its paths are the repository's (github.com/michaelcrosato/my-3d2dge); the handoff package's `README.md` says which of them it holds. Everything here matches `engine/my-3d2dge.js` v0.108.2.
 
 A coding agent that reads files gets the handoff package (`dist/handoff/`: the full engine and the 3D engine readable, the cards, the tools, every kit's game, 2D and 3D, and a template game for each) or the agent edition alone (`dist/my-3d2dge-agent.js`: the essential engine in one readable file, its header, about 8k tokens, a complete manual with three example games). Games written for the agent edition run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -125,7 +125,7 @@ What stays your game's job, because only the game knows it:
 
 `game.start(...)` runs this every animation frame:
 
-1. The clock adds the frame's real time (at most 50 ms) to what is left from the last frame, and runs one step for each whole 1/120 s of it: 2 steps a frame at 60 Hz, 1 at 120 Hz, 1 or 0 at 144 Hz. Each step ticks input, then (except during hit-stop and pause) runs the timers, the current scene's `update(dt)`, particles and the camera. The rest waits for the next frame: `game.alpha` (0..1) is how much of a step it holds, for interpolating drawing.
+1. The clock adds the frame's real time (at most 50 ms) to what is left from the last frame, and runs one step for each whole 1/120 s of it: 2 steps a frame at 60 Hz, 1 at 120 Hz, 1 or 0 at 144 Hz. Each step ticks input, then (except during hit-stop and pause) runs the timers, the current scene's `update(dt)`, particles and the camera. A key, button or click pressed or let go during a hit-stop is the first step's after it: `pressed()`, `released()` and `clicked()` report it there, once. The rest waits for the next frame: `game.alpha` (0..1) is how much of a step it holds, for interpolating drawing.
    - Slow motion (`game.timeScale = .3`) makes each step shorter (`dt = 1/120 * .3`), never fewer, so it stays smooth. Above 1 a step is split so none is longer than 1/120 s.
    - Paused, or at `timeScale` 0, the steps still run with `dt` 0, so input keeps ticking.
 2. The renderer clears the buffer and positions the camera.

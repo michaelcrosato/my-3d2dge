@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.2 (2026-11-19)
+
+Two fixes to how the engine reads a press: under a finger a tap is its own finger's, as Emberdeep's has been since v0.108.0, so a tap made with two thumbs on the glass counts; and a key, button or click pressed during a hit-stop is no longer lost.
+
+- **Engine**: `input.clicked()`: a tap is its own finger's. Each pointer is followed by its own id from its press to its lift, under v0.108.0's rule: a finger's tap lifts never having strayed 12 CSS px from where it landed (past it, none though it comes back), a mouse's click lifts within 12 px of where it pressed. Where the engine kept one press for every pointer, the stick's thumb landing or lifting during a tap, another finger landing, or a finger on a touch button let go took the tap away (two-thumb play: the kits' taps that walk, shoot, turn a piece, pick a row); now none of them does. The stick's thumb, steering, is never a tap; a finger that lands on the stick's half and lifts unmoved still is (a menu's row there, a cell tapped there, the puzzle's turn). `input.layoutDevice` holds for the latest press that can still be a tap, each followed by its own pointer: another finger lifting no longer lets it go (D119).
+- **Engine**: a key, pad button or click pressed or let go during a hit-stop (`game.freeze`: input ticks, the scene's `update` waits) is no longer lost: `pressed()`, `released()` and `clicked()` report it once, on the first step after the hit-stop, for every player (both editions). The pause, the Shell and `'input'` hooks, which saw it in its own step, don't see it again; a scene change in between drops it (D120).
+- **Emberdeep**: in a fight, Esc or Options to pause and the bag, skills and tree keys take the first press, even one that falls in a hit-stop; its own latch for the pointer's click (UI.late, D115) is gone, the engine's covers it.
+- **Tools**: `phone-test` 28 (`taps`): real touches on the platformer, held either way: a tap on the right half counts in every order the stick's thumb lands, steers and lifts around it and while a finger on JUMP lifts; the stick's thumb steered and brought back is no tap; a finger lifted unmoved on the stick's half is one. It fails on v0.108.0.
+- **Tools**: the contract test checks, on both editions, that a key pressed and let go during a 0.4 s hit-stop is pressed and released once on the first step after it (a click and player 2's press on the full engine), and that a scene change drops it.
+- **Docs**: `API.md`, `docs/CONTROLS.md` and `docs/CONTROLS-TOUCH.md` say the engine's tap is its own finger's (D119).
+- **Docs**: API.md's `freeze(s)`, AI_GUIDE.md's loop, `docs/CONTROLS-TOUCH.md` (a tap in a hit-stop: the engine keeps it) and the decisions log (D120; D115's latch superseded) say so.
+
 ## 0.108.1 (2026-11-18)
 
 - **Tools**: `ed-controls-test`'s town conversation gives the world's clock up to 5 s to move on after the travel, where it gave it 150 ms after 0.7 s: a machine busy with other work failed it in two full runs though nothing held the world (it passed alone each time, and with three cores kept busy); a held world still fails it.

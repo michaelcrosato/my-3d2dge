@@ -2067,6 +2067,8 @@ An entry:
   the flick rule. A scrolling list keeps its own 6 px drag rule beside it, so a press can never both scroll and tap.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+- **Superseded in part by D120** (v0.108.2): the engine keeps a press that falls in a hit-stop for every game;
+  Emberdeep's own latch (UI.late) is gone.
 
 ## D116 · 2026-11-17 · Under a finger nothing grows until its tap is read; the stick's half backs out of the engine's menus where nothing steers
 
@@ -2259,3 +2261,54 @@ An entry:
   - The premise ("a few tenths") is the firmware's, not measured here: no DualSense was at hand.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
 - **Landed in:** v0.108.0
+
+## D119 · 2026-11-18 · The engine's tap is its own finger's; the stick's thumb steering is never one, a finger lifted unmoved on its half is
+
+- **Principle:** the controls standard (D100) and docs/CONTROLS.md rule 7: under a finger a target acts on a tap, as the
+  finger lifts where it pressed; touch never changes pad or keyboard-and-mouse play. The engine catches up with D115.
+- **Call:**
+  - `input.clicked()` follows each pointer by its own id from its press to its lift (`Input._downs`), under D116's rule
+    for what a tap is: a finger's lifts never having strayed 12 CSS px from where it landed (past it, none though it
+    comes back), a mouse's click lifts within 12 px of where it pressed (a browser's). Another finger landing, steering
+    or lifting meanwhile (the stick's thumb, a touch button's finger) changes nothing; a pinch's two fingers, a
+    cancelled pointer and a page that went full screen under a press are none, as before. `input.layoutDevice`'s hold
+    (D116) is the latest press that can still be a tap, by its own pointer: another finger lifting no longer lets it go.
+  - The owner asked that "the stick's own finger is never a tap". Read here as the thumb steering it: steering is
+    wandering, so it is never a tap, even brought back to where it landed (the old test, where it lifted, took that as
+    one; D116 has since said the same of every finger). A finger that lands on the stick's half and lifts unmoved is
+    still a tap. The stick takes any finger on its half that no zone or touch button holds, on a menu as in play, and in
+    drag mode (`steer = 'drag'`) every finger is the stick's: a menu's row on that half, the roguelike's cell tapped
+    there, the puzzle's turn and the artillery's walk are such taps, and the phone test's checks of them would fail
+    under the literal rule.
+  - The agent edition is unchanged: it has no `clicked()` and no stick.
+- **Why:** the engine kept one press for every pointer: a pointerdown overwrote it and any pointerup cleared it, so a
+  tap was lost whenever the stick's thumb landed or lifted during it, and a finger let go of a touch button lost one too
+  (phone test 28 fails on v0.108.0 in three orders of four and with JUMP). Emberdeep has followed each finger since
+  D115; this is the same rule in the engine, for every kit that reads `clicked()`. What would change it: a game that
+  wants the stick's half to take no taps at all says so with `input.touchFilter`, or a scene turns the stick off.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.2
+
+## D120 · 2026-11-18 · A press in a hit-stop is the scene's first step's after it, in the engine
+
+- **Principle:** the controls standard (D100) and principle 5, deterministic by construction (replays stay exact: what
+  is kept depends only on the game's own state)
+- **Call:**
+  - A step that ticks input but holds the scene's update back (a hit-stop: `game.freeze`) keeps what it made fresh:
+    `pressed()`, `released()` and, on the full engine, `clicked()`, for each player. The first step that runs the scene
+    reports it, once, as its own. Both editions.
+  - It is handed over after the engine's own readers (the pause and `escape: 'back'`, the Shell) and the `'input'`
+    hooks, which saw it in its own step, so none of them sees it twice. A widget's `suppress()` in that step keeps it
+    back, as it would have.
+  - A pause in between doesn't drop it. A scene's entry, `consumeAll()` and `clear()` do.
+  - Presses made while paused, or while a scene fades out, are not kept: the pause menu read them, and a fade-out is the
+    old scene's.
+  - Gestures (`swipe()`, a long press, a double tap) and `sequence()` / `motion()` are not kept.
+  - Emberdeep's own latch for the pointer's click (UI.late, D115) is gone. Its pause, bag, skills and tree keys read in
+    `updateUI` now take the first press in a fight too.
+- **Why:** a hit-stop's step ran `input.tick()` and skipped the scene, so a press fresh only in that step reached no
+  `update`. That cost Emberdeep's Esc and hotkeys a second press in a fight; a 0.4 s freeze lost every key, button and
+  click in it. Keeping only what the scene never saw, and handing it over after the readers that did, makes the first step
+  after see what it would have seen with no hit-stop.
+- **Answered:** yes: the owner asked for the fix in the engine for every game
+- **Landed in:** v0.108.2
