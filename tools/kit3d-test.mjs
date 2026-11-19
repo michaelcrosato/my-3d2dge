@@ -43,7 +43,9 @@
 //      on the screen (the tip aside), and the toast and the prompt under an objective and a status column clear them too
 //      (but 320 high, or where the buttons stand over half the height); 3D ACTION upright 320 wide with the card, a minimap
 //      and the prompt, a toast of a title and six lines: the toast and the prompt on the screen and off the corner's
-//      buttons, the card, its × and the minimap where they stood
+//      buttons, the card, its × and the minimap where they stood; 3D SHOOTER with its ten buttons, the top HUD and the
+//      prompt, no card, six lines, upright 320 wide and on its side 568 and 640 wide: the toast on the screen and off every
+//      button, the prompt on the screen or under the toast (D121)
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -727,6 +729,26 @@ for (const id of SLICES) {
       });
       const off = r => !r || r[1] < -.5;
       if (off(q.t) || off(q.p) || q.on.length || q.b !== q.a || q.c !== q.a || q.under) fail(`phone action 320x568, the card, a minimap and the prompt up, a toast of a title and six lines: the toast ${q.t}${q.on.length ? ' over ' + q.on.join(', ') : ''}, the prompt ${q.p} (both on the screen?); the card, its × and the minimap ${q.a} -> ${q.b} -> ${q.c}${q.under ? '; the card under the others with the toast away' : ''}`);
+    }
+    // 3D SHOOTER, every one of its touch buttons shown, the top HUD and the prompt up, no card, a toast of a title and six
+    // lines, upright at 320x568 and on its side at 568x320 and 640x360 (D121): the toast on the screen and off every button
+    // (the corner's too), the prompt on the screen or lying under the toast while it's up
+    if (id === 'shooter') {
+      for (const [w, h] of [[320, 568], [568, 320], [640, 360]]) {
+        await turnTo(page, { width: w, height: h }); await page.waitForFunction(up => __game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 10000 }).catch(() => {}); await page.waitForTimeout(200);
+        const q = await page.evaluate(() => {
+          const G = __game.game, sh = G.shell, I = G.input, E3 = sh._els, F = sh._fit.getBoundingClientRect();
+          for (const b of document.querySelectorAll('[data-sys=touch] [data-act]')) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true);
+          sh.tutorial(null); sh.hud({ prompt: { key: 'E', label: 'Take the ledger' }, objective: { step: '01 / 02', title: 'Steal the ledger', text: 'On the brick roof, past the two guards' }, bars: [{ label: 'Health', value: 3, max: 5, kind: 'pips' }], counts: [['Guards down', 0]] });
+          sh.toast('Level up', 'Strength +1\nAgility +1\nStealth +1\nLuck +1\nWits +1\nGrit +1', 30); sh._step(); sh._step();
+          const R = e => { const q = e && e.getBoundingClientRect(), c = e && getComputedStyle(e); return q && q.width && q.height && c.visibility !== 'hidden' ? q : null; }, ov = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > .5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > .5;
+          const t = R(E3.toast), p = R(E3.pr), sunk = E3.pr.classList.contains('esh-sunk'), top = F.top - 14, on = [];
+          for (const e of document.querySelectorAll('[data-sys=corner] button, [data-sys=touch] [data-act]')) { const b = R(e); if (t && b && ov(t, b)) on.push(e.dataset.act || e.getAttribute('aria-label')); }
+          const out = { t: t && [t.left, t.top, t.right, t.bottom].map(Math.round), on, past: !t || t.top < top - .5, prompt: !!p && p.top < top - .5, gone: !p && !sunk };
+          sh.hud({}); E3.toast.classList.remove('on'); sh._toastEnd = 0; sh._step(); return out;
+        });
+        if (q.past || q.on.length || q.prompt || q.gone) fail(`phone shooter ${w}x${h}, every button, the top HUD and the prompt up, no card, a toast of a title and six lines: the toast ${q.t}${q.past ? ' past the top' : ''}${q.on.length ? ' over ' + q.on.join(', ') : ''}${q.prompt ? ', the prompt past the top' : ''}${q.gone ? ', the prompt hidden but not under the toast' : ''}`);
+      }
     }
     await turnTo(page, { width: 390, height: 844 });
     // the GAME OVER: a sideways flick goes to the title, not one in its first moment (a dodge mashed as the run ends); fed
