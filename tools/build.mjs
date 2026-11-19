@@ -187,17 +187,37 @@ async function kitEngine3d(b) {
   return { diet: d, min: dieted3d.get(out) };
 }
 /** a kit's API card: the whole card, but its genre playbook keeps the rows of the kit's own slice and its list of modules
- *  the kit's own (the card diet: every row and every module are in API.md, in the repo and in the reference editions); and
- *  where its quick start calls what the kit's engine leaves out (diet.gone), the quick start is the kit's own game */
+ *  the kit's own (the card diet: every row and every module are in API.md, in the repo and in the reference editions); its
+ *  pieces on a part its engine leaves out go, a line in their place naming them (CARD_PARTS); and where its quick start
+ *  calls what the kit's engine leaves out (diet.gone), the quick start is the kit's own game */
 const DIETLIB = await import('./diet.mjs').catch(() => null);
+// the card's pieces on a part of the kit diet (DIET's part names): a bold head and the lines under it to a blank line
+// (**TileMap**), or an item and the lines under it to the next item (- Weather: ...), each gone from a kit whose engine
+// leaves that part out (calling what it describes there only warns); one line in their place names them and says where
+// they are. A piece on a part that stays, or a part no diet leaves out, stays word for word
+const CARD_PARTS = {
+  head: { TileMap: 'tilemap', Heights: 'tilemap', PlatformMap: 'platformmap', Platformer: 'platformer', Body: 'body', Mover: 'thirdperson', Bullets: 'bullets', Blob: 'blob' },
+  item: { Tweens: 'tweens', Scripts: 'tweens', Paths: 'paths', Weather: 'weather', 'GPU lighting': 'gpu' }
+};
 const cardFor = (b, card, diet) => {
   const label = b.label, mods = new Set(resolveModules(b.modules || [], MODS).map(m => m.name)), lines = card.split('\n'), out = [];
   const qs = /^## Quick start.*\n```js\n([\s\S]*?)\n```$/m.exec(card), lost = qs && diet && DIETLIB ? [...DIETLIB.uses([{ text: qs[1] }]).E].filter(n => diet.gone.includes(n)) : [];
   const mine = row => { const cols = row.split('|'), copy = (cols[cols.length - 2] || '').toUpperCase(); return new RegExp('(^|[^0-9A-Z-])' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^A-Z-])').test(label.startsWith('3D ') ? copy : copy.replace(/3D [A-Z-]+/g, '')); };
   const row = l => /^\| /.test(l) && !/^\| Genre/.test(l), kept = (() => { let sec = ''; return lines.filter(l => { if (l.startsWith('## ')) sec = l; return sec.startsWith('## Genre playbook') && row(l) && mine(l); }).length; })();
-  let sec = '', cut = 0, modsIn = 0, modsCut = 0;
+  const LEFT = new Set(diet ? diet.left.map(p => p.part) : []);
+  const headOf = l => { const m = /^\*\*([A-Za-z]+)\*\*/.exec(l); return m && m[0]; }, itemOf = l => { const m = /^- ([A-Z][A-Za-z]*(?: [a-z]+)?)(?= \(|:)/.exec(l); return m && m[1]; };
+  let sec = '', cut = 0, modsIn = 0, modsCut = 0, skip = null, gone = [];   // (skip: the piece being left out, 'head' or 'item'; gone: the section's pieces left out)
+  const note = () => { if (gone.length) { out.push(`(This kit's engine leaves out ${gone.join(', ')}: API.md, in the repo and in dist/my-3d2dge.html, has ${gone.length > 1 ? 'them' : 'it'}.)`, ''); gone = []; } };
   for (const l of lines) {
-    if (l.startsWith('## ')) sec = l;
+    if (skip === 'head' && (!l.trim() || l.startsWith('## ') || headOf(l))) { skip = null; if (!l.trim()) continue; }   // (a head's piece ends at a blank line, which goes with it)
+    if (skip === 'item' && (/^- /.test(l) || !l.trim() || l.startsWith('## ') || headOf(l))) skip = null;
+    if (skip) continue;
+    if (l.startsWith('## ')) { note(); sec = l; }
+    const h = headOf(l), it = !h && itemOf(l), part = h ? CARD_PARTS.head[h.slice(2, -2)] : it ? CARD_PARTS.item[it] : null;
+    if (part && LEFT.has(part)) {   // (Heights is the tile map's rule: named with it)
+      skip = h ? 'head' : 'item'; const name = h ? (h === '**Heights**' ? null : '`' + h.slice(2, -2) + '`') : /^[A-Z][a-z]/.test(it) ? it.toLowerCase() : it;
+      if (name && !gone.includes(name)) gone.push(name); continue;
+    }
     // the card describes the full engine: say once that this kit's leaves sections out
     if (l.startsWith('**Looking a name up:**') && diet && diet.left.length) out.push(`**This kit's engine** leaves out the sections its game never calls (the kit diet: the file's header lists them). A name from one warns once, naming its section, and a class throws; the card describes the full engine, \`dist/my-3d2dge.html\`.`, '');
     if (sec.startsWith('## Quick start') && lost.length) { if (l === sec) out.push(l, `This kit's engine leaves out ${lost.map(n => '`E.' + n + '`').join(', ')}, which the card's quick start (a top-down walk) is built on. This kit's quick start is its own game, between \`GAME START\` and \`GAME END\`: the slice's header says what it plays and how. \`API.md\` and the reference editions have the card's.`, ''); continue; }
@@ -211,6 +231,7 @@ const cardFor = (b, card, diet) => {
     if (modsIn && modsCut) { out.push(mods.size ? `  - (the modules this kit carries; API.md lists every one)` : `  - (this kit carries no module; API.md lists every one)`); modsCut = 0; }
     out.push(l);
   }
+  note();
   return out.join('\n');
 };
 /** a kit's header line on what its engine leaves out (a 3D kit's whole engine, with every 3D slice, is the 3D starter's) */
