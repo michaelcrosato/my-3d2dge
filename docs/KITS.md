@@ -18,8 +18,8 @@ A genre converts well when:
 4. a vertical slice of it fits a kit (20k to 45k tokens of game code) and plays on a phone;
 5. it needs nothing the engine can't make: video, voice, licensed music.
 
-**Out of scope**, each with what covers it instead: online play (the co-op plan, `docs/HANDOFF-COOP.md`, on hold); text
-adventures and parsers; realistic simulations (Gran Turismo's driving, flight simulators: arcade handling only); 3D
+**Out of scope**, each with what covers it instead: online play (the co-op plan, scrapped in v0.108.3 for another
+plan; its text: `git show b2cc5a1:docs/HANDOFF-COOP.md`); text adventures and parsers; realistic simulations (Gran Turismo's driving, flight simulators: arcade handling only); 3D
 fighting (the fight module and the 3D engine's puppets could make one: no kit until a builder asks); extreme sports (a 3D
 trick system); loops in a side-scroller (the Platformer's momentum stops at slopes); video, voice, licensed music, MMOs,
 level editors, mod tools; card and board games (a recipe, `grid` and the pointer, if a builder asks); production

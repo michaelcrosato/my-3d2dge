@@ -5,6 +5,10 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.3 (2026-11-19)
+
+- **Docs**: `docs/HANDOFF-COOP.md` is deleted: the co-op plan (up to four players in Emberdeep, each free to go anywhere; on hold since 2026-10-16, none of its phases started, its questions to the owner unanswered) is scrapped in favor of another plan, on the owner's word. Its text: `git show b2cc5a1:docs/HANDOFF-COOP.md`. `docs/KITS.md`'s out-of-scope line for online play says so.
+
 ## 0.108.2 (2026-11-19)
 
 Two fixes to how the engine reads a press: under a finger a tap is its own finger's, as Emberdeep's has been since v0.108.0, so a tap made with two thumbs on the glass counts; and a key, button or click pressed during a hit-stop is no longer lost.
