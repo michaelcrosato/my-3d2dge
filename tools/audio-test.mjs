@@ -11,6 +11,8 @@
 //   3. the audio offset's calibration: taps 40 ms after each click (on the game's clock) find an offset of about 40 ms
 //   4. a crossfade, a stinger on the next bar and a layer brought in play without an error
 //   5. an audio offset of 250 ms (a wireless headset's) still sounds the music's notes, scheduled that much earlier
+//   5b. a device 400 ms behind (a Bluetooth headset's lag, read in the output's timestamp, which the sound is held to)
+//      still sounds them: its lag forced (0, then 400 ms) whatever the machine's own is
 //   6. a looped, panned effect sounds on until stopped (its pan set as it plays); a track plays a game's own instrument
 //   7. inside 52in1 (a stand-in window.AIHubSettings): the music is times its Music volume and every other sound (effects,
 //      the voice) its Sound effects volume, on top of the game's own, again when its change event says they moved
@@ -89,6 +91,21 @@ const r5 = await ev(async () => {
   return { at0, at250 };
 });
 check('with a 250 ms audio offset the music still sounds its notes', r5.at0 > 0 && r5.at250 > r5.at0 * .7, JSON.stringify(r5));
+
+// 5b. a device well behind (a Bluetooth headset: 150 to 400 ms): the sound is held to what is heard (the output's
+//     timestamp, its lag behind the audio's clock), so each note is scheduled that much earlier, and must be scheduled that
+//     much further ahead or it is already past when reached and skipped: the music fell silent on such a device (and on a
+//     machine whose sound device lags, 408 ms in WSL's). The lag is forced here, 0 then 400 ms, whatever the machine's own
+console.log('a device 400 ms behind');
+const r5b = await ev(async () => {
+  const g = window.__fx.game, A = g.audio, w = ms => new Promise(r => setTimeout(r, ms)), S = My3D2dge.Songbook, c = A.ctx, made = { n: 0 }, osc = c.createOscillator.bind(c);
+  if (!c.getOutputTimestamp) return { missing: true };
+  const ts = c.getOutputTimestamp.bind(c); c.createOscillator = () => { made.n++; return osc(); };
+  const count = async lag => { c.getOutputTimestamp = () => ({ contextTime: c.currentTime - lag, performanceTime: performance.now() }); A.music(null); A.music(Object.assign({}, S.get('stepup'), { loop: true })); await w(300); made.n = 0; await w(1500); return made.n; };
+  const at0 = await count(0), at400 = await count(.4); A.music(null); c.createOscillator = osc; c.getOutputTimestamp = ts;
+  return { at0, at400 };
+});
+check('with a device 400 ms behind the music still sounds its notes', !r5b.missing && r5b.at0 > 0 && r5b.at400 > r5b.at0 * .7, JSON.stringify(r5b));
 
 // 6. an effect's handle: a looped one sounds on (an engine, rain) until stopped, its pan and volume set as it plays, through
 //    the effects' bus; an instrument of the game's own plays a track's notes (HANDOFF-MATRIX 5.1, 5.2)

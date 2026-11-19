@@ -8783,14 +8783,15 @@ class ChipAudio {
     if (this._stings.length) this._stings = this._stings.filter(S => { const live = this._clockNow(S) < S.end + .5; if (!live) try { S.bus.disconnect(); } catch (e) { /* gone */ } return live; });
     if (!this.song && !this._fading.length && !this._stings.length) { clearInterval(this._timer); this._timer = null; }
   }
-  // a song's notes for the next 150 ms of its clock and the offset's more (each is sounded the offset early, so a 250 ms offset
-  // needs its notes 400 ms ahead, or they would fall in the past and be skipped), each at the sound's time its anchor maps it
-  // to (less the offset)
+  // a song's notes for the next 150 ms of its clock, the offset's more and the device's lag more (each is sounded the offset
+  // early, so a 250 ms offset needs its notes 400 ms ahead, or they would fall in the past and be skipped; and _frame maps
+  // the clock to what is heard, the sound's time less the device's lag, so a headset 400 ms behind needs them 400 ms ahead
+  // too), each at the sound's time its anchor maps it to (less the offset)
   _ahead(C) {
     const c = this.ctx, now = this._clockNow(C);
     if (!C.anchor) { C.anchor = { ctx: c.currentTime + .05, clk: now }; C.next = Math.max(C.next, Math.floor(this._stepAt(C, now) + .5)); }
     for (let n = 0; n < 64; n++) {
-      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 + Math.max(0, this.offset) || (!C.loop && k >= C.len)) break;
+      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 + Math.max(0, this.offset) + (this._lag || 0) || (!C.loop && k >= C.len)) break;
       const at = C.anchor.ctx + (t - C.anchor.clk) - this.offset, p = k % C.len;
       if (at > c.currentTime - .03) for (const tr of C.tracks) this._note(tr, p % tr.tokens.length, Math.max(at, c.currentTime), C.spb, tr.gain);
       C.next++;
@@ -8805,6 +8806,7 @@ class ChipAudio {
     const C = this.song, c = this.ctx; if (!C || !C.anchor || !c || c.state !== 'running' || (C.sync && (g.paused || g.hitstop > 0))) return;
     const ts = c.getOutputTimestamp && c.getOutputTimestamp(), ok = ts && ts.performanceTime > 0 && ts.contextTime > 0;
     const heard = ok ? ts.contextTime : c.currentTime - (c.outputLatency || c.baseLatency || 0), p = ok ? ts.performanceTime : performance.now();
+    this._lag = Math.min(2, Math.max(0, c.currentTime - heard));   // (the device's lag: how far ahead _ahead must schedule, so notes mapped to what is heard aren't already past)
     const err = heard - (C.anchor.ctx + (this._clockNow(C, p) - C.anchor.clk));
     this.drift = err;
     const big = Math.abs(err) > .01;
