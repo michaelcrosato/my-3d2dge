@@ -8791,7 +8791,7 @@ class ChipAudio {
     const c = this.ctx, now = this._clockNow(C);
     if (!C.anchor) { C.anchor = { ctx: c.currentTime + .05, clk: now }; C.next = Math.max(C.next, Math.floor(this._stepAt(C, now) + .5)); }
     for (let n = 0; n < 64; n++) {
-      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 + Math.max(0, this.offset) + (this._lag || 0) || (!C.loop && k >= C.len)) break;
+      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 + Math.max(0, this.offset) + (this._outLag || 0) || (!C.loop && k >= C.len)) break;
       const at = C.anchor.ctx + (t - C.anchor.clk) - this.offset, p = k % C.len;
       if (at > c.currentTime - .03) for (const tr of C.tracks) this._note(tr, p % tr.tokens.length, Math.max(at, c.currentTime), C.spb, tr.gain);
       C.next++;
@@ -8806,7 +8806,7 @@ class ChipAudio {
     const C = this.song, c = this.ctx; if (!C || !C.anchor || !c || c.state !== 'running' || (C.sync && (g.paused || g.hitstop > 0))) return;
     const ts = c.getOutputTimestamp && c.getOutputTimestamp(), ok = ts && ts.performanceTime > 0 && ts.contextTime > 0;
     const heard = ok ? ts.contextTime : c.currentTime - (c.outputLatency || c.baseLatency || 0), p = ok ? ts.performanceTime : performance.now();
-    this._lag = Math.min(2, Math.max(0, c.currentTime - heard));   // (the device's lag: how far ahead _ahead must schedule, so notes mapped to what is heard aren't already past)
+    this._outLag = Math.min(2, Math.max(0, c.currentTime - heard));   // (the device's lag: how far ahead _ahead must schedule, so notes mapped to what is heard aren't already past)
     const err = heard - (C.anchor.ctx + (this._clockNow(C, p) - C.anchor.clk));
     this.drift = err;
     const big = Math.abs(err) > .01;
