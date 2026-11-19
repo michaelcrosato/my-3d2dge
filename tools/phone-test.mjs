@@ -88,7 +88,9 @@
 //      only that; on its side 640 wide a toast taller than a line comes and goes and nothing moves (the layout, the
 //      card's ×, the minimap); a toast of several lines where the card leaves it no room above (stealth upright 320x568,
 //      six lines; platformer on its side 640x360 with its minimap, four): the toast and the prompt on the screen, the card
-//      under the toast in its place, a finger at the ×'s place takes the toast, the next the card; with no touch buttons
+//      under the toast in its place, a finger at the ×'s place takes the toast, the next the card; a tall toast where no
+//      card is up (metroidvania and stealth on their side 568x320, the top HUD up, four lines and six): the toast on the
+//      screen and off every button, the prompt on the screen or under the toast; with no touch buttons
 //      (where the toast still lies over its top) a finger on the toast takes only the toast; all of it at once
 //      (stealth's HUD, the minimap, the card, a two-line toast): the stack settles, the toast on the screen, 140 wide or
 //      more, over no button; stealth's fight: the parry's toast above BLOCK and ROLL, a finger low on BLOCK presses it
@@ -1661,6 +1663,31 @@ if (want('bands')) {
       ok = ok && (q.covered ? !r1.up && r1.card && !r2 : r1.up && !r1.card); line += `; a finger at the ×'s place (the toast ${q.covered ? 'over it' : 'clear of it'}): the toast up ${r1.up}, the card up ${r1.card}; the next: the card up ${r2}`;
     }
     check(`bands ${kit} ${w}x${h}${mini ? ', its minimap up' : ''}: the card up and a toast of a title and ${n} lines: the toast and the prompt on the screen, off the corner's buttons; the layout, the card, its × and the minimap stay where they stood`, ok && !errors.length, line + (errors.length ? '; errors: ' + errors.join(' | ') : ''));
+    await ctx.close();
+  }
+  // a tall toast where no card is up to lie under it (D117's costs, docs/HANDOFF-FINISH.md A2): metroidvania and stealth
+  // on their side at 568x320, the top HUD and the prompt up, every touch button shown, a title and four lines, then six.
+  // The toast stays whole where it can and on the screen always, off the corner's buttons and every touch button; the
+  // prompt (it takes no taps) stays on the screen or lies under the toast while it's up (esh-sunk), never past the top
+  for (const kit of ['metroidvania', 'stealth']) {
+    const { page, ctx, cdp, errors } = await open(kit, { width: 568, height: 320 }); await page.addStyleTag({ content: still }); await wait(500);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 30, y: 150 }] }); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(200);   // (a finger: the device in use is touch)
+    const bad = [];
+    for (const n of [4, 6]) {
+      const q = await ev(page, n => {
+        const G = window.__game.game, sh = G.shell, I = G.input, E3 = sh._els, F = sh._fit.getBoundingClientRect();
+        for (const b of document.querySelectorAll('[data-sys=touch] [data-act]')) if (b.dataset.act !== 'menu') I.touchSet(b.dataset.act, null, true);
+        sh.tutorial(null); sh.hud({ prompt: { key: 'E', label: 'Take the ledger' }, objective: { step: '01 / 02', title: 'Steal the ledger', text: 'On the brick roof, past the two guards' }, bars: [{ label: 'Health', value: 3, max: 5, kind: 'pips' }], counts: [['Guards down', 0]] });
+        sh.toast('Level up', ['Strength +1', 'Agility +1', 'Stealth +1', 'Luck +1', 'Wits +1', 'Grit +1'].slice(0, n).join('\n'), 30); sh._step(); sh._step();
+        const R = e => { const q = e && e.getBoundingClientRect(), c = e && getComputedStyle(e); return q && q.width && q.height && c.visibility !== 'hidden' ? q : null; }, ov = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > .5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > .5;
+        const t = R(E3.toast), p = R(E3.pr), sunk = E3.pr.classList.contains('esh-sunk'), top = F.top - 14, on = [];
+        for (const e of document.querySelectorAll('[data-sys=corner] button, [data-sys=touch] [data-act]')) { const b = R(e); if (t && b && ov(t, b)) on.push(e.dataset.act || e.getAttribute('aria-label')); }
+        const out = { t: t && [t.left, t.top, t.right, t.bottom].map(Math.round), sunk, on, past: !t || t.top < top - .5, prompt: !!p && p.top < top - .5, gone: !p && !sunk, cls: E3.toast.className };
+        sh.hud({}); E3.toast.classList.remove('on'); sh._toastEnd = 0; sh._step(); return out;
+      }, n);
+      if (q.past || q.on.length || q.prompt || q.gone) bad.push(`${n} lines: the toast ${q.t}${q.past ? ' past the top' : ''}${q.on.length ? ' over ' + q.on.join(', ') : ''}${q.prompt ? ', the prompt past the top' : ''}${q.gone ? ', the prompt hidden but not under the toast' : ''}`);
+    }
+    check(`bands ${kit} 568x320, the top HUD and the prompt up, no card: a toast of a title and four lines, then six, on the screen and off every button; the prompt on the screen or under the toast`, !bad.length && !errors.length, bad.join('; ') + (errors.length ? ' errors: ' + errors.join(' | ') : '') || 'both whole, on the screen');
     await ctx.close();
   }
   // stealth with all of it at once (its own objective and status, its map as the minimap, the prompt, the tip, the card,

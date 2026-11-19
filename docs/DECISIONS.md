@@ -2312,3 +2312,32 @@ An entry:
   after see what it would have seen with no hit-stop.
 - **Answered:** yes: the owner asked for the fix in the engine for every game
 - **Landed in:** v0.108.2
+
+## D121 · 2026-11-19 · A tall toast with no card to lie under: the prompt gives way, then the toast's size, never the screen
+
+- **Principle:** the controls standard (D100): nothing over a button, and a target under a finger acts on that tap
+  alone (`docs/CONTROLS.md`, "Touch: nothing over a button"). Follows D117, whose costs it closes for the toast
+  (`docs/HANDOFF-CONTROLS.md` part 3, its second line; `docs/HANDOFF-FINISH.md` A2).
+- **Call:** where D117's ways still leave a narrow screen's toast or the prompt past the top (or on the corner's
+  buttons), with no card to lie under the toast or one already under it, what takes no taps gives way first, then the
+  toast's own size, in that order:
+  - the prompt sinks under the toast while it's up (`esh-sunk`, as the tip on a narrow screen), in the toast's place;
+    in the compact way the toast then stands in the prompt's place too, over it and the tip;
+  - then the toast is set tight (`esh-tight`: less padding, its title 13 px and its lines 11 px), measured on the hidden
+    copy as its heights are, and laid again the same way;
+  - then, where even that won't fit, it stands no taller than its room (`esh-cap`: never under 64 px), its last lines
+    faded under its title.
+  Nothing changes where D117's ways already keep the toast and the prompt on the screen and off the buttons.
+- **Why:** a toast past the top loses its title, and one on the corner's buttons covers Menu's face (D117). The prompt
+  takes no taps and is back as the toast goes; a toast's lines are the game's to say, so it shrinks before it is cut,
+  and is cut only where the buttons leave it no room at all. Measured with every touch button shown, the top HUD and the
+  prompt up, a toast of one to six lines, on eight phones either way, in every 2D kit and 3D SHOOTER: 15 cases past the
+  top or on Menu before (3D SHOOTER's toast up to 57 px off the top), none after; 11 by the prompt sinking, 3 set tight
+  as well, 1 capped (3D SHOOTER on its side at 568x320 with the top HUD and six lines: its title and five lines show).
+- **Costs:**
+  - While such a toast is up the prompt is hidden under it (it reappears as the toast goes), and in the compact way the
+    toast covers the prompt's place.
+  - A tight toast's lines are smaller than the Shell's own (11 px against 12) for the seconds it's up.
+  - The one capped case shows five of six lines, the sixth faded.
+- **Answered:** a reversible call (a revert undoes it), flagged in the pull request
+- **Landed in:** v0.108.7
