@@ -35,20 +35,6 @@ this one.
 
 ## Part A: an agent's, now
 
-### A0. The baseline
-
-The full `npm test` passes at the commit you start from. Run it first, in the background (about 40 minutes), while
-you read for A1 to A3; a failure is fixed forward, in its own patch, before anything else.
-
-### A1. The feedback log's overdue row
-
-`docs/FEEDBACK-LOG.md`'s theme "The look's remainder" (small figures that merge when they overlap, F4.2; empty fields,
-F6.2) is marked **watch**, but its "Take it up when" says "reached (F7, after v0.59.0): the next plan takes it up",
-and no plan has since. Apply the log's own rule: a theme reaches its threshold at three sources, or at two from
-different model families, and F7 is one source (the points before it don't count afresh, its row says). If it isn't
-reached, correct the cell to say when it will be (a patch). If it is, write the plan that takes it up and carry it out
-as a part of its own after A3.
-
 ### A2. The tall toasts
 
 `docs/HANDOFF-CONTROLS.md` part 3, its second line, the one leftover of the controls standard that needs no play test:
@@ -114,6 +100,12 @@ today's, part by part.
   request says why. Each pull request lists every kit's count before and after.
 - Last, the README's sizes, measured again: the play file (13.7 MB, where it says about 12), and the counts in "Share
   it with an AI model" (measured at v0.85.0).
+
+### A3b. The look's remainder (A1's plan)
+
+A1 found the feedback log's row reached: `docs/HANDOFF-LOOK.md` takes it up and decided again (no engine change:
+the card's look target gains two lines, for small units and for open ground, the TACTICS and KART slices their
+examples). Carry out its one phase after A3, then close the theme as it says.
 
 ### A4. The 30 picked CMU takes (optional)
 
@@ -190,10 +182,11 @@ Yours to give. `docs/HANDOFF-COOP.md` was scrapped for it in v0.108.3; its text 
 | Part | State | Version and commit | Notes |
 | --- | --- | --- | --- |
 | this plan | written | v0.108.4 | from a survey at v0.108.3 |
-| A0 the baseline | not started | | |
-| A1 the feedback row | not started | | |
+| A0 the baseline | done | v0.108.5, `86cb008` | three failures fixed forward: the music fell silent on a device that lags (an engine bug: a Bluetooth headset's player could hear no music); kit3d's and phone-test's turns in full screen; phone-test's stick checks timed by the wall's clock |
+| A1 the feedback row | done | v0.108.6 | reached: `docs/HANDOFF-LOOK.md` takes it up (A3b) |
 | A2 the tall toasts | not started | | |
 | A3 the trimming pass | not started | | |
+| A3b the look's remainder | not started | | `docs/HANDOFF-LOOK.md` |
 | A4 the CMU picks (optional) | not started | | |
 | B the owner's | waiting on the owner | | |
 | C after the answers | waits on B | | |
