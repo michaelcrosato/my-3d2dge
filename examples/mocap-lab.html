@@ -94,7 +94,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
   <canvas id="screen" role="img" aria-label="Mocap lab: imported animation clips played on a pixel-art mannequin and on the engine's hero"></canvas>
   <div class="hud top">
     <div class="brand panel">
-      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a> <span class="ver" title="Release and build">v0.108.6 · dev-build</span></h1>
+      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a> <span class="ver" title="Release and build">v0.108.7 · dev-build</span></h1>
       <p id="note"></p>
       <select id="pick" aria-label="Animation clip"></select>
     </div>
@@ -171,7 +171,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.108.6  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.108.7  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -259,7 +259,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces in a copy made to share (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.108.6', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.108.7', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 // the page's name for what it keeps (its settings, save slots and language): its path, and in the play file (index.html,
@@ -10312,6 +10312,9 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-pr{position:absolute;left:calc(50% + (var(--fl) - var(--fr)) / 2);bottom:var(--y,calc(var(--pb) + 44px));transform:translateX(-50%);max-width:var(--fw);display:flex;gap:10px;align-items:center;min-width:200px}
 .esh kbd{font:700 12px var(--font);border:1px solid var(--accent);border-bottom-width:2px;border-radius:4px;padding:2px 7px;color:var(--accent)}
 .esh-tip{position:absolute;left:calc(50% + (var(--fl) - var(--fr)) / 2);bottom:var(--y,calc(var(--pb) + 100px));transform:translateX(-50%);max-width:var(--fw);text-align:center;border-color:var(--danger)}.esh-tip.esh-sunk{visibility:hidden}
+.esh-pr.esh-sunk{visibility:hidden}
+.esh-tight{padding:6px 10px}.esh-tight b{font-size:13px;line-height:1.15}.esh-tight .esh-m{font-size:11px;line-height:1.2}.esh-tight p{margin-top:2px}
+.esh-toast.esh-cap{max-height:var(--th);overflow:hidden;-webkit-mask-image:linear-gradient(#000 calc(100% - 18px),transparent);mask-image:linear-gradient(#000 calc(100% - 18px),transparent)}
 .esh-col{position:absolute;right:var(--pr);top:var(--pt);display:flex;flex-direction:column;align-items:flex-end;gap:8px}.esh-place{text-align:right;font:italic 13px var(--title);color:var(--muted)}
 .esh-mini{position:absolute;right:max(var(--pr),var(--fr));bottom:var(--y,var(--pb));width:min(176px,28vw,var(--mw,176px));border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}.esh-mini.esh-under{opacity:.55}
 .esh-keys{position:absolute;left:calc(50% + (var(--fl) - var(--fr)) / 2);bottom:var(--y,var(--pb));transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap;background:rgba(8,6,14,.62);padding:5px 12px;border-radius:8px}.esh-keys kbd{margin-right:4px}
@@ -10846,7 +10849,10 @@ class Shell {
   // leaves the toast and the prompt on the screen, 3D SHOOTER's ten buttons upright, a phone 320 high on its side with
   // every piece up), never one that leaves them off the screen or on the top's buttons where another keeps them off (the
   // toast, which takes a tap, first); a stack that still won't fit reaches up over the objective and the status (they
-  // take no taps). The tap that takes the toast away takes nothing else (_eat: its click falls on what lay under it). The
+  // take no taps). A tall toast that still leaves the screen, or a prompt over it, gives way in turn (D121): the prompt
+  // sinks under the toast while it's up, the toast standing in its place too (esh-sunk); then the toast is set tight
+  // (esh-tight), then stands no taller than its room, its last lines faded (esh-cap: 64 px or more), never off the screen
+  // or on a button. The tap that takes the toast away takes nothing else (_eat: its click falls on what lay under it). The
   // toast's height for each stretch is a hidden copy's (_toastH), so where it stood never sways where it stands next. (In
   // the shell's own pixels, from its bottom)
   _bands(fb, fl, fr) {
@@ -10860,7 +10866,7 @@ class Shell {
     const T = E3.toast, tOn = T.classList.contains('on'), w0 = Math.min(176, innerWidth * .28); let th = () => 64;   // (the toast's height on a stretch so wide: first a line's, the place it takes away)
     const [C, K, Q, Z] = [E3.tut, E3.keys, E3.pr, E3.tip].map(e => on(e) && box(e).slice(0, 2).concat(e.offsetHeight));   // (the card, the keys, the prompt, the tip: their stretch and height)
     const pw = Q ? Q.slice(0, 2) : [mid - 100, mid + 100], ph = Q ? Q[2] : 48, iw = Z ? Z.slice(0, 2) : [mid - 61, mid + 61], ih = Z ? Z[2] : 64;   // (the prompt's place, kept while it's away)
-    const way = (under, compact, keep) => {   // one way to stand them: the card under the others or not, a narrow toast over the tip or not (keep: the way a line's toast took, whose minimap and keys stand where they stood; the card's place is the same either way)
+    const way = (under, compact, keep, sink = false) => {   // one way to stand them: the card under the others or not, a narrow toast over the tip or not (keep: the way a line's toast took, whose minimap and keys stand where they stood; the card's place is the same either way; sink: the toast over the prompt too, in the prompt's place, the prompt and the tip under it while it's up)
       const at = [], need = (a, b, floor, skip) => at.reduce((y, p) => p !== skip && a < p.b && p.a < b ? Math.max(y, p.t + G) : y, Math.max(floor, line));
       const put = (a, b, h, floor, skip, off) => { const y = need(a, b, floor, skip), p = { a, b, y, t: y + h }; if (!off) at.push(p); return p; };
       const L = { under, compact, card: C && put(C[0], C[1], C[2], pb, null, under), mw: 0, mini: null, tw: [x0, x1], toast: null };
@@ -10870,32 +10876,48 @@ class Shell {
       // minimap or the top HUD), then as wide; none narrower than 140 px (over the tip: none narrower than the tip)
       const lefts = [x0, L.card && !under && L.card.b + G].concat(hud.filter(h => h[0] + h[1] < 2 * mid).map(h => h[1] + G)).filter(a => a >= x0 && a < x1), rights = [x1, L.mini && L.mini.a - G].concat(hud.filter(h => h[0] + h[1] >= 2 * mid).map(h => h[0] - G)).filter(b => b <= x1 && b > x0);   // (inside the room the buttons leave)
       const lay = (floor, skip, over) => { let w = null; for (const a of lefts) for (const b of rights) if (a && b && b - a >= 140 && (!over || a <= over.a && b >= over.b)) { const y = need(a, b, floor, skip), ok = H - y - th(b - a) >= roof(a, b, true) - .5; if (!w || ok > w.ok || ok === w.ok && (y < w.y - .5 || y < w.y + .5 && b - a > w.b - w.a)) w = { a, b, y, ok }; } return w || { a: x0, b: x1 }; };
-      if (!narrow || compact) { L.pq = put(...pw, ph, pb + 44); L.tip = put(...iw, ih, pb + 100); }
+      if (!narrow || compact) { L.pq = put(...pw, ph, pb + 44, null, sink); L.tip = put(...iw, ih, pb + 100, null, sink); }
       if (narrow && !compact) { const w = lay(pb + 124); L.tw = [w.a, w.b]; L.toast = put(w.a, w.b, th(w.b - w.a), pb + 124); L.pq = put(...pw, ph, pb + 196); L.tip = put(...iw, ih, pb + 262); }
-      if (narrow && compact) { const f = Math.max(L.tip.y, pb + 100), v = lay(f, L.tip, Z && L.tip); L.tw = [v.a, v.b]; L.toast = put(v.a, v.b, th(v.b - v.a), f, L.tip); L.tip.t += L.toast.y - L.tip.y; L.tip.y = L.toast.y; }
+      if (narrow && compact) {
+        const f = sink ? L.pq.y : Math.max(L.tip.y, pb + 100), v = lay(f, sink ? null : L.tip, sink ? (Q && L.pq) || (Z && L.tip) : Z && L.tip); L.tw = [v.a, v.b]; L.toast = put(v.a, v.b, th(v.b - v.a), f, sink ? null : L.tip);
+        for (const p of sink ? [L.tip, L.pq] : [L.tip]) { p.t += L.toast.y - p.y; p.y = L.toast.y; }   // (under the toast, in its place)
+      }
+      L.sink = sink;
       const fit = (all, ps) => ps.every(p => !p || H - p.t >= roof(p.a, p.b, all) - .5);   // (on the screen and off the top's buttons first, the toast (it takes a tap) before the prompt (the tip may reach past the top, as on a phone 320 high it always did), then the card among the others, then all clear of the top HUD)
-      L.score = (fit(false, [L.toast]) ? 8 : 0) + (fit(false, [Q && L.pq]) ? 4 : 0) + (under ? 0 : 2) + (fit(true, [L.toast, Q && L.pq, Z && L.tip]) ? 1 : 0); return L;
+      L.score = (fit(false, [L.toast]) ? 8 : 0) + (fit(false, [Q && !sink && L.pq]) ? 4 : 0) + (under ? 0 : 2) + (fit(true, [L.toast, Q && !sink && L.pq, Z && L.tip]) ? 1 : 0); return L;
     };
-    let L = null; for (const [u, c] of [[0, 0], [0, 1], [1, 0], [1, 1]]) if ((!u || C) && (!c || narrow)) { const v = way(!!u, !!c); if (!L || v.score > L.score) L = v; if (L.score === 15) break; }
+    let L = null, tight = false, cap = 0, sunk = false; for (const [u, c] of [[0, 0], [0, 1], [1, 0], [1, 1]]) if ((!u || C) && (!c || narrow)) { const v = way(!!u, !!c); if (!L || v.score > L.score) L = v; if (L.score === 15) break; }
     if (tOn && narrow) {   // a narrow screen's toast up at its own height, in the way a line's takes: the card, the minimap and the keys stay where they are, and only what stands over it gives way
       th = w => this._toastH(w); const L0 = L; let M = null;
       for (const c of [L0.compact, !L0.compact]) { const v = way(L0.under, c, L0); if (!M || v.score >> 2 > M.score >> 2) M = v; if (M.score >> 2 === 3) break; }   // (it stands over the tip, or not, instead only where that alone keeps it, then the prompt, on the screen and off the top's buttons)
       const lost = v => [v.toast, Q && v.pq].reduce((n, p, i) => p && H - p.t < roof(p.a, p.b, false, pt - 14) - .5 ? n + 2 - i : n, 0);   // (the toast (2), the prompt (1) past the screen's top, the safe area's (--pt less its 14 px margin), or under the corner's buttons)
       if (C && !L0.under && lost(M)) for (const c of [L0.compact, !L0.compact]) { const v = way(true, c, L0); if (lost(v) < lost(M)) M = v; if (!lost(M)) break; }   // (and the card lies under it, in its place, only where that alone keeps the toast, then the prompt, from leaving the screen)
       L = M;
+      // where that still leaves the toast past the top (no card to lie under, or it already does), what stands under it
+      // and takes no taps gives way, then the toast's own size: it stands over the prompt too, in the prompt's place (the
+      // prompt and the tip under it while it's up); then it is set tight (less padding, smaller lines), laid again so; and
+      // where even that won't fit, it stands no taller than its room, its last lines faded under its title. A prompt
+      // still past the top sinks under the toast the same way (it takes no taps, as the tip)
+      const off = p => !!p && H - p.t < roof(p.a, p.b, false, pt - 14) - .5;
+      if (off(L.toast)) { const v = way(L.under, true, L0, true); if (v.toast.y < L.toast.y - .5) L = v; }
+      if (off(L.toast)) { tight = true; th = w => this._toastH(w, true); L = way(L.under, L.compact, L0, L.sink); }
+      if (off(L.toast)) cap = Math.max(64, H - Math.max(pt - 14, roof(L.toast.a, L.toast.b, false, pt - 14)) - L.toast.y);
+      sunk = !!(Q && (L.sink || off(L.pq)));
     }
     const set = this._sv;
-    for (const [e, p] of [[E3.tut, L.card], [E3.mini, L.mini], [E3.keys, L.keys], [E3.pr, L.pq], [E3.tip, L.tip], [T, L.toast]]) set(e, '--y', p ? p.y : e === T ? null : line);   // (a piece away waits on the line)
-    set(E3.mini, '--mw', L.mw || null); set(T, '--tl', L.toast && L.tw[0] > x0 ? L.tw[0] : null); set(T, '--tr', L.toast && L.tw[1] < x1 ? W - L.tw[1] : null);
+    for (const [e, p] of [[E3.tut, L.card], [E3.mini, L.mini], [E3.keys, L.keys], [E3.pr, sunk ? L.toast : L.pq], [E3.tip, L.tip], [T, L.toast]]) set(e, '--y', p ? p.y : e === T ? null : line);   // (a piece away waits on the line; a sunk prompt under the toast)
+    set(E3.mini, '--mw', L.mw || null); set(T, '--tl', L.toast && L.tw[0] > x0 ? L.tw[0] : null); set(T, '--tr', L.toast && L.tw[1] < x1 ? W - L.tw[1] : null); set(T, '--th', cap || null);
     E3.tip.classList.toggle('esh-sunk', !!(L.compact && Z && tOn)); E3.tut.classList.toggle('esh-yield', !!(L.under && C));
+    E3.pr.classList.toggle('esh-sunk', sunk); T.classList.toggle('esh-tight', tight); T.classList.toggle('esh-cap', !!cap);
   }
   // the toast's height on a stretch w wide (the shell's px), measured once for each width on a hidden copy of it: its
-  // lines change with its width, and the copy's don't with where the toast stands (a line's toast: 64)
-  _toastH(w) {
-    const c = this._thc || (this._thc = {}), key = Math.max(1, Math.round(w));
+  // lines change with its width, and the copy's don't with where the toast stands (a line's toast: 64); tight: set as
+  // a toast too tall for its room is (esh-tight)
+  _toastH(w, tight = false) {
+    const c = this._thc || (this._thc = {}), key = Math.max(1, Math.round(w)) + (tight ? 't' : '');
     if (c[key] === undefined) {
       const m = this._tm || (this._tm = this.root.appendChild(this._el('div', 'esh-pan')));
-      m.setAttribute('aria-hidden', 'true'); m.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;text-align:center;width:' + key + 'px';
+      m.setAttribute('aria-hidden', 'true'); m.className = 'esh-pan' + (tight ? ' esh-tight' : ''); m.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;text-align:center;width:' + Math.max(1, Math.round(w)) + 'px';
       m.replaceChildren(...[...this._els.toast.childNodes].map(n => n.cloneNode(true))); c[key] = m.offsetHeight;
     }
     return Math.max(64, c[key]);
@@ -10903,7 +10925,8 @@ class Shell {
   // the touch buttons gone (a controller or the keys took over): every piece back where the CSS stands it, as on a desk
   _unband() {
     const E3 = this._els; this._band = false; this.root.classList.remove('esh-band'); E3.tip.classList.remove('esh-sunk'); E3.tut.classList.remove('esh-yield');
-    for (const e of [E3.tut, E3.mini, E3.keys, E3.pr, E3.tip, E3.toast]) for (const n of ['--y', '--mw', '--tl', '--tr']) this._sv(e, n, null);
+    E3.pr.classList.remove('esh-sunk'); E3.toast.classList.remove('esh-tight', 'esh-cap');
+    for (const e of [E3.tut, E3.mini, E3.keys, E3.pr, E3.tip, E3.toast]) for (const n of ['--y', '--mw', '--tl', '--tr', '--th']) this._sv(e, n, null);
   }
   // a piece's CSS variable, in px (null: none), written only when it changed
   _sv(e, n, v) { const s = v === null ? '' : Math.round(v * 100) / 100 + 'px'; if ((e['_esh' + n] || '') !== s) { e['_esh' + n] = s; if (s) e.style.setProperty(n, s); else e.style.removeProperty(n); } }

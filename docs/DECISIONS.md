@@ -2340,4 +2340,4 @@ An entry:
   - A tight toast's lines are smaller than the Shell's own (11 px against 12) for the seconds it's up.
   - The one capped case shows five of six lines, the sixth faded.
 - **Answered:** a reversible call (a revert undoes it), flagged in the pull request
-- **Landed in:** VERSION
+- **Landed in:** v0.108.7

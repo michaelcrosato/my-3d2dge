@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.7 (2026-11-19)
+
+A2 of `docs/HANDOFF-FINISH.md`: the controls standard's leftover that needs no play test (`docs/HANDOFF-CONTROLS.md` part 3, its second line; D117's costs).
+
+- **Engine**: a tall toast on a narrow screen with touch buttons stays on the screen and off every button where no card can lie under it (D121). What takes no taps gives way first, then the toast's size: the prompt sinks under the toast while it's up (in the compact way the toast stands in the prompt's place too, over it and the tip); then the toast is set tight (less padding, its title 13 px and its lines 11 px), measured on its hidden copy; then it stands no taller than its room, 64 px or more, its last lines faded under its title. With every touch button shown, the top HUD and the prompt up and toasts of one to six lines, on eight phones held either way in the 2D kits and 3D SHOOTER: 15 cases past the top or on Menu before (3D SHOOTER's toast up to 57 px off the top), none after; 11 resolved by the prompt sinking, 3 set tight as well, 1 capped (3D SHOOTER on its side at 568x320 with the top HUD and six lines: its title and five lines show). Nothing changes where D117's ways already keep the toast and the prompt on the screen.
+- **Tools**: `phone-test` checks a tall toast with no card on metroidvania and stealth on their side at 568x320 (the top HUD up, four lines and six), and kit3d 3D SHOOTER's ten buttons at 320x568, 568x320 and 640x360 (six lines): the toast on the screen and off every button, the prompt on the screen or under the toast.
+- **Docs**: `docs/CONTROLS.md` (Touch: nothing over a button) says so; `docs/HANDOFF-CONTROLS.md` part 3's second line goes; D121; `docs/HANDOFF-FINISH.md`: A2 done, D121 on the owner's reading list.
+
 ## 0.108.6 (2026-11-19)
 
 A1 of `docs/HANDOFF-FINISH.md`: the feedback log's overdue row, reached and taken up by no plan since v0.84.1.

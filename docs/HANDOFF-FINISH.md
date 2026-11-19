@@ -35,16 +35,6 @@ this one.
 
 ## Part A: an agent's, now
 
-### A2. The tall toasts
-
-`docs/HANDOFF-CONTROLS.md` part 3, its second line, the one leftover of the controls standard that needs no play test:
-the kits' toasts of several lines still reach past the top of the screen where no tutorial card is there to lie under
-them (D117's costs). D117 says where its rules run out: 3D SHOOTER's ten buttons upright, and a phone 320 high on its
-side with every piece up. Make those fit within D117's rules (nothing a finger takes moves as a toast comes and goes,
-and a toast's place never sways); how is your call, logged as a decision. Prove it at the sizes D117 measured, with
-screenshots before and after and `npm run test:phone`; then the line goes from part 3. Its first line (D113's rows of
-three on a narrow phone) waits for the play test: Part C.
-
 ### A3. The trimming pass
 
 D98 made every token budget soft and said "the trimming comes later". With exact counts at v0.108.3 (`npm run
@@ -148,6 +138,7 @@ Each is reversible: a revert undoes it. Say which to undo.
 | D101, D103 to D106 | the Shell sized for a TV, with tabbed Settings; Create a quarter of a second late; Emberdeep's d-pad; input and a free camera on the player's own time; kits' keys moved to their genre's | v0.107.0 |
 | D107 to D118 | 52in1's channel for the DualSense, Emberdeep's pages and taps on lift, crouch on C, the kits upright, the gyro's drift, the Shell above the touch buttons | v0.108.0 (`docs/HANDOFF-CONTROLS.md` part 2) |
 | D119 | the engine's tap is its own finger's | v0.108.2 |
+| D121 | a tall toast with no card to lie under: the prompt sinks under it, then the toast is set tight, then no taller than its room, its last lines faded | v0.108.7 |
 
 ### B3. The plan that replaces co-op
 
@@ -183,8 +174,8 @@ Yours to give. `docs/HANDOFF-COOP.md` was scrapped for it in v0.108.3; its text 
 | --- | --- | --- | --- |
 | this plan | written | v0.108.4 | from a survey at v0.108.3 |
 | A0 the baseline | done | v0.108.5, `86cb008` | three failures fixed forward: the music fell silent on a device that lags (an engine bug: a Bluetooth headset's player could hear no music); kit3d's and phone-test's turns in full screen; phone-test's stick checks timed by the wall's clock |
-| A1 the feedback row | done | v0.108.6 | reached: `docs/HANDOFF-LOOK.md` takes it up (A3b) |
-| A2 the tall toasts | not started | | |
+| A1 the feedback row | done | v0.108.6, `99edafa` | reached: `docs/HANDOFF-LOOK.md` takes it up (A3b) |
+| A2 the tall toasts | done | v0.108.7 | the prompt sinks under a tall toast, then the toast is set tight, then no taller than its room (D121): 15 cases past the top or on Menu, none after |
 | A3 the trimming pass | not started | | |
 | A3b the look's remainder | not started | | `docs/HANDOFF-LOOK.md` |
 | A4 the CMU picks (optional) | not started | | |
