@@ -133,6 +133,22 @@ async function open(kit, vp, hash = kit, init) {
 }
 const ev = (p, fn, arg) => p.evaluate(fn, arg);
 const wait = ms => new Promise(r => setTimeout(r, ms));
+// a phone turned to another size: the page leaves full screen first, as a player can (the game remembers it left), since
+// a window in full screen can't be resized (Chromium 153: "restore it to normal state first"). A kit goes full screen by
+// itself when its game starts after a tap (_autoFull), and every page.evaluate Playwright makes counts as one
+// (navigator.userActivation), so whether it is when a check turns it depends on the timing
+async function turnTo(page, size) {
+  await page.evaluate(() => document.fullscreenElement && document.exitFullscreen()).catch(() => {});
+  await page.waitForFunction(() => !document.fullscreenElement, null, { timeout: 5000 }).catch(() => {});
+  for (let i = 0; ; i++) {   // (the window can stay in full screen a moment after the page left it: set it back to normal)
+    try { await page.setViewportSize(size); return; } catch (e) {
+      if (i >= 4 || !/normal state/.test(e.message)) throw e;
+      const cdp = await page.context().newCDPSession(page), { windowId } = await cdp.send('Browser.getWindowForTarget');
+      await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } }).catch(() => {}); await cdp.detach().catch(() => {});
+      await new Promise(r => setTimeout(r, 250));
+    }
+  }
+}
 /** game (screen) pixels -> CSS pixels on the page */
 const toCss = (p, x, y) => ev(p, ([x, y]) => { const S = window.__game.game.screen, rc = S.canvas.getBoundingClientRect(); return [rc.left + (x * S.S + S.OX) / S.dpr, rc.top + (y * S.S + S.OY) / S.dpr]; }, [x, y]);
 /** one finger, pressed at the first point, moved through the rest (ms per step), lifted; mid(i) after each move */
@@ -151,6 +167,13 @@ async function fingers(cdp, from, to, n = 12, ms = 20) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]);
+/** the stick dragged from a to b in n steps of ms each, then held there until the game itself has run that long since the
+ *  press (a machine busy with other work runs fewer frames in the same wall time: the check steers for the game time it
+ *  means, the same as before where the frames keep up) */
+async function steer(page, cdp, a, b, n = 30, ms = 30) {
+  const t0 = await ev(page, () => window.__game.game.time), secs = n * ms / 1000;
+  await drag(cdp, line(a, b, n), ms, async i => { if (i === n - 1) await page.waitForFunction(t => window.__game.game.time >= t, t0 + secs, { polling: 'raf', timeout: 10000 }).catch(() => {}); });
+}
 /** one finger held still at q (CSS px) for ms, then lifted: a real tap's moment; mid() measured while it is down */
 async function hold(cdp, q, ms = 120, mid) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: q[0], y: q[1], id: 1 }] }); await wait(ms);
@@ -446,9 +469,9 @@ if (want('zoom')) {
   // the brawler: a phone held upright starts at its tall 1.5x, on its side at 1x; the player's zoom multiplies either
   const br = await open('brawler', UP); await wait(600);
   const bz = () => ev(br.page, () => window.__game.game.zoom), up0 = await bz();
-  await br.page.setViewportSize(SIDE); await wait(400); const side0 = await bz();
+  await turnTo(br.page, SIDE); await wait(400); const side0 = await bz();
   await ev(br.page, () => window.__game.game.settings.set('zoom', .8)); await wait(400); const side1 = await bz();
-  await br.page.setViewportSize(UP); await wait(400); const up1 = await bz();
+  await turnTo(br.page, UP); await wait(400); const up1 = await bz();
   check('zoom: the brawler starts at 1.5x upright, 1x on its side; the player\'s .8 makes them 1.2x and .8x', up0 === 1.5 && side0 === 1 && side1 === .8 && up1 === 1.2 && !br.errors.length, `upright ${up0}x, on its side ${side0}x; at .8: ${side1}x, upright ${up1}x${br.errors.length ? ', errors: ' + br.errors.join(' | ') : ''}`);
   await br.ctx.close();
   // a computer: the wheel (a notch 10%), - and =, 0 resets
@@ -570,7 +593,7 @@ if (want('kart')) {
     const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, text: b.textContent.trim(), w: q.width, h: q.height }; }));
     const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
     const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
-    await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+    await steer(page, cdp, [sx, sy], [sx + 50, sy]); const s1 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `kart-${label.replace(/ /g, '-')}.png`) });
     // facing the west wall beside the start straight: the gas by itself drives it in and pins it there; the stick held down
     // (a thumb's 1.5 s) brakes, and backs it off the wall as the down key does
@@ -595,7 +618,7 @@ if (want('sky')) {
     const btns = await shown(page);
     const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
     const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
-    await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+    await steer(page, cdp, [sx, sy], [sx + 50, sy]); const s1 = await st();
     const gas = btns.find(b => b.act === 'gas'); if (gas) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: gas.x, y: gas.y }] }); await wait(1200); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); }
     const s2 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `sky-${label.replace(/ /g, '-')}.png`) });
@@ -639,7 +662,7 @@ if (want('blaster')) {
     const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height }; }));
     const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
     const sx = vp.width * .2, sy = vp.height * .75;
-    await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+    await steer(page, cdp, [sx, sy], [sx + 50, sy]); const s1 = await st();
     await ev(page, () => window.__game.game.go('blaster', { part: 'safari' }, { fade: 0 })); await wait(2600); const v0 = await st();
     await page.touchscreen.tap(vp.width * .6, vp.height * .45); await wait(400); const v1 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `blaster-${label.replace(/ /g, '-')}.png`) });
@@ -702,7 +725,7 @@ if (want('zero')) {
     const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height }; }));
     const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
     const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
-    await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+    await steer(page, cdp, [sx, sy], [sx + 50, sy]); const s1 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `zero-${label.replace(/ /g, '-')}.png`) });
     check(`zero ${label}: BOOST, a thumb's size`, acts === 'boost' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
     check(`zero ${label}: it accelerates by itself; the stick held right turns it right`, s0.auto && s0.speed > 30 && E_turn(s0.angle, s1.angle) > .3 && !errors.length, `speed ${s0.speed}, turned ${E_turn(s0.angle, s1.angle).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
@@ -733,19 +756,22 @@ if (want('special')) {
       const st = () => ev(page, () => window.__game.scenes.special.state());
       const btns = await buttons(page), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
       const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
-      await drag(cdp, line([sx, sy], [sx + 50, sy], 30), 30); const s1 = await st();
+      await steer(page, cdp, [sx, sy], [sx + 50, sy]); const s1 = await st();
       await shot(page, 'turn');
       check(`special ${label}: in the fort FIRE, a thumb's size`, btns.length === 1 && btns[0].act === 'fire' && btns[0].text === 'FIRE' && small >= 44, `buttons ${btns.map(q => q.text).join()}, smallest ${Math.round(small)} CSS px`);
       check(`special ${label}: the stick held right turns the soldier right`, s0.part === 'turn' && E_turn(s0.a, s1.a) > .3 && !errors.length, `turned ${E_turn(s0.a, s1.a).toFixed(2)}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
       await ctx.close();
     }
-    {   // the arena: the kart drives by itself; the stick pulled down (and held) brakes it and backs it up (in the open, down
-      // its lane: timed so a kart that can't would not yet have reached the wall ahead, whose bounce backs a kart up too)
+    {   // the arena: the kart drives by itself; the stick pulled down (and held) brakes it and backs it up, past -20: the
+      // wall ahead, which it may reach as it brakes, bounces it back a few units at most
       const { page, ctx, cdp, errors } = await open('special', vp, 'special/arena'); await page.touchscreen.tap(vp.width / 2, vp.height * .3); await wait(1000);
       const st = () => ev(page, () => window.__game.scenes.special.state()), s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
       const touch = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: y === undefined ? [] : [{ x: sx, y, id: 1 }] });
       await touch('touchStart', sy); for (let k = 1; k <= 10; k++) { await touch('touchMove', sy + k * 6); await wait(20); }
-      let back = 0, s1 = s0; for (let k = 0; k < 12; k++) { await wait(100); s1 = await st(); back = Math.min(back, s1.speed); }
+      // (read until it backs up, or 2.5 s of the game's time: braking stops the kart in about .65 s, it waits about a second at
+      // a standstill (a bounce off the wall ahead leaves it a few units back at most), then backs up past -20 by about 1.7 s)
+      const t1 = await ev(page, () => window.__game.game.time); let back = 0, s1 = s0;
+      for (let k = 0; k < 120; k++) { await wait(100); s1 = await st(); back = Math.min(back, s1.speed); if (back < -20 || await ev(page, t => window.__game.game.time >= t, t1 + 2.5)) break; }
       await shot(page, 'arena'); await touch('touchEnd');
       check(`special ${label}: in the arena the kart drives by itself; the stick pulled down backs it up`, s0.part === 'arena' && s0.speed > 30 && back < -20 && s1.you[0] < 560 && !errors.length, `speed ${s0.speed}, then ${back} with the stick down, at ${s1.you}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
       await ctx.close();
@@ -1491,7 +1517,7 @@ if (want('stick')) {
 if (want('bands')) {
   console.log('the Shell\'s bands clear of the touch buttons and of one another');
   const PHONES = [[320, 568], [360, 640], [390, 844], [430, 932]], still = '.esh *{transition:none!important}';   // (where the bands end, not where they slide from)
-  const turn = async (page, w, h) => { await page.setViewportSize({ width: w, height: h }); await page.waitForFunction(up => window.__game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 5000 }).catch(() => {}); await wait(150); };
+  const turn = async (page, w, h) => { await turnTo(page, { width: w, height: h }); await page.waitForFunction(up => window.__game.game.screen.portrait === up, h > w, { polling: 'raf', timeout: 5000 }).catch(() => {}); await wait(150); };
   // every touch button shown, the mode's pieces up, a step for the shell to see them (as the game's next one would); what
   // each lies over: the touch buttons, the corner's, another piece, the top HUD (mode 'hud'), the screen's edges
   const bands = mode => {
