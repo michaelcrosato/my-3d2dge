@@ -22,7 +22,7 @@ this one.
   `CHANGELOG.md` lines, `node tools/build.mjs`, `npm run test:changed`, a pull request squash-merged as soon as it
   passes, then the full `npm test` in the background (a failure is fixed forward at once, or the merge reverted).
   Report each with its version and commit, and fill in its row in [Progress](#progress).
-- One part, one pull request, in the order below; A3 takes one per family of kits.
+- One part, one pull request, in the order below.
 - A reversible call is made at once, in its own commit, flagged in the pull request and logged in `docs/DECISIONS.md`
   (D120 is the last at v0.108.3). A call that is hard to undo waits, as `CLAUDE.md` says. `docs/DECISIONS.md` and
   `docs/FEEDBACK-LOG.md` are never cleaned up: add to them, never remove.
@@ -34,62 +34,6 @@ this one.
   out). A quick headless look at a 3D page needs `?backend=webgl`.
 
 ## Part A: an agent's, now
-
-### A3. The trimming pass
-
-D98 made every token budget soft and said "the trimming comes later". With exact counts at v0.108.3 (`npm run
-doctrine:check`, its item 6), 28 of the 33 kits are past their soft budgets; only fighting, pinball, puzzle, rhythm and
-sports are under. The API card is 22,379 tokens of 22,000, and the API index 65,860 of 64,000.
-
-| Kit | Tokens | Budget | Past by |
-| --- | ---: | ---: | ---: |
-| blaster | 252,178 | 221,000 | 31,178 |
-| sky | 243,770 | 216,000 | 27,770 |
-| rpg | 284,592 | 264,000 | 20,592 |
-| 3d-horror | 288,404 | 268,000 | 20,404 |
-| 3d-shooter | 341,896 | 322,000 | 19,896 |
-| metroidvania | 235,754 | 216,000 | 19,754 |
-| sim | 248,639 | 229,000 | 19,639 |
-| rts | 246,543 | 227,000 | 19,543 |
-| kart | 237,291 | 218,000 | 19,291 |
-| 3d-crawler | 281,200 | 262,000 | 19,200 |
-| 3d-flight | 277,008 | 258,000 | 19,008 |
-| 3d-racing | 275,953 | 257,000 | 18,953 |
-| shooter | 260,949 | 242,000 | 18,949 |
-| adventure | 246,595 | 228,000 | 18,595 |
-| zero | 243,590 | 225,000 | 18,590 |
-| special | 247,584 | 229,000 | 18,584 |
-| road | 234,228 | 216,000 | 18,228 |
-| 3d-action | 268,175 | 250,000 | 18,175 |
-| brawler | 243,067 | 225,000 | 18,067 |
-| 3d-platformer | 262,095 | 244,500 | 17,595 |
-| platformer | 232,732 | 216,000 | 16,732 |
-| stealth | 231,525 | 216,000 | 15,525 |
-| tactics | 227,748 | 216,000 | 11,748 |
-| arcade | 227,578 | 216,000 | 11,578 |
-| animlab | 226,521 | 216,000 | 10,521 |
-| pointclick | 225,521 | 216,000 | 9,521 |
-| roguelike | 222,979 | 216,000 | 6,979 |
-| artillery | 219,555 | 216,000 | 3,555 |
-
-Where a kit's tokens go, the platformer's for one (234k): the engine core on its diet, 169k (148k to 169k in the four
-kits measured); the slice's game, readable, 32k; the API card, 18.6k; the dualsense module, 5.9k (in 32 of the 33
-kits since the controls standard, v0.107.0); the game's lines, 5.7k; its cut of the asset store, 1.4k. The genre's
-other modules add 0 (the platformer) to 18k (artillery). Most kits are 16k to 20k past, so most of it is growth they
-share. Find that first: build a kit at v0.104.1 (`f3c6cc8`, where D98 made the budgets soft) and compare it with
-today's, part by part.
-
-- The means, in the order the doctrine check names them: the kit diet (`DIET` in `tools/build.mjs`, and
-  `tools/diet.mjs`: the core's sections a kit's game never calls), then the API card's detail moved to the index (a
-  kit's card keeps its genre's playbook rows and its modules, D71). Move detail; never drop what a builder needs, and
-  don't cut doc comments to fit (D82).
-- What a kit does must not change: `npm run test:kits` (the slice's proof twice, the same hash; nothing the diet left
-  out called), `npm run test:kits -- --compare <the build before>` (every 2D kit, the same pixels), `npm run
-  test:kit3d` for the 3D kits, and `npm run test:contract` and `npm run test:agent` for the card and the index.
-- No budget is raised (D98). A kit that can't get under without losing what its game needs stays past, and its pull
-  request says why. Each pull request lists every kit's count before and after.
-- Last, the README's sizes, measured again: the play file (13.7 MB, where it says about 12), and the counts in "Share
-  it with an AI model" (measured at v0.85.0).
 
 ### A3b. The look's remainder (A1's plan)
 
@@ -131,7 +75,7 @@ Each is reversible: a revert undoes it. Say which to undo.
 
 | Calls | What they decided | Landed in |
 | --- | --- | --- |
-| D55 | the compact edition kept whole past 500,000 tokens (now about 694k) until your review: split it, drop it or keep it | v0.70.0 |
+| D55 | the compact edition kept whole past 500,000 tokens until your review: split it, drop it or keep it. It is now ~965k, and the complete edition ~1,162k, past a 1M context (README, v0.108.8) | v0.70.0 |
 | D60 to D72, D67 first | the genre plan's budgets, the 3D vehicles (D62, the Vehicle Lab), the plan folded in, the music clock and its check (D67) | v0.79.0 to v0.83.0 (`docs/HANDOFF-REVIEW.md` part 6) |
 | D89, D90 | the Gallery Lab's `quad` and `pick` moved into the mode7 module; a road's fork is the road module's (`split`, `branch`) | v0.95.0, v0.97.0 |
 | D99 | the mga module: `game.audio` plays my-game-audio songs, from a library the game loads itself | v0.106.0 |
@@ -139,6 +83,7 @@ Each is reversible: a revert undoes it. Say which to undo.
 | D107 to D118 | 52in1's channel for the DualSense, Emberdeep's pages and taps on lift, crouch on C, the kits upright, the gyro's drift, the Shell above the touch buttons | v0.108.0 (`docs/HANDOFF-CONTROLS.md` part 2) |
 | D119 | the engine's tap is its own finger's | v0.108.2 |
 | D121 | a tall toast with no card to lie under: the prompt sinks under it, then the toast is set tight, then no taller than its room, its last lines faded | v0.108.7 |
+| D122 | a kit's card leaves out its pieces on what its engine leaves out; the kits stay past their soft budgets, by the controls standard; every 2D kit keeps the platform map (6,900 tokens) only for its title's floor: drawing the title another way is your call | v0.108.8 |
 
 ### B3. The plan that replaces co-op
 
@@ -175,8 +120,8 @@ Yours to give. `docs/HANDOFF-COOP.md` was scrapped for it in v0.108.3; its text 
 | this plan | written | v0.108.4 | from a survey at v0.108.3 |
 | A0 the baseline | done | v0.108.5, `86cb008` | three failures fixed forward: the music fell silent on a device that lags (an engine bug: a Bluetooth headset's player could hear no music); kit3d's and phone-test's turns in full screen; phone-test's stick checks timed by the wall's clock |
 | A1 the feedback row | done | v0.108.6, `99edafa` | reached: `docs/HANDOFF-LOOK.md` takes it up (A3b) |
-| A2 the tall toasts | done | v0.108.7 | the prompt sinks under a tall toast, then the toast is set tight, then no taller than its room (D121): 15 cases past the top or on Menu, none after |
-| A3 the trimming pass | not started | | |
+| A2 the tall toasts | done | v0.108.7, `2e3e3ef` | the prompt sinks under a tall toast, then the toast is set tight, then no taller than its room (D121): 15 cases past the top or on Menu, none after |
+| A3 the trimming pass | done | v0.108.8 | a kit's card leaves out its pieces on what its engine leaves out: 1,118 to 3,052 tokens a kit (D122); 28 kits stay past, by the controls standard every kit's game uses |
 | A3b the look's remainder | not started | | `docs/HANDOFF-LOOK.md` |
 | A4 the CMU picks (optional) | not started | | |
 | B the owner's | waiting on the owner | | |

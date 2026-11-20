@@ -1031,12 +1031,17 @@ if (want('army')) {
   let boxed = 0, inside = 0, strays = 0;
   if (box) {
     const [ax, ay] = await css(box[0], box[1]), [bx, by] = await css(box[2], box[3]);
+    // (where each unit stood on the screen in the step that selected: the crowd still jostles after it, and on a page slow
+    // to answer the measure came far enough after the box to find a unit past its edge, 1 of 58 in a full run)
+    await ev(page, () => { const { game, rts } = window.__fx, R = game.r, input = rts.input.bind(rts); let was = rts.selected; window.__boxAt = null;
+      rts.input = (...a) => { const r = input(...a); if (rts.selected !== was) { was = rts.selected; window.__boxAt = new Map(rts.units.map(u => [u, R.w(u.x, u.y, 0)])); } return r; }; window.__boxInput = input; });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: ax, y: ay }] }); await wait(600);   // a long press (.45 s), then the drag
     for (const q of line([ax, ay], [bx, by], 10)) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: q[0], y: q[1] }] }); await wait(25); }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(250);
-    // (stopped, the crowd still jostles: a unit at the box's edge may be a few pixels past it by now, so those well inside
-    // must be selected and those selected near it; those inside still standing: a foe may strike one down meanwhile)
-    [boxed, inside, strays] = await ev(page, b => { const { game, rts } = window.__fx, R = game.r, S = rts.selected, m = 8, at = u => R.w(u.x, u.y, 0);
+    // (stopped, the crowd still jostles: a unit at the box's edge may be a few pixels past it, so those well inside must be
+    // selected and those selected near it; those inside still standing: a foe may strike one down meanwhile)
+    [boxed, inside, strays] = await ev(page, b => { const { game, rts } = window.__fx, R = game.r, S = rts.selected, m = 8, B = window.__boxAt, at = u => (B && B.get(u)) || R.w(u.x, u.y, 0);
+      rts.input = window.__boxInput;
       const within = (q, d) => q[0] >= b[0] - d && q[0] <= b[2] + d && q[1] >= b[1] - d && q[1] <= b[3] + d, core = rts.of('blue').filter(u => !u.building && !u.dead && within(at(u), -m));
       return [S.length, core.length, S.filter(u => !within(at(u), m)).length + core.filter(u => !S.includes(u)).length]; }, box);
   }
