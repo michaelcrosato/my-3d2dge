@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.10 (2026-11-20)
+
+A4 of `docs/HANDOFF-FINISH.md`: the CMU takes the ledger picked. 4 of the 30 are imported, 1 skipped; the other 25 wait, because importing them would re-cut 32 of the set's first 60 clips.
+
+- **Mocap**: the CMU set's clips 61 to 64: Devil (a monster acted by a person, hunched and clawing), Salsa_Loop, Charleston_Loop and Breaststroke_Loop, each checked on a contact sheet (the salsa's loop given a 1.5 s least cycle, its first a 0.5 s near-still sway). The first 60 clips and their sources are unchanged, byte for byte. The backstroke (126_01) is skipped: it fits its capture too loosely (45 mm on average, past the set's 40), as its ledger's `loose` flag said.
+- **Mocap**: the other 25 picks wait. The importer stands each subject on the floor its picked takes stand on, so a take for a subject the set already has moves that floor and re-cuts its clips: importing all 30 re-cut 32 of the first 60 (some by hundreds in a leg's angles; a get-up lost a key pose). Their ledger notes say so, still `pick`; drafts of all 30 (stretches, loops, descriptions, checked on contact sheets) are in A4's pull request.
+- **Docs**: `docs/MOCAP.md` (65 moments: a devil, dances, swimming; the floor rule and what it means for a subject's new takes), `README.md` and `AI_GUIDE.md` (64). `src/mocap/catalogs/cmu-takes.tsv`: the four used, their notes cleared; the backstroke `skip:` and why; the 25 noted why they wait.
+
 ## 0.108.9 (2026-11-19)
 
 A3b of `docs/HANDOFF-FINISH.md`: `docs/HANDOFF-LOOK.md` carried out, and the feedback log's "The look's remainder" taken up.
