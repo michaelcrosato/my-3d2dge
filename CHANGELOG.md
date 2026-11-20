@@ -7,11 +7,11 @@ One version number covers the engine, its agent edition, the docs and the games 
 
 ## 0.108.10 (2026-11-20)
 
-A4 of `docs/HANDOFF-FINISH.md`: the CMU takes the ledger picked. 5 of the 30 are imported; the other 25 wait, because importing them would re-cut 32 of the set's first 60 clips.
+A4 of `docs/HANDOFF-FINISH.md`: the CMU takes the ledger picked. 4 of the 30 are imported, 1 skipped; the other 25 wait, because importing them would re-cut 32 of the set's first 60 clips.
 
-- **Mocap**: the CMU set's clips 61 to 65: Devil (a monster acted by a person, hunched and clawing), Salsa_Loop, Charleston_Loop, Breaststroke_Loop and Backstroke_Loop, each checked on a contact sheet (the salsa's loop given a 1.5 s least cycle, its first a 0.5 s near-still sway). The first 60 clips and their sources are unchanged, byte for byte.
+- **Mocap**: the CMU set's clips 61 to 64: Devil (a monster acted by a person, hunched and clawing), Salsa_Loop, Charleston_Loop and Breaststroke_Loop, each checked on a contact sheet (the salsa's loop given a 1.5 s least cycle, its first a 0.5 s near-still sway). The first 60 clips and their sources are unchanged, byte for byte. The backstroke (126_01) is skipped: it fits its capture too loosely (45 mm on average, past the set's 40), as its ledger's `loose` flag said.
 - **Mocap**: the other 25 picks wait. The importer stands each subject on the floor its picked takes stand on, so a take for a subject the set already has moves that floor and re-cuts its clips: importing all 30 re-cut 32 of the first 60 (some by hundreds in a leg's angles; a get-up lost a key pose). Their ledger notes say so, still `pick`; drafts of all 30 (stretches, loops, descriptions, checked on contact sheets) are in A4's pull request.
-- **Docs**: `docs/MOCAP.md` (65 moments: a devil, dances, swimming; the floor rule and what it means for a subject's new takes), `README.md` and `AI_GUIDE.md` (65). `src/mocap/catalogs/cmu-takes.tsv`: the five used, their notes cleared; the 25 noted why they wait.
+- **Docs**: `docs/MOCAP.md` (65 moments: a devil, dances, swimming; the floor rule and what it means for a subject's new takes), `README.md` and `AI_GUIDE.md` (64). `src/mocap/catalogs/cmu-takes.tsv`: the four used, their notes cleared; the backstroke `skip:` and why; the 25 noted why they wait.
 
 ## 0.108.9 (2026-11-19)
 

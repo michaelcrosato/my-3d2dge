@@ -109,6 +109,6 @@ Yours to give. `docs/HANDOFF-COOP.md` was scrapped for it in v0.108.3; its text 
 | A2 the tall toasts | done | v0.108.7, `2e3e3ef` | the prompt sinks under a tall toast, then the toast is set tight, then no taller than its room (D121): 15 cases past the top or on Menu, none after |
 | A3 the trimming pass | done | v0.108.8, `7d65660` | a kit's card leaves out its pieces on what its engine leaves out: 1,118 to 3,052 tokens a kit (D122); 28 kits stay past, by the controls standard every kit's game uses |
 | A3b the look's remainder | done | v0.108.9, `78802f2` | the look target's two lines (small units, open ground); the theme taken up; `docs/HANDOFF-LOOK.md` gone (its text: `git show 99edafa:docs/HANDOFF-LOOK.md`) |
-| A4 the CMU picks (optional) | done in part | v0.108.10 | 5 of the 30 imported (the subjects new to the set); 25 wait: each would move its subject's floor and re-cut 32 of the first 60 clips. Their ledger notes say so. To take them: pick a subject's takes together, or have the importer keep a subject's floor once measured (an agent's, when the owner asks) |
+| A4 the CMU picks (optional) | done in part | v0.108.10 | 4 of the 30 imported (the subjects new to the set; the backstroke skipped, too loose a fit); 25 wait: each would move its subject's floor and re-cut 32 of the first 60 clips. Their ledger notes say so. To take them: pick a subject's takes together, or have the importer keep a subject's floor once measured (an agent's, when the owner asks) |
 | B the owner's | waiting on the owner | | |
 | C after the answers | waits on B | | |

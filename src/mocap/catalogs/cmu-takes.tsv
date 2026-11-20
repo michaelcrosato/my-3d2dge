@@ -2066,7 +2066,7 @@ id	subject	fps	sec	category	active	fit	travel	hips	flags	used	note	desc	about
 125_05	125	120	22.3	sports	0.4-22.3	20/162	5.1	64-104	inverted floats			Butterfly	Swimming
 125_06	125	120	40.7	sports	0.4-40.7	23/139	6.5	67-104	inverted floats			Free Style	Swimming
 125_07	125	120	3.0	calibration	0.0-2.3	20/50	0.1	90-92				Motorcycle	Swimming
-126_01	126	120	21.6	sports	0.0-21.6	59/321	1.9	54-56	inverted loose	Backstroke_Loop		Back Stroke	Swimming 2
+126_01	126	120	21.6	sports	0.0-21.6	59/321	1.9	54-56	inverted loose		skip: fits loose, 45 mm on average from its capture, past the CMU set's 40 (tools/mocap-test.mjs)	Back Stroke	Swimming 2
 126_02	126	120	14.6	sports	0.0-14.6	45/154	3.2	83-86	inverted floats loose			Back Stroke	Swimming 2
 126_03	126	120	21.5	sports	0.0-21.5	22/170	5.0	86-101	inverted floats			Breast Stroke	Swimming 2
 126_04	126	120	13.8	sports	0.0-13.8	16/110	1.5	55-62	inverted floats			Breast Stroke	Swimming 2
