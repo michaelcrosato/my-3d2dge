@@ -5,6 +5,11 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each built page carries its build: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page, the home page and in the Mocap Lab. The repository's copies say `dev-build`; `tools/stamp.mjs` fills in the commit in a copy made to share.
 
+## 0.108.11 (2026-11-20)
+
+- **Docs**: `docs/HANDOFF-FINISH.md`'s Progress is current: A4 landed in v0.108.10 (`f5788d1`), and the full `npm test`
+  passed after it (all 30 suites, one at a time, in 57 min 47 s). Part A is merged; Part B is the owner's.
+
 ## 0.108.10 (2026-11-20)
 
 A4 of `docs/HANDOFF-FINISH.md`: the CMU takes the ledger picked. 4 of the 30 are imported, 1 skipped; the other 25 wait, because importing them would re-cut 32 of the set's first 60 clips.
