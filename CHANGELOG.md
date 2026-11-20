@@ -13,6 +13,7 @@ A3 of `docs/HANDOFF-FINISH.md`: the trimming pass D98 put off. Every kit grew 14
 - **Docs**: D122: the card's pieces, and why the kits, the API card (22,379 of 22,000) and the index (65,860 of 64,000) stay past their soft budgets (D98: none raised). On the owner's reading list: every 2D kit keeps the platform map (6,900 tokens) only for its title screen's floor.
 - **Docs**: `README.md`'s sizes, measured again (cl100k, at v0.108.8): the play file about 14 MB; the handoff package ~11 MB (its zip ~4 MB); the agent edition ~121k; the 2D kits ~201k-284k, the 3D ~259k-339k (no longer sized for a 200k context: the controls standard took 28 past their budgets); the compact edition ~965k and the complete one ~1,162k, past a 1M context.
 - **Docs**: `docs/HANDOFF-FINISH.md`: A3 done; D122 and the editions' sizes on the owner's reading list.
+- **Tools**: `phone-test`'s army box selection judges each unit where it stood in the step that selected (the strategy module's input wrapped for the check): the crowd jostles on after it, and on a page slow to answer the measure 250 ms later found 1 of 58 past the box's edge in a full run.
 
 ## 0.108.7 (2026-11-19)
 
