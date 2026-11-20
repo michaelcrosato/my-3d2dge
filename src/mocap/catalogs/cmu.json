@@ -62,7 +62,12 @@
     "Ghost": ["54_10", 0.2, 6.2],
     "Chicken": ["29_22", 0.1, 6.1],
     "Backflip": ["87_03"],
-    "Breakdance_Helicopter": ["85_08"]
+    "Breakdance_Helicopter": ["85_08"],
+    "Devil": ["55_23", 25.0, 31.0],
+    "Salsa_Loop": ["60_01", 6.0, 16.0, 1.5],
+    "Charleston_Loop": ["93_03"],
+    "Breaststroke_Loop": ["125_01", 12.0, 22.0],
+    "Backstroke_Loop": ["126_01", 5.0, 15.0]
   },
   "Walk_Loop": ["walk loop", "An everyday walk at a steady pace, arms swinging loosely. One stride cycle, in place"],
   "Zombie_Walk_Loop": ["walk zombie loop", "A zombie's shamble: head and shoulders slumped forward, a dragging step, arms hanging. One cycle, in place"],
@@ -123,5 +128,10 @@
   "Ghost": ["monster once", "A ghost, acted by a person: gliding, arms floating up, a spooky drift"],
   "Chicken": ["monster once", "A chicken, acted by a person: elbows as flapping wings, pecking, strutting"],
   "Backflip": ["jump dodge once", "A standing backflip: a deep swing of the arms, a jump up and over backwards, landing on the feet"],
-  "Breakdance_Helicopter": ["dance once", "Breakdance: on the floor, the legs sweeping round under the body (the helicopter)"]
+  "Breakdance_Helicopter": ["dance once", "Breakdance: on the floor, the legs sweeping round under the body (the helicopter)"],
+  "Devil": ["monster once", "Acting a devil: hunched and menacing, clawing at the air"],
+  "Salsa_Loop": ["dance loop", "Salsa: quick steps forward and back, hips swaying, arms out. One step cycle, in place"],
+  "Charleston_Loop": ["dance loop", "The Charleston: knees in and out, arms swinging. One cycle, in place"],
+  "Breaststroke_Loop": ["swim loop", "Breaststroke: arms sweeping out and back, legs kicking (lying flat). One stroke, in place"],
+  "Backstroke_Loop": ["swim loop", "Backstroke: arms windmilling over the head, lying on the back. One stroke, in place"]
 }

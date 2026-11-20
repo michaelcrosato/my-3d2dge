@@ -1,10 +1,11 @@
 # Handoff: finishing what is open
 
-> **Status (2026-11-19, at v0.108.3, `1fd6f6b`):** written from a survey of the whole repository: the handoff plans,
-> the Labs page's lists, the decisions and feedback logs, the motion-capture ledger and the doctrine check's notes.
-> Nothing in it has started. It is temporary: when a part is done, its line goes and its row in [Progress](#progress)
-> says where it landed; when none is left, this file goes, after `docs/HANDOFF-REVIEW.md` and
-> `docs/HANDOFF-CONTROLS.md`.
+> **Status (2026-11-20, at v0.108.10):** Part A is done, v0.108.5 to v0.108.10 ([Progress](#progress); A4 in part, its
+> rest waiting for the importer or the owner). Part B is the owner's; Part C waits on its answers. Written 2026-11-19
+> at v0.108.3 (`1fd6f6b`) from a survey of the whole repository: the handoff plans, the Labs page's lists, the
+> decisions and feedback logs, the motion-capture ledger and the doctrine check's notes. It is temporary: when a
+> part is done, its line goes and its row in [Progress](#progress) says where it landed; when none is left, this file
+> goes, after `docs/HANDOFF-REVIEW.md` and `docs/HANDOFF-CONTROLS.md`.
 
 **In short.** Nothing is half-done in git: at v0.108.3 there is no other branch, no stash, no open pull request or
 issue, and the code holds no TODO. What is open comes in three kinds:
@@ -35,16 +36,7 @@ this one.
 
 ## Part A: an agent's, now
 
-### A4. The 30 picked CMU takes (optional)
-
-`src/mocap/catalogs/cmu-takes.tsv` has marked 30 takes `pick` (next to import) since 2026-10-07, and none is imported
-(`node tools/cmu.mjs ledger --status pick`): everyday chores 5, sports 4, animals and characters 4, dance 3,
-locomotion 3, acrobatics 2, sitting and lying 2, gesture and talk 2, and one each of idle, combat, exercise, climbing
-and other. Import them as `docs/MOCAP.md` ("CMU") says: download with `node tools/cmu.mjs get <ids>` (the network:
-mocap.cs.cmu.edu), choose each one's stretch from a contact sheet, name it in `"$pick"` in
-`src/mocap/catalogs/cmu.json`, import with `tools/anim-import.mjs`, keep the ledger true, then `npm run test:mocap`.
-Every clip records where it came from. A take that turns out wrong gets `skip: why` instead. Without the network,
-leave it and say so: it blocks nothing.
+Done: every part is in [Progress](#progress), with its version and commit.
 
 ## Part B: the owner's
 
@@ -116,7 +108,7 @@ Yours to give. `docs/HANDOFF-COOP.md` was scrapped for it in v0.108.3; its text 
 | A1 the feedback row | done | v0.108.6, `99edafa` | reached: `docs/HANDOFF-LOOK.md` takes it up (A3b) |
 | A2 the tall toasts | done | v0.108.7, `2e3e3ef` | the prompt sinks under a tall toast, then the toast is set tight, then no taller than its room (D121): 15 cases past the top or on Menu, none after |
 | A3 the trimming pass | done | v0.108.8, `7d65660` | a kit's card leaves out its pieces on what its engine leaves out: 1,118 to 3,052 tokens a kit (D122); 28 kits stay past, by the controls standard every kit's game uses |
-| A3b the look's remainder | done | v0.108.9 | the look target's two lines (small units, open ground); the theme taken up; `docs/HANDOFF-LOOK.md` gone (its text: `git show 99edafa:docs/HANDOFF-LOOK.md`) |
-| A4 the CMU picks (optional) | not started | | |
+| A3b the look's remainder | done | v0.108.9, `78802f2` | the look target's two lines (small units, open ground); the theme taken up; `docs/HANDOFF-LOOK.md` gone (its text: `git show 99edafa:docs/HANDOFF-LOOK.md`) |
+| A4 the CMU picks (optional) | done in part | v0.108.10 | 5 of the 30 imported (the subjects new to the set); 25 wait: each would move its subject's floor and re-cut 32 of the first 60 clips. Their ledger notes say so. To take them: pick a subject's takes together, or have the importer keep a subject's floor once measured (an agent's, when the owner asks) |
 | B the owner's | waiting on the owner | | |
 | C after the answers | waits on B | | |
